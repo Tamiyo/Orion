@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16.3)
 
 # Project metadata.
+set(CMAKE_C_COMPILER /usr/bin/clang-18)
+set(CMAKE_CXX_COMPILER /usr/bin/clang++-18)
 project(orion VERSION 0.1 LANGUAGES CXX)
 enable_testing()
 

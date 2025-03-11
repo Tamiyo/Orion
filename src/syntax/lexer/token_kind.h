@@ -5,15 +5,22 @@
 #include <string>
 
 namespace orion::syntax {
+
+/**
+ * @brief Represents the different kinds of tokens in the lexer.
+ *
+ * This enum class categorizes various token types encountered during
+ * lexical analysis, including literals, operators, punctuation, and keywords.
+ */
 enum class TokenKind : uint16_t {
-  // Trivia
+  // --- Trivia ---
   kWhitespace,
   kNewline,
   kComment,
 
-  // Keywords
+  // --- Keywords ---
 
-  // Punctuation
+  // --- Punctuation ---
   kDot,
 
   kPlus,
@@ -22,24 +29,27 @@ enum class TokenKind : uint16_t {
   kSlash,
   kPercent,
 
-  // String Literals
-  // kStringLiteral,
+  // --- Boolean Literals ---
+  kBooleanLiteral,
 
-  // Exact Numeric Literals
+  // --- String Literals ---
+  kStringLiteral,
+
+  // --- Exact Numeric Literals ---
   kIntLiteral,
   kBigIntLiteral,
   kSmallIntLiteral,
   kTinyIntLiteral,
 
-  // Approx Numeric Literals
+  // --- Approx Numeric Literals ---
   kFloatLiteral,
   kDoubleLit,
   kBigDecimalLiteral,
 
-  // Other
+  // --- Other ---
   kIdentifier,
 
-  // Special
+  // --- Special ---
   kEof,
 };
 }  // namespace orion::syntax

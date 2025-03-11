@@ -1,1 +1,0 @@
-/usr/bin/clang++  -g   CMakeFiles/orion.dir/orion/main.cc.o  -o orion  syntax/libsyntax.a 

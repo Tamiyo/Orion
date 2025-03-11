@@ -12,24 +12,23 @@
 namespace orion::syntax {
 class AbstractLexer {
  public:
+  AbstractLexer() = delete;
+  virtual ~AbstractLexer() = default;
+
   virtual std::optional<Token> TryNextToken() = 0;
 
  protected:
-  explicit AbstractLexer(std::string source,
-                         const bool is_case_sensitive = false)
-      : source_(std::move(source)), is_case_sensitive_(is_case_sensitive) {
-    source_length_ = source_.length();
-    start_ = 0;
-    end_ = 0;
-  }
-
-  ~AbstractLexer() = default;
+  explicit AbstractLexer(std::u32string source)
+      : source_(std::move(source)),
+        source_length_(source_.length()),
+        start_(0),
+        end_(0) {}
 
   // Utils
   template <typename TokenKind = uint16_t>
   Token CreateToken(TokenKind kind) {
     const size_t distance = end_ - start_;
-    const std::string source = source_.substr(start_, distance);
+    const std::u32string source = source_.substr(start_, distance);
     const auto span = Span(start_, end_);
     const auto token = Token(static_cast<uint16_t>(kind), span, source);
 
@@ -44,33 +43,36 @@ class AbstractLexer {
   }
 
   // State Management
-  [[nodiscard]] bool AtEnd(size_t offset = 0) const;
+  [[nodiscard]] bool AtEnd(size_t offset = 0) const {
+    return end_ + offset >= source_length_;
+  }
 
   // Peek
-  [[nodiscard]] char GetCurrent() const;
+  [[nodiscard]] char32_t GetCurrent() const { return source_.at(end_); }
 
   // Check
-  [[nodiscard]] bool IsCurrent(char ch, size_t offset = 0) const;
-  [[nodiscard]] bool IsCurrent(const std::function<int(int)>& predicate,
+  [[nodiscard]] bool IsCurrent(char32_t ch, size_t offset = 0) const;
+  [[nodiscard]] bool IsCurrent(const std::u32string& value,
                                size_t offset = 0) const;
-  [[nodiscard]] bool IsCurrent2(char ch1, char ch2, size_t offset = 0) const;
-  [[nodiscard]] bool IsCurrent3(char ch1, char ch2, char ch3,
+  [[nodiscard]] bool IsCurrent(const std::function<bool(char32_t)>& predicate,
+                               size_t offset = 0) const;
+  [[nodiscard]] bool IsCurrent2(char32_t ch1, char32_t ch2,
                                 size_t offset = 0) const;
-  [[nodiscard]] bool IsCurrentSubstr(const std::string& substr) const;
+  [[nodiscard]] bool IsCurrent3(char32_t ch1, char32_t ch2, char32_t ch3,
+                                size_t offset = 0) const;
 
   // Consume
   void Consume(size_t count = 1);
   void ConsumeIf(bool condition);
-  void ConsumeWhile(const std::function<bool(char)>& predicate);
-  void TryConsume(char ch);
-  void TryConsume2(char ch1, char ch2);
+  void ConsumeWhile(const std::function<bool(char32_t)>& predicate);
+  void TryConsume(char32_t ch);
+  void TryConsume2(char32_t ch1, char32_t ch2);
 
  private:
-  std::string source_;
-  size_t source_length_;
+  const std::u32string source_;
+  const size_t source_length_;
   size_t start_;
   size_t end_;
-  bool is_case_sensitive_;
 };
 }  // namespace orion::syntax
 #endif  // ORION_SYNTAX_LEXER_ABSTRACT_LEXER_H_

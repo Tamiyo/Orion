@@ -2,6 +2,7 @@
 #define ORION_SYNTAX_LEXER_LEXER_H_
 
 #include <optional>
+#include <string>
 
 #include "syntax/lexer/abstract_lexer.h"
 #include "syntax/lexer/token.h"
@@ -9,11 +10,8 @@
 namespace orion::syntax {
 class Lexer final : public AbstractLexer {
  public:
-  explicit Lexer(const std::string &source,
-                 const bool is_case_sensitive = false)
-      : AbstractLexer(source, is_case_sensitive) {}
-
-  virtual ~Lexer() = default;
+  explicit Lexer(const std::u32string &source) : AbstractLexer(source) {}
+  Lexer() = delete;
 
   std::optional<Token> TryNextToken() override;
 
@@ -23,6 +21,8 @@ class Lexer final : public AbstractLexer {
   std::optional<Token> TryOperator();
   std::optional<Token> TryKeywordOrIdentifier();
   std::optional<Token> TryLiteral();
+  std::optional<Token> TryStringLiteral();
+  std::optional<Token> TryBooleanLiteral();
   std::optional<Token> TryNumericLiteral(bool consume_digits = true);
 
   // Fragments
