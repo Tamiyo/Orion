@@ -1,0 +1,1 @@
+/usr/bin/clang++  -g   CMakeFiles/syntax_tests.dir/syntax_tests.cc.o CMakeFiles/syntax_tests.dir/lexer/lexer_tests.cc.o  -o syntax_tests  ../../lib/libgtest_main.a ../../src/syntax/libsyntax.a ../../lib/libgtest.a -lpthread 

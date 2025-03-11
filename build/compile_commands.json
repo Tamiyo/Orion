@@ -1,0 +1,47 @@
+[
+{
+  "directory": "/home/tamiyo/code/orion/build/_deps/googletest-build/googlemock",
+  "command": "/usr/bin/clang++   -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googlemock/include -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googlemock -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest/include -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest  -g   -Wall -Wshadow -Wconversion -DGTEST_HAS_PTHREAD=1 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -Wall -Wextra -Wpedantic -std=c++2a -o CMakeFiles/gmock_main.dir/src/gmock_main.cc.o -c /home/tamiyo/code/orion/build/_deps/googletest-src/googlemock/src/gmock_main.cc",
+  "file": "/home/tamiyo/code/orion/build/_deps/googletest-src/googlemock/src/gmock_main.cc"
+},
+{
+  "directory": "/home/tamiyo/code/orion/build/_deps/googletest-build/googlemock",
+  "command": "/usr/bin/clang++   -I/home/tamiyo/code/orion/build/_deps/googletest-src/googlemock/include -I/home/tamiyo/code/orion/build/_deps/googletest-src/googlemock -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest/include -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest  -g   -Wall -Wshadow -Wconversion -DGTEST_HAS_PTHREAD=1 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -Wall -Wextra -Wpedantic -std=c++2a -o CMakeFiles/gmock.dir/src/gmock-all.cc.o -c /home/tamiyo/code/orion/build/_deps/googletest-src/googlemock/src/gmock-all.cc",
+  "file": "/home/tamiyo/code/orion/build/_deps/googletest-src/googlemock/src/gmock-all.cc"
+},
+{
+  "directory": "/home/tamiyo/code/orion/build/_deps/googletest-build/googletest",
+  "command": "/usr/bin/clang++   -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest/include -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest  -g   -Wall -Wshadow -Wconversion -DGTEST_HAS_PTHREAD=1 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -Wall -Wextra -Wpedantic -std=c++2a -o CMakeFiles/gtest_main.dir/src/gtest_main.cc.o -c /home/tamiyo/code/orion/build/_deps/googletest-src/googletest/src/gtest_main.cc",
+  "file": "/home/tamiyo/code/orion/build/_deps/googletest-src/googletest/src/gtest_main.cc"
+},
+{
+  "directory": "/home/tamiyo/code/orion/build/_deps/googletest-build/googletest",
+  "command": "/usr/bin/clang++   -I/home/tamiyo/code/orion/build/_deps/googletest-src/googletest/include -I/home/tamiyo/code/orion/build/_deps/googletest-src/googletest  -g   -Wall -Wshadow -Wconversion -DGTEST_HAS_PTHREAD=1 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -Wall -Wextra -Wpedantic -std=c++2a -o CMakeFiles/gtest.dir/src/gtest-all.cc.o -c /home/tamiyo/code/orion/build/_deps/googletest-src/googletest/src/gtest-all.cc",
+  "file": "/home/tamiyo/code/orion/build/_deps/googletest-src/googletest/src/gtest-all.cc"
+},
+{
+  "directory": "/home/tamiyo/code/orion/build/src",
+  "command": "/usr/bin/clang++   -I/home/tamiyo/code/orion/src -I/home/tamiyo/code/orion/src/syntax -I/home/tamiyo/code/orion/src/syntax/..  -g   -Wall -Wextra -Wpedantic -std=gnu++2a -o CMakeFiles/orion.dir/orion/main.cc.o -c /home/tamiyo/code/orion/src/orion/main.cc",
+  "file": "/home/tamiyo/code/orion/src/orion/main.cc"
+},
+{
+  "directory": "/home/tamiyo/code/orion/build/src/syntax",
+  "command": "/usr/bin/clang++   -I/home/tamiyo/code/orion/src/syntax/..  -g   -Wall -Wextra -Wpedantic -std=gnu++2a -o CMakeFiles/syntax.dir/lexer/abstract_lexer.cc.o -c /home/tamiyo/code/orion/src/syntax/lexer/abstract_lexer.cc",
+  "file": "/home/tamiyo/code/orion/src/syntax/lexer/abstract_lexer.cc"
+},
+{
+  "directory": "/home/tamiyo/code/orion/build/src/syntax",
+  "command": "/usr/bin/clang++   -I/home/tamiyo/code/orion/src/syntax/..  -g   -Wall -Wextra -Wpedantic -std=gnu++2a -o CMakeFiles/syntax.dir/lexer/lexer.cc.o -c /home/tamiyo/code/orion/src/syntax/lexer/lexer.cc",
+  "file": "/home/tamiyo/code/orion/src/syntax/lexer/lexer.cc"
+},
+{
+  "directory": "/home/tamiyo/code/orion/build/test/syntax",
+  "command": "/usr/bin/clang++   -I/home/tamiyo/code/orion/src/syntax/.. -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest/include -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest  -g   -Wall -Wextra -Wpedantic -std=gnu++2a -o CMakeFiles/syntax_tests.dir/syntax_tests.cc.o -c /home/tamiyo/code/orion/test/syntax/syntax_tests.cc",
+  "file": "/home/tamiyo/code/orion/test/syntax/syntax_tests.cc"
+},
+{
+  "directory": "/home/tamiyo/code/orion/build/test/syntax",
+  "command": "/usr/bin/clang++   -I/home/tamiyo/code/orion/src/syntax/.. -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest/include -isystem /home/tamiyo/code/orion/build/_deps/googletest-src/googletest  -g   -Wall -Wextra -Wpedantic -std=gnu++2a -o CMakeFiles/syntax_tests.dir/lexer/lexer_tests.cc.o -c /home/tamiyo/code/orion/test/syntax/lexer/lexer_tests.cc",
+  "file": "/home/tamiyo/code/orion/test/syntax/lexer/lexer_tests.cc"
+}
+]

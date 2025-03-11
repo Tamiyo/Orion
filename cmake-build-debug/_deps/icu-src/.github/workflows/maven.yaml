@@ -1,0 +1,43 @@
+name: Publish icu4j.jar/utilities.jar to GH Maven
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    # To trigger the Env Test workflow manually, follow the instructions in
+    # https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow
+
+env:
+  SHARED_MVN_ARGS: '--show-version'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          lfs: true
+      - uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9 # v4.2.1
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: icu4j and releaseCLDR
+        run: |
+          cd icu4j
+          mvn ${SHARED_MVN_ARGS} clean install -DskipTests -DskipIT -P with_sources
+      - name: deploy it
+        run: |
+          echo Github Ref ${GITHUB_REF} @ ${GITHUB_SHA};
+          cd icu4j
+          mvn deploy ${SHARED_MVN_ARGS} \
+            -pl :icu4j,:utilities-for-cldr,:icu4j-root \
+            -DaltDeploymentRepository=github::https://maven.pkg.github.com/${GITHUB_REPOSITORY} \
+            -P cldr_utilities,with_sources
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+# Note: can use 0.0.0-${GITHUB_SHA} as the version for hash-based.
+# i.e. build on every commit

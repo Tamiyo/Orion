@@ -1,0 +1,5 @@
+if(EXISTS "/home/tamiyo/code/orion/cmake-build-debug/test/syntax/syntax_tests[1]_tests.cmake")
+  include("/home/tamiyo/code/orion/cmake-build-debug/test/syntax/syntax_tests[1]_tests.cmake")
+else()
+  add_test(syntax_tests_NOT_BUILT syntax_tests_NOT_BUILT)
+endif()

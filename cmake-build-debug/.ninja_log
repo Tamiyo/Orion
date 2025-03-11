@@ -1,0 +1,27 @@
+# ninja log v6
+3	1561	1741591399452557461	test/syntax/CMakeFiles/syntax_tests.dir/lexer/lexer_tests.cc.o	74d4527c1f7f6077
+0	302	1741490882114656075	src/lexer/CMakeFiles/lexer.dir/lexer.cc.o	11ba16e6581416ff
+1	14834	1741591842872512415	build.ninja	12a3f3e51d21c897
+2	462	1741591399452557461	src/syntax/CMakeFiles/syntax.dir/lexer/abstract_lexer.cc.o	d160d21f05851c12
+302	307	1741490882410169542	src/lexer/liblexer.a	9fc7586f287a4995
+3718	3883	1741591403332557061	test/syntax/syntax_tests	163edccda808488e
+3711	3718	1741591403162557076	lib/libgtest_main.a	805dc778015fafa4
+3673	3711	1741591403122557080	lib/libgtest.a	1b2db7cc541f9784
+307	367	1741490882419702232	src/orion	2b1dd6a49cc90da6
+534	545	1741591399982557406	src/syntax/libsyntax.a	72be7d95f6be514e
+1	21	1741490882114656075	src/syntax/CMakeFiles/syntax.dir/syntax.cc.o	e89017808641cc96
+1	279	1741490882114656075	src/CMakeFiles/orion.dir/orion/main.cc.o	c77d20986b2d051d
+1	308	1741562014973605147	src/syntax/CMakeFiles/syntax.dir/lexer/token_kind.cc.o	d8d1aeb6307d6624
+2	534	1741591399452557461	src/syntax/CMakeFiles/syntax.dir/lexer/lexer.cc.o	4971f57ae6ccb169
+2	1094	1741591399452557461	test/syntax/CMakeFiles/syntax_tests.dir/syntax_tests.cc.o	65d6c710772698be
+1	3673	1741591399452557461	_deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o	6f1f7786ce93426f
+2	1103	1741591399452557461	_deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o	41e8c63c659bfbae
+3718	3883	1741591403332557061	/home/tamiyo/code/orion/cmake-build-debug/test/syntax/syntax_tests[1]_tests.cmake	163edccda808488e
+3718	3883	1741591403332557061	test/syntax/syntax_tests[1]_tests.cmake	163edccda808488e
+2	12	1741494929711949709	src/syntax/CMakeFiles/syntax.dir/parser/abstract_parser.cc.o	82dc2d00049ac26e
+1	167	1741591842872512415	build.ninja	12a3f3e51d21c897
+2	399	1741591898372505905	src/syntax/CMakeFiles/syntax.dir/lexer/lexer.cc.o	4971f57ae6ccb169
+399	407	1741591898772505862	src/syntax/libsyntax.a	72be7d95f6be514e
+407	569	1741591898942505844	test/syntax/syntax_tests	163edccda808488e
+407	569	1741591898942505844	test/syntax/syntax_tests[1]_tests.cmake	163edccda808488e
+407	569	1741591898942505844	/home/tamiyo/code/orion/cmake-build-debug/test/syntax/syntax_tests[1]_tests.cmake	163edccda808488e

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libsyntax.a  CMakeFiles/syntax.dir/lexer/abstract_lexer.cc.o CMakeFiles/syntax.dir/lexer/lexer.cc.o
+/usr/bin/ranlib libsyntax.a
