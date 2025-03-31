@@ -1,5 +1,5 @@
-#ifndef ORION_SYNTAX_LEXER_TOKEN_H_
-#define ORION_SYNTAX_LEXER_TOKEN_H_
+#ifndef SYNTAX_LEXER_TOKEN_H_
+#define SYNTAX_LEXER_TOKEN_H_
 
 #include <cstdint>
 #include <string>
@@ -39,6 +39,16 @@ class Token {
   Token() = delete;
 
   /**
+   * @brief Returns how long the  span (position range) of the token in the
+   * source text is.
+   *
+   * @return The `size_t` representing the length of the token's span.
+   */
+  [[nodiscard]] size_t Length() const noexcept {
+    return span_.End() - span_.Start();
+  }
+
+  /**
    * @brief Retrieves the token's kind as a specific enumeration type.
    *
    * @tparam TokenKind The enumeration type representing token kinds.
@@ -48,7 +58,7 @@ class Token {
    *       token's kind value is a valid enumerator.
    */
   template <typename TokenKind>
-  TokenKind GetKind() const {
+  [[nodiscard]] TokenKind Kind() const noexcept {
     return static_cast<TokenKind>(kind_);
   }
 
@@ -57,14 +67,16 @@ class Token {
    *
    * @return The `Span` object representing the start and end positions.
    */
-  [[nodiscard]] orion::syntax::Span Span() const { return span_; }
+  [[nodiscard]] orion::syntax::Span Span() const noexcept { return span_; }
 
   /**
    * @brief Returns the actual text content of the token.
    *
    * @return A reference to the token's source string.
    */
-  [[nodiscard]] const std::u32string& Source() const { return source_; }
+  [[nodiscard]] const std::u32string& Source() const noexcept {
+    return source_;
+  }
 
   /**
    * @brief Checks if two tokens are equal.
@@ -73,7 +85,7 @@ class Token {
    * @return `true` if both tokens have the same kind, span, and source text,
    *         otherwise `false`.
    */
-  bool operator==(const Token& other) const {
+  bool operator==(const Token& other) const noexcept {
     return kind_ == other.kind_ && source_ == other.source_ &&
            span_ == other.span_;
   }
@@ -89,4 +101,4 @@ class Token {
   const std::u32string source_;
 };
 }  // namespace orion::syntax
-#endif  // ORION_SYNTAX_LEXER_TOKEN_H_
+#endif  // SYNTAX_LEXER_TOKEN_H_

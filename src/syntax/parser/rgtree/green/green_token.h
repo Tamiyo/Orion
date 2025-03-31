@@ -1,12 +1,11 @@
 #ifndef SYNTAX_PARSER_RGTREE_GREEN_GREEN_TOKEN_H_
 #define SYNTAX_PARSER_RGTREE_GREEN_GREEN_TOKEN_H_
 
-#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "syntax/parser/syntax_kind.h"
+#include "syntax/syntax_kind.h"
 
 namespace orion::syntax {
 /**

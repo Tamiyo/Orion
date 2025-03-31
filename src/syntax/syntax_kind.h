@@ -1,16 +1,11 @@
-#ifndef SYNTAX_LEXER_TOKEN_KIND_H_
-#define SYNTAX_LEXER_TOKEN_KIND_H_
+#ifndef SYNTAX_SYNTAX_KIND_H_
+#define SYNTAX_SYNTAX_KIND_H_
 
 #include <cstdint>
 
 namespace orion::syntax {
-/**
- * @brief Represents the different kinds of tokens in the lexer.
- *
- * This enum class categorizes various token types encountered during
- * lexical analysis, including literals, operators, punctuation, and keywords.
- */
-enum class TokenKind : uint16_t {
+// Note: The 'tokens' enum values must match TokenKind.
+enum class SyntaxKind : uint16_t {
   // --- Trivia ---
   kWhitespace,
   kNewline,
@@ -50,18 +45,10 @@ enum class TokenKind : uint16_t {
 
   // --- Special ---
   kEof,
-};
 
-constexpr bool IsTrivia(const TokenKind kind) noexcept {
-  switch (kind) {
-    case TokenKind::kWhitespace:
-    case TokenKind::kNewline:
-    case TokenKind::kComment:
-      return true;
-    default:
-      return false;
-  }
+  // --- Nodes ---
+  kError,
 };
-
 }  // namespace orion::syntax
-#endif  // SYNTAX_LEXER_TOKEN_KIND_H_
+
+#endif  // SYNTAX_SYNTAX_KIND_H_

@@ -5,8 +5,7 @@
 #include <vector>
 
 #include "syntax/parser/rgtree/green/green_cache.h"
-#include "syntax/parser/rgtree/green/green_element.h"
-#include "syntax/parser/syntax_kind.h"
+#include "syntax/syntax_kind.h"
 
 namespace orion::syntax {
 

@@ -9,7 +9,7 @@
 #include "syntax/parser/rgtree/green/green_element.h"
 #include "syntax/parser/rgtree/green/green_node.h"
 #include "syntax/parser/rgtree/green/green_token.h"
-#include "syntax/parser/syntax_kind.h"
+#include "syntax/syntax_kind.h"
 
 namespace {
 constexpr size_t kMaxCachedNodeSize = 3;
@@ -25,10 +25,10 @@ const std::u32string kTestSource2 = U"goodbye world";
 
 TEST(GreenCacheTest, GetToken) {
   auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
-  auto [hash, token] = cache.GetToken(kTestSyntaxKind1, kTestSource1);
+  auto entry = cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, token.UseCount());
+  EXPECT_EQ(2, entry.Element().UseCount());
 
   // Only one instance of this token.
   EXPECT_EQ(1, cache.TokenSize());
@@ -36,30 +36,30 @@ TEST(GreenCacheTest, GetToken) {
 
 TEST(GreenCacheTest, GetTokensDifferentKind) {
   auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
-  auto [hash1, token1] = cache.GetToken(kTestSyntaxKind1, kTestSource1);
-  auto [hash2, token2] = cache.GetToken(kTestSyntaxKind2, kTestSource1);
+  auto entry1 = cache.GetToken(kTestSyntaxKind1, kTestSource1);
+  auto entry2 = cache.GetToken(kTestSyntaxKind2, kTestSource1);
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, token1.UseCount());
-  EXPECT_EQ(2, token2.UseCount());
+  EXPECT_EQ(2, entry1.Element().UseCount());
+  EXPECT_EQ(2, entry2.Element().UseCount());
 
   // Hashes for two distinct tokens should never be equal.
-  EXPECT_NE(hash1, hash2);
+  EXPECT_NE(entry1.Hash(), entry2.Hash());
 
-  // Two different tokens for token1, and token 2.
+  // Two different tokens for entry1.Element(), and token 2.
   EXPECT_EQ(2, cache.TokenSize());
 }
 
 TEST(GreenCacheTest, GetTokensDifferentSource) {
   auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
-  auto [hash1, token1] = cache.GetToken(kTestSyntaxKind1, kTestSource1);
-  auto [hash2, token2] = cache.GetToken(kTestSyntaxKind1, kTestSource2);
+  auto entry1 = cache.GetToken(kTestSyntaxKind1, kTestSource1);
+  auto entry2 = cache.GetToken(kTestSyntaxKind1, kTestSource2);
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, token1.UseCount());
-  EXPECT_EQ(2, token2.UseCount());
+  EXPECT_EQ(2, entry1.Element().UseCount());
+  EXPECT_EQ(2, entry2.Element().UseCount());
 
-  // Two different tokens for token1, and token2.
+  // Two different tokens for entry1.Element(), and entry2.Element().
   EXPECT_EQ(2, cache.TokenSize());
 }
 
@@ -74,19 +74,19 @@ TEST(GreenCacheTest, GetNode) {
 
   auto children = std::vector{entry1, entry2};
 
-  auto [hash, node] =
-      cache.GetNode(orion::syntax::SyntaxKind::kError, children, 0);
+  auto entry = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 0);
 
   // The node should have two children.
-  EXPECT_EQ(2, node.TryGetNode()->Children().size());
+  EXPECT_EQ(2, entry.Element().TryGetNode()->Children().size());
 
   // Children vector should have its elements removed.
   EXPECT_EQ(0, children.size());
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, node.UseCount());
+  EXPECT_EQ(2, entry.Element().UseCount());
 
-  // Two different tokens for token1, and token2. One node for node.
+  // Two different tokens for entry1.Element(), and entry2.Element(). One node
+  // for node.
   EXPECT_EQ(2, cache.TokenSize());
   EXPECT_EQ(1, cache.NodeSize());
 }
@@ -102,19 +102,19 @@ TEST(GreenCacheTest, GetNodeLeftoverChildren) {
 
   auto children = std::vector{entry1, entry2};
 
-  auto [hash, node] =
-      cache.GetNode(orion::syntax::SyntaxKind::kError, children, 1);
+  auto entry = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 1);
 
   // The node should have two children.
-  EXPECT_EQ(1, node.TryGetNode()->Children().size());
+  EXPECT_EQ(1, entry.Element().TryGetNode()->Children().size());
 
   // Children vector should have its elements reduced.
   EXPECT_EQ(1, children.size());
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, node.UseCount());
+  EXPECT_EQ(2, entry.Element().UseCount());
 
-  // Two different tokens for token1, and token2. One node for node.
+  // Two different tokens for entry1.Element(), and entry2.Element(). One node
+  // for node.
   EXPECT_EQ(2, cache.TokenSize());
   EXPECT_EQ(1, cache.NodeSize());
 }
@@ -122,74 +122,70 @@ TEST(GreenCacheTest, GetNodeLeftoverChildren) {
 TEST(GreenCacheTest, GetNodeDuplicateNodes) {
   auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
 
-  const orion::syntax::CachedGreenElement entry1 =
+  const orion::syntax::CachedGreenElement child1 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
-  const orion::syntax::CachedGreenElement entry2 =
+  const orion::syntax::CachedGreenElement child2 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
-  auto children = std::vector{entry1, entry2};
+  auto children = std::vector{child1, child2};
 
-  auto [hash1, node1] =
-      cache.GetNode(orion::syntax::SyntaxKind::kError, children, 1);
-
-  auto [hash2, node2] =
-      cache.GetNode(orion::syntax::SyntaxKind::kError, children, 0);
-
-  // Hashes for the same node should be the same.
-  EXPECT_EQ(hash1, hash2);
-
-  // The node should have two children.
-  EXPECT_EQ(1, node1.TryGetNode()->Children().size());
-  EXPECT_EQ(1, node2.TryGetNode()->Children().size());
+  auto entry1 = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 1);
+  auto entry2 = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 0);
 
   // Children vector should have its elements removed.
   EXPECT_EQ(0, children.size());
 
-  // One in the cache, two held in this test method since the ndoes are the
-  // same.
-  EXPECT_EQ(3, node1.UseCount());
-  EXPECT_EQ(3, node2.UseCount());
-
-  // One token for token1 and token2. One node for node1 and node2.
+  // One token for entry1.Element() and entry2.Element(). One node for
+  // entry1.Element() and entry2.Element().
   EXPECT_EQ(1, cache.TokenSize());
   EXPECT_EQ(1, cache.NodeSize());
+
+  // Hashes for the same node should be the same.
+  EXPECT_EQ(entry1.Hash(), entry2.Hash());
+
+  // The node should have two children.
+  EXPECT_EQ(1, entry1.Element().TryGetNode()->Children().size());
+  EXPECT_EQ(1, entry2.Element().TryGetNode()->Children().size());
+
+  // One in the cache, two held in this test method since the ndoes are the
+  // same.
+  EXPECT_EQ(3, entry1.Element().UseCount());
+  EXPECT_EQ(3, entry2.Element().UseCount());
 }
 
 TEST(GreenCacheTest, GetNodeDuplicateNodesOverMaxCacheSize) {
   auto cache = orion::syntax::GreenCache(0);
 
-  const orion::syntax::CachedGreenElement entry1 =
+  const orion::syntax::CachedGreenElement child1 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
-  const orion::syntax::CachedGreenElement entry2 =
+  const orion::syntax::CachedGreenElement child2 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
-  auto children = std::vector{entry1, entry2};
+  auto children = std::vector{child1, child2};
 
-  auto [hash1, node1] =
-      cache.GetNode(orion::syntax::SyntaxKind::kError, children, 1);
-
-  auto [hash2, node2] =
-      cache.GetNode(orion::syntax::SyntaxKind::kError, children, 0);
-
-  // Hashes for the same node should be the same.
-  EXPECT_EQ(0, hash1);
-  EXPECT_EQ(0, hash2);
-
-  // The node should have two children.
-  EXPECT_EQ(1, node1.TryGetNode()->Children().size());
-  EXPECT_EQ(1, node2.TryGetNode()->Children().size());
+  auto entry1 = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 1);
+  auto entry2 = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 0);
 
   // Children vector should have its elements removed.
   EXPECT_EQ(0, children.size());
 
-  // At this point, each node is *not* cached.
-  EXPECT_EQ(1, node1.UseCount());
-  EXPECT_EQ(1, node2.UseCount());
-
-  // One token for token1 and token2, however no nodes should be cached.
+  // One token for entry1.Element() and entry2.Element(), however no nodes
+  // should be cached.
   EXPECT_EQ(1, cache.TokenSize());
   EXPECT_EQ(0, cache.NodeSize());
+
+  // Hashes for the same node should be the same.
+  EXPECT_EQ(0, entry1.Hash());
+  EXPECT_EQ(0, entry2.Hash());
+
+  // The node should have two children.
+  EXPECT_EQ(1, entry1.Element().TryGetNode()->Children().size());
+  EXPECT_EQ(1, entry2.Element().TryGetNode()->Children().size());
+
+  // At this point, each node is *not* cached.
+  EXPECT_EQ(1, entry1.Element().UseCount());
+  EXPECT_EQ(1, entry2.Element().UseCount());
 }
 }  // namespace

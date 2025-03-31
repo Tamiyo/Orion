@@ -1,13 +1,12 @@
 #include "syntax/parser/rgtree/green/green_builder.h"
 
-#include <algorithm>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
 #include "syntax/parser/rgtree/green/green_cache.h"
 #include "syntax/parser/rgtree/green/green_element.h"
-#include "syntax/parser/syntax_kind.h"
+#include "syntax/syntax_kind.h"
 
 // https://github.com/rust-analyzer/rowan/tree/master/src/green
 namespace orion::syntax {
@@ -27,7 +26,9 @@ void GreenBuilder::FinishNode() {
   const auto [kind, first_child] = parents_.back();
   parents_.pop_back();
 
-  const CachedGreenElement entry = cache_.GetNode(kind, children_, first_child);
+  const CachedGreenElement entry =
+      cache_.GetNode(kind, &children_, first_child);
+
   children_.emplace_back(entry);
 }
 
@@ -57,16 +58,16 @@ void GreenBuilder::Token(const SyntaxKind kind,
   const CachedGreenElement token = cache_.GetToken(kind, source);
   children_.emplace_back(token);
 }
-  
+
 GreenNode GreenBuilder::Finish() {
   if (!parents_.empty()) {
     throw std::invalid_argument("unexpected empty stack");
   }
 
-  const auto [_, element] = children_.back();
+  const auto entry = children_.back();
   children_.pop_back();
 
-  if (const std::optional<GreenNode> node = element.TryGetNode();
+  if (const std::optional<GreenNode> node = entry.Element().TryGetNode();
       node.has_value()) {
     return node.value();
   } else {
