@@ -2,10 +2,11 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
-#include "syntax/lexer/lexer.h"
 #include "syntax/lexer/span.h"
 #include "syntax/lexer/token_kind.h"
+#include "syntax/orion_lexer.h"
 
 namespace orion::syntax {
 std::optional<Token> BuildToken(const TokenKind kind, const size_t start,
@@ -32,7 +33,7 @@ class SingleTokenParameterizedTestFixture
     : public ::testing::TestWithParam<SingleTokenTestCase> {};
 
 INSTANTIATE_TEST_SUITE_P(
-    LexerTest, SingleTokenParameterizedTestFixture,
+    OrionLexerTest, SingleTokenParameterizedTestFixture,
     ::testing::Values(
         // Keywords
 
@@ -67,6 +68,20 @@ INSTANTIATE_TEST_SUITE_P(
                             "IdentifierWithDigitsLong"},
         SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier,
                             U"_AA_BB_112abG_51", "IdentifierMixed"},
+
+        // Quoted Identifiers
+        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier, U"``",
+                            "QuotedIdentifierNoChars"},
+        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier, U"` `",
+                            "QuotedIdentifierWithSpace"},
+        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier,
+                            U"` hello``world `",
+                            "QuotedIdentifierWithDoubleBacktick"},
+        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier,
+                            U"`hello_world 123`", "QuotedIdentifierWithChars"},
+        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier,
+                            U"`伂告伒伄伌伜`",
+                            "QuotedIdentifierWithUnicodeChars"},
 
         // Unicode Identifiers
         SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"🍕",
@@ -193,25 +208,32 @@ INSTANTIATE_TEST_SUITE_P(
     });
 TEST_P(SingleTokenParameterizedTestFixture, SingleTokens) {
   const SingleTokenTestCase& param = GetParam();
-  auto lexer = orion::syntax::Lexer(param.source);
+  auto lexer = orion::syntax::OrionLexer(param.source);
   const std::optional<orion::syntax::Token> expected =
       orion::syntax::BuildToken(param.kind, param.source);
-  const std::optional<orion::syntax::Token> actual = lexer.TryNextToken();
 
+  const std::vector<orion::syntax::Token> tokens = lexer.Tokenize();
+  ASSERT_EQ(1, tokens.size());
+
+  const orion::syntax::Token actual = tokens.at(0);
   EXPECT_EQ(expected, actual);
 }
 
-TEST(LexerTest, MultipleIntLit) {
+TEST(OrionLexerTest, MultipleIntLit) {
   const std::u32string utf8 = U"1337 3144";
-  auto lexer = orion::syntax::Lexer(utf8);
+  auto lexer = orion::syntax::OrionLexer(utf8);
   const auto expected_1 = orion::syntax::BuildToken(
       orion::syntax::TokenKind::kIntLiteral, 0, 4, U"1337");
   const auto expected_2 = orion::syntax::BuildToken(
       orion::syntax::TokenKind::kWhitespace, 4, 5, U" ");
   const auto expected_3 = orion::syntax::BuildToken(
       orion::syntax::TokenKind::kIntLiteral, 5, 9, U"3144");
-  EXPECT_EQ(expected_1, lexer.TryNextToken());
-  EXPECT_EQ(expected_2, lexer.TryNextToken());
-  EXPECT_EQ(expected_3, lexer.TryNextToken());
+
+  const std::vector<orion::syntax::Token> tokens = lexer.Tokenize();
+  ASSERT_EQ(3, tokens.size());
+
+  EXPECT_EQ(expected_1, tokens.at(0));
+  EXPECT_EQ(expected_2, tokens.at(1));
+  EXPECT_EQ(expected_3, tokens.at(2));
 }
 }  // namespace

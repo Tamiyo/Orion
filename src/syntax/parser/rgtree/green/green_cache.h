@@ -10,7 +10,7 @@
 #include "syntax/parser/rgtree/green/green_element.h"
 #include "syntax/parser/rgtree/green/green_node.h"
 #include "syntax/parser/rgtree/green/green_token.h"
-#include "syntax/parser/syntax_kind.h"
+#include "syntax/syntax_kind.h"
 
 namespace orion::syntax {
 
@@ -20,12 +20,38 @@ namespace orion::syntax {
  * The `CachedGreenElement` struct is used to store a hash value along with
  * the associated `GreenElement`, allowing for efficient caching and lookup.
  */
-struct CachedGreenElement {
+class CachedGreenElement {
+ public:
+  explicit CachedGreenElement(const size_t hash, GreenElement element)
+      : hash_(hash), element_(std::move(element)) {}
+
+  /**
+   * @brief Deleted default constructor.
+   *
+   * A `CachedGreenElement` must always be constructed explicitly.
+   */
+  CachedGreenElement() = delete;
+
+  /**
+   * @brief Retrieves the hash value of the cached green element.
+   *
+   * @return The hash value.
+   */
+  [[nodiscard]] size_t Hash() const { return this->hash_; }
+
+  /**
+   * @brief Retrieves the cached green element.
+   *
+   * @return The `GreenElement` stored in this cache.
+   */
+  [[nodiscard]] const GreenElement& Element() const { return this->element_; }
+
+ private:
   /** The hash value associated with the green element. */
-  const size_t hash;
+  size_t hash_;
 
   /** The cached green element (either a node or a token). */
-  const GreenElement element;
+  GreenElement element_;
 };
 
 /**
@@ -62,7 +88,7 @@ class GreenCache {
    * @return A `CachedGreenElement` containing the cached node.
    */
   [[nodiscard]] CachedGreenElement GetNode(
-      SyntaxKind kind, std::vector<CachedGreenElement>& children,
+      SyntaxKind kind, std::vector<CachedGreenElement>* children,
       size_t first_child);
 
   /**
@@ -147,4 +173,4 @@ class GreenCache {
 
 }  // namespace orion::syntax
 
-#endif  // SYNTAX
+#endif  // SYNTAX_PARSER_RGTREE_GREEN_GREEN_CACHE_H_

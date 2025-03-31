@@ -1,5 +1,5 @@
-#ifndef ORION_SYNTAX_LEXER_SPAN_H_
-#define ORION_SYNTAX_LEXER_SPAN_H_
+#ifndef SYNTAX_LEXER_SPAN_H_
+#define SYNTAX_LEXER_SPAN_H_
 
 namespace orion::syntax {
 
@@ -58,9 +58,9 @@ class Span {
  private:
   /** The starting position of the span (inclusive). */
   const size_t start_;
-  
+
   /** The ending position of the span (exclusive). */
   const size_t end_;
 };
 }  // namespace orion::syntax
-#endif  // ORION_SYNTAX_LEXER_SPAN_H_
+#endif  // SYNTAX_LEXER_SPAN_H_

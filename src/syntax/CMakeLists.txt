@@ -1,8 +1,9 @@
 # Configured library.
 add_library(
         syntax
-        lexer/abstract_lexer.cc
+        orion_lexer.cc
         lexer/lexer.cc
+        parser/token_sink.cc
         parser/rgtree/green/green_builder.cc
         parser/rgtree/green/green_cache.cc
         parser/rgtree/green/green_node.cc

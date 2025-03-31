@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "syntax/parser/syntax_kind.h"
+#include "syntax/syntax_kind.h"
 
 namespace orion::syntax {
 
@@ -29,7 +29,7 @@ class GreenNodeData {
    * @param width The width of the node in terms of layout.
    * @param children The child elements contained within this node.
    */
-  explicit GreenNodeData(SyntaxKind kind, size_t width,
+  explicit GreenNodeData(const SyntaxKind kind, const size_t width,
                          std::vector<GreenElement> children)
       : kind_(kind), width_(width), children_(std::move(children)) {}
 
@@ -105,7 +105,8 @@ class GreenNode {
    * @param kind The type of the node as defined by `SyntaxKind`.
    * @param children The child elements contained within this node.
    */
-  explicit GreenNode(SyntaxKind kind, const std::vector<GreenElement>& children)
+  explicit GreenNode(const SyntaxKind kind,
+                     const std::vector<GreenElement>& children)
       : data_(std::make_shared<GreenNodeData>(
             GreenNodeData(kind, ComputeWidth(children), children))) {}
 

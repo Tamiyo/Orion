@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "syntax/parser/rgtree/green/green_token.h"
 #include "syntax/parser/rgtree/syntax/syntax_node.h"
@@ -25,8 +26,8 @@ class SyntaxTokenData {
    * @param parent Pointer to the parent `SyntaxNode`.
    * @param green The associated `GreenToken`.
    */
-  explicit SyntaxTokenData(const size_t offset, std::optional<SyntaxNode> parent,
-                           GreenToken green)
+  explicit SyntaxTokenData(const size_t offset,
+                           std::optional<SyntaxNode> parent, GreenToken green)
       : offset_(offset), parent_(std::move(parent)), green_(std::move(green)) {}
 
   /**

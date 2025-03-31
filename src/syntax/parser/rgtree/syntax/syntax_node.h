@@ -3,11 +3,16 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "syntax/parser/rgtree/green/green_node.h"
-#include "syntax/parser/rgtree/syntax/syntax_node.h"
 
 namespace orion::syntax {
+
+/**
+* Forward declare SyntaxNode for `SyntaxNodeData`.
+*/
+class SyntaxNode;
 
 /**
  * @brief Represents the data associated with a syntax node.
@@ -25,8 +30,7 @@ class SyntaxNodeData {
    * @param parent Pointer to the parent `SyntaxNode`.
    * @param green The associated `GreenNode`.
    */
-  explicit SyntaxNodeData(const size_t offset,
-                          std::optional<SyntaxNode> parent,
+  explicit SyntaxNodeData(const size_t offset, std::optional<SyntaxNode> parent,
                           GreenNode green)
       : offset_(offset), parent_(std::move(parent)), green_(std::move(green)) {}
 
@@ -54,8 +58,7 @@ class SyntaxNodeData {
    *
    * @return A reference to the optional parent `SyntaxNode`.
    */
-  [[nodiscard]] const std::optional<SyntaxNode>& Parent()
-      const {
+  [[nodiscard]] const std::optional<SyntaxNode>& Parent() const {
     return parent_;
   }
 
@@ -103,8 +106,7 @@ class SyntaxNode {
    * @param parent Pointer to the parent `SyntaxNode`.
    * @param green The associated `GreenNode`.
    */
-  explicit SyntaxNode(size_t offset, SyntaxNode parent,
-                      GreenNode green)
+  explicit SyntaxNode(size_t offset, SyntaxNode parent, GreenNode green)
       : data_(std::make_shared<SyntaxNodeData>(
             offset, std::make_optional(std::move(parent)), std::move(green))) {}
 
@@ -138,8 +140,7 @@ class SyntaxNode {
    *
    * @return A reference to the optional parent `SyntaxNode`.
    */
-  [[nodiscard]] const std::optional<SyntaxNode>& GetParent()
-      const noexcept {
+  [[nodiscard]] const std::optional<SyntaxNode>& GetParent() const noexcept {
     return data_->Parent();
   }
 

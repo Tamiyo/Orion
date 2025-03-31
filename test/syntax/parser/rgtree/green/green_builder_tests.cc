@@ -4,7 +4,7 @@
 #include "syntax/parser/rgtree/green/green_element.h"
 #include "syntax/parser/rgtree/green/green_node.h"
 #include "syntax/parser/rgtree/green/green_token.h"
-#include "syntax/parser/syntax_kind.h"
+#include "syntax/syntax_kind.h"
 
 namespace {
 constexpr orion::syntax::SyntaxKind kTestSyntaxKind =

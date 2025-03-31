@@ -38,21 +38,6 @@ class GreenElement {
    */
   explicit GreenElement() : variant_(std::monostate()) {}
 
-  /**
-   * @brief Constructs a `GreenElement` from a const reference to a `GreenNode`.
-   *
-   * @param node The `GreenNode` to be stored in the element.
-   */
-  GreenElement(const GreenNode& node) : variant_(std::move(node)) {}
-
-  /**
-   * @brief Constructs a `GreenElement` from a const reference to a
-   * `GreenToken`.
-   *
-   * @param token The `GreenToken` to be stored in the element.
-   */
-  GreenElement(const GreenToken& token) : variant_(std::move(token)) {}
-
   /** Defaulted copy and move constructors. */
   GreenElement(const GreenElement&) = default;
   GreenElement(GreenElement&&) = default;
