@@ -23,14 +23,18 @@ std::optional<Token> BuildToken(const TokenKind kind,
 }  // namespace orion::syntax
 
 namespace {
+using orion::syntax::OrionLexer;
+using orion::syntax::Token;
+using orion::syntax::TokenKind;
+
 struct SingleTokenTestCase {
-  orion::syntax::TokenKind kind;
+  TokenKind kind;
   std::u32string source;
   std::string test_name;
 };
 
 class SingleTokenParameterizedTestFixture
-    : public ::testing::TestWithParam<SingleTokenTestCase> {};
+    : public testing::TestWithParam<SingleTokenTestCase> {};
 
 INSTANTIATE_TEST_SUITE_P(
     OrionLexerTest, SingleTokenParameterizedTestFixture,
@@ -38,169 +42,147 @@ INSTANTIATE_TEST_SUITE_P(
         // Keywords
 
         // Operators
-        SingleTokenTestCase{orion::syntax::TokenKind::kPlus, U"+", "Plus"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kMinus, U"-", "Minus"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kAsterisk, U"*",
-                            "Asterisk"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kSlash, U"/", "Slash"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kPercent, U"%",
-                            "Percent"},
+        SingleTokenTestCase{TokenKind::kPlus, U"+", "Plus"},
+        SingleTokenTestCase{TokenKind::kMinus, U"-", "Minus"},
+        SingleTokenTestCase{TokenKind::kAsterisk, U"*", "Asterisk"},
+        SingleTokenTestCase{TokenKind::kSlash, U"/", "Slash"},
+        SingleTokenTestCase{TokenKind::kPercent, U"%", "Percent"},
 
         // Identifiers
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"_",
+        SingleTokenTestCase{TokenKind::kIdentifier, U"_",
                             "IdentifierUnderscore"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"_a",
+        SingleTokenTestCase{TokenKind::kIdentifier, U"_a",
                             "IdentifierUnderscoreletter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"_1",
+        SingleTokenTestCase{TokenKind::kIdentifier, U"_1",
                             "IdentifierUnderscoreDigit"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"_a1",
+        SingleTokenTestCase{TokenKind::kIdentifier, U"_a1",
                             "IdentifierUnderscoreLetterDigit"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"_1a",
+        SingleTokenTestCase{TokenKind::kIdentifier, U"_1a",
                             "IdentifierUnderscoreDigitLetter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"h",
-                            "IdentifierShort"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"hhhhh",
-                            "IdentifierLong"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"h1",
+        SingleTokenTestCase{TokenKind::kIdentifier, U"h", "IdentifierShort"},
+        SingleTokenTestCase{TokenKind::kIdentifier, U"hhhhh", "IdentifierLong"},
+        SingleTokenTestCase{TokenKind::kIdentifier, U"h1",
                             "IdentifierWithDigitsShort"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier,
-                            U"hg314141gas151fafsg1",
+        SingleTokenTestCase{TokenKind::kIdentifier, U"hg314141gas151fafsg1",
                             "IdentifierWithDigitsLong"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier,
-                            U"_AA_BB_112abG_51", "IdentifierMixed"},
+        SingleTokenTestCase{TokenKind::kIdentifier, U"_AA_BB_112abG_51",
+                            "IdentifierMixed"},
 
         // Quoted Identifiers
-        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier, U"``",
+        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"``",
                             "QuotedIdentifierNoChars"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier, U"` `",
+        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"` `",
                             "QuotedIdentifierWithSpace"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier,
-                            U"` hello``world `",
+        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"` hello``world `",
                             "QuotedIdentifierWithDoubleBacktick"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier,
-                            U"`hello_world 123`", "QuotedIdentifierWithChars"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kQuotedIdentifier,
-                            U"`伂告伒伄伌伜`",
+        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"`hello_world 123`",
+                            "QuotedIdentifierWithChars"},
+        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"`伂告伒伄伌伜`",
                             "QuotedIdentifierWithUnicodeChars"},
 
         // Unicode Identifiers
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier, U"🍕",
-                            "UnicodeIdentifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIdentifier,
-                            U"伂告伒伄伌伜", "UnicodeIdentifierMultipleChars"},
+        SingleTokenTestCase{TokenKind::kIdentifier, U"🍕", "UnicodeIdentifier"},
+        SingleTokenTestCase{TokenKind::kIdentifier, U"伂告伒伄伌伜",
+                            "UnicodeIdentifierMultipleChars"},
 
         // String Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello World\"", "StringLiteral"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello \\t World\"",
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello World\"",
+                            "StringLiteral"},
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\t World\"",
                             "StringLiteralWithTabEscapedCharacter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello \\b World\"",
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\b World\"",
                             "StringLiteralWithBackspaceEscapedCharacter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello \\n World\"",
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\n World\"",
                             "StringLiteralWithNewlineEscapedCharacter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello \\r World\"",
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\r World\"",
                             "StringLiteralWithCarriageReturnEscapedCharacter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello \\f World\"",
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\f World\"",
                             "StringLiteralWithFormFeedEscapedCharacter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello \\' World\"",
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\' World\"",
                             "StringLiteralWithQuoteEscapedCharacter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello \\\" World\"",
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\\" World\"",
                             "StringLiteralWithDoubleQuoteEscapedCharacter"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kStringLiteral,
-                            U"\"Hello \\\\ World\"",
+        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\\\ World\"",
                             "StringLiteralWithBackslashEscapedCharacter"},
 
         // Boolean Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kBooleanLiteral, U"true",
+        SingleTokenTestCase{TokenKind::kBooleanLiteral, U"true",
                             "TrueBooleanLiteral"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kBooleanLiteral, U"false",
+        SingleTokenTestCase{TokenKind::kBooleanLiteral, U"false",
                             "FalseBooleanLiteral"},
 
         // Integer Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kIntLiteral, U"1337",
-                            "IntLiteral"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIntLiteral, U"1337E3",
+        SingleTokenTestCase{TokenKind::kIntLiteral, U"1337", "IntLiteral"},
+        SingleTokenTestCase{TokenKind::kIntLiteral, U"1337E3",
                             "IntLiteralWithBasicExponent"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIntLiteral, U"1337E+3",
+        SingleTokenTestCase{TokenKind::kIntLiteral, U"1337E+3",
                             "IntLiteralWithPlusExponent"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kIntLiteral, U"1337E-3",
+        SingleTokenTestCase{TokenKind::kIntLiteral, U"1337E-3",
                             "IntLiteralWithMinusExponent"},
 
         // BigDecimal Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kBigDecimalLiteral,
-                            U"1337BD", "BigDecimalLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kBigDecimalLiteral,
-                            U"1337bd", "BigDecimalLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kBigDecimalLiteral,
-                            U"1337E3BD",
+        SingleTokenTestCase{TokenKind::kBigDecimalLiteral, U"1337BD",
+                            "BigDecimalLiteralUppercaseQuantifier"},
+        SingleTokenTestCase{TokenKind::kBigDecimalLiteral, U"1337bd",
+                            "BigDecimalLiteralLowercaseQuantifier"},
+        SingleTokenTestCase{TokenKind::kBigDecimalLiteral, U"1337E3BD",
                             "BigDecimalLiteralWithBasicExponentAndQuantifier"},
 
         // BigInt Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kBigIntLiteral, U"1337L",
+        SingleTokenTestCase{TokenKind::kBigIntLiteral, U"1337L",
                             "BigIntLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kBigIntLiteral, U"1337l",
+        SingleTokenTestCase{TokenKind::kBigIntLiteral, U"1337l",
                             "BigIntLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kBigIntLiteral,
-                            U"1337E3L",
+        SingleTokenTestCase{TokenKind::kBigIntLiteral, U"1337E3L",
                             "BigIntlLiteralWithBasicExponentAndQuantifier"},
 
         // SmallInt Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kSmallIntLiteral,
-                            U"1337S", "SmallIntLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kSmallIntLiteral,
-                            U"1337s", "SmallIntLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kSmallIntLiteral,
-                            U"1337E3S",
+        SingleTokenTestCase{TokenKind::kSmallIntLiteral, U"1337S",
+                            "SmallIntLiteralUppercaseQuantifier"},
+        SingleTokenTestCase{TokenKind::kSmallIntLiteral, U"1337s",
+                            "SmallIntLiteralLowercaseQuantifier"},
+        SingleTokenTestCase{TokenKind::kSmallIntLiteral, U"1337E3S",
                             "SmallIntlLiteralWithBasicExponentAndQuantifier"},
 
         // TinyInt Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kTinyIntLiteral, U"1337Y",
+        SingleTokenTestCase{TokenKind::kTinyIntLiteral, U"1337Y",
                             "TinyIntLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kTinyIntLiteral, U"1337y",
+        SingleTokenTestCase{TokenKind::kTinyIntLiteral, U"1337y",
                             "TinyIntLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kTinyIntLiteral,
-                            U"1337E3Y",
+        SingleTokenTestCase{TokenKind::kTinyIntLiteral, U"1337E3Y",
                             "TinyIntlLiteralWithBasicExponentAndQuantifier"},
 
         // Float Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U"3.14",
-                            "FloatLiteral"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U".314",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14", "FloatLiteral"},
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U".314",
                             "FloatLiteralNoLeadingDigit"},
 
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U"3.14E3",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14E3",
                             "FloatLiteralWithBasicExponent"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U"3.14E+3",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14E+3",
                             "FloatLiteralWithPlusExponent"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U"3.14E-3",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14E-3",
                             "FloatLiteralWithMinusExponent"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U".314E3",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U".314E3",
                             "FloatLiteralNoLeadingDigitWithBasicExponent"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U".314E+3",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U".314E+3",
                             "FloatLiteralNoLeadingDigitWithPlusExponent"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U".314E-3",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U".314E-3",
                             "FloatLiteralNoLeadingDigitWithMinusExponent"},
 
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U"3.14F",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14F",
                             "FloatLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U"3.14f",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14f",
                             "FloatLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kFloatLiteral, U"3.14E3F",
+        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14E3F",
                             "FloatLiteralWithBasicExponentAndQuantifier"},
 
         // Double Literals
-        SingleTokenTestCase{orion::syntax::TokenKind::kDoubleLit, U"3.14D",
+        SingleTokenTestCase{TokenKind::kDoubleLit, U"3.14D",
                             "DoubleLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kDoubleLit, U"3.14d",
+        SingleTokenTestCase{TokenKind::kDoubleLit, U"3.14d",
                             "DoubleLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{orion::syntax::TokenKind::kDoubleLit, U"3.14E3D",
+        SingleTokenTestCase{TokenKind::kDoubleLit, U"3.14E3D",
                             "DoubleLiteralWithBasicExponentAndQuantifier"}),
     [](const testing::TestParamInfo<
         SingleTokenParameterizedTestFixture::ParamType>& info) {
@@ -208,28 +190,24 @@ INSTANTIATE_TEST_SUITE_P(
     });
 TEST_P(SingleTokenParameterizedTestFixture, SingleTokens) {
   const SingleTokenTestCase& param = GetParam();
-  auto lexer = orion::syntax::OrionLexer(param.source);
-  const std::optional<orion::syntax::Token> expected =
-      orion::syntax::BuildToken(param.kind, param.source);
+  auto lexer = OrionLexer(param.source);
+  const std::optional<Token> expected = BuildToken(param.kind, param.source);
 
-  const std::vector<orion::syntax::Token> tokens = lexer.Tokenize();
+  const std::vector<Token> tokens = lexer.Tokenize();
   ASSERT_EQ(1, tokens.size());
 
-  const orion::syntax::Token actual = tokens.at(0);
+  const Token& actual = tokens.at(0);
   EXPECT_EQ(expected, actual);
 }
 
 TEST(OrionLexerTest, MultipleIntLit) {
   const std::u32string utf8 = U"1337 3144";
-  auto lexer = orion::syntax::OrionLexer(utf8);
-  const auto expected_1 = orion::syntax::BuildToken(
-      orion::syntax::TokenKind::kIntLiteral, 0, 4, U"1337");
-  const auto expected_2 = orion::syntax::BuildToken(
-      orion::syntax::TokenKind::kWhitespace, 4, 5, U" ");
-  const auto expected_3 = orion::syntax::BuildToken(
-      orion::syntax::TokenKind::kIntLiteral, 5, 9, U"3144");
+  auto lexer = OrionLexer(utf8);
+  const auto expected_1 = BuildToken(TokenKind::kIntLiteral, 0, 4, U"1337");
+  const auto expected_2 = BuildToken(TokenKind::kWhitespace, 4, 5, U" ");
+  const auto expected_3 = BuildToken(TokenKind::kIntLiteral, 5, 9, U"3144");
 
-  const std::vector<orion::syntax::Token> tokens = lexer.Tokenize();
+  const std::vector<Token> tokens = lexer.Tokenize();
   ASSERT_EQ(3, tokens.size());
 
   EXPECT_EQ(expected_1, tokens.at(0));

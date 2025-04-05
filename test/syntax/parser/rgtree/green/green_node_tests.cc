@@ -4,18 +4,21 @@
 #include "syntax/parser/rgtree/green/green_node.h"
 
 namespace {
-TEST(GreenNodeTest, GreenNode_SizeRequirements) {
+using orion::syntax::GreenNode;
+using orion::syntax::GreenNodeData;
+
+TEST(GreenNodeTest, GreenNodeSizeRequirements) {
   // shared_ptr:
   //   pointer   = 8
   //   ref_count = 8
-  EXPECT_EQ(16, sizeof(orion::syntax::GreenNode));
+  EXPECT_EQ(16, sizeof(GreenNode));
 }
 
-TEST(GreenNodeTest, GreenNodeData_SizeRequirements) {
+TEST(GreenNodeTest, GreenNodeDataSizeRequirements) {
   // kind           = 2
   // alignment      = 6
   // width          = 8
   // std::vector    = 24
-  EXPECT_EQ(40, sizeof(orion::syntax::GreenNodeData));
+  EXPECT_EQ(40, sizeof(GreenNodeData));
 }
 };  // namespace
