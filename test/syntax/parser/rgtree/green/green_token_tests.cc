@@ -3,17 +3,20 @@
 #include "syntax/parser/rgtree/green/green_token.h"
 
 namespace {
+using orion::syntax::GreenToken;
+using orion::syntax::GreenTokenData;
+
 TEST(GreenTokenTest, GreenTokenSizeRequirements) {
   // shared_ptr:
   //   pointer   = 8
   //   ref_count = 8
-  EXPECT_EQ(16, sizeof(orion::syntax::GreenToken));
+  EXPECT_EQ(16, sizeof(GreenToken));
 }
 
 TEST(GreenTokenTest, GreenTokenDataSizeRequirements) {
   // kind           = 2
   // alignment      = 6
   // std::u32string = 24
-  EXPECT_EQ(40, sizeof(orion::syntax::GreenTokenData));
+  EXPECT_EQ(40, sizeof(GreenTokenData));
 }
 };  // namespace

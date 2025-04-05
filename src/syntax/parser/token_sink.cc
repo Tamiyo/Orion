@@ -5,29 +5,30 @@
 #include <variant>
 #include <vector>
 
-#include "syntax/parser/event/event.h"
+#include "syntax/parser/event.h"
 #include "syntax/syntax_kind.h"
 
 namespace orion::syntax {
-
-void TokenSink::Finish() {
+TokenSink::Result TokenSink::Finish() {
   for (size_t event_idx = 0; event_idx < events_.size(); event_idx++) {
     if (const Event event = events_[event_idx];
-        std::holds_alternative<StartEvent>(event)) {
-      const auto [kind, forward_parent] = std::get<StartEvent>(event);
-      events_[event_idx] = PlaceholderEvent{};
+        event.HoldsAlternative<Event::Start>()) {
+      const auto e = event.Get<Event::Start>();
+      events_[event_idx] = Event::CreatePlaceholder();
 
-      StartNode(event_idx, kind, forward_parent);
-    } else if (std::holds_alternative<FinishEvent>(event)) {
+      StartNode(event_idx, e.Kind(), e.ForwardParent());
+    } else if (event.HoldsAlternative<Event::Finish>()) {
       FinishNode();
-    } else if (std::holds_alternative<TokenEvent>(event)) {
+    } else if (event.HoldsAlternative<Event::Token>()) {
       AddToken();
-    } else if (std::holds_alternative<PlaceholderEvent>(event)) {
+    } else if (event.HoldsAlternative<Event::Placeholder>()) {
       // Do Nothing
     } else {
       throw std::invalid_argument("unknown event type");
     }
   }
+
+  return TokenSink::Result{builder_.Finish()};
 }
 
 void TokenSink::StartNode(const size_t event_idx, const SyntaxKind kind,
@@ -40,18 +41,18 @@ void TokenSink::StartNode(const size_t event_idx, const SyntaxKind kind,
     event_idx_mut += forward_parent_mut.value();
 
     if (const Event event = events_[event_idx_mut];
-        std::holds_alternative<StartEvent>(event)) {
-      const auto [kind, forward_parent] = std::get<StartEvent>(event);
-      events_[event_idx_mut] = PlaceholderEvent{};
+        event.HoldsAlternative<Event::Start>()) {
+      const auto e = event.Get<Event::Start>();
+      events_[event_idx_mut] = Event::CreatePlaceholder();
 
-      kinds.emplace_back(kind);
-      forward_parent_mut = forward_parent;
+      kinds.emplace_back(e.Kind());
+      forward_parent_mut = e.ForwardParent();
     } else {
       throw std::invalid_argument("unreachable event in StartNode");
     }
   }
 
-  for (auto & k : std::ranges::reverse_view(kinds)) {
+  for (auto& k : std::ranges::reverse_view(kinds)) {
     builder_.StartNode(k);
   }
 }

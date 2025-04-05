@@ -8,24 +8,25 @@
 #include "syntax/parser/rgtree/green/green_cache.h"
 #include "syntax/parser/rgtree/green/green_element.h"
 #include "syntax/parser/rgtree/green/green_node.h"
-#include "syntax/parser/rgtree/green/green_token.h"
 #include "syntax/syntax_kind.h"
 
 namespace {
+using orion::syntax::CachedGreenElement;
+using orion::syntax::GreenCache;
+using orion::syntax::SyntaxKind;
+
 constexpr size_t kMaxCachedNodeSize = 3;
 
-constexpr orion::syntax::SyntaxKind kTestSyntaxKind1 =
-    orion::syntax::SyntaxKind::kPlus;
+constexpr auto kTestSyntaxKind1 = SyntaxKind::kPlus;
 
-constexpr orion::syntax::SyntaxKind kTestSyntaxKind2 =
-    orion::syntax::SyntaxKind::kMinus;
+constexpr auto kTestSyntaxKind2 = SyntaxKind::kMinus;
 
 const std::u32string kTestSource1 = U"hello world";
 const std::u32string kTestSource2 = U"goodbye world";
 
 TEST(GreenCacheTest, GetToken) {
-  auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
-  auto entry = cache.GetToken(kTestSyntaxKind1, kTestSource1);
+  auto cache = GreenCache(kMaxCachedNodeSize);
+  const auto entry = cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
   // One in the cache, one held in this test method.
   EXPECT_EQ(2, entry.Element().UseCount());
@@ -35,9 +36,9 @@ TEST(GreenCacheTest, GetToken) {
 }
 
 TEST(GreenCacheTest, GetTokensDifferentKind) {
-  auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
-  auto entry1 = cache.GetToken(kTestSyntaxKind1, kTestSource1);
-  auto entry2 = cache.GetToken(kTestSyntaxKind2, kTestSource1);
+  auto cache = GreenCache(kMaxCachedNodeSize);
+  const auto entry1 = cache.GetToken(kTestSyntaxKind1, kTestSource1);
+  const auto entry2 = cache.GetToken(kTestSyntaxKind2, kTestSource1);
 
   // One in the cache, one held in this test method.
   EXPECT_EQ(2, entry1.Element().UseCount());
@@ -51,9 +52,9 @@ TEST(GreenCacheTest, GetTokensDifferentKind) {
 }
 
 TEST(GreenCacheTest, GetTokensDifferentSource) {
-  auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
-  auto entry1 = cache.GetToken(kTestSyntaxKind1, kTestSource1);
-  auto entry2 = cache.GetToken(kTestSyntaxKind1, kTestSource2);
+  auto cache = GreenCache(kMaxCachedNodeSize);
+  const auto entry1 = cache.GetToken(kTestSyntaxKind1, kTestSource1);
+  const auto entry2 = cache.GetToken(kTestSyntaxKind1, kTestSource2);
 
   // One in the cache, one held in this test method.
   EXPECT_EQ(2, entry1.Element().UseCount());
@@ -64,17 +65,17 @@ TEST(GreenCacheTest, GetTokensDifferentSource) {
 }
 
 TEST(GreenCacheTest, GetNode) {
-  auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache(kMaxCachedNodeSize);
 
-  const orion::syntax::CachedGreenElement entry1 =
+  const CachedGreenElement entry1 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
-  const orion::syntax::CachedGreenElement entry2 =
+  const CachedGreenElement entry2 =
       cache.GetToken(kTestSyntaxKind2, kTestSource2);
 
   auto children = std::vector{entry1, entry2};
 
-  auto entry = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 0);
+  auto entry = cache.GetNode(SyntaxKind::kError, &children, 0);
 
   // The node should have two children.
   EXPECT_EQ(2, entry.Element().TryGetNode()->Children().size());
@@ -92,17 +93,16 @@ TEST(GreenCacheTest, GetNode) {
 }
 
 TEST(GreenCacheTest, GetNodeLeftoverChildren) {
-  auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache(kMaxCachedNodeSize);
 
-  const orion::syntax::CachedGreenElement entry1 =
+  const CachedGreenElement entry1 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
-  const orion::syntax::CachedGreenElement entry2 =
+  const CachedGreenElement entry2 =
       cache.GetToken(kTestSyntaxKind2, kTestSource2);
 
   auto children = std::vector{entry1, entry2};
-
-  auto entry = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 1);
+  const auto entry = cache.GetNode(SyntaxKind::kError, &children, 1);
 
   // The node should have two children.
   EXPECT_EQ(1, entry.Element().TryGetNode()->Children().size());
@@ -120,18 +120,18 @@ TEST(GreenCacheTest, GetNodeLeftoverChildren) {
 }
 
 TEST(GreenCacheTest, GetNodeDuplicateNodes) {
-  auto cache = orion::syntax::GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache(kMaxCachedNodeSize);
 
-  const orion::syntax::CachedGreenElement child1 =
+  const CachedGreenElement child1 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
-  const orion::syntax::CachedGreenElement child2 =
+  const CachedGreenElement child2 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
   auto children = std::vector{child1, child2};
 
-  auto entry1 = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 1);
-  auto entry2 = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 0);
+  const auto entry1 = cache.GetNode(SyntaxKind::kError, &children, 1);
+  const auto entry2 = cache.GetNode(SyntaxKind::kError, &children, 0);
 
   // Children vector should have its elements removed.
   EXPECT_EQ(0, children.size());
@@ -155,18 +155,18 @@ TEST(GreenCacheTest, GetNodeDuplicateNodes) {
 }
 
 TEST(GreenCacheTest, GetNodeDuplicateNodesOverMaxCacheSize) {
-  auto cache = orion::syntax::GreenCache(0);
+  auto cache = GreenCache(0);
 
-  const orion::syntax::CachedGreenElement child1 =
+  const CachedGreenElement child1 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
-  const orion::syntax::CachedGreenElement child2 =
+  const CachedGreenElement child2 =
       cache.GetToken(kTestSyntaxKind1, kTestSource1);
 
   auto children = std::vector{child1, child2};
 
-  auto entry1 = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 1);
-  auto entry2 = cache.GetNode(orion::syntax::SyntaxKind::kError, &children, 0);
+  const auto entry1 = cache.GetNode(SyntaxKind::kError, &children, 1);
+  const auto entry2 = cache.GetNode(SyntaxKind::kError, &children, 0);
 
   // Children vector should have its elements removed.
   EXPECT_EQ(0, children.size());
