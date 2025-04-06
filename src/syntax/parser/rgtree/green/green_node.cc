@@ -1,8 +1,8 @@
 #include "syntax/parser/rgtree/green/green_node.h"
 
-#include <vector>
 #include <optional>
 #include <stdexcept>
+#include <vector>
 
 #include "syntax/parser/rgtree/green/green_element.h"
 

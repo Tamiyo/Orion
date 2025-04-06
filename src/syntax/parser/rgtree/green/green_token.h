@@ -2,7 +2,7 @@
 #define SYNTAX_PARSER_RGTREE_GREEN_GREEN_TOKEN_H_
 
 #include <memory>
-#include <string>
+#include <string_view>
 #include <utility>
 
 #include "syntax/syntax_kind.h"
@@ -20,7 +20,7 @@ class GreenTokenData {
   ///
   /// \param kind The type of the token as defined by `SyntaxKind`.
   /// \param source The actual text content of the token.
-  explicit GreenTokenData(const SyntaxKind kind, std::u32string source)
+  explicit GreenTokenData(const SyntaxKind kind, std::u32string_view source)
       : kind_(kind), source_(std::move(source)) {}
 
   /// \brief Deleted default constructor.
@@ -40,13 +40,13 @@ class GreenTokenData {
   /// \brief Returns the source text of the token.
   ///
   /// \return A reference to the token's source string.
-  [[nodiscard]] const std::u32string& Source() const { return source_; }
+  [[nodiscard]] const std::u32string_view& Source() const { return source_; }
 
   /// \brief Compares two `GreenTokenData` objects for equality.
   ///
   /// \param other The other `GreenTokenData` to compare with.
-  /// \return `true` if both tokens have the same kind and source text, otherwise
-  /// `false`.
+  /// \return `true` if both tokens have the same kind and source text,
+  /// otherwise `false`.
   bool operator==(const GreenTokenData& other) const {
     return kind_ == other.kind_ && source_ == other.source_;
   }
@@ -56,19 +56,20 @@ class GreenTokenData {
   const SyntaxKind kind_;
 
   /// The actual text content of the token.
-  const std::u32string source_;
+  const std::u32string_view source_;
 };
 
 /// \brief Represents a green token, which encapsulates `GreenTokenData`.
 ///
-/// `GreenToken` uses shared ownership to manage the underlying `GreenTokenData`.
+/// `GreenToken` uses shared ownership to manage the underlying
+/// `GreenTokenData`.
 class GreenToken {
  public:
   /// \brief Constructs a `GreenToken` with the specified kind and source text.
   ///
   /// \param kind The type of the token as defined by `SyntaxKind`.
   /// \param source The actual text content of the token.
-  explicit GreenToken(const SyntaxKind kind, const std::u32string& source)
+  explicit GreenToken(const SyntaxKind kind, std::u32string_view source)
       : data_(std::make_shared<GreenTokenData>(GreenTokenData(kind, source))) {}
 
   /// \brief Deleted default constructor.
@@ -88,7 +89,7 @@ class GreenToken {
   /// \brief Returns the source text of the token.
   ///
   /// \return A reference to the token's source string.
-  [[nodiscard]] const std::u32string& Source() const { return data_->Source(); }
+  [[nodiscard]] std::u32string_view Source() const { return data_->Source(); }
 
   /// \brief Returns the current use count of the shared token data.
   ///

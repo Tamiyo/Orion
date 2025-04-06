@@ -40,7 +40,7 @@ const auto kTokenMinus =
 const auto kGreenTokenPlus = GreenToken(kSyntaxKindPlus, U"+");
 const auto kGreenTokenMinus = GreenToken(kSyntaxKindMinus, U"-");
 
-TEST(TokenSinkTest, NextToken) {
+TEST(TokenSinkTest, BuildSingleTokenNode) {
   const auto tokens = std::vector<Token>{kTokenPlus};
 
   const auto events =
@@ -66,7 +66,7 @@ TEST(TokenSinkTest, NextToken) {
   EXPECT_EQ(expected_token, actual_token);
 }
 
-TEST(TokenSinkTest, NextTokenMultipleChildren) {
+TEST(TokenSinkTest, BuildMultiTokenNode) {
   const auto tokens = std::vector<Token>{kTokenPlus, kTokenMinus};
 
   const auto events = std::vector<Event>{
@@ -85,7 +85,7 @@ TEST(TokenSinkTest, NextTokenMultipleChildren) {
   const auto actual_children = node.Children();
   ASSERT_EQ(expected_children.size(), actual_children.size());
 
-  for (int i = 0; i < expected_children.size(); i++) {
+  for (size_t i = 0; i < expected_children.size(); i++) {
     const GreenElement& expected_child = expected_children[0];
     const GreenElement& actual_child = expected_children[0];
     ASSERT_EQ(expected_child.IsToken(), actual_child.IsToken());

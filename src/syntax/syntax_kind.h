@@ -2,6 +2,8 @@
 #define SYNTAX_SYNTAX_KIND_H_
 
 #include <cstdint>
+#include <sstream>
+#include <string_view>
 
 namespace orion::syntax {
 // Note: The 'tokens' enum values must match TokenKind.
@@ -70,9 +72,15 @@ enum class SyntaxKind : uint16_t {
 
   // --- Nodes ---
   /// Represents an error node.
+  kRoot,
+  kBinaryExpr,
   kError,
 };
 
-}  // namespace orion::syntax
+[[nodiscard]] constexpr std::u32string_view SyntaxKindToString(
+    SyntaxKind kind) noexcept;
 
+std::basic_ostringstream<char32_t>& operator<<(
+    std::basic_ostringstream<char32_t>& oss, SyntaxKind kind) noexcept;
+}  // namespace orion::syntax
 #endif  // SYNTAX_SYNTAX_KIND_H_

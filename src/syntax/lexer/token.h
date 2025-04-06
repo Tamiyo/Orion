@@ -2,7 +2,7 @@
 #define SYNTAX_LEXER_TOKEN_H_
 
 #include <cstdint>
-#include <string>
+#include <string_view>
 #include <utility>
 
 #include "syntax/lexer/span.h"
@@ -23,7 +23,8 @@ class Token {
   ///
   /// \note The constructor is explicit to prevent unintended implicit
   /// conversions.
-  explicit Token(const uint16_t kind, const Span span, std::u32string source)
+  explicit Token(const uint16_t kind, const Span span,
+                 std::u32string_view source)
       : kind_(kind), span_(span), source_(std::move(source)) {}
 
   /// \brief Deleted default constructor.
@@ -60,9 +61,7 @@ class Token {
   /// \brief Returns the actual text content of the token.
   ///
   /// \return A reference to the token's source string.
-  [[nodiscard]] const std::u32string& Source() const noexcept {
-    return source_;
-  }
+  [[nodiscard]] std::u32string_view Source() const noexcept { return source_; }
 
   /// \brief Checks if two tokens are equal.
   ///
@@ -82,7 +81,7 @@ class Token {
   const orion::syntax::Span span_;
 
   /// The actual text content of the token.
-  const std::u32string source_;
+  const std::u32string_view source_;
 };
 
 }  // namespace orion::syntax

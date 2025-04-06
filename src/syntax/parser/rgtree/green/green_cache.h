@@ -81,7 +81,7 @@ class GreenCache {
   /// \param source The source text of the token.
   /// \return A `CachedGreenElement` containing the cached token.
   [[nodiscard]] CachedGreenElement GetToken(SyntaxKind kind,
-                                            const std::u32string& source);
+                                            std::u32string_view source);
 
   /// \brief Returns the current size of the cached nodes.
   ///

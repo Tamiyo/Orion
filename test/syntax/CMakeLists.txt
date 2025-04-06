@@ -1,11 +1,12 @@
 # Create an executable to test this test suite.
 add_executable(
         lexer_tests
-        lexer/orion_lexer_tests.cc
+        lexer_tests.cc
 )
 
 add_executable(
         parser_tests
+        syntax_kind_tests
         parser/token_sink_tests.cc
         parser/token_source_tests.cc
 )
@@ -14,6 +15,7 @@ add_executable(
         rgtree_tests
         parser/rgtree/green/green_builder_tests.cc
         parser/rgtree/green/green_cache_tests.cc 
+        parser/rgtree/green/green_element_writer_tests.cc 
         parser/rgtree/green/green_node_tests.cc
         parser/rgtree/green/green_token_tests.cc
 )

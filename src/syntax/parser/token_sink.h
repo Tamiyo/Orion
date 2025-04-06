@@ -36,7 +36,7 @@ class TokenSink {
   // Deleted default constructor to enforce required token/event input.
   TokenSink() = delete;
 
-  /// \brief Consumes the event stream and builds the corresponding green tree.
+  /// \brief Bumps the event stream and builds the corresponding green tree.
   /// This is the main entry point for transforming parser output into
   /// an immutable syntax tree structure.
   Result Finish();

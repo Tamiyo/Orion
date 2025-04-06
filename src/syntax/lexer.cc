@@ -1,4 +1,4 @@
-#include "syntax/orion_lexer.h"
+#include "syntax/lexer.h"
 
 #include <cwctype>
 #include <functional>
@@ -56,7 +56,7 @@ enum class NumericKind {
   kExact,
 };
 
-std::optional<Token> OrionLexer::TryNextToken() noexcept {
+std::optional<Token> Lexer::TryNextToken() noexcept {
   if (const std::optional<Token> whitespace = TryWhitespace();
       whitespace.has_value()) {
     return whitespace;
@@ -82,49 +82,49 @@ std::optional<Token> OrionLexer::TryNextToken() noexcept {
       return TryNumericLiteral(false);
     }
 
-    return ConsumeAndCreateToken(TokenKind::kDot);
+    return BumpAndCreateToken(TokenKind::kDot);
   }
 
   return TryLiteral();
 }
 
-std::optional<Token> OrionLexer::TryWhitespace() {
+std::optional<Token> Lexer::TryWhitespace() {
   if (At2(kSpace, kTab)) {
-    ConsumeWhile([](const char32_t ch) { return ch == kSpace || ch == kTab; });
+    BumpWhile([](const char32_t ch) { return ch == kSpace || ch == kTab; });
     return CreateToken(TokenKind::kWhitespace);
   }
 
   if (At(kNewline)) {
-    ConsumeWhile([](const char32_t ch) { return ch == kNewline; });
+    BumpWhile([](const char32_t ch) { return ch == kNewline; });
     return CreateToken(TokenKind::kNewline);
   }
 
   return std::nullopt;
 }
 
-std::optional<Token> OrionLexer::TryOperator() {
+std::optional<Token> Lexer::TryOperator() {
   switch (GetCurrent()) {
     case kPlus:
-      return ConsumeAndCreateToken(TokenKind::kPlus);
+      return BumpAndCreateToken(TokenKind::kPlus);
 
     case kMinus:
-      return ConsumeAndCreateToken(TokenKind::kMinus);
+      return BumpAndCreateToken(TokenKind::kMinus);
 
     case kAsterisk:
-      return ConsumeAndCreateToken(TokenKind::kAsterisk);
+      return BumpAndCreateToken(TokenKind::kAsterisk);
 
     case kSlash:
-      return ConsumeAndCreateToken(TokenKind::kSlash);
+      return BumpAndCreateToken(TokenKind::kSlash);
 
     case kPercent:
-      return ConsumeAndCreateToken(TokenKind::kPercent);
+      return BumpAndCreateToken(TokenKind::kPercent);
 
     default:
       return std::nullopt;
   }
 }
 
-std::optional<Token> OrionLexer::TryKeywordOrIdentifier() {
+std::optional<Token> Lexer::TryKeywordOrIdentifier() {
   if (const std::optional<Token> quoted_identifier = TryQuotedIdentifier();
       quoted_identifier.has_value()) {
     return quoted_identifier;
@@ -133,23 +133,23 @@ std::optional<Token> OrionLexer::TryKeywordOrIdentifier() {
   return TryIdentifier();
 }
 
-std::optional<Token> OrionLexer::TryQuotedIdentifier() {
+std::optional<Token> Lexer::TryQuotedIdentifier() {
   if (!At(kBacktick)) {
     return std::nullopt;
   }
 
-  Consume();  // Eat '`'
+  Bump();  // Eat '`'
 
   bool is_delimited = false;
   while (!AtEnd()) {
     if (At(kBacktick) && At(kBacktick, 1)) {
-      Consume(2);  // Eat '``'
+      Bump(2);  // Eat '``'
     } else if (At(kBacktick)) {
       is_delimited = true;
-      Consume();  // Eat '`'
+      Bump();  // Eat '`'
       break;
     } else {
-      Consume();  // Eat char.
+      Bump();  // Eat char.
     }
   }
 
@@ -160,7 +160,7 @@ std::optional<Token> OrionLexer::TryQuotedIdentifier() {
   return CreateToken(TokenKind::kQuotedIdentifier);
 }
 
-std::optional<Token> OrionLexer::TryIdentifier() {
+std::optional<Token> Lexer::TryIdentifier() {
   // Identifiers must start with a letter or an underscore.
   if (!At([](const char32_t ch) {
         return std::iswalpha(ch) || ch == kUnderscore ||
@@ -169,14 +169,14 @@ std::optional<Token> OrionLexer::TryIdentifier() {
     return std::nullopt;
   }
 
-  ConsumeWhile([](const char32_t ch) {
+  BumpWhile([](const char32_t ch) {
     return std::iswalnum(ch) || ch == kUnderscore || ch > kAsciiMaxCodepoint;
   });
 
   return CreateToken(TokenKind::kIdentifier);
 }
 
-std::optional<Token> OrionLexer::TryLiteral() {
+std::optional<Token> Lexer::TryLiteral() {
   if (At([](const char32_t ch) { return std::iswdigit(ch); })) {
     return TryNumericLiteral();
   }
@@ -189,17 +189,17 @@ std::optional<Token> OrionLexer::TryLiteral() {
 }
 
 // '"' ( ~('"'|'\\') | ('\\' .) )* '"'
-std::optional<Token> OrionLexer::TryStringLiteral() {
+std::optional<Token> Lexer::TryStringLiteral() {
   constexpr char32_t delimiter = kDoubleQuote;
 
   if (!At(delimiter)) {
     return std::nullopt;
   }
 
-  Consume();  // Eat delimiter.
+  Bump();  // Eat delimiter.
 
   bool is_escaped = false;
-  ConsumeWhile([this, is_escaped](const char32_t ch) mutable {
+  BumpWhile([this, is_escaped](const char32_t ch) mutable {
     if (is_escaped) {
       switch (GetCurrent()) {
         case kTLower:
@@ -229,26 +229,26 @@ std::optional<Token> OrionLexer::TryStringLiteral() {
     throw std::invalid_argument("unclosed string literal");
   }
 
-  Consume();  // Eat delimiter.
+  Bump();  // Eat delimiter.
   return CreateToken(TokenKind::kStringLiteral);
 }
 
-std::optional<Token> OrionLexer::TryBooleanLiteral() {
+std::optional<Token> Lexer::TryBooleanLiteral() {
   if (At(kTrueKeyword)) {
-    return ConsumeAndCreateToken(TokenKind::kBooleanLiteral, 4);
+    return BumpAndCreateToken(TokenKind::kBooleanLiteral, 4);
   }
 
   if (At(kFalseKeyword)) {
-    return ConsumeAndCreateToken(TokenKind::kBooleanLiteral, 5);
+    return BumpAndCreateToken(TokenKind::kBooleanLiteral, 5);
   }
 
   return std::nullopt;
 }
 
 // https://github.com/apache/spark/blob/master/sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBaseLexer.g4#L578
-std::optional<Token> OrionLexer::TryNumericLiteral(const bool consume_digits) {
+std::optional<Token> Lexer::TryNumericLiteral(const bool consume_digits) {
   if (consume_digits) {
-    ConsumeDigits();
+    BumpDigits();
 
     // If there are no more digits, there is nothing else to consume. We're at
     // the end of our input.
@@ -260,42 +260,42 @@ std::optional<Token> OrionLexer::TryNumericLiteral(const bool consume_digits) {
   NumericKind numericKind;
   switch (GetCurrent()) {
     case kDot: {
-      Consume();  // Eat '.'
+      Bump();  // Eat '.'
 
       numericKind = NumericKind::kApprox;
-      ConsumeDigits();
-      ConsumeExponent();
+      BumpDigits();
+      BumpExponent();
       break;
     }
     default: {
       numericKind = NumericKind::kExact;
-      ConsumeExponent();
+      BumpExponent();
       break;
     }
   }
 
   if (At(kFUpper) || At(kFLower)) {
-    return ConsumeAndCreateToken(TokenKind::kFloatLiteral);
+    return BumpAndCreateToken(TokenKind::kFloatLiteral);
   }
 
   if ((At(kBUpper) && At(kDUpper, 1)) || (At(kBLower) && At(kDLower, 1))) {
-    return ConsumeAndCreateToken(TokenKind::kBigDecimalLiteral, 2);
+    return BumpAndCreateToken(TokenKind::kBigDecimalLiteral, 2);
   }
 
   if (At(kDUpper) || At(kDLower)) {
-    return ConsumeAndCreateToken(TokenKind::kDoubleLit);
+    return BumpAndCreateToken(TokenKind::kDoubleLit);
   }
 
   if (At(kLUpper) || At(kLLower)) {
-    return ConsumeAndCreateToken(TokenKind::kBigIntLiteral);
+    return BumpAndCreateToken(TokenKind::kBigIntLiteral);
   }
 
   if (At(kSUpper) || At(kSLower)) {
-    return ConsumeAndCreateToken(TokenKind::kSmallIntLiteral);
+    return BumpAndCreateToken(TokenKind::kSmallIntLiteral);
   }
 
   if (At(kYUpper) || At(kYLower)) {
-    return ConsumeAndCreateToken(TokenKind::kTinyIntLiteral);
+    return BumpAndCreateToken(TokenKind::kTinyIntLiteral);
   }
 
   if (numericKind == NumericKind::kExact) {
@@ -306,18 +306,18 @@ std::optional<Token> OrionLexer::TryNumericLiteral(const bool consume_digits) {
 }
 
 // Grammar: E[+-]? DIGITS
-void OrionLexer::ConsumeExponent() {
+void Lexer::BumpExponent() {
   if (!(At(kEUpper) || At(kELower))) {
     return;
   }
 
-  Consume();                   // Eat 'E'
-  TryConsume2(kPlus, kMinus);  // Eat '[+-]?'
-  ConsumeDigits();
+  Bump();                   // Eat 'E'
+  TryBump2(kPlus, kMinus);  // Eat '[+-]?'
+  BumpDigits();
 }
 
 // Grammar: [0-9]+
-void OrionLexer::ConsumeDigits() {
+void Lexer::BumpDigits() {
   if (AtEnd()) {
     throw std::invalid_argument(
         "expected at least one digit in fragment, but at end");
@@ -327,11 +327,11 @@ void OrionLexer::ConsumeDigits() {
     throw std::invalid_argument("expected at least one digit in fragment");
   }
 
-  ConsumeWhile([](const char32_t ch) { return std::iswdigit(ch); });
+  BumpWhile([](const char32_t ch) { return std::iswdigit(ch); });
 }
 
 // Grammar: [a-zA-Z]+
-void OrionLexer::ConsumeLetters() {
+void Lexer::BumpLetters() {
   if (AtEnd()) {
     throw std::invalid_argument(
         "expected at least one letter in fragment, but at end");
@@ -342,6 +342,6 @@ void OrionLexer::ConsumeLetters() {
     throw std::invalid_argument("expected at least one letter in fragment");
   }
 
-  ConsumeWhile([](const char32_t ch) { return std::iswalpha(ch); });
+  BumpWhile([](const char32_t ch) { return std::iswalpha(ch); });
 }
 }  // namespace orion::syntax
