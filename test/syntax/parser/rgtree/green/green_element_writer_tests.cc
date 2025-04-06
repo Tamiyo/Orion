@@ -84,6 +84,29 @@ TEST(GreenElementWriterTests, GreenNodeWithTokenAndNodeChildren) {
   EXPECT_EQ(expected, actual);
 }
 
+TEST(GreenElementWriterTests, GreenNodeWithTokenAndNodeChildrenReverseOrder) {
+  const auto node = GreenNode(
+      SyntaxKind::kBinaryExpr,
+      std::vector{
+          GreenElement(GreenNode(SyntaxKind::kBinaryExpr,
+                                 std::vector{GreenElement(kGreenToken2),
+                                             GreenElement(kGreenTokenMinus),
+                                             GreenElement(kGreenToken3)})),
+          GreenElement(kGreenTokenPlus),
+          GreenElement(kGreenToken1),
+      });
+  const auto actual = GreenElementWriter::WriteAsU32String(node);
+  const auto expected =
+      U"BinaryExpr@0..5\n"
+      U"  BinaryExpr@0..3\n"
+      U"    IntLiteral@0..1 \"2\"\n"
+      U"    Minus@1..2 \"-\"\n"
+      U"    IntLiteral@2..3 \"3\"\n"
+      U"  Plus@3..4 \"+\"\n"
+      U"  IntLiteral@4..5 \"1\"\n";
+  EXPECT_EQ(expected, actual);
+}
+
 TEST(GreenElementWriterTests, Clear) {
   auto writer = GreenElementWriter();
   writer.Write(kGreenToken1).Clear();

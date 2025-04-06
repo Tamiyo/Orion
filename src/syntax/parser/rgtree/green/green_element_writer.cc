@@ -44,7 +44,6 @@ GreenElementWriter& GreenElementWriter::Write(const GreenNode& node) noexcept {
   }
   Dedent();
 
-  width_ += node.Width();
   return *this;
 }
 
