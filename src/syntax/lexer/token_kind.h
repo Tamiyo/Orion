@@ -2,6 +2,8 @@
 #define SYNTAX_LEXER_TOKEN_KIND_H_
 
 #include <cstdint>
+#include <sstream>
+#include <string_view>
 
 namespace orion::syntax {
 
@@ -88,7 +90,6 @@ constexpr bool IsTrivia(const TokenKind kind) noexcept {
       return false;
   }
 };
-
 }  // namespace orion::syntax
 
 #endif  // SYNTAX_LEXER_TOKEN_KIND_H_

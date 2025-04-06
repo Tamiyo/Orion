@@ -32,7 +32,7 @@ class TokenSource {
   /// \return An optional containing the next token if available, otherwise
   /// `nullopt`.
   [[nodiscard]] std::optional<Token> NextToken() noexcept {
-    ConsumeTrivia();
+    BumpTrivia();
 
     if (token_idx_ < tokens_.size()) {
       const Token token = tokens_.at(token_idx_);
@@ -48,7 +48,7 @@ class TokenSource {
   /// \return An optional containing the kind of the next token if available,
   /// otherwise `nullopt`.
   [[nodiscard]] std::optional<TokenKind> PeekKind() noexcept {
-    ConsumeTrivia();
+    BumpTrivia();
     return PeekKindRaw();
   }
 
@@ -57,13 +57,13 @@ class TokenSource {
   /// \return An optional containing the next token if available, otherwise
   /// `nullopt`.
   [[nodiscard]] std::optional<Token> PeekToken() noexcept {
-    ConsumeTrivia();
+    BumpTrivia();
     return PeekTokenRaw();
   }
 
  private:
   /// \brief Skips any trivia tokens (e.g., whitespace, comments) in the source.
-  void ConsumeTrivia() noexcept {
+  void BumpTrivia() noexcept {
     while (AtTrivia()) {
       token_idx_ += 1;
     }

@@ -2,34 +2,34 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "syntax/lexer.h"
 #include "syntax/lexer/span.h"
 #include "syntax/lexer/token_kind.h"
-#include "syntax/orion_lexer.h"
 
 namespace orion::syntax {
 std::optional<Token> BuildToken(const TokenKind kind, const size_t start,
-                                const size_t stop,
-                                const std::u32string& source) {
+                                const size_t stop, std::u32string_view source) {
   return std::make_optional(
       Token(static_cast<uint16_t>(kind), Span(start, stop), source));
 }
 
 std::optional<Token> BuildToken(const TokenKind kind,
-                                const std::u32string& source) {
+                                std::u32string_view source) {
   return BuildToken(kind, 0, source.length(), source);
 }
 }  // namespace orion::syntax
 
 namespace {
-using orion::syntax::OrionLexer;
+using orion::syntax::Lexer;
 using orion::syntax::Token;
 using orion::syntax::TokenKind;
 
 struct SingleTokenTestCase {
   TokenKind kind;
-  std::u32string source;
+  std::u32string_view source;
   std::string test_name;
 };
 
@@ -37,7 +37,7 @@ class SingleTokenParameterizedTestFixture
     : public testing::TestWithParam<SingleTokenTestCase> {};
 
 INSTANTIATE_TEST_SUITE_P(
-    OrionLexerTest, SingleTokenParameterizedTestFixture,
+    LexerTest, SingleTokenParameterizedTestFixture,
     ::testing::Values(
         // Keywords
 
@@ -190,7 +190,7 @@ INSTANTIATE_TEST_SUITE_P(
     });
 TEST_P(SingleTokenParameterizedTestFixture, SingleTokens) {
   const SingleTokenTestCase& param = GetParam();
-  auto lexer = OrionLexer(param.source);
+  auto lexer = Lexer(param.source);
   const std::optional<Token> expected = BuildToken(param.kind, param.source);
 
   const std::vector<Token> tokens = lexer.Tokenize();
@@ -200,9 +200,9 @@ TEST_P(SingleTokenParameterizedTestFixture, SingleTokens) {
   EXPECT_EQ(expected, actual);
 }
 
-TEST(OrionLexerTest, MultipleIntLit) {
-  const std::u32string utf8 = U"1337 3144";
-  auto lexer = OrionLexer(utf8);
+TEST(LexerTest, MultipleIntLit) {
+  const std::u32string_view utf8 = U"1337 3144";
+  auto lexer = Lexer(utf8);
   const auto expected_1 = BuildToken(TokenKind::kIntLiteral, 0, 4, U"1337");
   const auto expected_2 = BuildToken(TokenKind::kWhitespace, 4, 5, U" ");
   const auto expected_3 = BuildToken(TokenKind::kIntLiteral, 5, 9, U"3144");

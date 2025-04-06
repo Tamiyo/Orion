@@ -54,7 +54,7 @@ void GreenBuilder::ApplyCheckpoint(const Checkpoint &checkpoint,
 }
 
 void GreenBuilder::Token(const SyntaxKind kind,
-                         const std::u32string &source) noexcept {
+                         const std::u32string_view &source) noexcept {
   const CachedGreenElement token = cache_.GetToken(kind, source);
   children_.emplace_back(token);
 }

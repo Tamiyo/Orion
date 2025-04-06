@@ -1,9 +1,9 @@
-#ifndef SYNTAX_LEXER_LEXER_H_
-#define SYNTAX_LEXER_LEXER_H_
+#ifndef SYNTAX_LEXER_LEXER_BASE_H_
+#define SYNTAX_LEXER_LEXER_BASE_H_
 
 #include <functional>
 #include <optional>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -13,18 +13,18 @@ namespace orion::syntax {
 
 /// \brief Represents a base class for a lexer that tokenizes source code.
 ///
-/// The `Lexer` class provides a framework for tokenizing a source string into
-/// a sequence of tokens. Derived classes must implement the `TryNextToken`
+/// The `LexerBase` class provides a framework for tokenizing a source string
+/// into a sequence of tokens. Derived classes must implement the `TryNextToken`
 /// method to provide tokenization logic.
-class Lexer {
+class LexerBase {
  public:
   /// \brief Deleted default constructor.
   ///
   /// A `Lexer` must always be initialized with a source string.
-  Lexer() = delete;
+  LexerBase() = delete;
 
   /// \brief Default destructor.
-  virtual ~Lexer() = default;
+  virtual ~LexerBase() = default;
 
   /// \brief Tokenizes the entire source string.
   ///
@@ -32,10 +32,10 @@ class Lexer {
   std::vector<Token> Tokenize() noexcept;
 
  protected:
-  /// \brief Constructs a `Lexer` with the specified source string.
+  /// \brief Constructs a `LexerBase` with the specified source string.
   ///
   /// \param source The source string to be tokenized.
-  explicit Lexer(std::u32string source)
+  explicit LexerBase(std::u32string_view source)
       : source_(std::move(source)),
         source_length_(source_.length()),
         start_(0),
@@ -60,7 +60,7 @@ class Lexer {
   template <typename TokenKind = uint16_t>
   [[nodiscard]] Token CreateToken(TokenKind kind) noexcept {
     const size_t distance = end_ - start_;
-    const std::u32string source = source_.substr(start_, distance);
+    const std::u32string_view source = source_.substr(start_, distance);
     const auto span = Span(start_, end_);
     const auto token = Token(static_cast<uint16_t>(kind), span, source);
 
@@ -68,16 +68,16 @@ class Lexer {
     return token;
   }
 
-  /// \brief Consumes characters and creates a token from the current state.
+  /// \brief Bumps characters and creates a token from the current state.
   ///
   /// \tparam TokenKind The type of the token kind (defaults to `uint16_t`).
   /// \param kind The kind of the token to create.
   /// \param count The number of characters to consume (defaults to 1).
   /// \return A newly created token after consuming the specified characters.
   template <typename TokenKind = uint16_t>
-  [[nodiscard]] Token ConsumeAndCreateToken(TokenKind kind,
-                                            const size_t count = 1) noexcept {
-    Consume(count);
+  [[nodiscard]] Token BumpAndCreateToken(TokenKind kind,
+                                         const size_t count = 1) noexcept {
+    Bump(count);
     return CreateToken<TokenKind>(kind);
   }
 
@@ -114,7 +114,7 @@ class Lexer {
   /// \param offset An optional offset from the current position.
   /// \return `true` if the current characters match the string, otherwise
   /// `false`.
-  [[nodiscard]] bool At(const std::u32string& value, size_t offset = 0) const;
+  [[nodiscard]] bool At(std::u32string_view value, size_t offset = 0) const;
 
   /// \brief Checks if the current character matches a predicate.
   ///
@@ -143,37 +143,37 @@ class Lexer {
   [[nodiscard]] bool At3(char32_t ch1, char32_t ch2, char32_t ch3,
                          size_t offset = 0) const;
 
-  // Consume
+  // Bump
 
-  /// \brief Consumes a specified number of characters from the source.
+  /// \brief Bumps a specified number of characters from the source.
   ///
   /// \param count The number of characters to consume (defaults to 1).
-  void Consume(size_t count = 1);
+  void Bump(size_t count = 1);
 
-  /// \brief Consumes a character if a condition is met.
+  /// \brief Bumps a character if a condition is met.
   ///
   /// \param condition A boolean condition to check before consuming.
-  void ConsumeIf(bool condition);
+  void BumpIf(bool condition);
 
-  /// \brief Consumes characters while a predicate holds true.
+  /// \brief Bumps characters while a predicate holds true.
   ///
   /// \param predicate A function that takes a character and returns a boolean.
-  void ConsumeWhile(const std::function<bool(char32_t)>& predicate);
+  void BumpWhile(const std::function<bool(char32_t)>& predicate);
 
   /// \brief Attempts to consume a specific character.
   ///
   /// \param ch The character to attempt to consume.
-  void TryConsume(char32_t ch);
+  void TryBump(char32_t ch);
 
   /// \brief Attempts to consume two specific characters in sequence.
   ///
   /// \param ch1 The first character to attempt to consume.
   /// \param ch2 The second character to attempt to consume.
-  void TryConsume2(char32_t ch1, char32_t ch2);
+  void TryBump2(char32_t ch1, char32_t ch2);
 
  private:
   /// The source string being tokenized.
-  const std::u32string source_;
+  const std::u32string_view source_;
 
   /// The length of the source string.
   const size_t source_length_;
@@ -187,4 +187,4 @@ class Lexer {
 
 }  // namespace orion::syntax
 
-#endif  // SYNTAX_LEXER_LEXER_H_
+#endif  // SYNTAX_LEXER_LEXER_BASE_H_

@@ -1,31 +1,31 @@
-#ifndef SYNTAX_ORION_LEXER_H_
-#define SYNTAX_ORION_LEXER_H_
+#ifndef SYNTAX_LEXER_H_
+#define SYNTAX_LEXER_H_
 
 #include <optional>
 #include <string>
 
-#include "syntax/lexer/lexer.h"
+#include "syntax/lexer/lexer_base.h"
 #include "syntax/lexer/token.h"
 
 namespace orion::syntax {
 
-/// \brief The OrionLexer class is a concrete implementation of the Lexer base
+/// \brief The Lexer class is a concrete implementation of the LexerBase base
 /// class.
 ///
-/// The `OrionLexer` is responsible for tokenizing source code into meaningful
+/// The `Lexer` is responsible for tokenizing source code into meaningful
 /// tokens that can be further processed by a parser. It implements the
 /// tokenization logic specific to the Orion language syntax.
-class OrionLexer final : public Lexer {
+class Lexer final : public LexerBase {
  public:
-  /// \brief Constructs an OrionLexer with the given source string.
+  /// \brief Constructs an Lexer with the given source string.
   ///
   /// \param source The source string to be tokenized.
-  explicit OrionLexer(const std::u32string &source) : Lexer(source) {}
+  explicit Lexer(std::u32string_view source) : LexerBase(source) {}
 
   /// \brief Deleted default constructor.
   ///
-  /// An `OrionLexer` must always be initialized with a source string.
-  OrionLexer() = delete;
+  /// An `Lexer` must always be initialized with a source string.
+  Lexer() = delete;
 
  protected:
   /// \brief Attempts to retrieve the next token from the source.
@@ -98,16 +98,16 @@ class OrionLexer final : public Lexer {
 
   // Fragment handling methods for specific parts of tokens.
 
-  /// \brief Consumes the exponent part of a numeric literal if present.
-  void ConsumeExponent();
+  /// \brief Bumps the exponent part of a numeric literal if present.
+  void BumpExponent();
 
-  /// \brief Consumes digits from the source string.
-  void ConsumeDigits();
+  /// \brief Bumps digits from the source string.
+  void BumpDigits();
 
-  /// \brief Consumes letters from the source string.
-  void ConsumeLetters();
+  /// \brief Bumps letters from the source string.
+  void BumpLetters();
 };
 
 }  // namespace orion::syntax
 
-#endif  // SYNTAX_ORION_LEXER_H_
+#endif  // SYNTAX_LEXER_H_

@@ -1,7 +1,7 @@
 #ifndef SYNTAX_PARSER_RGTREE_GREEN_GREEN_BUILDER_H_
 #define SYNTAX_PARSER_RGTREE_GREEN_GREEN_BUILDER_H_
 
-#include <string>
+#include <string_view>
 #include <vector>
 
 #include "syntax/parser/rgtree/green/green_cache.h"
@@ -60,7 +60,7 @@ class GreenBuilder {
   ///
   /// \param kind The kind of the token as defined by `SyntaxKind`.
   /// \param source The source text of the token.
-  void Token(SyntaxKind kind, const std::u32string& source) noexcept;
+  void Token(SyntaxKind kind, const std::u32string_view& source) noexcept;
 
   /// \brief Finalizes the builder and returns the constructed green node.
   ///

@@ -3,7 +3,7 @@
 #include <memory>
 #include <optional>
 #include <ranges>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -16,9 +16,9 @@
 // https://github.com/rust-analyzer/rowan/tree/master/src/green
 namespace orion::syntax {
 namespace {
-size_t HashToken(const SyntaxKind kind, const std::u32string& source) noexcept {
+size_t HashToken(const SyntaxKind kind, std::u32string_view source) noexcept {
   size_t hash_value = std::hash<SyntaxKind>{}(kind);
-  hash_value ^= std::hash<std::u32string>{}(source) + 0x9e3779b9 +
+  hash_value ^= std::hash<std::u32string_view>{}(source) + 0x9e3779b9 +
                 (hash_value << 6) + (hash_value >> 2);
 
   return hash_value;
@@ -117,7 +117,7 @@ CachedGreenElement GreenCache::GetNode(
 }
 
 CachedGreenElement GreenCache::GetToken(const SyntaxKind kind,
-                                        const std::u32string& source) {
+                                        std::u32string_view source) {
   const size_t hash_value = HashToken(kind, source);
   const auto token = GreenToken(kind, source);
 

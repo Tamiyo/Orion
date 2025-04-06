@@ -1,11 +1,11 @@
-#include "syntax/lexer/lexer.h"
+#include "syntax/lexer/lexer_base.h"
 
 #include <functional>
 #include <string>
 #include <vector>
 
 namespace orion::syntax {
-std::vector<Token> Lexer::Tokenize() noexcept {
+std::vector<Token> LexerBase::Tokenize() noexcept {
   std::vector<Token> tokens = std::vector<Token>();
   while (!AtEnd()) {
     if (const std::optional<Token> token = TryNextToken(); token.has_value()) {
@@ -18,7 +18,7 @@ std::vector<Token> Lexer::Tokenize() noexcept {
   return tokens;
 }
 
-bool Lexer::At(const char32_t ch, const size_t offset) const {
+bool LexerBase::At(const char32_t ch, const size_t offset) const {
   if (AtEnd(offset)) {
     return false;
   }
@@ -27,18 +27,19 @@ bool Lexer::At(const char32_t ch, const size_t offset) const {
   return source_.at(current) == ch;
 }
 
-bool Lexer::At(const std::u32string& value, const size_t offset) const {
+bool LexerBase::At(std::u32string_view value, const size_t offset) const {
   if (AtEnd(offset + value.size() - 1)) {
     return false;
   }
 
-  const std::u32string substring = source_.substr(end_ + offset, value.size());
+  const std::u32string_view substring =
+      source_.substr(end_ + offset, value.size());
 
   return substring == value;
 }
 
-bool Lexer::At(const std::function<bool(char32_t)>& predicate,
-               const size_t offset) const {
+bool LexerBase::At(const std::function<bool(char32_t)>& predicate,
+                   const size_t offset) const {
   if (AtEnd(offset)) {
     return false;
   }
@@ -47,45 +48,45 @@ bool Lexer::At(const std::function<bool(char32_t)>& predicate,
   return predicate(source_.at(current));
 }
 
-bool Lexer::At2(const char32_t ch1, const char32_t ch2,
-                const size_t offset) const {
+bool LexerBase::At2(const char32_t ch1, const char32_t ch2,
+                    const size_t offset) const {
   return At(ch1, offset) || At(ch2, offset);
 }
 
-bool Lexer::At3(const char32_t ch1, const char32_t ch2, const char32_t ch3,
-                const size_t offset) const {
+bool LexerBase::At3(const char32_t ch1, const char32_t ch2, const char32_t ch3,
+                    const size_t offset) const {
   return At(ch1, offset) || At(ch2, offset) || At(ch3, offset);
 }
 
-// Consume
-void Lexer::Consume(const size_t count) {
+// Bump
+void LexerBase::Bump(const size_t count) {
   size_t consumed = 0;
   while (!AtEnd() && consumed++ < count) {
     end_ += 1;
   }
 }
 
-void Lexer::ConsumeIf(const bool condition) {
+void LexerBase::BumpIf(const bool condition) {
   if (!AtEnd() && condition) {
-    Consume();
+    Bump();
   }
 }
 
-void Lexer::ConsumeWhile(const std::function<bool(char32_t)>& predicate) {
+void LexerBase::BumpWhile(const std::function<bool(char32_t)>& predicate) {
   while (!AtEnd() && predicate(source_.at(end_))) {
     end_++;
   }
 }
 
-void Lexer::TryConsume(const char32_t ch) {
+void LexerBase::TryBump(const char32_t ch) {
   if (!AtEnd() && source_.at(end_) == ch) {
-    Consume();
+    Bump();
   }
 }
 
-void Lexer::TryConsume2(const char32_t ch1, const char32_t ch2) {
+void LexerBase::TryBump2(const char32_t ch1, const char32_t ch2) {
   if (!AtEnd() && (source_.at(end_) == ch1 || source_.at(end_) == ch2)) {
-    Consume();
+    Bump();
   }
 }
 }  // namespace orion::syntax

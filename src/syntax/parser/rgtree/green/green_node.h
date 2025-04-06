@@ -83,7 +83,8 @@ class GreenNodeData {
 /// properties and methods for interacting with the node's children.
 class GreenNode {
  public:
-  /// \brief Constructs a `GreenNode` with the specified kind and child elements.
+  /// \brief Constructs a `GreenNode` with the specified kind and child
+  /// elements.
   ///
   /// \param kind The type of the node as defined by `SyntaxKind`.
   /// \param children The child elements contained within this node.
