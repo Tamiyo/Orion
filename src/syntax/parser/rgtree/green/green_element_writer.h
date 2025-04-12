@@ -2,12 +2,13 @@
 #define SYNTAX_PARSER_RGTREE_GREEN_GREEN_ELEMENT_WRITER_H_
 
 #include <sstream>
+#include <string>
 
+#include "syntax/parser/rgtree/green/green_element.h"
 #include "syntax/parser/rgtree/green/green_node.h"
 #include "syntax/parser/rgtree/green/green_token.h"
 
 namespace orion::syntax {
-
 /// \brief A utility class for serializing GreenElements, GreenNodes, and
 /// GreenTokens
 ///        into a human-readable char32_t-based tree string representation.
