@@ -1,4 +1,4 @@
-#include "syntax/parser/rgtree/green/green_element_writer.h"
+#include "syntax/parser/rgtree/green/green_writer.h"
 
 #include <optional>
 #include <ostream>
@@ -19,9 +19,9 @@ std::u32string ToU32String(const size_t value) {
 }
 };  // namespace
 
-GreenElementWriter& GreenElementWriter::Write(
+GreenWriter& GreenWriter::Write(
     const GreenToken& token) noexcept {
-  WriteIndentation();
+  Indent();
 
   const size_t token_width = token.Source().size();
   char32_oss_ << token.Kind() << U"@" << ToU32String(width_) << U".."
@@ -32,22 +32,22 @@ GreenElementWriter& GreenElementWriter::Write(
   return *this;
 }
 
-GreenElementWriter& GreenElementWriter::Write(const GreenNode& node) noexcept {
-  WriteIndentation();
+GreenWriter& GreenWriter::Write(const GreenNode& node) noexcept {
+  Indent();
 
   char32_oss_ << node.Kind() << U"@" << ToU32String(width_) << U".."
               << ToU32String(width_ + node.Width()) << U"\n";
 
-  Indent();
+  IncreaseIndent();
   for (const GreenElement& element : node.Children()) {
     Write(element);
   }
-  Dedent();
+  DecreaseIndent();
 
   return *this;
 }
 
-GreenElementWriter& GreenElementWriter::Write(const GreenElement& element) {
+GreenWriter& GreenWriter::Write(const GreenElement& element) {
   if (const std::optional<GreenNode> node = element.TryGetNode();
       node.has_value()) {
     return Write(node.value());
@@ -58,26 +58,26 @@ GreenElementWriter& GreenElementWriter::Write(const GreenElement& element) {
     return Write(token.value());
   }
 
-  throw std::invalid_argument("Unknown node type in GreenElementWriter.");
+  throw std::invalid_argument("Unknown node type in GreenWriter.");
 }
 
-void GreenElementWriter::Print(
+void GreenWriter::Print(
     std::basic_ostream<char32_t> char32_os) const noexcept {
   char32_os << char32_oss_.str();
 }
 
-std::u32string GreenElementWriter::AsU32String() const noexcept {
+std::u32string GreenWriter::AsU32String() const noexcept {
   return char32_oss_.str();
 }
 
-void GreenElementWriter::Clear() noexcept {
+void GreenWriter::Clear() noexcept {
   char32_oss_.str(U"");
   char32_oss_.clear();
   indent_ = 0;
   width_ = 0;
 }
 
-void GreenElementWriter::WriteIndentation() {
+void GreenWriter::Indent() {
   for (size_t i = 0; i < indent_ * indent_size_; i++) {
     char32_oss_ << U" ";
   }

@@ -1,5 +1,5 @@
-#ifndef SYNTAX_PARSER_RGTREE_GREEN_GREEN_ELEMENT_WRITER_H_
-#define SYNTAX_PARSER_RGTREE_GREEN_GREEN_ELEMENT_WRITER_H_
+#ifndef SYNTAX_PARSER_RGTREE_GREEN_GREEN_WRITER_H_
+#define SYNTAX_PARSER_RGTREE_GREEN_GREEN_WRITER_H_
 
 #include <sstream>
 #include <string>
@@ -16,11 +16,11 @@ namespace orion::syntax {
 /// This class is primarily intended for debugging or visualization of syntax
 /// trees built using GreenElements. It implements a simple pretty-printing
 /// format with indentation and width annotations.
-class GreenElementWriter {
+class GreenWriter {
  public:
   /// \brief Constructs a writer with a configurable indentation size.
   /// \param indent_size Number of spaces per indentation level. Defaults to 2.
-  explicit GreenElementWriter(const size_t indent_size = 2)
+  explicit GreenWriter(const size_t indent_size = 2)
       : indent_size_(indent_size), indent_(0), width_(0) {}
 
   /// \brief Serializes a GreenElement into a u32string.
@@ -29,33 +29,33 @@ class GreenElementWriter {
   /// \returns A u32string representing the tree.
   [[nodiscard]] static std::u32string WriteAsU32String(
       const GreenElement& element, size_t indent_size = 2) {
-    auto writer = GreenElementWriter(indent_size);
+    auto writer = GreenWriter(indent_size);
     return writer.Write(element).AsU32String();
   }
 
   /// \brief Serializes a GreenNode into a u32string.
   [[nodiscard]] static std::u32string WriteAsU32String(
       const GreenNode& node, size_t indent_size = 2) noexcept {
-    auto writer = GreenElementWriter(indent_size);
+    auto writer = GreenWriter(indent_size);
     return writer.Write(node).AsU32String();
   }
 
   /// \brief Serializes a GreenToken into a u32string.
   [[nodiscard]] static std::u32string WriteAsU32String(
       const GreenToken& token, size_t indent_size = 2) noexcept {
-    auto writer = GreenElementWriter(indent_size);
+    auto writer = GreenWriter(indent_size);
     return writer.Write(token).AsU32String();
   }
 
   /// \brief Writes a single GreenToken to the stream with width and source.
-  GreenElementWriter& Write(const GreenToken& token) noexcept;
+  GreenWriter& Write(const GreenToken& token) noexcept;
 
   /// \brief Recursively writes a GreenNode and its children.
-  GreenElementWriter& Write(const GreenNode& node) noexcept;
+  GreenWriter& Write(const GreenNode& node) noexcept;
 
   /// \brief Dispatches writing based on whether the element is a token or node.
   /// \throws std::invalid_argument if the element type is unrecognized.
-  GreenElementWriter& Write(const GreenElement& element);
+  GreenWriter& Write(const GreenElement& element);
 
   /// \brief Writes the accumulated output to a char32_t stream.
   void Print(std::basic_ostream<char32_t> char32_os) const noexcept;
@@ -68,13 +68,13 @@ class GreenElementWriter {
 
  private:
   /// \brief Writes the current indentation to the stream.
-  void WriteIndentation();
+  void Indent();
 
   /// \brief Increases the current indentation level by one.
-  void Indent() noexcept { indent_ += 1; }
+  void IncreaseIndent() noexcept { indent_ += 1; }
 
   /// \brief Decreases the current indentation level by one.
-  void Dedent() noexcept {
+  void DecreaseIndent() noexcept {
     if (indent_ > 0) {
       indent_ -= 1;
     }
@@ -95,4 +95,4 @@ class GreenElementWriter {
 
 }  // namespace orion::syntax
 
-#endif  // SYNTAX_PARSER_RGTREE_GREEN_GREEN_ELEMENT_WRITER_H_
+#endif  // SYNTAX_PARSER_RGTREE_GREEN_GREEN_WRITER_H_
