@@ -8,8 +8,8 @@ add_library(
         parser/token_sink.cc
         parser/rgtree/green/green_builder.cc
         parser/rgtree/green/green_cache.cc
-        parser/rgtree/green/green_element_writer.cc
         parser/rgtree/green/green_node.cc
+        parser/rgtree/green/green_writer.cc
 )
 
 # Link header files.

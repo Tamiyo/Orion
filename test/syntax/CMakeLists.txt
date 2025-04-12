@@ -15,9 +15,9 @@ add_executable(
         rgtree_tests
         parser/rgtree/green/green_builder_tests.cc
         parser/rgtree/green/green_cache_tests.cc 
-        parser/rgtree/green/green_element_writer_tests.cc 
         parser/rgtree/green/green_node_tests.cc
         parser/rgtree/green/green_token_tests.cc
+        parser/rgtree/green/green_writer_tests.cc 
 )
 
 # Link GTest to this test suite.

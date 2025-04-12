@@ -11,9 +11,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 if (MSVC)
+    message(STATUS "Found MSCV")
     # Warning level 4.
     add_compile_options(/W4)
 else()
+    message(STATUS "Found Clang")
     # Additional warnings.
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
