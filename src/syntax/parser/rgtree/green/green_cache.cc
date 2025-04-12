@@ -6,6 +6,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include <variant>
 
 #include "syntax/parser/rgtree/green/green_element.h"
 #include "syntax/parser/rgtree/green/green_node.h"

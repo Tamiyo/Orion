@@ -8,6 +8,7 @@
 #include "syntax/lexer/token.h"
 #include "syntax/parser/event.h"
 #include "syntax/parser/rgtree/green/green_builder.h"
+#include "syntax/parser/rgtree/green/green_node.h"
 #include "syntax/syntax_kind.h"
 
 namespace orion::syntax {
