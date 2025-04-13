@@ -5,7 +5,7 @@
 #include <optional>
 #include <utility>
 
-#include "syntax/parser/rgtree/green/green_node.h"
+#include "syntax/parser/rgtree/green/green.h"
 
 namespace orion::syntax {
 

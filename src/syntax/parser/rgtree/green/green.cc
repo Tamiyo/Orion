@@ -18,20 +18,11 @@ size_t GreenElement::UseCount() const noexcept {
   return 0;  // No shared data for monostate.
 }
 
-GreenNodeData::GreenNodeData(const SyntaxKind kind, const size_t width,
-                             std::vector<GreenElement> children)
-    : kind_(kind), width_(width), children_(std::move(children)) {}
-
-bool orion::syntax::GreenNodeData::operator==(
+bool GreenNodeData::operator==(
     const GreenNodeData& other) const {
   return kind_ == other.kind_ && width_ == other.width_ &&
          children_ == other.children_;
 }
-
-GreenNode::GreenNode(const SyntaxKind kind,
-                     const std::vector<GreenElement>& children)
-    : data_(std::make_shared<GreenNodeData>(
-          GreenNodeData(kind, ComputeWidth(children), children))) {}
 
 size_t GreenNode::ComputeWidth(const std::vector<GreenElement>& children) {
   size_t width = 0;

@@ -1,7 +1,6 @@
 #ifndef SYNTAX_PARSER_RGTREE_GREEN_GREEN_WRITER_H_
 #define SYNTAX_PARSER_RGTREE_GREEN_GREEN_WRITER_H_
 
-#include <sstream>
 #include <string>
 
 #include "syntax/parser/rgtree/green/green.h"
@@ -57,7 +56,7 @@ class GreenWriter {
 
   /// \brief Returns the written representation as a u32string.
   [[nodiscard]] std::u32string AsU32String() const noexcept {
-    return std::u32string(string_);
+    return {string_};
   }
 
   /// \brief Clears the internal stream and resets indentation/width counters.

@@ -2,9 +2,9 @@
 #define SYNTAX_PARSER_RGTREE_GREEN_GREEN_H_
 
 #include <memory>
+#include <utility>
 #include <variant>
 #include <vector>
-#include <utility>
 
 #include "syntax/syntax_kind.h"
 
@@ -26,7 +26,8 @@ class GreenNodeData {
   /// \param width The width of the node in terms of layout.
   /// \param children The child elements contained within this node.
   explicit GreenNodeData(const SyntaxKind kind, const size_t width,
-                         std::vector<GreenElement> children);
+                         std::vector<GreenElement> children)
+      : kind_(kind), width_(width), children_(std::move(children)) {}
 
   /// \brief Deleted default constructor.
   ///
@@ -84,8 +85,9 @@ class GreenNode {
   ///
   /// \param kind The type of the node as defined by `SyntaxKind`.
   /// \param children The child elements contained within this node.
-  explicit GreenNode(const SyntaxKind kind,
-                     const std::vector<GreenElement>& children);
+  explicit GreenNode(SyntaxKind kind, const std::vector<GreenElement>& children)
+      : data_(std::make_shared<GreenNodeData>(
+            GreenNodeData(kind, ComputeWidth(children), children))) {}
 
   /// \brief Deleted default constructor.
   ///
@@ -149,8 +151,9 @@ class GreenTokenData {
   ///
   /// \param kind The type of the token as defined by `SyntaxKind`.
   /// \param source The actual text content of the token.
-  explicit GreenTokenData(const SyntaxKind kind, std::u32string_view source)
-      : kind_(kind), source_(std::move(source)) {}
+  explicit GreenTokenData(const SyntaxKind kind,
+                          const std::u32string_view source)
+      : kind_(kind), source_(source) {}
 
   /// \brief Deleted default constructor.
   ///
