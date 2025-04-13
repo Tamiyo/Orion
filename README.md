@@ -1,4 +1,4 @@
-# yuzu Programming Language
+# Yuzu Programming Language
 
 ## Overview
 This project explores compiler design principles, including syntax analysis, semantic analysis, and code generation, using C++. The goal is to gain hands-on experience with 
