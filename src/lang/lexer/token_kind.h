@@ -1,5 +1,5 @@
-#ifndef SYNTAX_LEXER_TOKEN_KIND_H_
-#define SYNTAX_LEXER_TOKEN_KIND_H_
+#ifndef LANG_LEXER_TOKEN_KIND_H_
+#define LANG_LEXER_TOKEN_KIND_H_
 
 #include <cstdint>
 #include <sstream>
@@ -90,6 +90,6 @@ constexpr bool IsTrivia(const TokenKind kind) noexcept {
       return false;
   }
 };
-}  // namespace yuzu::syntax
+}  // namespace yuzu::lang
 
-#endif  // SYNTAX_LEXER_TOKEN_KIND_H_
+#endif  // LANG_LEXER_TOKEN_KIND_H_

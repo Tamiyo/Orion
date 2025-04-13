@@ -1,5 +1,5 @@
-#ifndef SYNTAX_SYNTAX_KIND_H_
-#define SYNTAX_SYNTAX_KIND_H_
+#ifndef LANG_SYNTAX_KIND_H_
+#define LANG_SYNTAX_KIND_H_
 
 #include <cstdint>
 #include <string_view>
@@ -143,4 +143,4 @@ enum class SyntaxKind : uint16_t {
   }
 }
 }  // namespace yuzu::syntax
-#endif  // SYNTAX_SYNTAX_KIND_H_
+#endif  // LANG_SYNTAX_KIND_H_
