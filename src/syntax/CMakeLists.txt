@@ -2,13 +2,12 @@
 add_library(
         syntax
         lexer.cc
-        syntax_kind.cc
         lexer/lexer_base.cc
         parser/parser_base.cc
         parser/token_sink.cc
+        parser/rgtree/green/green.cc
         parser/rgtree/green/green_builder.cc
         parser/rgtree/green/green_cache.cc
-        parser/rgtree/green/green_node.cc
         parser/rgtree/green/green_writer.cc
 )
 

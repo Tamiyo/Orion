@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "syntax/parser/rgtree/green/green_cache.h"
-#include "syntax/parser/rgtree/green/green_element.h"
+#include "syntax/parser/rgtree/green/green.h"
 #include "syntax/syntax_kind.h"
 
 namespace {

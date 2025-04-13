@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "syntax/parser/rgtree/green/green_element.h"
-#include "syntax/parser/rgtree/green/green_node.h"
+#include "syntax/parser/rgtree/green/green.h"
 
 namespace {
 using orion::syntax::GreenNode;
