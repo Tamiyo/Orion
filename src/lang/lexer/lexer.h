@@ -5,9 +5,9 @@
 #include <string>
 
 #include "lang/lexer/lexer.h"
+#include "lang/lexer/token.h"
 #include "lang/lexer/token_kind.h"
 #include "syntax/lexer/lexer.h"
-#include "syntax/lexer/token.h"
 
 namespace yuzu::lang {
 
@@ -38,7 +38,7 @@ class Lexer final : public syntax::Lexer<TokenKind> {
   ///
   /// \return An optional containing the next token if successful, otherwise
   /// `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryNextToken() noexcept override;
+  std::optional<Token> TryNextToken() noexcept override;
 
  private:
   // Tokenization methods for different types of tokens.
@@ -47,58 +47,57 @@ class Lexer final : public syntax::Lexer<TokenKind> {
   ///
   /// \return An optional containing the whitespace token if found, otherwise
   /// `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryWhitespace();
+  std::optional<Token> TryWhitespace();
 
   /// \brief Attempts to parse an operator token (e.g., `+`, `-`, etc.).
   ///
   /// \return An optional containing the operator token if found, otherwise
   /// `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryOperator();
+  std::optional<Token> TryOperator();
 
   /// \brief Attempts to parse a keyword or an identifier token.
   ///
   /// \return An optional containing the keyword or identifier token if found,
   /// otherwise `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryKeywordOrIdentifier();
+  std::optional<Token> TryKeywordOrIdentifier();
 
   /// \brief Attempts to parse a quoted identifier token.
   ///
   /// \return An optional containing the quoted identifier token if found,
   /// otherwise `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryQuotedIdentifier();
+  std::optional<Token> TryQuotedIdentifier();
 
   /// \brief Attempts to parse a plain identifier token.
   ///
   /// \return An optional containing the identifier token if found, otherwise
   /// `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryIdentifier();
+  std::optional<Token> TryIdentifier();
 
   /// \brief Attempts to parse a literal token (e.g., strings, booleans,
   /// numbers).
   ///
   /// \return An optional containing the literal token if found, otherwise
   /// `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryLiteral();
+  std::optional<Token> TryLiteral();
 
   /// \brief Attempts to parse a string literal token.
   ///
   /// \return An optional containing the string literal token if found,
   /// otherwise `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryStringLiteral();
+  std::optional<Token> TryStringLiteral();
 
   /// \brief Attempts to parse a boolean literal token.
   ///
   /// \return An optional containing the boolean literal token if found,
   /// otherwise `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryBooleanLiteral();
+  std::optional<Token> TryBooleanLiteral();
 
   /// \brief Attempts to parse a numeric literal token.
   ///
   /// \param consume_digits A flag indicating whether to consume digits after
   /// parsing. \return An optional containing the numeric literal token if
   /// found, otherwise `nullopt`.
-  std::optional<syntax::Token<TokenKind>> TryNumericLiteral(
-      bool consume_digits = true);
+  std::optional<Token> TryNumericLiteral(bool consume_digits = true);
 
   // Fragment handling methods for specific parts of tokens.
 
