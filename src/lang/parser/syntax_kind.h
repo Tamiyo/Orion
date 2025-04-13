@@ -1,10 +1,10 @@
-#ifndef LANG_SYNTAX_KIND_H_
-#define LANG_SYNTAX_KIND_H_
+#ifndef LANG_PARSER_SYNTAX_KIND_H_
+#define LANG_PARSER_SYNTAX_KIND_H_
 
 #include <cstdint>
 #include <string_view>
 
-namespace yuzu::syntax {
+namespace yuzu::lang {
 // Note: The 'tokens' enum values must match TokenKind.
 enum class SyntaxKind : uint16_t {
   // --- Trivia ---
@@ -142,5 +142,5 @@ enum class SyntaxKind : uint16_t {
       return U"Unknown";
   }
 }
-}  // namespace yuzu::syntax
-#endif  // LANG_SYNTAX_KIND_H_
+}  // namespace yuzu::lang
+#endif  // LANG_PARSER_SYNTAX_KIND_H_
