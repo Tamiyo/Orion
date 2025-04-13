@@ -1,13 +1,14 @@
 #ifndef SYNTAX_PARSER_RGTREE_SYNTAX_SYNTAX_NODE_H_
 #define SYNTAX_PARSER_RGTREE_SYNTAX_SYNTAX_NODE_H_
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <utility>
 
 #include "syntax/parser/rgtree/green/green.h"
 
-namespace orion::syntax {
+namespace yuzu::syntax {
 
 /// Forward declare SyntaxNode for `SyntaxNodeData`.
 class SyntaxNode;
@@ -128,6 +129,6 @@ class SyntaxNode {
   const std::shared_ptr<SyntaxNodeData> data_;
 };
 
-}  // namespace orion::syntax
+}  // namespace yuzu::syntax
 
 #endif  // SYNTAX_PARSER_RGTREE_SYNTAX_SYNTAX_NODE_H_

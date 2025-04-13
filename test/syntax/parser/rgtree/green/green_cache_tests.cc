@@ -1,21 +1,20 @@
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "syntax/parser/rgtree/green/green_cache.h"
 #include "syntax/parser/rgtree/green/green.h"
-#include "syntax/syntax_kind.h"
+#include "syntax/parser/rgtree/green/green_cache.h"
 
 namespace {
-using orion::syntax::CachedGreenElement;
-using orion::syntax::GreenCache;
-using orion::syntax::SyntaxKind;
+using yuzu::syntax::GreenCache;
+
+enum class SyntaxKind : uint16_t { kPlus, kMinus, kError };
 
 constexpr size_t kMaxCachedNodeSize = 3;
-
 constexpr auto kTestSyntaxKindPlus = SyntaxKind::kPlus;
 constexpr auto kTestSyntaxKindMinus = SyntaxKind::kMinus;
 
@@ -23,7 +22,7 @@ const std::u32string kTestSource1 = U"hello world";
 const std::u32string kTestSource2 = U"goodbye world";
 
 TEST(GreenCacheTest, GetToken) {
-  auto cache = GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache<SyntaxKind>(kMaxCachedNodeSize);
   const auto entry = cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
 
   // One in the cache, one held in this test method.
@@ -34,7 +33,7 @@ TEST(GreenCacheTest, GetToken) {
 }
 
 TEST(GreenCacheTest, GetTokensDifferentKind) {
-  auto cache = GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache<SyntaxKind>(kMaxCachedNodeSize);
   const auto entry1 = cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
   const auto entry2 = cache.GetToken(kTestSyntaxKindMinus, kTestSource1);
 
@@ -50,7 +49,7 @@ TEST(GreenCacheTest, GetTokensDifferentKind) {
 }
 
 TEST(GreenCacheTest, GetTokensDifferentSource) {
-  auto cache = GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache<SyntaxKind>(kMaxCachedNodeSize);
   const auto entry1 = cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
   const auto entry2 = cache.GetToken(kTestSyntaxKindPlus, kTestSource2);
 
@@ -63,12 +62,12 @@ TEST(GreenCacheTest, GetTokensDifferentSource) {
 }
 
 TEST(GreenCacheTest, GetNode) {
-  auto cache = GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache<SyntaxKind>(kMaxCachedNodeSize);
 
-  const CachedGreenElement entry1 =
+  const GreenCache<SyntaxKind>::Cached entry1 =
       cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
 
-  const CachedGreenElement entry2 =
+  const GreenCache<SyntaxKind>::Cached entry2 =
       cache.GetToken(kTestSyntaxKindMinus, kTestSource2);
 
   auto children = std::vector{entry1, entry2};
@@ -91,12 +90,12 @@ TEST(GreenCacheTest, GetNode) {
 }
 
 TEST(GreenCacheTest, GetNodeLeftoverChildren) {
-  auto cache = GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache<SyntaxKind>(kMaxCachedNodeSize);
 
-  const CachedGreenElement entry1 =
+  const GreenCache<SyntaxKind>::Cached entry1 =
       cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
 
-  const CachedGreenElement entry2 =
+  const GreenCache<SyntaxKind>::Cached entry2 =
       cache.GetToken(kTestSyntaxKindMinus, kTestSource2);
 
   auto children = std::vector{entry1, entry2};
@@ -118,12 +117,12 @@ TEST(GreenCacheTest, GetNodeLeftoverChildren) {
 }
 
 TEST(GreenCacheTest, GetNodeDuplicateNodes) {
-  auto cache = GreenCache(kMaxCachedNodeSize);
+  auto cache = GreenCache<SyntaxKind>(kMaxCachedNodeSize);
 
-  const CachedGreenElement child1 =
+  const GreenCache<SyntaxKind>::Cached child1 =
       cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
 
-  const CachedGreenElement child2 =
+  const GreenCache<SyntaxKind>::Cached child2 =
       cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
 
   auto children = std::vector{child1, child2};
@@ -153,12 +152,12 @@ TEST(GreenCacheTest, GetNodeDuplicateNodes) {
 }
 
 TEST(GreenCacheTest, GetNodeDuplicateNodesOverMaxCacheSize) {
-  auto cache = GreenCache(0);
+  auto cache = GreenCache<SyntaxKind>(0);
 
-  const CachedGreenElement child1 =
+  const GreenCache<SyntaxKind>::Cached child1 =
       cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
 
-  const CachedGreenElement child2 =
+  const GreenCache<SyntaxKind>::Cached child2 =
       cache.GetToken(kTestSyntaxKindPlus, kTestSource1);
 
   auto children = std::vector{child1, child2};

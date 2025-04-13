@@ -5,7 +5,7 @@
 #include <sstream>
 #include <string_view>
 
-namespace orion::syntax {
+namespace yuzu::lang {
 
 /// \brief Represents the different kinds of tokens in the lexer.
 ///
@@ -90,6 +90,6 @@ constexpr bool IsTrivia(const TokenKind kind) noexcept {
       return false;
   }
 };
-}  // namespace orion::syntax
+}  // namespace yuzu::syntax
 
 #endif  // SYNTAX_LEXER_TOKEN_KIND_H_

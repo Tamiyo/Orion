@@ -1,18 +1,20 @@
 #ifndef SYNTAX_LEXER_TOKEN_H_
 #define SYNTAX_LEXER_TOKEN_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 #include <utility>
 
 #include "syntax/lexer/span.h"
 
-namespace orion::syntax {
+namespace yuzu::syntax {
 
 /// \brief Represents a lexical token in the source text.
 ///
 /// A `Token` consists of a kind (denoting its type), a span (indicating its
 /// position in the source text), and the actual text content.
+template <typename TokenKind = uint16_t>
 class Token {
  public:
   /// \brief Constructs a `Token` with a specified kind, span, and source text.
@@ -23,7 +25,7 @@ class Token {
   ///
   /// \note The constructor is explicit to prevent unintended implicit
   /// conversions.
-  explicit Token(const uint16_t kind, const Span span,
+  explicit Token(const TokenKind kind, const Span span,
                  std::u32string_view source)
       : kind_(kind), span_(span), source_(std::move(source)) {}
 
@@ -48,7 +50,7 @@ class Token {
   ///
   /// \note This function assumes that `TokenKind` is an enum class where the
   /// token's kind value is a valid enumerator.
-  template <typename TokenKind>
+
   [[nodiscard]] TokenKind Kind() const noexcept {
     return static_cast<TokenKind>(kind_);
   }
@@ -56,7 +58,7 @@ class Token {
   /// \brief Returns the span (position range) of the token in the source text.
   ///
   /// \return The `Span` object representing the start and end positions.
-  [[nodiscard]] orion::syntax::Span Span() const noexcept { return span_; }
+  [[nodiscard]] yuzu::syntax::Span Span() const noexcept { return span_; }
 
   /// \brief Returns the actual text content of the token.
   ///
@@ -74,16 +76,11 @@ class Token {
   }
 
  private:
-  /// Numeric identifier representing the token's type.
-  const uint16_t kind_;
-
-  /// The span indicating the token's position in the source.
-  const orion::syntax::Span span_;
-
-  /// The actual text content of the token.
+  const TokenKind kind_;
+  const yuzu::syntax::Span span_;
   const std::u32string_view source_;
 };
 
-}  // namespace orion::syntax
+}  // namespace yuzu::syntax
 
 #endif  // SYNTAX_LEXER_TOKEN_H_

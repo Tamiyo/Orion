@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace orion::syntax {
+namespace yuzu::syntax {
 // Note: The 'tokens' enum values must match TokenKind.
 enum class SyntaxKind : uint16_t {
   // --- Trivia ---
@@ -142,5 +142,5 @@ enum class SyntaxKind : uint16_t {
       return U"Unknown";
   }
 }
-}  // namespace orion::syntax
+}  // namespace yuzu::syntax
 #endif  // SYNTAX_SYNTAX_KIND_H_

@@ -1,17 +1,17 @@
 #include <gtest/gtest.h>
 
-#include "syntax/parser/rgtree/green/green_builder.h"
 #include "syntax/parser/rgtree/green/green.h"
-#include "syntax/syntax_kind.h"
+#include "syntax/parser/rgtree/green/green_builder.h"
 
 namespace {
-using orion::syntax::GreenBuilder;
-using orion::syntax::SyntaxKind;
+using yuzu::syntax::GreenBuilder;
+
+enum class SyntaxKind : uint16_t { kError };
 
 constexpr auto kTestSyntaxKind = SyntaxKind::kError;
 
 TEST(GreenBuilderTest, StartNode) {
-  auto builder = GreenBuilder();
+  auto builder = GreenBuilder<SyntaxKind>();
 
   builder.StartNode(kTestSyntaxKind);
 
@@ -20,7 +20,7 @@ TEST(GreenBuilderTest, StartNode) {
 }
 
 TEST(GreenBuilderTest, FinishNode) {
-  auto builder = GreenBuilder();
+  auto builder = GreenBuilder<SyntaxKind>();
 
   builder.StartNode(kTestSyntaxKind);
   builder.FinishNode();
@@ -30,7 +30,7 @@ TEST(GreenBuilderTest, FinishNode) {
 }
 
 TEST(GreenBuilderTest, FinishNodeThrowsWhenNoNodes) {
-  auto builder = GreenBuilder();
+  auto builder = GreenBuilder<SyntaxKind>();
   EXPECT_THROW({ builder.FinishNode(); }, std::invalid_argument);
 }
 }  // namespace

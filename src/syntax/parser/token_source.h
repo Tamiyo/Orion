@@ -1,26 +1,29 @@
 #ifndef SYNTAX_PARSER_TOKEN_SOURCE_H_
 #define SYNTAX_PARSER_TOKEN_SOURCE_H_
 
+#include <cstddef>
+#include <functional>
 #include <optional>
 #include <utility>
 #include <vector>
 
 #include "syntax/lexer/token.h"
-#include "syntax/lexer/token_kind.h"
 
-namespace orion::syntax {
+namespace yuzu::syntax {
 /// \brief Provides a source for retrieving tokens during parsing.
 ///
 /// The `TokenSource` class manages a sequence of tokens and provides methods
 /// to retrieve the next token or peek at upcoming tokens while handling
 /// trivia (whitespace, comments) automatically.
+template <typename TokenKind = uint16_t>
 class TokenSource {
  public:
   /// \brief Constructs a `TokenSource` with a given vector of tokens.
   ///
   /// \param tokens The tokens to be managed by this source.
-  explicit TokenSource(std::vector<Token> tokens)
-      : tokens_(std::move(tokens)), token_idx_(0) {}
+  explicit TokenSource(const std::vector<Token<TokenKind>>& tokens,
+                       const std::function<bool(TokenKind)>& is_trivia)
+      : tokens_(std::move(tokens)), is_trivia_(is_trivia), token_idx_(0) {}
 
   /// \brief Deleted default constructor.
   ///
@@ -31,13 +34,21 @@ class TokenSource {
   ///
   /// \return An optional containing the next token if available, otherwise
   /// `nullopt`.
-  [[nodiscard]] std::optional<Token> NextToken() noexcept {
+  [[nodiscard]] std::optional<Token<TokenKind>> NextToken() noexcept {
     BumpTrivia();
 
     if (token_idx_ < tokens_.size()) {
       const Token token = tokens_.at(token_idx_);
       token_idx_ += 1;
       return token;
+    }
+
+    return std::nullopt;
+  }
+
+  [[nodiscard]] std::optional<Span> LastTokenSpan() noexcept {
+    if (tokens_.size() > 0) {
+      return tokens_.back().Span();
     }
 
     return std::nullopt;
@@ -56,7 +67,7 @@ class TokenSource {
   ///
   /// \return An optional containing the next token if available, otherwise
   /// `nullopt`.
-  [[nodiscard]] std::optional<Token> PeekToken() noexcept {
+  [[nodiscard]] std::optional<Token<TokenKind>> PeekToken() noexcept {
     BumpTrivia();
     return PeekTokenRaw();
   }
@@ -73,8 +84,8 @@ class TokenSource {
   ///
   /// \return `true` if the current token is trivia, otherwise `false`.
   [[nodiscard]] bool AtTrivia() const noexcept {
-    if (const std::optional<TokenKind> kind = PeekKindRaw(); kind.has_value()) {
-      return IsTrivia(*kind);
+    if (const auto kind = PeekKindRaw(); kind.has_value()) {
+      return is_trivia_(*kind);
     }
 
     return false;
@@ -85,8 +96,8 @@ class TokenSource {
   /// \return An optional containing the kind of the next token if available,
   /// otherwise `nullopt`.
   [[nodiscard]] std::optional<TokenKind> PeekKindRaw() const noexcept {
-    if (const std::optional<Token> token = PeekTokenRaw(); token.has_value()) {
-      return token->Kind<TokenKind>();
+    if (const auto token = PeekTokenRaw(); token.has_value()) {
+      return token->Kind();
     }
 
     return std::nullopt;
@@ -96,21 +107,18 @@ class TokenSource {
   ///
   /// \return An optional containing the next token if available, otherwise
   /// `nullopt`.
-  [[nodiscard]] std::optional<Token> PeekTokenRaw() const noexcept {
+  [[nodiscard]] std::optional<Token<TokenKind>> PeekTokenRaw() const noexcept {
     if (token_idx_ < tokens_.size()) {
       return tokens_.at(token_idx_);
     }
 
     return std::nullopt;
   }
-
-  /// The vector of tokens being managed by this source.
-  const std::vector<Token> tokens_;
-
-  /// The current index of the token being processed.
+  const std::vector<Token<TokenKind>> tokens_;
+  const std::function<bool(TokenKind)>& is_trivia_;
   size_t token_idx_;
 };
 
-}  // namespace orion::syntax
+}  // namespace yuzu::syntax
 
 #endif  // SYNTAX_PARSER_TOKEN_SOURCE_H_

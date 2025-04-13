@@ -1,26 +1,29 @@
-#ifndef SYNTAX_LEXER_H_
-#define SYNTAX_LEXER_H_
+#ifndef LANG_LEXER_LEXER_H_
+#define LANG_LEXER_LEXER_H_
 
 #include <optional>
 #include <string>
 
-#include "syntax/lexer/lexer_base.h"
+#include "lang/lexer/lexer.h"
+#include "lang/lexer/token_kind.h"
+#include "syntax/lexer/lexer.h"
 #include "syntax/lexer/token.h"
 
-namespace orion::syntax {
+namespace yuzu::lang {
 
-/// \brief The Lexer class is a concrete implementation of the LexerBase base
+/// \brief The Lexer class is a concrete implementation of the Lexer base
 /// class.
 ///
 /// The `Lexer` is responsible for tokenizing source code into meaningful
 /// tokens that can be further processed by a parser. It implements the
-/// tokenization logic specific to the Orion language syntax.
-class Lexer final : public LexerBase {
+/// tokenization logic specific to the yuzu language syntax.
+class Lexer final : public syntax::Lexer<TokenKind> {
  public:
   /// \brief Constructs an Lexer with the given source string.
   ///
   /// \param source The source string to be tokenized.
-  explicit Lexer(std::u32string_view source) : LexerBase(source) {}
+  explicit Lexer(std::u32string_view source)
+      : syntax::Lexer<TokenKind>(source) {}
 
   /// \brief Deleted default constructor.
   ///
@@ -35,7 +38,7 @@ class Lexer final : public LexerBase {
   ///
   /// \return An optional containing the next token if successful, otherwise
   /// `nullopt`.
-  std::optional<Token> TryNextToken() noexcept override;
+  std::optional<syntax::Token<TokenKind>> TryNextToken() noexcept override;
 
  private:
   // Tokenization methods for different types of tokens.
@@ -44,57 +47,58 @@ class Lexer final : public LexerBase {
   ///
   /// \return An optional containing the whitespace token if found, otherwise
   /// `nullopt`.
-  std::optional<Token> TryWhitespace();
+  std::optional<syntax::Token<TokenKind>> TryWhitespace();
 
   /// \brief Attempts to parse an operator token (e.g., `+`, `-`, etc.).
   ///
   /// \return An optional containing the operator token if found, otherwise
   /// `nullopt`.
-  std::optional<Token> TryOperator();
+  std::optional<syntax::Token<TokenKind>> TryOperator();
 
   /// \brief Attempts to parse a keyword or an identifier token.
   ///
   /// \return An optional containing the keyword or identifier token if found,
   /// otherwise `nullopt`.
-  std::optional<Token> TryKeywordOrIdentifier();
+  std::optional<syntax::Token<TokenKind>> TryKeywordOrIdentifier();
 
   /// \brief Attempts to parse a quoted identifier token.
   ///
   /// \return An optional containing the quoted identifier token if found,
   /// otherwise `nullopt`.
-  std::optional<Token> TryQuotedIdentifier();
+  std::optional<syntax::Token<TokenKind>> TryQuotedIdentifier();
 
   /// \brief Attempts to parse a plain identifier token.
   ///
   /// \return An optional containing the identifier token if found, otherwise
   /// `nullopt`.
-  std::optional<Token> TryIdentifier();
+  std::optional<syntax::Token<TokenKind>> TryIdentifier();
 
   /// \brief Attempts to parse a literal token (e.g., strings, booleans,
   /// numbers).
   ///
   /// \return An optional containing the literal token if found, otherwise
   /// `nullopt`.
-  std::optional<Token> TryLiteral();
+  std::optional<syntax::Token<TokenKind>> TryLiteral();
 
   /// \brief Attempts to parse a string literal token.
   ///
   /// \return An optional containing the string literal token if found,
   /// otherwise `nullopt`.
-  std::optional<Token> TryStringLiteral();
+  std::optional<syntax::Token<TokenKind>> TryStringLiteral();
 
   /// \brief Attempts to parse a boolean literal token.
   ///
   /// \return An optional containing the boolean literal token if found,
   /// otherwise `nullopt`.
-  std::optional<Token> TryBooleanLiteral();
+  std::optional<syntax::Token<TokenKind>> TryBooleanLiteral();
 
   /// \brief Attempts to parse a numeric literal token.
   ///
   /// \param consume_digits A flag indicating whether to consume digits after
   /// parsing. \return An optional containing the numeric literal token if
   /// found, otherwise `nullopt`.
-  std::optional<Token> TryNumericLiteral(bool consume_digits = true);
+  std::optional<syntax::Token<TokenKind>> TryNumericLiteral(
+      bool consume_digits = true);
 
   // Fragment handling methods for specific parts of tokens.
 
@@ -108,6 +112,6 @@ class Lexer final : public LexerBase {
   void BumpLetters();
 };
 
-}  // namespace orion::syntax
+}  // namespace yuzu::lang
 
-#endif  // SYNTAX_LEXER_H_
+#endif  // LANG_LEXER_LEXER_H_
