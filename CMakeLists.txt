@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16.3)
 
 # Project metadata.
-project(orion VERSION 0.1 LANGUAGES CXX)
+project(yuzu VERSION 0.1 LANGUAGES CXX)
 enable_testing()
 
 # Specify the C++ standard.

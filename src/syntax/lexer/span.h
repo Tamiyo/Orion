@@ -1,7 +1,9 @@
 #ifndef SYNTAX_LEXER_SPAN_H_
 #define SYNTAX_LEXER_SPAN_H_
 
-namespace orion::syntax {
+#include <cstddef>
+
+namespace yuzu::syntax {
 
 /// \brief Represents a span (range) within a source text.
 ///
@@ -51,6 +53,6 @@ class Span {
   const size_t end_;
 };
 
-}  // namespace orion::syntax
+}  // namespace yuzu::syntax
 
 #endif  // SYNTAX_LEXER_SPAN_H_

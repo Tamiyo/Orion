@@ -1,24 +1,28 @@
 #ifndef SYNTAX_PARSER_TOKEN_SINK_H_
 #define SYNTAX_PARSER_TOKEN_SINK_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
 #include "syntax/lexer/token.h"
+#include "syntax/parser/error/parse_error.h"
 #include "syntax/parser/event.h"
-#include "syntax/parser/rgtree/green/green_builder.h"
 #include "syntax/parser/rgtree/green/green.h"
-#include "syntax/syntax_kind.h"
+#include "syntax/parser/rgtree/green/green_builder.h"
 
-namespace orion::syntax {
+namespace yuzu::syntax {
 /// \brief TokenSink is responsible for consuming a sequence of parser events
 /// and tokens, and producing a syntax tree via the GreenBuilder.
 /// It processes events such as starting/finishing nodes, adding tokens,
 /// and handles structure assembly of the parsed source.
+template <typename TokenKind = uint16_t, typename SyntaxKind = uint16_t>
 class TokenSink {
  public:
   struct Result {
-    const GreenNode node;
+    const GreenNode<SyntaxKind> node;
+    const std::vector<ParseError<TokenKind>> errors;
   };
 
  public:
@@ -26,12 +30,14 @@ class TokenSink {
   /// \param tokens The input token stream from the lexer.
   /// \param events The list of parser events describing how to build the syntax
   /// tree.
-  explicit TokenSink(std::vector<Token> tokens, std::vector<Event> events)
+  explicit TokenSink(std::vector<Token<TokenKind>> tokens,
+                     std::vector<Event<TokenKind, SyntaxKind>> events)
       : tokens_(std::move(tokens)),
         token_idx_(0),
         text_idx_(0),
         events_(std::move(events)),
-        builder_(GreenBuilder()) {}
+        errors_({}),
+        builder_(GreenBuilder<SyntaxKind>()) {}
 
   // Deleted default constructor to enforce required token/event input.
   TokenSink() = delete;
@@ -39,7 +45,31 @@ class TokenSink {
   /// \brief Bumps the event stream and builds the corresponding green tree.
   /// This is the main entry point for transforming parser output into
   /// an immutable syntax tree structure.
-  Result Finish();
+  Result Finish() {
+    for (size_t event_idx = 0; event_idx < events_.size(); event_idx++) {
+      if (const Event<TokenKind, SyntaxKind> event = events_[event_idx];
+          std::holds_alternative<StartEvent<SyntaxKind>>(event)) {
+        const auto e = std::get<StartEvent<SyntaxKind>>(event);
+        events_[event_idx] = PlaceholderEvent{};
+
+        StartNode(event_idx, e.Kind(), e.ForwardParent());
+      } else if (std::holds_alternative<FinishEvent>(event)) {
+        FinishNode();
+      } else if (std::holds_alternative<TokenEvent>(event)) {
+        AddToken();
+      } else if (std::holds_alternative<ErrorEvent<TokenKind>>(event)) {
+        const auto e = std::get<ErrorEvent<TokenKind>>(event);
+        errors_.emplace_back(e.Error());
+      } else if (std::holds_alternative<PlaceholderEvent>(event)) {
+        // Do Nothing
+      } else {
+        throw std::invalid_argument("unknown event type");
+      }
+    }
+
+    return TokenSink::Result{.node = builder_.Finish(),
+                             .errors = std::move(errors_)};
+  }
 
  private:
   /// \brief Handles the Start event by beginning a new syntax node.
@@ -48,7 +78,30 @@ class TokenSink {
   /// \param forward_parent Optional index to the forward parent for delayed
   /// nesting.
   void StartNode(size_t event_idx, SyntaxKind kind,
-                 std::optional<size_t> forward_parent);
+                 std::optional<size_t> forward_parent) {
+    size_t event_idx_mut = event_idx;
+    std::optional<size_t> forward_parent_mut = forward_parent;
+
+    std::vector kinds = {kind};
+    while (forward_parent_mut.has_value()) {
+      event_idx_mut += forward_parent_mut.value();
+
+      if (const Event<TokenKind, SyntaxKind> event = events_[event_idx_mut];
+          std::holds_alternative<StartEvent<SyntaxKind>>(event)) {
+        const auto e = std::get<StartEvent<SyntaxKind>>(event);
+        events_[event_idx_mut] = PlaceholderEvent{};
+
+        kinds.emplace_back(e.Kind());
+        forward_parent_mut = e.ForwardParent();
+      } else {
+        throw std::invalid_argument("unreachable event in StartNode");
+      }
+    }
+
+    for (auto& k : std::ranges::reverse_view(kinds)) {
+      builder_.StartNode(k);
+    }
+  }
 
   /// \brief Handles the Finish event by closing the current syntax node.
   void FinishNode() noexcept { builder_.FinishNode(); }
@@ -56,28 +109,20 @@ class TokenSink {
   /// \brief Handles the Token event by appending the next token to the syntax
   /// tree.
   void AddToken() noexcept {
-    const Token token = tokens_.at(token_idx_);
-    builder_.Token(token.Kind<SyntaxKind>(), token.Source());
+    const Token<TokenKind> token = tokens_.at(token_idx_);
+    builder_.Token(static_cast<SyntaxKind>(token.Kind()), token.Source());
 
     token_idx_ += 1;
     text_idx_ += token.Length();
   }
 
-  // Lexer-produced tokens used to build the final tree.
-  const std::vector<Token> tokens_;
-
-  // Current index in the tokens_ vector.
+  const std::vector<Token<TokenKind>> tokens_;
   size_t token_idx_;
-
-  // Current byte offset into the input text.
   size_t text_idx_;
-
-  // Sequence of parser events used to construct the syntax tree.
-  std::vector<Event> events_;
-
-  // The builder that creates the green (immutable) syntax tree nodes.
-  GreenBuilder builder_;
+  std::vector<Event<TokenKind, SyntaxKind>> events_;
+  std::vector<ParseError<TokenKind>> errors_;
+  GreenBuilder<SyntaxKind> builder_;
 };
-}  // namespace orion::syntax
+}  // namespace yuzu::syntax
 
 #endif  // SYNTAX_PARSER_TOKEN_SINK_H_

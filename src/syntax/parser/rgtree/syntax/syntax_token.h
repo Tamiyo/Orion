@@ -1,6 +1,7 @@
 #ifndef SYNTAX_PARSER_RGTREE_SYNTAX_SYNTAX_TOKEN_H_
 #define SYNTAX_PARSER_RGTREE_SYNTAX_SYNTAX_TOKEN_H_
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -8,7 +9,7 @@
 #include "syntax/parser/rgtree/green/green.h"
 #include "syntax/parser/rgtree/syntax/syntax_node.h"
 
-namespace orion::syntax {
+namespace yuzu::syntax {
 
 /// \brief Represents the data associated with a syntax token.
 ///
@@ -119,6 +120,6 @@ class SyntaxToken {
   const std::shared_ptr<SyntaxTokenData> data_;
 };
 
-}  // namespace orion::syntax
+}  // namespace yuzu::syntax
 
 #endif  // SYNTAX_PARSER_RGTREE_SYNTAX_SYNTAX_TOKEN_H_

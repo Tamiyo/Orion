@@ -1,31 +1,35 @@
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
-#include "syntax/lexer.h"
+#include "lang/lexer/lexer.h"
+#include "lang/lexer/token_kind.h"
 #include "syntax/lexer/span.h"
-#include "syntax/lexer/token_kind.h"
+#include "syntax/lexer/token.h"
 
-namespace orion::syntax {
-std::optional<Token> BuildToken(const TokenKind kind, const size_t start,
-                                const size_t stop, std::u32string_view source) {
+namespace yuzu::lang {
+std::optional<syntax::Token<TokenKind>> BuildToken(const TokenKind kind,
+                                                   const size_t start,
+                                                   const size_t stop,
+                                                   std::u32string_view source) {
   return std::make_optional(
-      Token(static_cast<uint16_t>(kind), Span(start, stop), source));
+      syntax::Token(kind, syntax::Span(start, stop), source));
 }
 
-std::optional<Token> BuildToken(const TokenKind kind,
-                                std::u32string_view source) {
+std::optional<syntax::Token<TokenKind>> BuildToken(const TokenKind kind,
+                                                   std::u32string_view source) {
   return BuildToken(kind, 0, source.length(), source);
 }
-}  // namespace orion::syntax
+}  // namespace yuzu::lang
 
 namespace {
-using orion::syntax::Lexer;
-using orion::syntax::Token;
-using orion::syntax::TokenKind;
+using yuzu::lang::Lexer;
+using yuzu::lang::TokenKind;
+using yuzu::syntax::Token;
 
 struct SingleTokenTestCase {
   TokenKind kind;
@@ -191,12 +195,13 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(SingleTokenParameterizedTestFixture, SingleTokens) {
   const SingleTokenTestCase& param = GetParam();
   auto lexer = Lexer(param.source);
-  const std::optional<Token> expected = BuildToken(param.kind, param.source);
+  const std::optional<Token<TokenKind>> expected =
+      BuildToken(param.kind, param.source);
 
-  const std::vector<Token> tokens = lexer.Tokenize();
+  const std::vector<Token<TokenKind>> tokens = lexer.Tokenize();
   ASSERT_EQ(1, tokens.size());
 
-  const Token& actual = tokens.at(0);
+  const Token<TokenKind>& actual = tokens.at(0);
   EXPECT_EQ(expected, actual);
 }
 
@@ -207,7 +212,7 @@ TEST(LexerTest, MultipleIntLit) {
   const auto expected_2 = BuildToken(TokenKind::kWhitespace, 4, 5, U" ");
   const auto expected_3 = BuildToken(TokenKind::kIntLiteral, 5, 9, U"3144");
 
-  const std::vector<Token> tokens = lexer.Tokenize();
+  const std::vector<Token<TokenKind>> tokens = lexer.Tokenize();
   ASSERT_EQ(3, tokens.size());
 
   EXPECT_EQ(expected_1, tokens.at(0));

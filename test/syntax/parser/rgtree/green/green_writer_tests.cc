@@ -1,18 +1,48 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "syntax/parser/rgtree/green/green.h"
 #include "syntax/parser/rgtree/green/green_writer.h"
-#include "syntax/syntax_kind.h"
 
 namespace {
-using orion::syntax::GreenElement;
-using orion::syntax::GreenWriter;
-using orion::syntax::GreenNode;
-using orion::syntax::GreenToken;
-using orion::syntax::SyntaxKind;
+using yuzu::syntax::GreenElement;
+using yuzu::syntax::GreenNode;
+using yuzu::syntax::GreenToken;
+using yuzu::syntax::GreenWriter;
+
+enum class SyntaxKind : uint16_t {
+  kPlus,
+  kMinus,
+  kIdentifier,
+  kRoot,
+  kBinaryExpr,
+  kIntLiteral
+};
+
+// const std::function<std::u32string_view(SyntaxKind)>&
+// syntax_kind_to_u32string_view,
+
+std::u32string_view SyntaxKindToU32StringView(const SyntaxKind kind) {
+  switch (kind) {
+    case SyntaxKind::kPlus:
+      return U"Plus";
+    case SyntaxKind::kMinus:
+      return U"Minus";
+    case SyntaxKind::kIdentifier:
+      return U"Identifier";
+    case SyntaxKind::kRoot:
+      return U"Root";
+    case SyntaxKind::kBinaryExpr:
+      return U"BinaryExpr";
+    case SyntaxKind::kIntLiteral:
+      return U"IntLiteral";
+    default:
+      return U"";
+  }
+}
 
 const auto kGreenTokenPlus = GreenToken(SyntaxKind::kPlus, U"+");
 const auto kGreenTokenMinus = GreenToken(SyntaxKind::kMinus, U"-");
@@ -21,24 +51,28 @@ const auto kGreenToken2 = GreenToken(SyntaxKind::kIntLiteral, U"2");
 const auto kGreenToken3 = GreenToken(SyntaxKind::kIntLiteral, U"3");
 
 TEST(GreenElementWriterTests, GreenToken) {
-  const auto actual = GreenWriter::WriteAsU32String(kGreenToken1);
+  const auto actual = GreenWriter<SyntaxKind>::WriteAsU32String(
+      kGreenToken1, SyntaxKindToU32StringView);
   const auto expected = U"Identifier@0..1 \"🍕\"\n";
   EXPECT_EQ(expected, actual);
 }
 
 TEST(GreenElementWriterTests, GreenNodeNoChildren) {
-  const auto node = GreenNode(SyntaxKind::kRoot, std::vector<GreenElement>{});
-  const auto actual = GreenWriter::WriteAsU32String(node);
+  const auto node = GreenNode<SyntaxKind>(
+      SyntaxKind::kRoot, std::vector<GreenElement<SyntaxKind>>{});
+  const auto actual = GreenWriter<SyntaxKind>::WriteAsU32String(
+      node, SyntaxKindToU32StringView);
   const auto expected = U"Root@0..0\n";
   EXPECT_EQ(expected, actual);
 }
 
 TEST(GreenElementWriterTests, GreenNodeWithTokenChildren) {
-  const auto node = GreenNode(
+  const auto node = GreenNode<SyntaxKind>(
       SyntaxKind::kBinaryExpr,
       std::vector{GreenElement(kGreenToken1), GreenElement(kGreenTokenPlus),
                   GreenElement(kGreenToken2)});
-  const auto actual = GreenWriter::WriteAsU32String(node);
+  const auto actual = GreenWriter<SyntaxKind>::WriteAsU32String(
+      node, SyntaxKindToU32StringView);
   const auto expected =
       U"BinaryExpr@0..3\n"
       U"  Identifier@0..1 \"🍕\"\n"
@@ -52,7 +86,8 @@ TEST(GreenElementWriterTests, GreenNodeWithTokenChildrenAndLargerIndent) {
       SyntaxKind::kBinaryExpr,
       std::vector{GreenElement(kGreenToken1), GreenElement(kGreenTokenPlus),
                   GreenElement(kGreenToken2)});
-  const auto actual = GreenWriter::WriteAsU32String(node, 4);
+  const auto actual = GreenWriter<SyntaxKind>::WriteAsU32String(
+      node, SyntaxKindToU32StringView, 4);
   const auto expected =
       U"BinaryExpr@0..3\n"
       U"    Identifier@0..1 \"🍕\"\n"
@@ -70,7 +105,8 @@ TEST(GreenElementWriterTests, GreenNodeWithTokenAndNodeChildren) {
                                  std::vector{GreenElement(kGreenToken2),
                                              GreenElement(kGreenTokenMinus),
                                              GreenElement(kGreenToken3)}))});
-  const auto actual = GreenWriter::WriteAsU32String(node);
+  const auto actual = GreenWriter<SyntaxKind>::WriteAsU32String(
+      node, SyntaxKindToU32StringView);
   const auto expected =
       U"BinaryExpr@0..5\n"
       U"  Identifier@0..1 \"🍕\"\n"
@@ -93,7 +129,8 @@ TEST(GreenElementWriterTests, GreenNodeWithTokenAndNodeChildrenReverseOrder) {
           GreenElement(kGreenTokenPlus),
           GreenElement(kGreenToken1),
       });
-  const auto actual = GreenWriter::WriteAsU32String(node);
+  const auto actual = GreenWriter<SyntaxKind>::WriteAsU32String(
+      node, SyntaxKindToU32StringView);
   const auto expected =
       U"BinaryExpr@0..5\n"
       U"  BinaryExpr@0..3\n"
@@ -106,7 +143,7 @@ TEST(GreenElementWriterTests, GreenNodeWithTokenAndNodeChildrenReverseOrder) {
 }
 
 TEST(GreenElementWriterTests, Clear) {
-  auto writer = GreenWriter();
+  auto writer = GreenWriter<SyntaxKind>(SyntaxKindToU32StringView);
   writer.Write(kGreenToken1).Clear();
 
   const auto actual = writer.AsU32String();

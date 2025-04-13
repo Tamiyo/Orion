@@ -1,10 +1,5 @@
 # Create an executable to test this test suite.
 add_executable(
-        lexer_tests
-        lexer_tests.cc
-)
-
-add_executable(
         parser_tests
         syntax_kind_tests.cc
         parser/token_sink_tests.cc
@@ -22,12 +17,6 @@ add_executable(
 
 # Link GTest to this test suite.
 target_link_libraries(
-        lexer_tests
-        PRIVATE GTest::gtest_main
-        PRIVATE syntax
-)
-
-target_link_libraries(
         parser_tests
         PRIVATE GTest::gtest_main
         PRIVATE syntax
@@ -40,6 +29,5 @@ target_link_libraries(
 )
 
 # Discover Tests
-gtest_discover_tests(lexer_tests)
 gtest_discover_tests(parser_tests)
 gtest_discover_tests(rgtree_tests)
