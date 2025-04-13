@@ -4,9 +4,7 @@
 #include <sstream>
 #include <string>
 
-#include "syntax/parser/rgtree/green/green_element.h"
-#include "syntax/parser/rgtree/green/green_node.h"
-#include "syntax/parser/rgtree/green/green_token.h"
+#include "syntax/parser/rgtree/green/green.h"
 
 namespace orion::syntax {
 /// \brief A utility class for serializing GreenElements, GreenNodes, and
@@ -57,18 +55,25 @@ class GreenWriter {
   /// \throws std::invalid_argument if the element type is unrecognized.
   GreenWriter& Write(const GreenElement& element);
 
-  /// \brief Writes the accumulated output to a char32_t stream.
-  void Print(std::basic_ostream<char32_t> char32_os) const noexcept;
-
   /// \brief Returns the written representation as a u32string.
-  [[nodiscard]] std::u32string AsU32String() const noexcept;
+  [[nodiscard]] std::u32string AsU32String() const noexcept {
+    return std::u32string(string_);
+  }
 
   /// \brief Clears the internal stream and resets indentation/width counters.
-  void Clear() noexcept;
+  void Clear() noexcept {
+    string_.clear();
+    indent_ = 0;
+    width_ = 0;
+  }
 
  private:
   /// \brief Writes the current indentation to the stream.
-  void Indent();
+  void Indent() {
+    for (size_t i = 0; i < indent_ * indent_size_; i++) {
+      string_ += U" ";
+    }
+  }
 
   /// \brief Increases the current indentation level by one.
   void IncreaseIndent() noexcept { indent_ += 1; }
@@ -83,8 +88,8 @@ class GreenWriter {
   /// Number of spaces per indent level.
   const size_t indent_size_;
 
-  /// Stream for accumulating output.
-  std::basic_ostringstream<char32_t> char32_oss_;
+  /// String for accumulating output.
+  std::u32string string_;
 
   /// Current indentation depth.
   size_t indent_;

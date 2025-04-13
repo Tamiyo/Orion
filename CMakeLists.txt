@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.16.3)
 
 # Project metadata.
-set(CMAKE_C_COMPILER /opt/homebrew/opt/llvm@18/bin/clang)
-set(CMAKE_CXX_COMPILER /opt/homebrew/opt/llvm@18/bin/clang++)
 project(orion VERSION 0.1 LANGUAGES CXX)
 enable_testing()
 
@@ -27,6 +25,7 @@ include(FetchContent)
 FetchContent_Declare(
         googletest
         URL https://github.com/google/googletest/archive/5376968f6948923e2411081fd9372e71a59d8e77.zip
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)

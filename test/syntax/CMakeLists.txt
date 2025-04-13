@@ -6,7 +6,7 @@ add_executable(
 
 add_executable(
         parser_tests
-        syntax_kind_tests
+        syntax_kind_tests.cc
         parser/token_sink_tests.cc
         parser/token_source_tests.cc
 )
