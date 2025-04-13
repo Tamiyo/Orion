@@ -2,7 +2,6 @@
 #define SYNTAX_PARSER_TOKEN_SINK_H_
 
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "syntax/lexer/token.h"

@@ -109,8 +109,9 @@ class Event {
 
  private:
   /// \brief Constructs an Event by wrapping the specified alternative.
-  explicit Event(std::variant<Start, Finish, Token, Error, Placeholder> variant)
-      : variant_(std::move(variant)) {}
+  explicit Event(
+      const std::variant<Start, Finish, Token, Error, Placeholder> &variant)
+      : variant_(variant) {}
 
   /// \brief Internal container to wrap different Event types.
   std::variant<Start, Finish, Token, Error, Placeholder> variant_;

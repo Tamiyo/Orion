@@ -9,12 +9,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 if (MSVC)
-    message(STATUS "Found MSCV")
-    # Warning level 4.
     add_compile_options(/W4)
 else()
-    message(STATUS "Found Clang")
-    # Additional warnings.
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
@@ -24,8 +20,8 @@ include(FetchContent)
 # Fetch Content.
 FetchContent_Declare(
         googletest
-        URL https://github.com/google/googletest/archive/5376968f6948923e2411081fd9372e71a59d8e77.zip
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG 5376968f6948923e2411081fd9372e71a59d8e77
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)

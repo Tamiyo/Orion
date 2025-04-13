@@ -2,7 +2,6 @@
 
 #include <ranges>
 #include <stdexcept>
-#include <variant>
 #include <vector>
 
 #include "syntax/parser/event.h"

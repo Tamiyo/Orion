@@ -15,7 +15,7 @@ class ParserBase {
   virtual ~ParserBase() = default;
 
  protected:
-  void Expect(TokenKind kind) noexcept {
+  void Expect(const TokenKind kind) noexcept {
     if (At(kind)) {
       Bump();
     } else {
@@ -35,7 +35,7 @@ class ParserBase {
     }
   }
 
-  [[nodiscard]] bool At(TokenKind kind) noexcept { return PeekKind() == kind; }
+  [[nodiscard]] bool At(const TokenKind kind) noexcept { return PeekKind() == kind; }
 
   [[nodiscard]] bool AtEnd() noexcept {
     return source_.PeekToken() == std::nullopt;

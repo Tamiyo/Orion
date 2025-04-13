@@ -1,8 +1,6 @@
 #include "syntax/parser/rgtree/green/green_writer.h"
 
 #include <optional>
-#include <ostream>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -13,7 +11,7 @@ namespace orion::syntax {
 namespace {
 std::u32string ToU32String(const size_t value) {
   std::string s = std::to_string(value);
-  return std::u32string(s.begin(), s.end());
+  return {s.begin(), s.end()};
 }
 };  // namespace
 
