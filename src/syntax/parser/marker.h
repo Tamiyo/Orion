@@ -19,7 +19,7 @@ class CompletedMarker {
   [[nodiscard]] size_t Position() const noexcept { return this->position_; }
 
  private:
-  const size_t position_;
+  size_t position_;
 };
 
 /// \brief Represents a marker for the start of a syntax node in the event
@@ -33,7 +33,7 @@ class Marker {
   [[nodiscard]] size_t Position() const noexcept { return this->position_; }
 
  private:
-  const size_t position_;
+  size_t position_;
 };
 
 }  // namespace yuzu::syntax

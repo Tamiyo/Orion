@@ -21,6 +21,10 @@ constexpr size_t kMaxNodeSize = 3;
 /// managing checkpoints, and adding tokens to the syntax tree structure.
 template <typename SyntaxKind = uint16_t>
 class GreenBuilder {
+ private:
+  using GreenCache = GreenCache<SyntaxKind>;
+  using GreenNode = GreenNode<SyntaxKind>;
+
  public:
   /// \brief Represents a checkpoint in the green builder's state.
   ///
@@ -34,7 +38,7 @@ class GreenBuilder {
   /// \brief Constructs a `GreenBuilder`.
   ///
   /// Initializes the builder with a cache for reusing green elements.
-  explicit GreenBuilder() : cache_(GreenCache<SyntaxKind>(kMaxNodeSize)) {}
+  explicit GreenBuilder() : cache_(GreenCache(kMaxNodeSize)) {}
 
   /// \brief Starts a new node of the specified kind.
   ///
@@ -105,7 +109,7 @@ class GreenBuilder {
   /// \brief Finalizes the builder and returns the constructed green node.
   ///
   /// \return The constructed `GreenNode`.
-  [[nodiscard]] GreenNode<SyntaxKind> Finish() {
+  [[nodiscard]] GreenNode Finish() {
     if (!parents_.empty()) {
       throw std::invalid_argument("unexpected empty stack");
     }
@@ -113,7 +117,7 @@ class GreenBuilder {
     const auto entry = children_.back();
     children_.pop_back();
 
-    if (const std::optional<GreenNode<SyntaxKind>> node =
+    if (const std::optional<GreenNode> node =
             entry.Element().TryGetNode();
         node.has_value()) {
       return node.value();
@@ -136,8 +140,8 @@ class GreenBuilder {
 
  private:
   std::vector<std::pair<SyntaxKind, size_t>> parents_;
-  std::vector<typename GreenCache<SyntaxKind>::Cached> children_;
-  GreenCache<SyntaxKind> cache_;
+  std::vector<typename GreenCache::Cached> children_;
+  GreenCache cache_;
 };
 
 }  // namespace yuzu::syntax

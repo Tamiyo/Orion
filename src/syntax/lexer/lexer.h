@@ -20,6 +20,8 @@ namespace yuzu::syntax {
 template <typename TokenKind = uint16_t>
 class Lexer {
  public:
+  using Token = Token<TokenKind>;
+
   /// \brief Deleted default constructor.
   ///
   /// A `Lexer` must always be initialized with a source string.
@@ -31,10 +33,10 @@ class Lexer {
   /// \brief Tokenizes the entire source string.
   ///
   /// \return A vector of tokens generated from the source.
-  std::vector<Token<TokenKind>> Tokenize() noexcept {
-    auto tokens = std::vector<Token<TokenKind>>();
+  std::vector<Token> Tokenize() noexcept {
+    auto tokens = std::vector<Token>();
     while (!AtEnd()) {
-      if (const std::optional<Token<TokenKind>> token = TryNextToken();
+      if (const std::optional<Token> token = TryNextToken();
           token.has_value()) {
         tokens.emplace_back(token.value());
       } else {
@@ -62,7 +64,7 @@ class Lexer {
   ///
   /// \return An optional containing the next token if successful, otherwise
   /// `nullopt`.
-  virtual std::optional<Token<TokenKind>> TryNextToken() noexcept = 0;
+  virtual std::optional<Token> TryNextToken() noexcept = 0;
 
   // Utils
 
@@ -71,11 +73,11 @@ class Lexer {
   /// \tparam TokenKind The type of the token kind (defaults to `uint16_t`).
   /// \param kind The kind of the token to create.
   /// \return A newly created token.
-  [[nodiscard]] Token<TokenKind> CreateToken(const TokenKind kind) noexcept {
+  [[nodiscard]] Token CreateToken(const TokenKind kind) noexcept {
     const size_t distance = end_ - start_;
     const std::u32string_view source = source_.substr(start_, distance);
     const auto span = Span(start_, end_);
-    const auto token = Token<TokenKind>(kind, span, source);
+    const auto token = Token(kind, span, source);
 
     start_ = end_;
     return token;
@@ -87,8 +89,8 @@ class Lexer {
   /// \param kind The kind of the token to create.
   /// \param count The number of characters to consume (defaults to 1).
   /// \return A newly created token after consuming the specified characters.
-  [[nodiscard]] Token<TokenKind> BumpAndCreateToken(
-      const TokenKind kind, const size_t count = 1) noexcept {
+  [[nodiscard]] Token BumpAndCreateToken(const TokenKind kind,
+                                         const size_t count = 1) noexcept {
     Bump(count);
     return CreateToken(kind);
   }

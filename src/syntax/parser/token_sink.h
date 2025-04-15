@@ -19,10 +19,19 @@ namespace yuzu::syntax {
 /// and handles structure assembly of the parsed source.
 template <typename TokenKind = uint16_t, typename SyntaxKind = uint16_t>
 class TokenSink {
+ private:
+  using ErrorEvent = ErrorEvent<TokenKind>;
+  using Event = Event<TokenKind, SyntaxKind>;
+  using GreenBuilder = GreenBuilder<SyntaxKind>;
+  using GreenNode = GreenNode<SyntaxKind>;
+  using ParseError = ParseError<TokenKind>;
+  using StartEvent = StartEvent<SyntaxKind>;
+  using Token = Token<TokenKind>;
+
  public:
   struct Result {
-    const GreenNode<SyntaxKind> node;
-    const std::vector<ParseError<TokenKind>> errors;
+    const GreenNode node;
+    const std::vector<ParseError> errors;
   };
 
  public:
@@ -30,14 +39,13 @@ class TokenSink {
   /// \param tokens The input token stream from the lexer.
   /// \param events The list of parser events describing how to build the syntax
   /// tree.
-  explicit TokenSink(std::vector<Token<TokenKind>> tokens,
-                     std::vector<Event<TokenKind, SyntaxKind>> events)
+  explicit TokenSink(std::vector<Token> tokens, std::vector<Event> events)
       : tokens_(std::move(tokens)),
         token_idx_(0),
         text_idx_(0),
         events_(std::move(events)),
         errors_({}),
-        builder_(GreenBuilder<SyntaxKind>()) {}
+        builder_(GreenBuilder()) {}
 
   // Deleted default constructor to enforce required token/event input.
   TokenSink() = delete;
@@ -47,9 +55,9 @@ class TokenSink {
   /// an immutable syntax tree structure.
   Result Finish() {
     for (size_t event_idx = 0; event_idx < events_.size(); event_idx++) {
-      if (const Event<TokenKind, SyntaxKind> event = events_[event_idx];
-          std::holds_alternative<StartEvent<SyntaxKind>>(event)) {
-        const auto e = std::get<StartEvent<SyntaxKind>>(event);
+      if (const Event event = events_[event_idx];
+          std::holds_alternative<StartEvent>(event)) {
+        const auto e = std::get<StartEvent>(event);
         events_[event_idx] = PlaceholderEvent{};
 
         StartNode(event_idx, e.Kind(), e.ForwardParent());
@@ -57,8 +65,8 @@ class TokenSink {
         FinishNode();
       } else if (std::holds_alternative<TokenEvent>(event)) {
         AddToken();
-      } else if (std::holds_alternative<ErrorEvent<TokenKind>>(event)) {
-        const auto e = std::get<ErrorEvent<TokenKind>>(event);
+      } else if (std::holds_alternative<ErrorEvent>(event)) {
+        const auto e = std::get<ErrorEvent>(event);
         errors_.emplace_back(e.Error());
       } else if (std::holds_alternative<PlaceholderEvent>(event)) {
         // Do Nothing
@@ -86,9 +94,9 @@ class TokenSink {
     while (forward_parent_mut.has_value()) {
       event_idx_mut += forward_parent_mut.value();
 
-      if (const Event<TokenKind, SyntaxKind> event = events_[event_idx_mut];
-          std::holds_alternative<StartEvent<SyntaxKind>>(event)) {
-        const auto e = std::get<StartEvent<SyntaxKind>>(event);
+      if (const Event event = events_[event_idx_mut];
+          std::holds_alternative<StartEvent>(event)) {
+        const auto e = std::get<StartEvent>(event);
         events_[event_idx_mut] = PlaceholderEvent{};
 
         kinds.emplace_back(e.Kind());
@@ -109,19 +117,19 @@ class TokenSink {
   /// \brief Handles the Token event by appending the next token to the syntax
   /// tree.
   void AddToken() noexcept {
-    const Token<TokenKind> token = tokens_.at(token_idx_);
+    const Token token = tokens_.at(token_idx_);
     builder_.Token(static_cast<SyntaxKind>(token.Kind()), token.Source());
 
     token_idx_ += 1;
     text_idx_ += token.Length();
   }
 
-  const std::vector<Token<TokenKind>> tokens_;
+  const std::vector<Token> tokens_;
   size_t token_idx_;
   size_t text_idx_;
-  std::vector<Event<TokenKind, SyntaxKind>> events_;
-  std::vector<ParseError<TokenKind>> errors_;
-  GreenBuilder<SyntaxKind> builder_;
+  std::vector<Event> events_;
+  std::vector<ParseError> errors_;
+  GreenBuilder builder_;
 };
 }  // namespace yuzu::syntax
 
