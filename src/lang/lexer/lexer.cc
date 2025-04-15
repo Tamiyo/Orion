@@ -7,7 +7,6 @@
 #include <string>
 
 #include "lang/lexer/token_kind.h"
-#include "syntax/lexer/token.h"
 
 namespace yuzu::lang {
 constexpr char32_t kBUpper = U'B';
@@ -56,24 +55,21 @@ enum class NumericKind {
   kExact,
 };
 
-std::optional<syntax::Token<TokenKind>> Lexer::TryNextToken() noexcept {
-  if (const std::optional<syntax::Token<TokenKind>> whitespace =
-          TryWhitespace();
+std::optional<Lexer::Token> Lexer::TryNextToken() noexcept {
+  if (const std::optional<Lexer::Token> whitespace = TryWhitespace();
       whitespace.has_value()) {
     return whitespace;
   }
 
-  if (const std::optional<syntax::Token<TokenKind>> op = TryOperator();
-      op.has_value()) {
+  if (const std::optional<Lexer::Token> op = TryOperator(); op.has_value()) {
     return op;
   }
-  if (const std::optional<syntax::Token<TokenKind>> boolean_literal =
-          TryBooleanLiteral();
+  if (const std::optional<Lexer::Token> boolean_literal = TryBooleanLiteral();
       boolean_literal.has_value()) {
     return boolean_literal;
   }
 
-  if (const std::optional<syntax::Token<TokenKind>> keyword_or_identifier =
+  if (const std::optional<Lexer::Token> keyword_or_identifier =
           TryKeywordOrIdentifier();
       keyword_or_identifier.has_value()) {
     return keyword_or_identifier;
@@ -91,7 +87,7 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryNextToken() noexcept {
   return TryLiteral();
 }
 
-std::optional<syntax::Token<TokenKind>> Lexer::TryWhitespace() {
+std::optional<Lexer::Token> Lexer::TryWhitespace() {
   if (At2(kSpace, kTab)) {
     BumpWhile([](const char32_t ch) { return ch == kSpace || ch == kTab; });
     return CreateToken(TokenKind::kWhitespace);
@@ -105,7 +101,7 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryWhitespace() {
   return std::nullopt;
 }
 
-std::optional<syntax::Token<TokenKind>> Lexer::TryOperator() {
+std::optional<Lexer::Token> Lexer::TryOperator() {
   switch (GetCurrent()) {
     case kPlus:
       return BumpAndCreateToken(TokenKind::kPlus);
@@ -127,8 +123,8 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryOperator() {
   }
 }
 
-std::optional<syntax::Token<TokenKind>> Lexer::TryKeywordOrIdentifier() {
-  if (const std::optional<syntax::Token<TokenKind>> quoted_identifier =
+std::optional<Lexer::Token> Lexer::TryKeywordOrIdentifier() {
+  if (const std::optional<Lexer::Token> quoted_identifier =
           TryQuotedIdentifier();
       quoted_identifier.has_value()) {
     return quoted_identifier;
@@ -137,7 +133,7 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryKeywordOrIdentifier() {
   return TryIdentifier();
 }
 
-std::optional<syntax::Token<TokenKind>> Lexer::TryQuotedIdentifier() {
+std::optional<Lexer::Token> Lexer::TryQuotedIdentifier() {
   if (!At(kBacktick)) {
     return std::nullopt;
   }
@@ -164,7 +160,7 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryQuotedIdentifier() {
   return CreateToken(TokenKind::kQuotedIdentifier);
 }
 
-std::optional<syntax::Token<TokenKind>> Lexer::TryIdentifier() {
+std::optional<Lexer::Token> Lexer::TryIdentifier() {
   // Identifiers must start with a letter or an underscore.
   if (!At([](const char32_t ch) {
         return std::iswalpha(ch) || ch == kUnderscore ||
@@ -180,7 +176,7 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryIdentifier() {
   return CreateToken(TokenKind::kIdentifier);
 }
 
-std::optional<syntax::Token<TokenKind>> Lexer::TryLiteral() {
+std::optional<Lexer::Token> Lexer::TryLiteral() {
   if (At([](const char32_t ch) { return std::iswdigit(ch); })) {
     return TryNumericLiteral();
   }
@@ -193,7 +189,7 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryLiteral() {
 }
 
 // '"' ( ~('"'|'\\') | ('\\' .) )* '"'
-std::optional<syntax::Token<TokenKind>> Lexer::TryStringLiteral() {
+std::optional<Lexer::Token> Lexer::TryStringLiteral() {
   constexpr char32_t delimiter = kDoubleQuote;
 
   if (!At(delimiter)) {
@@ -237,7 +233,7 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryStringLiteral() {
   return CreateToken(TokenKind::kStringLiteral);
 }
 
-std::optional<syntax::Token<TokenKind>> Lexer::TryBooleanLiteral() {
+std::optional<Lexer::Token> Lexer::TryBooleanLiteral() {
   if (At(kTrueKeyword)) {
     return BumpAndCreateToken(TokenKind::kBooleanLiteral, 4);
   }
@@ -250,7 +246,7 @@ std::optional<syntax::Token<TokenKind>> Lexer::TryBooleanLiteral() {
 }
 
 // https://github.com/apache/spark/blob/master/sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBaseLexer.g4#L578
-std::optional<syntax::Token<TokenKind>> Lexer::TryNumericLiteral(
+std::optional<Lexer::Token> Lexer::TryNumericLiteral(
     const bool consume_digits) {
   if (consume_digits) {
     BumpDigits();

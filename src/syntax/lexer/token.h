@@ -52,7 +52,7 @@ class Token {
   /// token's kind value is a valid enumerator.
 
   [[nodiscard]] TokenKind Kind() const noexcept {
-    return static_cast<TokenKind>(kind_);
+    return kind_;
   }
 
   /// \brief Returns the span (position range) of the token in the source text.

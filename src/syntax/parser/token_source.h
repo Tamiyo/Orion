@@ -17,11 +17,14 @@ namespace yuzu::syntax {
 /// trivia (whitespace, comments) automatically.
 template <typename TokenKind = uint16_t>
 class TokenSource {
+ private:
+  using Token = Token<TokenKind>;
+
  public:
   /// \brief Constructs a `TokenSource` with a given vector of tokens.
   ///
   /// \param tokens The tokens to be managed by this source.
-  explicit TokenSource(const std::vector<Token<TokenKind>>& tokens,
+  explicit TokenSource(const std::vector<Token>& tokens,
                        const std::function<bool(TokenKind)>& is_trivia)
       : tokens_(std::move(tokens)), is_trivia_(is_trivia), token_idx_(0) {}
 
@@ -34,7 +37,7 @@ class TokenSource {
   ///
   /// \return An optional containing the next token if available, otherwise
   /// `nullopt`.
-  [[nodiscard]] std::optional<Token<TokenKind>> NextToken() noexcept {
+  [[nodiscard]] std::optional<Token> NextToken() noexcept {
     BumpTrivia();
 
     if (token_idx_ < tokens_.size()) {
@@ -67,7 +70,7 @@ class TokenSource {
   ///
   /// \return An optional containing the next token if available, otherwise
   /// `nullopt`.
-  [[nodiscard]] std::optional<Token<TokenKind>> PeekToken() noexcept {
+  [[nodiscard]] std::optional<Token> PeekToken() noexcept {
     BumpTrivia();
     return PeekTokenRaw();
   }
@@ -107,14 +110,14 @@ class TokenSource {
   ///
   /// \return An optional containing the next token if available, otherwise
   /// `nullopt`.
-  [[nodiscard]] std::optional<Token<TokenKind>> PeekTokenRaw() const noexcept {
+  [[nodiscard]] std::optional<Token> PeekTokenRaw() const noexcept {
     if (token_idx_ < tokens_.size()) {
       return tokens_.at(token_idx_);
     }
 
     return std::nullopt;
   }
-  const std::vector<Token<TokenKind>> tokens_;
+  const std::vector<Token> tokens_;
   const std::function<bool(TokenKind)>& is_trivia_;
   size_t token_idx_;
 };

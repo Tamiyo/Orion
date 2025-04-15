@@ -20,6 +20,11 @@ namespace yuzu::syntax {
 /// format with indentation and width annotations.
 template <typename SyntaxKind = uint16_t>
 class GreenWriter {
+ private:
+  using GreenElement = GreenElement<SyntaxKind>;
+  using GreenNode = GreenNode<SyntaxKind>;
+  using GreenToken = GreenToken<SyntaxKind>;
+
  public:
   /// \brief Constructs a writer with a configurable indentation size.
   /// \param indent_size Number of spaces per indentation level. Defaults to 2.
@@ -36,7 +41,7 @@ class GreenWriter {
   /// \param indent_size The indentation level (optional).
   /// \returns A u32string representing the tree.
   [[nodiscard]] static std::u32string WriteAsU32String(
-      const GreenElement<SyntaxKind>& element,
+      const GreenElement& element,
       const std::function<std::u32string_view(SyntaxKind)>&
           syntax_kind_to_u32string_view,
       size_t indent_size = 2) {
@@ -46,7 +51,7 @@ class GreenWriter {
 
   /// \brief Serializes a GreenNode into a u32string.
   [[nodiscard]] static std::u32string WriteAsU32String(
-      const GreenNode<SyntaxKind>& node,
+      const GreenNode& node,
       const std::function<std::u32string_view(SyntaxKind)>&
           syntax_kind_to_u32string_view,
       size_t indent_size = 2) noexcept {
@@ -56,7 +61,7 @@ class GreenWriter {
 
   /// \brief Serializes a GreenToken into a u32string.
   [[nodiscard]] static std::u32string WriteAsU32String(
-      const GreenToken<SyntaxKind>& token,
+      const GreenToken& token,
       const std::function<std::u32string_view(SyntaxKind)>&
           syntax_kind_to_u32string_view,
       size_t indent_size = 2) noexcept {
@@ -65,7 +70,7 @@ class GreenWriter {
   }
 
   /// \brief Writes a single GreenToken to the stream with width and source.
-  GreenWriter& Write(const GreenToken<SyntaxKind>& token) noexcept {
+  GreenWriter& Write(const GreenToken& token) noexcept {
     Indent();
 
     const size_t token_width = token.Source().size();
@@ -84,7 +89,7 @@ class GreenWriter {
   }
 
   /// \brief Recursively writes a GreenNode and its children.
-  GreenWriter& Write(const GreenNode<SyntaxKind>& node) noexcept {
+  GreenWriter& Write(const GreenNode& node) noexcept {
     Indent();
 
     string_ += syntax_kind_to_u32string_view_(node.Kind());
@@ -95,7 +100,7 @@ class GreenWriter {
     string_ += U"\n";
 
     IncreaseIndent();
-    for (const GreenElement<SyntaxKind>& element : node.Children()) {
+    for (const GreenElement& element : node.Children()) {
       Write(element);
     }
     DecreaseIndent();
@@ -105,14 +110,13 @@ class GreenWriter {
 
   /// \brief Dispatches writing based on whether the element is a token or node.
   /// \throws std::invalid_argument if the element type is unrecognized.
-  GreenWriter& Write(const GreenElement<SyntaxKind>& element) {
-    if (const std::optional<GreenNode<SyntaxKind>> node = element.TryGetNode();
+  GreenWriter& Write(const GreenElement& element) {
+    if (const std::optional<GreenNode> node = element.TryGetNode();
         node.has_value()) {
       return Write(node.value());
     }
 
-    if (const std::optional<GreenToken<SyntaxKind>> token =
-            element.TryGetToken();
+    if (const std::optional<GreenToken> token = element.TryGetToken();
         token.has_value()) {
       return Write(token.value());
     }

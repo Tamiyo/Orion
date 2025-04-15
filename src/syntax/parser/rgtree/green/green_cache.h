@@ -23,6 +23,10 @@ namespace yuzu::syntax {
 /// during parsing.
 template <typename SyntaxKind = uint16_t>
 class GreenCache {
+ private:
+  using GreenElement = GreenElement<SyntaxKind>;
+  using GreenNode = GreenNode<SyntaxKind>;
+
  public:
   /// \brief Represents a cached green element with its corresponding hash.
   ///
@@ -30,7 +34,7 @@ class GreenCache {
   /// the associated `GreenElement`, allowing for efficient caching and lookup.
   class Cached {
    public:
-    explicit Cached(const size_t hash, GreenElement<SyntaxKind> element)
+    explicit Cached(const size_t hash, GreenElement element)
         : hash_(hash), element_(std::move(element)) {}
 
     /// \brief Deleted default constructor.
@@ -46,13 +50,13 @@ class GreenCache {
     /// \brief Retrieves the cached green element.
     ///
     /// \return The `GreenElement` stored in this cache.
-    [[nodiscard]] const GreenElement<SyntaxKind>& Element() const {
+    [[nodiscard]] const GreenElement& Element() const {
       return this->element_;
     }
 
    private:
     size_t hash_;
-    GreenElement<SyntaxKind> element_;
+    GreenElement element_;
   };
 
   /// \brief Constructs a `GreenCache` with a specified maximum size for cached
@@ -86,11 +90,11 @@ class GreenCache {
 
     // Compute the hash of the node.
     const size_t hash = HashNode(kind, *children, first_child);
-    const auto no_hash = NoHash{hash, GreenElement<SyntaxKind>()};
+    const auto no_hash = NoHash{hash, GreenElement()};
 
     // If the entry exists, then there might be a collision.
     if (const auto entry = nodes_.find(no_hash); entry != nodes_.end()) {
-      std::vector<GreenElement<SyntaxKind>> entry_elements;
+      std::vector<GreenElement> entry_elements;
       entry_elements.reserve(size);
 
       // Unlike BuildNode, we do not know if we should erase these children yet.
@@ -103,7 +107,7 @@ class GreenCache {
 
       // If the entry is the same as what we are trying to build, we should just
       // used the cached node.
-      if (const std::optional<GreenNode<SyntaxKind>> entry_node =
+      if (const std::optional<GreenNode> entry_node =
               entry->element.TryGetNode();
           entry_node.has_value() && entry_node->Kind() == kind &&
           entry_node->Children().size() == size &&
@@ -179,14 +183,14 @@ class GreenCache {
     return hash_value;
   }
 
-  GreenNode<SyntaxKind> BuildNode(const SyntaxKind kind,
+  GreenNode BuildNode(const SyntaxKind kind,
                                   std::vector<Cached>* children,
                                   const size_t first_child) noexcept {
     const size_t size = children->size() - first_child;
 
     // Move children into the node allocation, removing old children in the
     // process.
-    std::vector<GreenElement<SyntaxKind>> elements;
+    std::vector<GreenElement> elements;
     elements.reserve(size);
     std::ranges::move(*children | std::views::drop(first_child) |
                           std::views::transform(
@@ -212,7 +216,7 @@ class GreenCache {
     const size_t hash;
 
     /// The element being cached.
-    const GreenElement<SyntaxKind> element;
+    const GreenElement element;
 
     /// \brief Compares two `NoHash` objects for equality.
     ///

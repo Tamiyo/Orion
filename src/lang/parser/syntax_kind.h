@@ -72,7 +72,13 @@ enum class SyntaxKind : uint16_t {
   // --- Nodes ---
   /// Represents an error node.
   kRoot,
-  kBinaryExpr,
+
+  kInfixExpr,
+  kPrefixExpr,
+  kPostfixExpr,
+
+  kVariableRef,
+
   kError,
 };
 
@@ -88,6 +94,7 @@ enum class SyntaxKind : uint16_t {
 
     case SyntaxKind::kDot:
       return U"Dot";
+
     case SyntaxKind::kPlus:
       return U"Plus";
     case SyntaxKind::kMinus:
@@ -132,8 +139,14 @@ enum class SyntaxKind : uint16_t {
     case SyntaxKind::kRoot:
       return U"Root";
 
-    case SyntaxKind::kBinaryExpr:
-      return U"BinaryExpr";
+    case SyntaxKind::kInfixExpr:
+      return U"InfixExpr";
+
+    case SyntaxKind::kPrefixExpr:
+      return U"PrefixExpr";
+
+    case SyntaxKind::kPostfixExpr:
+      return U"PostfixExpr";
 
     case SyntaxKind::kError:
       return U"Error";

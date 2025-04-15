@@ -10,7 +10,6 @@
 #include "syntax/lexer/lexer.h"
 
 namespace yuzu::lang {
-
 /// \brief The Lexer class is a concrete implementation of the Lexer base
 /// class.
 ///
@@ -19,6 +18,8 @@ namespace yuzu::lang {
 /// tokenization logic specific to the yuzu language syntax.
 class Lexer final : public syntax::Lexer<TokenKind> {
  public:
+  using Token = lang::Token;
+
   /// \brief Constructs an Lexer with the given source string.
   ///
   /// \param source The source string to be tokenized.
