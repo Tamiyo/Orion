@@ -47,7 +47,6 @@ class Lexer {
     return tokens;
   }
 
- protected:
   /// \brief Constructs a `Lexer` with the specified source string.
   ///
   /// \param source The source string to be tokenized.

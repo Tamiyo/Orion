@@ -37,6 +37,11 @@ constexpr char32_t kSpace = U' ';
 constexpr char32_t kNewline = U'\n';
 constexpr char32_t kTab = U'\t';
 
+constexpr char32_t kLeftParen = U'(';
+constexpr char32_t kRightParen = U')';
+constexpr char32_t kLeftSquare = U'[';
+constexpr char32_t kRightSquare = U']';
+
 constexpr char32_t kDot = U'.';
 constexpr char32_t kUnderscore = U'_';
 constexpr char32_t kPlus = U'+';
@@ -56,21 +61,29 @@ enum class NumericKind {
 };
 
 std::optional<Lexer::Token> Lexer::TryNextToken() noexcept {
-  if (const std::optional<Lexer::Token> whitespace = TryWhitespace();
+  if (const std::optional<Lexer::Token> whitespace = TryWhitespace(this);
       whitespace.has_value()) {
     return whitespace;
   }
 
-  if (const std::optional<Lexer::Token> op = TryOperator(); op.has_value()) {
+  if (const std::optional<Lexer::Token> op = TryPunctuation(this);
+      op.has_value()) {
     return op;
   }
-  if (const std::optional<Lexer::Token> boolean_literal = TryBooleanLiteral();
+
+  if (const std::optional<Lexer::Token> op = TryOperator(this);
+      op.has_value()) {
+    return op;
+  }
+
+  if (const std::optional<Lexer::Token> boolean_literal =
+          TryBooleanLiteral(this);
       boolean_literal.has_value()) {
     return boolean_literal;
   }
 
   if (const std::optional<Lexer::Token> keyword_or_identifier =
-          TryKeywordOrIdentifier();
+          TryKeywordOrIdentifier(this);
       keyword_or_identifier.has_value()) {
     return keyword_or_identifier;
   }
@@ -78,78 +91,88 @@ std::optional<Lexer::Token> Lexer::TryNextToken() noexcept {
   if (At(kDot)) {
     // Some approximate numerics do not start with a leading digit.
     if (At([](const char32_t ch) { return std::iswdigit(ch); }, 1)) {
-      return TryNumericLiteral(false);
+      return TryNumericLiteral(this, false);
     }
 
     return BumpAndCreateToken(TokenKind::kDot);
   }
 
-  return TryLiteral();
+  return TryLiteral(this);
 }
 
-std::optional<Lexer::Token> Lexer::TryWhitespace() {
-  if (At2(kSpace, kTab)) {
-    BumpWhile([](const char32_t ch) { return ch == kSpace || ch == kTab; });
-    return CreateToken(TokenKind::kWhitespace);
+std::optional<Lexer::Token> TryWhitespace(Lexer* l) {
+  if (l->At2(kSpace, kTab)) {
+    l->BumpWhile([](const char32_t ch) { return ch == kSpace || ch == kTab; });
+    return l->CreateToken(TokenKind::kWhitespace);
   }
 
-  if (At(kNewline)) {
-    BumpWhile([](const char32_t ch) { return ch == kNewline; });
-    return CreateToken(TokenKind::kNewline);
+  if (l->At(kNewline)) {
+    l->BumpWhile([](const char32_t ch) { return ch == kNewline; });
+    return l->CreateToken(TokenKind::kNewline);
   }
 
   return std::nullopt;
 }
 
-std::optional<Lexer::Token> Lexer::TryOperator() {
-  switch (GetCurrent()) {
-    case kPlus:
-      return BumpAndCreateToken(TokenKind::kPlus);
-
-    case kMinus:
-      return BumpAndCreateToken(TokenKind::kMinus);
-
-    case kAsterisk:
-      return BumpAndCreateToken(TokenKind::kAsterisk);
-
-    case kSlash:
-      return BumpAndCreateToken(TokenKind::kSlash);
-
-    case kPercent:
-      return BumpAndCreateToken(TokenKind::kPercent);
-
+std::optional<Lexer::Token> TryPunctuation(Lexer* l) {
+  switch (l->GetCurrent()) {
+    case kLeftParen:
+      return l->BumpAndCreateToken(TokenKind::kLeftParen);
+    case kRightParen:
+      return l->BumpAndCreateToken(TokenKind::kRightParen);
+    case kLeftSquare:
+      return l->BumpAndCreateToken(TokenKind::kLeftSquare);
+    case kRightSquare:
+      return l->BumpAndCreateToken(TokenKind::kRightSquare);
     default:
       return std::nullopt;
   }
 }
 
-std::optional<Lexer::Token> Lexer::TryKeywordOrIdentifier() {
+std::optional<Lexer::Token> TryOperator(Lexer* l) {
+  switch (l->GetCurrent()) {
+    case kPlus:
+      return l->BumpAndCreateToken(TokenKind::kPlus);
+    case kMinus:
+      return l->BumpAndCreateToken(TokenKind::kMinus);
+    case kAsterisk:
+      return l->BumpAndCreateToken(TokenKind::kAsterisk);
+    case kSlash:
+      return l->BumpAndCreateToken(TokenKind::kSlash);
+    case kPercent:
+      return l->BumpAndCreateToken(TokenKind::kPercent);
+    default:
+      return std::nullopt;
+  }
+}
+
+std::optional<Lexer::Token> TryKeywordOrIdentifier(Lexer* l) {
   if (const std::optional<Lexer::Token> quoted_identifier =
-          TryQuotedIdentifier();
+          TryQuotedIdentifier(l);
       quoted_identifier.has_value()) {
     return quoted_identifier;
   }
 
-  return TryIdentifier();
+  return TryIdentifier(l);
 }
 
-std::optional<Lexer::Token> Lexer::TryQuotedIdentifier() {
-  if (!At(kBacktick)) {
+std::optional<Lexer::Token> TryQuotedIdentifier(Lexer* l) {
+  if (!l->At(kBacktick)) {
     return std::nullopt;
   }
 
-  Bump();  // Eat '`'
+  l->Bump();  // Eat '`'
 
   bool is_delimited = false;
-  while (!AtEnd()) {
-    if (At(kBacktick) && At(kBacktick, 1)) {
-      Bump(2);  // Eat '``'
-    } else if (At(kBacktick)) {
+  while (!l->AtEnd()) {
+    if (l->At(kBacktick) && l->At(kBacktick, 1)) {
+      l->Bump(2);  // Eat '``'
+    } else if (l->At(kBacktick)) {
       is_delimited = true;
-      Bump();  // Eat '`'
+      l->Bump();  // Eat '`'
       break;
     } else {
-      Bump();  // Eat char.
+      l->Bump();  // Eat char.
     }
   }
 
@@ -157,51 +180,51 @@ std::optional<Lexer::Token> Lexer::TryQuotedIdentifier() {
     throw std::invalid_argument("unclosed quoted identifier");
   }
 
-  return CreateToken(TokenKind::kQuotedIdentifier);
+  return l->CreateToken(TokenKind::kQuotedIdent);
 }
 
-std::optional<Lexer::Token> Lexer::TryIdentifier() {
+std::optional<Lexer::Token> TryIdentifier(Lexer* l) {
   // Identifiers must start with a letter or an underscore.
-  if (!At([](const char32_t ch) {
+  if (!l->At([](const char32_t ch) {
         return std::iswalpha(ch) || ch == kUnderscore ||
                ch > kAsciiMaxCodepoint;
       })) {
     return std::nullopt;
   }
 
-  BumpWhile([](const char32_t ch) {
+  l->BumpWhile([](const char32_t ch) {
     return std::iswalnum(ch) || ch == kUnderscore || ch > kAsciiMaxCodepoint;
   });
 
-  return CreateToken(TokenKind::kIdentifier);
+  return l->CreateToken(TokenKind::kUnquotedIdent);
 }
 
-std::optional<Lexer::Token> Lexer::TryLiteral() {
-  if (At([](const char32_t ch) { return std::iswdigit(ch); })) {
-    return TryNumericLiteral();
+std::optional<Lexer::Token> TryLiteral(Lexer* l) {
+  if (l->At([](const char32_t ch) { return std::iswdigit(ch); })) {
+    return TryNumericLiteral(l);
   }
 
-  if (At(kDoubleQuote)) {
-    return TryStringLiteral();
+  if (l->At(kDoubleQuote)) {
+    return TryStringLiteral(l);
   }
 
   return std::nullopt;
 }
 
 // '"' ( ~('"'|'\\') | ('\\' .) )* '"'
-std::optional<Lexer::Token> Lexer::TryStringLiteral() {
+std::optional<Lexer::Token> TryStringLiteral(Lexer* l) {
   constexpr char32_t delimiter = kDoubleQuote;
 
-  if (!At(delimiter)) {
+  if (!l->At(delimiter)) {
     return std::nullopt;
   }
 
-  Bump();  // Eat delimiter.
+  l->Bump();  // Eat delimiter.
 
   bool is_escaped = false;
-  BumpWhile([this, is_escaped](const char32_t ch) mutable {
+  l->BumpWhile([l, is_escaped](const char32_t ch) mutable {
     if (is_escaped) {
-      switch (GetCurrent()) {
+      switch (l->GetCurrent()) {
         case kTLower:
         case kBLower:
         case kNLower:
@@ -225,124 +248,125 @@ std::optional<Lexer::Token> Lexer::TryStringLiteral() {
     return ch != delimiter;
   });
 
-  if (!At(delimiter)) {
+  if (!l->At(delimiter)) {
     throw std::invalid_argument("unclosed string literal");
   }
 
-  Bump();  // Eat delimiter.
-  return CreateToken(TokenKind::kStringLiteral);
+  l->Bump();  // Eat delimiter.
+  return l->CreateToken(TokenKind::kStringLiteral);
 }
 
-std::optional<Lexer::Token> Lexer::TryBooleanLiteral() {
-  if (At(kTrueKeyword)) {
-    return BumpAndCreateToken(TokenKind::kBooleanLiteral, 4);
+std::optional<Lexer::Token> TryBooleanLiteral(Lexer* l) {
+  if (l->At(kTrueKeyword)) {
+    return l->BumpAndCreateToken(TokenKind::kBooleanLiteral, 4);
   }
 
-  if (At(kFalseKeyword)) {
-    return BumpAndCreateToken(TokenKind::kBooleanLiteral, 5);
+  if (l->At(kFalseKeyword)) {
+    return l->BumpAndCreateToken(TokenKind::kBooleanLiteral, 5);
   }
 
   return std::nullopt;
 }
 
 // https://github.com/apache/spark/blob/master/sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBaseLexer.g4#L578
-std::optional<Lexer::Token> Lexer::TryNumericLiteral(
-    const bool consume_digits) {
+std::optional<Lexer::Token> TryNumericLiteral(Lexer* l,
+                                              const bool consume_digits) {
   if (consume_digits) {
-    BumpDigits();
+    BumpDigits(l);
 
     // If there are no more digits, there is nothing else to consume. We're at
     // the end of our input.
-    if (AtEnd()) {
-      return CreateToken(TokenKind::kIntLiteral);
+    if (l->AtEnd()) {
+      return l->CreateToken(TokenKind::kIntLiteral);
     }
   }
 
   NumericKind numericKind;
-  switch (GetCurrent()) {
+  switch (l->GetCurrent()) {
     case kDot: {
-      Bump();  // Eat '.'
+      l->Bump();  // Eat '.'
 
       numericKind = NumericKind::kApprox;
-      BumpDigits();
-      BumpExponent();
+      BumpDigits(l);
+      BumpExponent(l);
       break;
     }
     default: {
       numericKind = NumericKind::kExact;
-      BumpExponent();
+      BumpExponent(l);
       break;
     }
   }
 
-  if (At(kFUpper) || At(kFLower)) {
-    return BumpAndCreateToken(TokenKind::kFloatLiteral);
+  if (l->At(kFUpper) || l->At(kFLower)) {
+    return l->BumpAndCreateToken(TokenKind::kFloatLiteral);
   }
 
-  if ((At(kBUpper) && At(kDUpper, 1)) || (At(kBLower) && At(kDLower, 1))) {
-    return BumpAndCreateToken(TokenKind::kBigDecimalLiteral, 2);
+  if ((l->At(kBUpper) && l->At(kDUpper, 1)) ||
+      (l->At(kBLower) && l->At(kDLower, 1))) {
+    return l->BumpAndCreateToken(TokenKind::kBigDecimalLiteral, 2);
   }
 
-  if (At(kDUpper) || At(kDLower)) {
-    return BumpAndCreateToken(TokenKind::kDoubleLit);
+  if (l->At(kDUpper) || l->At(kDLower)) {
+    return l->BumpAndCreateToken(TokenKind::kDoubleLit);
   }
 
-  if (At(kLUpper) || At(kLLower)) {
-    return BumpAndCreateToken(TokenKind::kBigIntLiteral);
+  if (l->At(kLUpper) || l->At(kLLower)) {
+    return l->BumpAndCreateToken(TokenKind::kBigIntLiteral);
   }
 
-  if (At(kSUpper) || At(kSLower)) {
-    return BumpAndCreateToken(TokenKind::kSmallIntLiteral);
+  if (l->At(kSUpper) || l->At(kSLower)) {
+    return l->BumpAndCreateToken(TokenKind::kSmallIntLiteral);
   }
 
-  if (At(kYUpper) || At(kYLower)) {
-    return BumpAndCreateToken(TokenKind::kTinyIntLiteral);
+  if (l->At(kYUpper) || l->At(kYLower)) {
+    return l->BumpAndCreateToken(TokenKind::kTinyIntLiteral);
   }
 
   if (numericKind == NumericKind::kExact) {
-    return CreateToken(TokenKind::kIntLiteral);
+    return l->CreateToken(TokenKind::kIntLiteral);
   }
 
-  return CreateToken(TokenKind::kFloatLiteral);
+  return l->CreateToken(TokenKind::kFloatLiteral);
 }
 
 // Grammar: E[+-]? DIGITS
-void Lexer::BumpExponent() {
-  if (!(At(kEUpper) || At(kELower))) {
+void BumpExponent(Lexer* l) {
+  if (!(l->At(kEUpper) || l->At(kELower))) {
     return;
   }
 
-  Bump();                   // Eat 'E'
-  TryBump2(kPlus, kMinus);  // Eat '[+-]?'
-  BumpDigits();
+  l->Bump();                   // Eat 'E'
+  l->TryBump2(kPlus, kMinus);  // Eat '[+-]?'
+  BumpDigits(l);
 }
 
 // Grammar: [0-9]+
-void Lexer::BumpDigits() {
-  if (AtEnd()) {
+void BumpDigits(Lexer* l) {
+  if (l->AtEnd()) {
     throw std::invalid_argument(
         "expected at least one digit in fragment, but at end");
   }
 
-  if (!std::iswdigit(GetCurrent())) {
+  if (!std::iswdigit(l->GetCurrent())) {
     throw std::invalid_argument("expected at least one digit in fragment");
   }
 
-  BumpWhile([](const char32_t ch) { return std::iswdigit(ch); });
+  l->BumpWhile([](const char32_t ch) { return std::iswdigit(ch); });
 }
 
 // Grammar: [a-zA-Z]+
-void Lexer::BumpLetters() {
-  if (AtEnd()) {
+void BumpLetters(Lexer* l) {
+  if (l->AtEnd()) {
     throw std::invalid_argument(
         "expected at least one letter in fragment, but at end");
   }
 
   if (!std::iswalpha(
-          GetCurrent())) {  // Fix: should check for letters, not digits
+          l->GetCurrent())) {  // Fix: should check for letters, not digits
     throw std::invalid_argument("expected at least one letter in fragment");
   }
 
-  BumpWhile([](const char32_t ch) { return std::iswalpha(ch); });
+  l->BumpWhile([](const char32_t ch) { return std::iswalpha(ch); });
 }
 }  // namespace yuzu::lang

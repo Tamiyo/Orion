@@ -2,8 +2,6 @@
 #define LANG_LEXER_TOKEN_KIND_H_
 
 #include <cstdint>
-#include <sstream>
-#include <string_view>
 
 namespace yuzu::lang {
 
@@ -13,66 +11,48 @@ namespace yuzu::lang {
 /// lexical analysis, including literals, operators, punctuation, and keywords.
 enum class TokenKind : uint16_t {
   // --- Trivia ---
-  /// Whitespace (e.g. spaces, tabs).
-  kWhitespace,
-  /// Newline characters.
-  kNewline,
-  /// Line or block comments.
-  kComment,
+  kWhitespace,  /// Whitespace (e.g. spaces, tabs).
+  kNewline,     /// Newline characters.
+  kComment,     /// Line or block comments.
 
   // --- Keywords ---
   // (To be added.)
 
   // --- Punctuation ---
-  /// Dot or period (e.g. `.`).
-  kDot,
-
-  /// Plus sign (e.g. `+`).
-  kPlus,
-  /// Minus sign (e.g. `-`).
-  kMinus,
-  /// Asterisk or multiplication sign (e.g. `*`).
-  kAsterisk,
-  /// Slash or division operator (e.g. `/`).
-  kSlash,
-  /// Percent or modulo operator (e.g. `%`).
-  kPercent,
+  kDot,          /// Dot or period (e.g. `.`).
+  kPlus,         /// Plus sign (e.g. `+`).
+  kMinus,        /// Minus sign (e.g. `-`).
+  kAsterisk,     /// Asterisk or multiplication sign (e.g. `*`).
+  kSlash,        /// Slash or division operator (e.g. `/`).
+  kPercent,      /// Percent or modulo operator (e.g. `%`).
+  kLeftParen,    /// Left parenthesis (e.g. `(`).
+  kRightParen,   /// Right parenthesis (e.g. `)`).
+  kLeftSquare,   /// Left square bracket (e.g. `[`).
+  kRightSquare,  /// Right square bracket (e.g. `]`).
 
   // --- Boolean Literals ---
-  /// Boolean literal (`true`, `false`).
-  kBooleanLiteral,
+  kBooleanLiteral,  /// A boolean literal (`true`, `false`).
 
   // --- String Literals ---
-  /// A string literal (e.g. `"hello"`).
-  kStringLiteral,
+  kStringLiteral,  /// A string literal (e.g. `"hello"`).
 
   // --- Exact Numeric Literals ---
-  /// An integer literal.
-  kIntLiteral,
-  /// A big integer literal (platform-dependent).
-  kBigIntLiteral,
-  /// A small integer literal.
-  kSmallIntLiteral,
-  /// A tiny integer literal.
-  kTinyIntLiteral,
+  kBigDecimalLiteral,  /// A arbitrary-precision signed decimal number.
+  kBigIntLiteral,      /// A 64-bit (4 byte) big integer literal.
+  kIntLiteral,         /// A 32-bit (3 byte) integer literal.
+  kSmallIntLiteral,    /// A 16-bit (2 byte) small integer literal.
+  kTinyIntLiteral,     /// A 8-bit (1 byte) tiny integer literal.
 
   // --- Approx Numeric Literals ---
-  /// A floating-point number literal.
-  kFloatLiteral,
-  /// A double precision float literal.
-  kDoubleLit,
-  /// A high-precision decimal literal.
-  kBigDecimalLiteral,
+  kFloatLiteral,  /// A floating-point number literal.
+  kDoubleLit,     /// A double precision floating-point literal.
 
   // --- Other ---
-  /// An unquoted identifier (e.g. variable name).
-  kIdentifier,
-  /// A quoted identifier (e.g. `"column"`).
-  kQuotedIdentifier,
+  kUnquotedIdent,  /// An unquoted identifier (e.g. variable name).
+  kQuotedIdent,    /// A quoted identifier (e.g. `"column"`).
 
   // --- Special ---
-  /// End-of-file marker.
-  kEof,
+  kEof,  /// End-of-file marker.
 };
 
 /// \brief Checks whether a token kind is considered trivia (e.g., whitespace or

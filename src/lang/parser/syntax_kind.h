@@ -1,6 +1,7 @@
 #ifndef LANG_PARSER_SYNTAX_KIND_H_
 #define LANG_PARSER_SYNTAX_KIND_H_
 
+#include <array>
 #include <cstdint>
 #include <string_view>
 
@@ -8,152 +9,131 @@ namespace yuzu::lang {
 // Note: The 'tokens' enum values must match TokenKind.
 enum class SyntaxKind : uint16_t {
   // --- Trivia ---
-  /// Whitespace (e.g. spaces, tabs).
-  kWhitespace,
-  /// Newline characters.
-  kNewline,
-  /// Line or block comments.
-  kComment,
+  kWhitespace,  /// Whitespace (e.g. spaces, tabs).
+  kNewline,     /// Newline characters.
+  kComment,     /// Line or block comments.
 
   // --- Keywords ---
   // (To be added.)
 
   // --- Punctuation ---
-  /// Dot or period (e.g. `.`).
-  kDot,
-
-  /// Plus sign (e.g. `+`).
-  kPlus,
-  /// Minus sign (e.g. `-`).
-  kMinus,
-  /// Asterisk or multiplication sign (e.g. `*`).
-  kAsterisk,
-  /// Slash or division operator (e.g. `/`).
-  kSlash,
-  /// Percent or modulo operator (e.g. `%`).
-  kPercent,
+  kDot,          /// Dot or period (e.g. `.`).
+  kPlus,         /// Plus sign (e.g. `+`).
+  kMinus,        /// Minus sign (e.g. `-`).
+  kAsterisk,     /// Asterisk or multiplication sign (e.g. `*`).
+  kSlash,        /// Slash or division operator (e.g. `/`).
+  kPercent,      /// Percent or modulo operator (e.g. `%`).
+  kLeftParen,    /// Left parenthesis (e.g. `(`).
+  kRightParen,   /// Right parenthesis (e.g. `)`).
+  kLeftSquare,   /// Left square bracket (e.g. `[`).
+  kRightSquare,  /// Right square bracket (e.g. `]`).
 
   // --- Boolean Literals ---
-  /// Boolean literal (`true`, `false`).
-  kBooleanLiteral,
+  kBooleanLiteral,  /// A boolean literal (`true`, `false`).
 
   // --- String Literals ---
-  /// A string literal (e.g. `"hello"`).
-  kStringLiteral,
+  kStringLiteral,  /// A string literal (e.g. `"hello"`).
 
   // --- Exact Numeric Literals ---
-  /// An integer literal.
-  kIntLiteral,
-  /// A big integer literal (platform-dependent).
-  kBigIntLiteral,
-  /// A small integer literal.
-  kSmallIntLiteral,
-  /// A tiny integer literal.
-  kTinyIntLiteral,
+  kBigDecimalLiteral,  /// A arbitrary-precision signed decimal number.
+  kBigIntLiteral,      /// A 64-bit (4 byte) big integer literal.
+  kIntLiteral,         /// A 32-bit (3 byte) integer literal.
+  kSmallIntLiteral,    /// A 16-bit (2 byte) small integer literal.
+  kTinyIntLiteral,     /// A 8-bit (1 byte) tiny integer literal.
 
   // --- Approx Numeric Literals ---
-  /// A floating-point number literal.
-  kFloatLiteral,
-  /// A double precision float literal.
-  kDoubleLit,
-  /// A high-precision decimal literal.
-  kBigDecimalLiteral,
+  kFloatLiteral,  /// A floating-point number literal.
+  kDoubleLit,     /// A double precision floating-point literal.
 
   // --- Other ---
-  /// An unquoted identifier (e.g. variable name).
-  kIdentifier,
-  /// A quoted identifier (e.g. `"column"`).
-  kQuotedIdentifier,
+  kUnquotedIdent,  /// An unquoted identifier (e.g. variable name).
+  kQuotedIdent,    /// A quoted identifier (e.g. `"column"`).
 
   // --- Special ---
-  /// End-of-file marker.
-  kEof,
+  kEof,  /// End-of-file marker.
 
-  // --- Nodes ---
-  /// Represents an error node.
+  ///////////////////////////////////////////////////////
+
+  // --- Root Nodes ---
   kRoot,
 
+  // --- Expression Nodes ---
   kInfixExpr,
   kPrefixExpr,
   kPostfixExpr,
+  kParenExpr,
 
-  kVariableRef,
+  // --- Infix Operators ---
+  kAdd,
+  kSub,
+  kMul,
+  kDiv,
+  kMod,
 
-  kError,
+  // --- Postfix Operators ---
+  kIndex,
+
+  // --- Literal Nodes ---
+  kIdent,
+  kLiteral,
+
+  // --- Special Nodes ---
+  kError,  /// Represents an error node.
+  k_LAST_  /// The last value in the SyntaxKind enum. Reserved for internal
+           /// use.
 };
 
-[[nodiscard]] constexpr std::u32string_view SyntaxKindToString(
-    const SyntaxKind kind) noexcept {
-  switch (kind) {
-    case SyntaxKind::kWhitespace:
-      return U"Whitespace";
-    case SyntaxKind::kNewline:
-      return U"Newline";
-    case SyntaxKind::kComment:
-      return U"Comment";
+inline constexpr std::array<std::u32string_view,
+                            static_cast<size_t>(SyntaxKind::k_LAST_)>
+    kSyntaxKindNames = {
+        // --- Trivia ---
+        U"Whitespace", U"Newline", U"Comment",
 
-    case SyntaxKind::kDot:
-      return U"Dot";
+        // --- Punctuation ---
+        U"Dot", U"Plus", U"Minus", U"Asterisk", U"Slash", U"Percent",
+        U"LeftParen", U"RightParen", U"LeftSquare", U"RightSquare",
 
-    case SyntaxKind::kPlus:
-      return U"Plus";
-    case SyntaxKind::kMinus:
-      return U"Minus";
-    case SyntaxKind::kAsterisk:
-      return U"Asterisk";
-    case SyntaxKind::kSlash:
-      return U"Slash";
-    case SyntaxKind::kPercent:
-      return U"Percent";
+        // --- Boolean Literals ---
+        U"BooleanLiteral",
 
-    case SyntaxKind::kBooleanLiteral:
-      return U"BooleanLiteral";
+        // --- String Literals ---
+        U"StringLiteral",
 
-    case SyntaxKind::kStringLiteral:
-      return U"StringLiteral";
+        // --- Exact Numeric Literals ---
+        U"BigDecimalLiteral", U"BigIntLiteral", U"IntLiteral",
+        U"SmallIntLiteral", U"TinyIntLiteral",
 
-    case SyntaxKind::kIntLiteral:
-      return U"IntLiteral";
-    case SyntaxKind::kBigIntLiteral:
-      return U"BigIntLiteral";
-    case SyntaxKind::kSmallIntLiteral:
-      return U"SmallIntLiteral";
-    case SyntaxKind::kTinyIntLiteral:
-      return U"TinyIntLiteral";
+        // --- Approx Numeric Literals ---
+        U"FloatLiteral", U"DoubleLit",
 
-    case SyntaxKind::kFloatLiteral:
-      return U"FloatLiteral";
-    case SyntaxKind::kDoubleLit:
-      return U"DoubleLit";
-    case SyntaxKind::kBigDecimalLiteral:
-      return U"BigDecimalLiteral";
+        // --- Other ---
+        U"UnquotedIdent", U"QuotedIdent",
 
-    case SyntaxKind::kIdentifier:
-      return U"Identifier";
-    case SyntaxKind::kQuotedIdentifier:
-      return U"QuotedIdentifier";
+        // --- Special ---
+        U"Eof",
 
-    case SyntaxKind::kEof:
-      return U"Eof";
+        // --- Root Nodes ---
+        U"Root",
 
-    case SyntaxKind::kRoot:
-      return U"Root";
+        // --- Expression Nodes ---
+        U"InfixExpr", U"PrefixExpr", U"PostfixExpr", U"ParenExpr",
 
-    case SyntaxKind::kInfixExpr:
-      return U"InfixExpr";
+        // --- Infix Operators ---
+        U"Add", U"Sub", U"Mul", U"Div", U"Mod",
+        // --- Postfix Operators ---
+        U"Index",
 
-    case SyntaxKind::kPrefixExpr:
-      return U"PrefixExpr";
+        // --- Literal Nodes ---
+        U"Ident", U"Literal",
 
-    case SyntaxKind::kPostfixExpr:
-      return U"PostfixExpr";
+        // --- Special Nodes ---
+        U"Error"};
 
-    case SyntaxKind::kError:
-      return U"Error";
-
-    default:
-      return U"Unknown";
-  }
+[[nodiscard]] inline constexpr std::u32string_view ToU32String(
+    SyntaxKind kind) noexcept {
+  const auto index = static_cast<size_t>(kind);
+  if (index >= kSyntaxKindNames.size()) return U"Unknown";
+  return kSyntaxKindNames[index];
 }
 }  // namespace yuzu::lang
 #endif  // LANG_PARSER_SYNTAX_KIND_H_
