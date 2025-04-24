@@ -27,45 +27,44 @@ class GreenWriter {
 
  public:
   /// \brief Constructs a writer with a configurable indentation size.
+  /// \param to_u32string A function to convert between SyntaxKind to an u32.
   /// \param indent_size Number of spaces per indentation level. Defaults to 2.
-  explicit GreenWriter(const std::function<std::u32string_view(SyntaxKind)>&
-                           syntax_kind_to_u32string_view,
-                       const size_t indent_size = 2)
-      : syntax_kind_to_u32string_view_(syntax_kind_to_u32string_view),
+  explicit GreenWriter(
+      const std::function<std::u32string_view(SyntaxKind)>& to_u32string,
+      const size_t indent_size = 2)
+      : syntax_kind_to_u32string_view_(to_u32string),
         indent_size_(indent_size),
         indent_(0),
         width_(0) {}
 
-  /// \brief Serializes a GreenElement into a u32string.
+  /// \brief Serializes a GreenElement into an u32string.
   /// \param element The element to write.
+  /// \param to_u32string A function to convert between SyntaxKind to an u32.
   /// \param indent_size The indentation level (optional).
-  /// \returns A u32string representing the tree.
+  /// \returns An u32string representing the tree.
   [[nodiscard]] static std::u32string WriteAsU32String(
       const GreenElement& element,
-      const std::function<std::u32string_view(SyntaxKind)>&
-          syntax_kind_to_u32string_view,
+      const std::function<std::u32string_view(SyntaxKind)>& to_u32string,
       size_t indent_size = 2) {
-    auto writer = GreenWriter(syntax_kind_to_u32string_view, indent_size);
+    auto writer = GreenWriter(to_u32string, indent_size);
     return writer.Write(element).AsU32String();
   }
 
-  /// \brief Serializes a GreenNode into a u32string.
+  /// \brief Serializes a GreenNode into an u32string.
   [[nodiscard]] static std::u32string WriteAsU32String(
       const GreenNode& node,
-      const std::function<std::u32string_view(SyntaxKind)>&
-          syntax_kind_to_u32string_view,
+      const std::function<std::u32string_view(SyntaxKind)>& to_u32string,
       size_t indent_size = 2) noexcept {
-    auto writer = GreenWriter(syntax_kind_to_u32string_view, indent_size);
+    auto writer = GreenWriter(to_u32string, indent_size);
     return writer.Write(node).AsU32String();
   }
 
-  /// \brief Serializes a GreenToken into a u32string.
+  /// \brief Serializes a GreenToken into an u32string.
   [[nodiscard]] static std::u32string WriteAsU32String(
       const GreenToken& token,
-      const std::function<std::u32string_view(SyntaxKind)>&
-          syntax_kind_to_u32string_view,
+      const std::function<std::u32string_view(SyntaxKind)>& to_u32string,
       size_t indent_size = 2) noexcept {
-    auto writer = GreenWriter(syntax_kind_to_u32string_view, indent_size);
+    auto writer = GreenWriter(to_u32string, indent_size);
     return writer.Write(token).AsU32String();
   }
 

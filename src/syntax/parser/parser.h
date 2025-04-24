@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -26,10 +27,12 @@ class Parser {
   using TokenSource = TokenSource<TokenKind>;
 
  public:
+  explicit Parser(const TokenSource& source)
+      : source_(std::move(source)), events_({}), expected_kinds_({}) {}
+
   Parser() = delete;
   virtual ~Parser() = default;
 
- public:
   Marker Start() {
     const size_t position = events_.size();
     events_.emplace_back(PlaceholderEvent{});
@@ -39,19 +42,20 @@ class Parser {
   Marker Precede(const CompletedMarker completed_marker) {
     const Marker marker = Start();
 
-    const Event& event = events_.at(completed_marker.Position());
-
+    Event& event = events_.at(completed_marker.Position());
     StartEvent start = std::get<StartEvent>(event);
     start.SetForwardParent(marker.Position() - completed_marker.Position());
 
+    // TODO(tamiyo) Do we even need to do this?
+    events_[completed_marker.Position()] = start;
     return marker;
   }
 
   CompletedMarker Complete(const Marker marker, SyntaxKind kind) {
     const size_t position = marker.Position();
 
-    Event& event = events_.at(position);
-    if (!std::holds_alternative<PlaceholderEvent>(event)) {
+    if (Event& event = events_.at(position);
+        !std::holds_alternative<PlaceholderEvent>(event)) {
       throw std::invalid_argument(
           "cannot complete a marker that isn't a placeholder");
     }
@@ -59,14 +63,15 @@ class Parser {
     events_[position] = StartEvent(kind, std::nullopt);
     events_.emplace_back(FinishEvent{});
 
-    return CompletedMarker(marker.Position());
+    return CompletedMarker(position);
   }
 
   void Expect(const TokenKind kind) noexcept {
     if (At(kind)) {
       Bump();
     } else {
-      Error();
+      const std::array<TokenKind, 0> kExprRecoverySet = {};
+      Error(kExprRecoverySet);
     }
   }
 
@@ -118,6 +123,8 @@ class Parser {
       Complete(m, SyntaxKind::kError);
     }
   }
+
+  const std::vector<Event>& Events() const noexcept { return events_; }
 
  private:
   template <std::size_t N>

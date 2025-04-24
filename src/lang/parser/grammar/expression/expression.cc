@@ -10,58 +10,142 @@
 #include "lang/parser/grammar/expression/postfix_op.h"
 #include "lang/parser/grammar/expression/prefix_op.h"
 #include "lang/parser/parser.h"
+#include "lang/parser/syntax_kind.h"
 #include "syntax/parser/marker.h"
 
 namespace yuzu::lang {
-namespace {
 constexpr std::array<TokenKind, 0> kExprRecoverySet = {};
 
-std::optional<syntax::CompletedMarker> Lhs(Parser* parser) noexcept {
-  if (parser->At(TokenKind::kIdentifier)) {
-  } else {
-    parser->Error(kExprRecoverySet);
+std::optional<syntax::CompletedMarker> ExprBindingPower(
+    Parser* p, uint8_t minimum_binding_power) noexcept;
+
+std::optional<syntax::CompletedMarker> Lhs(Parser* p) noexcept {
+  const std::optional<TokenKind> kind = p->PeekKind();
+  if (!kind) {
     return std::nullopt;
   }
 
-  // TODO(tamiyo) All branches should return a valid completed marker.
-  return std::nullopt;
+  switch (kind.value()) {
+    case TokenKind::kUnquotedIdent:
+    case TokenKind::kQuotedIdent: {
+      const syntax::Marker m = p->Start();
+      p->Bump();
+      return p->Complete(m, SyntaxKind::kIdent);
+    }
+
+    case TokenKind::kBooleanLiteral:
+    case TokenKind::kStringLiteral:
+    case TokenKind::kBigDecimalLiteral:
+    case TokenKind::kBigIntLiteral:
+    case TokenKind::kIntLiteral:
+    case TokenKind::kSmallIntLiteral:
+    case TokenKind::kTinyIntLiteral:
+    case TokenKind::kFloatLiteral:
+    case TokenKind::kDoubleLit: {
+      const syntax::Marker m = p->Start();
+      p->Bump();
+      return p->Complete(m, SyntaxKind::kLiteral);
+    }
+
+    case TokenKind::kPlus:
+    case TokenKind::kMinus: {
+      const syntax::Marker m = p->Start();
+      const auto [_, right_binding_power] =
+          PrefixBindingPower(p->PeekKind()).value();
+
+      p->Bump();  // Eat 'op'
+
+      ExprBindingPower(p, right_binding_power);
+      return p->Complete(m, SyntaxKind::kPrefixExpr);
+    }
+
+    case TokenKind::kLeftParen: {
+      const syntax::Marker m = p->Start();
+      p->Bump();  // eat '('
+      ExprBindingPower(p, 0);
+      p->Expect(TokenKind::kRightParen);
+      return p->Complete(m, SyntaxKind::kParenExpr);
+    }
+
+    default: {
+      p->Error(kExprRecoverySet);
+      return std::nullopt;
+    }
+  }
 }
 
 std::optional<syntax::CompletedMarker> ExprBindingPower(
-    Parser* parser, uint8_t minimum_binding_power) noexcept {
-  std::optional<syntax::CompletedMarker> lhs = Lhs(parser);
+    Parser* p, const uint8_t minimum_binding_power) noexcept {
+  std::optional<syntax::CompletedMarker> lhs = Lhs(p);
   if (!lhs) {
     return std::nullopt;
   }
 
   while (true) {
-    // TODO(tamiyo) Replace with TokenKind to InfixOp conversion.
-    // TODO(tamiyo) Should this be called infix or binary?
-    const auto op = InfixOp::kAdd;
+    // Postfix Operators
+    if (const std::optional<std::tuple<uint8_t, uint8_t>> bp =
+            PostfixBindingPower(p->PeekKind());
+        bp.has_value()) {
+      const auto [left_binding_power, _] = bp.value();
+      if (left_binding_power < minimum_binding_power) {
+        break;
+      }
 
-    const auto [left_binding_power, right_bnding_power] = BindingPower(op);
+      p->Bump();  // Eat the prefix operators's token.
 
-    if (left_binding_power < minimum_binding_power) {
-      break;
+      const std::optional<TokenKind> kind = p->PeekKind();
+      if (!kind) {
+        break;
+      }
+
+      switch (kind.value()) {
+        case TokenKind::kLeftSquare: {
+          const syntax::Marker m = p->Start();
+          p->Bump();  // Eat '['.
+          ExprBindingPower(p, 0);
+          p->Expect(TokenKind::kRightSquare);
+          return p->Complete(m, SyntaxKind::kIndex);
+        }
+
+        default: {
+          // unreachable
+        }
+      }
+
+      continue;
     }
 
-    // Eat the operator's token.
-    parser->Bump();
+    // Infix Operators
+    if (const std::optional<std::tuple<uint8_t, uint8_t>> bp =
+            InfixBindingPower(p->PeekKind());
+        bp.has_value()) {
+      const auto [left_binding_power, right_binding_power] = bp.value();
+      if (left_binding_power < minimum_binding_power) {
+        break;
+      }
 
-    auto marker = parser->Precede(*lhs);
-    auto parsed_rhs = ExprBindingPower(parser, right_bnding_power).has_value();
-    lhs = parser->Complete(marker, SyntaxKind::kInfixExpr);
+      p->Bump();  // Eat the infix operator's token.
 
-    if (!parsed_rhs) {
-      break;
+      const syntax::Marker m = p->Precede(*lhs);
+      const std::optional<syntax::CompletedMarker> rhs =
+          ExprBindingPower(p, right_binding_power);
+
+      lhs = p->Complete(m, SyntaxKind::kInfixExpr);
+
+      if (!rhs.has_value()) {
+        break;
+      }
+
+      continue;
     }
+
+    break;
   }
 
   return lhs;
 }
-};  // namespace
 
-std::optional<syntax::CompletedMarker> Expr(Parser* parser) noexcept {
-  return ExprBindingPower(parser, 0);
+std::optional<syntax::CompletedMarker> Expr(Parser* p) noexcept {
+  return ExprBindingPower(p, 0);
 }
 }  // namespace yuzu::lang

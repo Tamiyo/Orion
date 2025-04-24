@@ -45,6 +45,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         // Keywords
 
+        // Punctuation
+        SingleTokenTestCase{TokenKind::kLeftParen, U"(", "LeftParen"},
+        SingleTokenTestCase{TokenKind::kRightParen, U")", "RightParen"},
+        SingleTokenTestCase{TokenKind::kLeftSquare, U"[", "LeftSquare"},
+        SingleTokenTestCase{TokenKind::kRightSquare, U"]", "RightSquare"},
+
         // Operators
         SingleTokenTestCase{TokenKind::kPlus, U"+", "Plus"},
         SingleTokenTestCase{TokenKind::kMinus, U"-", "Minus"},
@@ -53,41 +59,40 @@ INSTANTIATE_TEST_SUITE_P(
         SingleTokenTestCase{TokenKind::kPercent, U"%", "Percent"},
 
         // Identifiers
-        SingleTokenTestCase{TokenKind::kIdentifier, U"_",
-                            "IdentifierUnderscore"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"_a",
-                            "IdentifierUnderscoreletter"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"_1",
-                            "IdentifierUnderscoreDigit"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"_a1",
-                            "IdentifierUnderscoreLetterDigit"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"_1a",
-                            "IdentifierUnderscoreDigitLetter"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"h", "IdentifierShort"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"hhhhh", "IdentifierLong"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"h1",
-                            "IdentifierWithDigitsShort"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"hg314141gas151fafsg1",
-                            "IdentifierWithDigitsLong"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"_AA_BB_112abG_51",
-                            "IdentifierMixed"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"_", "IdentUnderscore"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"_a",
+                            "IdentUnderscoreletter"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"_1",
+                            "IdentUnderscoreDigit"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"_a1",
+                            "IdentUnderscoreLetterDigit"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"_1a",
+                            "IdentUnderscoreDigitLetter"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"h", "IdentShort"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"hhhhh", "IdentLong"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"h1",
+                            "IdentWithDigitsShort"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"hg314141gas151fafsg1",
+                            "IdentWithDigitsLong"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"_AA_BB_112abG_51",
+                            "IdentMixed"},
 
         // Quoted Identifiers
-        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"``",
-                            "QuotedIdentifierNoChars"},
-        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"` `",
-                            "QuotedIdentifierWithSpace"},
-        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"` hello``world `",
-                            "QuotedIdentifierWithDoubleBacktick"},
-        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"`hello_world 123`",
-                            "QuotedIdentifierWithChars"},
-        SingleTokenTestCase{TokenKind::kQuotedIdentifier, U"`伂告伒伄伌伜`",
-                            "QuotedIdentifierWithUnicodeChars"},
+        SingleTokenTestCase{TokenKind::kQuotedIdent, U"``",
+                            "QuotedIdentNoChars"},
+        SingleTokenTestCase{TokenKind::kQuotedIdent, U"` `",
+                            "QuotedIdentWithSpace"},
+        SingleTokenTestCase{TokenKind::kQuotedIdent, U"` hello``world `",
+                            "QuotedIdentWithDoubleBacktick"},
+        SingleTokenTestCase{TokenKind::kQuotedIdent, U"`hello_world 123`",
+                            "QuotedIdentWithChars"},
+        SingleTokenTestCase{TokenKind::kQuotedIdent, U"`伂告伒伄伌伜`",
+                            "QuotedIdentWithUnicodeChars"},
 
-        // Unicode Identifiers
-        SingleTokenTestCase{TokenKind::kIdentifier, U"🍕", "UnicodeIdentifier"},
-        SingleTokenTestCase{TokenKind::kIdentifier, U"伂告伒伄伌伜",
-                            "UnicodeIdentifierMultipleChars"},
+        // Unicode Idents
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"🍕", "UnicodeIdent"},
+        SingleTokenTestCase{TokenKind::kUnquotedIdent, U"伂告伒伄伌伜",
+                            "UnicodeIdentMultipleChars"},
 
         // String Literals
         SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello World\"",

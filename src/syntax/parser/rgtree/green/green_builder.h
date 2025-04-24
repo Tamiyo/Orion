@@ -48,7 +48,6 @@ class GreenBuilder {
         std::make_pair(kind, children_.size());
 
     parents_.emplace_back(key);
-    children_.clear();
   }
 
   /// \brief Finishes the current node construction.
@@ -87,8 +86,8 @@ class GreenBuilder {
     }
 
     if (!parents_.empty()) {
-      const auto [_, first_child] = parents_.back();
-      if (checkpoint.index < first_child) {
+      if (const std::pair<SyntaxKind, size_t> parent = parents_.back();
+          checkpoint.index < parent.second) {
         throw std::invalid_argument("checkpoint no longer valid");
       }
     }
@@ -117,8 +116,7 @@ class GreenBuilder {
     const auto entry = children_.back();
     children_.pop_back();
 
-    if (const std::optional<GreenNode> node =
-            entry.Element().TryGetNode();
+    if (const std::optional<GreenNode> node = entry.Element().TryGetNode();
         node.has_value()) {
       return node.value();
     } else {

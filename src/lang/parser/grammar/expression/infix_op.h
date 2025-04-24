@@ -8,32 +8,23 @@
 #include "lang/lexer/token_kind.h"
 
 namespace yuzu::lang {
-enum class InfixOp : uint16_t {
-  // TODO(tamiyo) Add Infix operators
-  kAdd,
-  kSub,
-  kMul,
-  kDiv,
-  kMod,
-};
+inline std::optional<std::tuple<uint8_t, uint8_t>> InfixBindingPower(
+    const std::optional<TokenKind> kind) {
+  if (!kind) {
+    return std::nullopt;
+  }
 
-std::tuple<uint8_t, uint8_t> BindingPower(const InfixOp op) {
-  switch (op) {
-    case InfixOp::kAdd:
-    case InfixOp::kSub:
+  switch (kind.value()) {
+    case TokenKind::kPlus:
+    case TokenKind::kMinus:
       return std::make_tuple(1, 2);
-    case InfixOp::kMul:
-    case InfixOp::kDiv:
-    case InfixOp::kMod:
+    case TokenKind::kAsterisk:
+    case TokenKind::kSlash:
+    case TokenKind::kPercent:
       return std::make_tuple(3, 4);
     default:
-      return std::make_tuple(0, 0);
+      return std::nullopt;
   }
-}
-
-// TODO(tamiyo) Implement this.
-std::optional<InfixOp> InfixOpFromTokenKind(const TokenKind kind) {
-  return std::nullopt;
 }
 }  // namespace yuzu::lang
 

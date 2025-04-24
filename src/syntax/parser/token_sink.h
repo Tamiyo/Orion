@@ -55,7 +55,7 @@ class TokenSink {
   /// an immutable syntax tree structure.
   Result Finish() {
     for (size_t event_idx = 0; event_idx < events_.size(); event_idx++) {
-      if (const Event event = events_[event_idx];
+      if (const Event& event = events_[event_idx];
           std::holds_alternative<StartEvent>(event)) {
         const auto e = std::get<StartEvent>(event);
         events_[event_idx] = PlaceholderEvent{};
@@ -75,8 +75,7 @@ class TokenSink {
       }
     }
 
-    return TokenSink::Result{.node = builder_.Finish(),
-                             .errors = std::move(errors_)};
+    return Result{.node = builder_.Finish(), .errors = std::move(errors_)};
   }
 
  private:
@@ -85,16 +84,16 @@ class TokenSink {
   /// \param kind The kind of the syntax node.
   /// \param forward_parent Optional index to the forward parent for delayed
   /// nesting.
-  void StartNode(size_t event_idx, SyntaxKind kind,
-                 std::optional<size_t> forward_parent) {
+  void StartNode(const size_t event_idx, SyntaxKind kind,
+                 const std::optional<size_t> forward_parent) {
     size_t event_idx_mut = event_idx;
     std::optional<size_t> forward_parent_mut = forward_parent;
 
-    std::vector kinds = {kind};
+    std::vector<SyntaxKind> kinds = {kind};
     while (forward_parent_mut.has_value()) {
       event_idx_mut += forward_parent_mut.value();
 
-      if (const Event event = events_[event_idx_mut];
+      if (const Event& event = events_[event_idx_mut];
           std::holds_alternative<StartEvent>(event)) {
         const auto e = std::get<StartEvent>(event);
         events_[event_idx_mut] = PlaceholderEvent{};
