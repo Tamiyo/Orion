@@ -86,8 +86,8 @@ std::optional<syntax::CompletedMarker> ExprBindingPower(
     if (const std::optional<std::tuple<uint8_t, uint8_t>> bp =
             PostfixBindingPower(p->PeekKind());
         bp.has_value()) {
-      const auto [left_binding_power, _] = bp.value();
-      if (left_binding_power < minimum_binding_power) {
+      if (const auto [left_binding_power, _] = bp.value();
+          left_binding_power < minimum_binding_power) {
         break;
       }
 
@@ -98,6 +98,7 @@ std::optional<syntax::CompletedMarker> ExprBindingPower(
           ExprBindingPower(p, 0);
           p->Expect(TokenKind::kRightSquare);
           lhs = p->Complete(m, SyntaxKind::kIndex);
+          break;
         }
 
         default: {
