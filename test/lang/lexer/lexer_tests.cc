@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "lang/lexer/lexer.h"
@@ -12,17 +13,16 @@
 #include "syntax/lexer/token.h"
 
 namespace yuzu::lang {
-std::optional<syntax::Token<TokenKind>> BuildToken(const TokenKind kind,
-                                                   const size_t start,
-                                                   const size_t stop,
-                                                   std::u32string_view source) {
+std::optional<syntax::Token<TokenKind>> BuildToken(
+    const TokenKind kind, const size_t start, const size_t stop,
+    const std::u32string& source) {
   return std::make_optional(
-      syntax::Token(kind, syntax::Span(start, stop), source));
+      syntax::Token(kind, syntax::Span(start, stop), std::move(source)));
 }
 
-std::optional<syntax::Token<TokenKind>> BuildToken(const TokenKind kind,
-                                                   std::u32string_view source) {
-  return BuildToken(kind, 0, source.length(), source);
+std::optional<syntax::Token<TokenKind>> BuildToken(
+    const TokenKind kind, const std::u32string& source) {
+  return BuildToken(kind, 0, source.length(), std::move(source));
 }
 }  // namespace yuzu::lang
 
@@ -33,7 +33,7 @@ using yuzu::syntax::Token;
 
 struct SingleTokenTestCase {
   TokenKind kind;
-  std::u32string_view source;
+  std::u32string source;
   std::string test_name;
 };
 

@@ -15,6 +15,8 @@ inline std::optional<std::tuple<uint8_t, uint8_t>> PostfixBindingPower(
   // TODO(tamiyo) Implement this.
 
   switch (kind.value()) {
+    case TokenKind::kLeftSquare:
+      return std::make_tuple(11, 0);
     default:
       return std::nullopt;
   }

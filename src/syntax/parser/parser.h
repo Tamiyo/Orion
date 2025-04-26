@@ -19,7 +19,7 @@
 
 namespace yuzu::syntax {
 template <typename TokenKind = uint16_t, typename SyntaxKind = uint16_t>
-class Parser {
+class Parser final {
  private:
   using Event = Event<TokenKind, SyntaxKind>;
   using StartEvent = StartEvent<SyntaxKind>;
@@ -31,7 +31,6 @@ class Parser {
       : source_(std::move(source)), events_({}), expected_kinds_({}) {}
 
   Parser() = delete;
-  virtual ~Parser() = default;
 
   Marker Start() {
     const size_t position = events_.size();
@@ -77,7 +76,7 @@ class Parser {
 
   void Bump() noexcept {
     expected_kinds_.clear();
-    auto _ = source_.NextToken();
+    const auto& _ = source_.NextToken();
     events_.emplace_back(TokenEvent{});
   }
 
