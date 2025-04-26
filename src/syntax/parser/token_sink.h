@@ -38,9 +38,13 @@ class TokenSink {
   /// \brief Constructs a TokenSink with a stream of tokens and events.
   /// \param tokens The input token stream from the lexer.
   /// \param events The list of parser events describing how to build the syntax
+  /// \param is_trivia Determines if a TokenKind is a trivia token.
   /// tree.
-  explicit TokenSink(std::vector<Token> tokens, std::vector<Event> events)
+  explicit TokenSink(const std::vector<Token>& tokens,
+                     const std::vector<Event>& events,
+                     const std::function<bool(TokenKind)>& is_trivia)
       : tokens_(std::move(tokens)),
+        is_trivia_(is_trivia),
         token_idx_(0),
         text_idx_(0),
         events_(std::move(events)),
@@ -73,6 +77,8 @@ class TokenSink {
       } else {
         throw std::invalid_argument("unknown event type");
       }
+
+      BumpTrivia();
     }
 
     return Result{.node = builder_.Finish(), .errors = std::move(errors_)};
@@ -116,14 +122,26 @@ class TokenSink {
   /// \brief Handles the Token event by appending the next token to the syntax
   /// tree.
   void AddToken() noexcept {
-    const Token token = tokens_.at(token_idx_);
+    const Token& token = tokens_.at(token_idx_);
     builder_.Token(static_cast<SyntaxKind>(token.Kind()), token.Source());
 
     token_idx_ += 1;
     text_idx_ += token.Length();
   }
 
+  void BumpTrivia() {
+    while (token_idx_ < tokens_.size()) {
+      if (const Token& token = tokens_.at(token_idx_);
+          !is_trivia_(token.Kind())) {
+        break;
+      }
+
+      AddToken();
+    }
+  }
+
   const std::vector<Token> tokens_;
+  const std::function<bool(TokenKind)>& is_trivia_;
   size_t token_idx_;
   size_t text_idx_;
   std::vector<Event> events_;

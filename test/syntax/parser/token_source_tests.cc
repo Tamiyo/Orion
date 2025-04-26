@@ -21,7 +21,7 @@ enum class TokenKind : uint16_t {
   kComment
 };
 
-bool IsTrivia(TokenKind kind) {
+bool IsTrivia(const TokenKind kind) {
   return kind == TokenKind::kWhitespace || kind == TokenKind::kNewline ||
          kind == TokenKind::kComment;
 }

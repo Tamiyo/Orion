@@ -77,12 +77,12 @@ std::optional<syntax::CompletedMarker> Lhs(Parser* p) noexcept {
 std::optional<syntax::CompletedMarker> ExprBindingPower(
     Parser* p, const uint8_t minimum_binding_power) noexcept {
   std::optional<syntax::CompletedMarker> lhs = Lhs(p);
+  // If lhs doesn't exist, then there is a parse error with no completed marker.
   if (!lhs) {
     return std::nullopt;
   }
 
   while (true) {
-    // Postfix Operators
     if (const std::optional<std::tuple<uint8_t, uint8_t>> bp =
             PostfixBindingPower(p->PeekKind());
         bp.has_value()) {
@@ -91,34 +91,22 @@ std::optional<syntax::CompletedMarker> ExprBindingPower(
         break;
       }
 
-      p->Bump();  // Eat the prefix operators's token.
-
-      const std::optional<TokenKind> kind = p->PeekKind();
-      if (!kind) {
-        break;
-      }
-
-      switch (kind.value()) {
+      switch (const TokenKind kind = p->PeekKind().value(); kind) {
         case TokenKind::kLeftSquare: {
-          const syntax::Marker m = p->Start();
+          const syntax::Marker m = p->Precede(*lhs);
           p->Bump();  // Eat '['.
           ExprBindingPower(p, 0);
           p->Expect(TokenKind::kRightSquare);
-          return p->Complete(m, SyntaxKind::kIndex);
+          lhs = p->Complete(m, SyntaxKind::kIndex);
         }
 
         default: {
           // unreachable
         }
       }
-
-      continue;
-    }
-
-    // Infix Operators
-    if (const std::optional<std::tuple<uint8_t, uint8_t>> bp =
-            InfixBindingPower(p->PeekKind());
-        bp.has_value()) {
+    } else if (const std::optional<std::tuple<uint8_t, uint8_t>> bp =
+                   InfixBindingPower(p->PeekKind());
+               bp.has_value()) {
       const auto [left_binding_power, right_binding_power] = bp.value();
       if (left_binding_power < minimum_binding_power) {
         break;
@@ -135,11 +123,9 @@ std::optional<syntax::CompletedMarker> ExprBindingPower(
       if (!rhs.has_value()) {
         break;
       }
-
-      continue;
+    } else {
+      break;
     }
-
-    break;
   }
 
   return lhs;

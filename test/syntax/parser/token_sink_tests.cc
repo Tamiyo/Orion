@@ -13,7 +13,7 @@
 #include "syntax/parser/token_sink.h"
 
 namespace {
-enum class TokenKind : uint16_t { kPlus, kMinus };
+enum class TokenKind : uint16_t { kPlus, kMinus, kWhitespace };
 enum class SyntaxKind : uint16_t { kPlus, kMinus, kError };
 
 using yuzu::syntax::ErrorEvent;
@@ -49,6 +49,8 @@ const auto kParseError =
                           .found = std::nullopt,
                           .span = Span(0, 0)};
 
+bool IsTrivia(const TokenKind kind) { return kind == TokenKind::kWhitespace; }
+
 TEST(TokenSinkTest, BuildSingleTokenNode) {
   const auto tokens = std::vector{kTokenPlus};
 
@@ -56,7 +58,7 @@ TEST(TokenSinkTest, BuildSingleTokenNode) {
       StartEvent(kSyntaxKindError), TokenEvent{}, ErrorEvent{kParseError},
       FinishEvent{}};
 
-  auto sink = TokenSink<TokenKind, SyntaxKind>(tokens, events);
+  auto sink = TokenSink<TokenKind, SyntaxKind>(tokens, events, IsTrivia);
   const auto [node, errors] = sink.Finish();
 
   EXPECT_EQ(kSyntaxKindError, node.Kind());
@@ -86,7 +88,7 @@ TEST(TokenSinkTest, BuildMultiTokenNode) {
   const auto events = std::vector<Event<TokenKind, SyntaxKind>>{
       StartEvent(kSyntaxKindError), TokenEvent{}, TokenEvent{}, FinishEvent{}};
 
-  auto sink = TokenSink<TokenKind, SyntaxKind>(tokens, events);
+  auto sink = TokenSink<TokenKind, SyntaxKind>(tokens, events, IsTrivia);
   const auto [node, errors] = sink.Finish();
 
   EXPECT_EQ(kSyntaxKindError, node.Kind());

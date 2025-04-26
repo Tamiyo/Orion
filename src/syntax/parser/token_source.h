@@ -24,6 +24,7 @@ class TokenSource {
   /// \brief Constructs a `TokenSource` with a given vector of tokens.
   ///
   /// \param tokens The tokens to be managed by this source.
+  /// \param is_trivia Determines if a TokenKind is a trivia token.
   explicit TokenSource(const std::vector<Token>& tokens,
                        const std::function<bool(TokenKind)>& is_trivia)
       : tokens_(std::move(tokens)), is_trivia_(is_trivia), token_idx_(0) {}
@@ -36,7 +37,7 @@ class TokenSource {
   /// \brief Retrieves the next token from the source, skipping any trivia.
   ///
   /// \return An optional containing the next token if available, otherwise
-  /// `nullopt`.
+  /// `std::nullopt`.
   [[nodiscard]] std::optional<Token> NextToken() noexcept {
     BumpTrivia();
 
@@ -50,7 +51,7 @@ class TokenSource {
   }
 
   [[nodiscard]] std::optional<Span> LastTokenSpan() noexcept {
-    if (tokens_.size() > 0) {
+    if (!tokens_.empty()) {
       return tokens_.back().Span();
     }
 
