@@ -132,7 +132,7 @@ class GreenCache {
   /// \param source The source text of the token.
   /// \return A `Cached` containing the cached token.
   [[nodiscard]] Cached GetToken(const SyntaxKind kind,
-                                std::u32string_view source) {
+                                const std::u32string_view source) {
     const size_t hash_value = HashToken(kind, source);
     const auto token = GreenToken(kind, source);
 
@@ -154,7 +154,7 @@ class GreenCache {
 
  private:
   [[nodiscard]] size_t HashToken(const SyntaxKind kind,
-                                 std::u32string_view source) noexcept {
+                                 const std::u32string_view source) noexcept {
     size_t hash_value = std::hash<SyntaxKind>{}(kind);
     hash_value ^= std::hash<std::u32string_view>{}(source) + 0x9e3779b9 +
                   (hash_value << 6) + (hash_value >> 2);
