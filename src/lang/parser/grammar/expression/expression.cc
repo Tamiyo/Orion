@@ -63,7 +63,7 @@ std::optional<syntax::CompletedMarker> Lhs(Parser* p) noexcept {
       const syntax::Marker m = p->Start();
       p->Bump();  // eat '('
       ExprBindingPower(p, 0);
-      p->Expect(TokenKind::kRightParen);
+      p->Expect(TokenKind::kRightParen, kExprRecoverySet);
       return p->Complete(m, SyntaxKind::kParenExpr);
     }
 
@@ -96,7 +96,7 @@ std::optional<syntax::CompletedMarker> ExprBindingPower(
           const syntax::Marker m = p->Precede(*lhs);
           p->Bump();  // Eat '['.
           ExprBindingPower(p, 0);
-          p->Expect(TokenKind::kRightSquare);
+          p->Expect(TokenKind::kRightSquare, kExprRecoverySet);
           lhs = p->Complete(m, SyntaxKind::kIndex);
           break;
         }
