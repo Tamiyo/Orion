@@ -65,12 +65,13 @@ class Parser final {
     return CompletedMarker(position);
   }
 
-  void Expect(const TokenKind kind) noexcept {
+  template <std::size_t N>
+  void Expect(const TokenKind kind,
+              const std::array<TokenKind, N>& recovery_set = {}) noexcept {
     if (At(kind)) {
       Bump();
     } else {
-      const std::array<TokenKind, 0> kExprRecoverySet = {};
-      Error(kExprRecoverySet);
+      Error(recovery_set);
     }
   }
 
