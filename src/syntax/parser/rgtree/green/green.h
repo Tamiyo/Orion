@@ -47,7 +47,7 @@ class GreenTokenData {
   /// \brief Returns the source text of the token.
   ///
   /// \return A reference to the token's source string.
-  [[nodiscard]] const std::u32string_view& Source() const { return source_; }
+  [[nodiscard]] std::u32string_view Source() const { return source_; }
 
   /// \brief Compares two `GreenTokenData` objects for equality.
   ///
@@ -74,7 +74,7 @@ class GreenToken {
   ///
   /// \param kind The type of the token as defined by `SyntaxKind`.
   /// \param source The actual text content of the token.
-  explicit GreenToken(const SyntaxKind kind, std::u32string_view source)
+  explicit GreenToken(const SyntaxKind kind, const std::u32string_view source)
       : data_(std::make_shared<GreenTokenData<SyntaxKind>>(
             GreenTokenData(kind, source))) {}
 

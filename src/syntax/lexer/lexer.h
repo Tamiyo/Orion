@@ -134,7 +134,7 @@ class Lexer {
   /// \param offset An optional offset from the current position.
   /// \return `true` if the current characters match the string, otherwise
   /// `false`.
-  [[nodiscard]] bool At(std::u32string_view value,
+  [[nodiscard]] bool At(const std::u32string_view value,
                         const size_t offset = 0) const {
     if (AtEnd(offset + value.size() - 1)) {
       return false;
