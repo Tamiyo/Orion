@@ -15,6 +15,7 @@ namespace yuzu::syntax {
 ///
 /// `SyntaxTokenData` holds the offset of the token, a pointer to its parent
 /// syntax node, and the associated green token.
+template <typename SyntaxKind = uint16_t>
 class SyntaxTokenData {
  public:
   /// \brief Constructs a `SyntaxTokenData` with the specified offset, parent
@@ -24,7 +25,8 @@ class SyntaxTokenData {
   /// \param parent Pointer to the parent `SyntaxNode`.
   /// \param green The associated `GreenToken`.
   explicit SyntaxTokenData(const size_t offset,
-                           std::optional<SyntaxNode> parent, GreenToken green)
+                           std::optional<SyntaxNode<SyntaxKind>> parent,
+                           GreenToken<SyntaxKind> green)
       : offset_(offset), parent_(std::move(parent)), green_(std::move(green)) {}
 
   /// \brief Deleted default constructor.
@@ -34,8 +36,8 @@ class SyntaxTokenData {
   SyntaxTokenData() = delete;
 
   /// Defaulted copy and move constructors.
-  SyntaxTokenData(const SyntaxTokenData&) = default;
-  SyntaxTokenData(SyntaxTokenData&&) = default;
+  SyntaxTokenData(const SyntaxTokenData<SyntaxKind>&) = default;
+  SyntaxTokenData(SyntaxTokenData<SyntaxKind>&&) = default;
 
   /// \brief Returns the offset of the token.
   ///
@@ -45,30 +47,31 @@ class SyntaxTokenData {
   /// \brief Returns the optional parent syntax node.
   ///
   /// \return A reference to the optional parent `SyntaxNode`.
-  [[nodiscard]] const std::optional<SyntaxNode>& Parent() const {
+  [[nodiscard]] const std::optional<SyntaxNode<SyntaxKind>>& Parent() const {
     return parent_;
   }
 
   /// \brief Returns the associated green token.
   ///
   /// \return A reference to the `GreenToken`.
-  [[nodiscard]] const GreenToken& Green() const { return green_; }
+  [[nodiscard]] const GreenToken<SyntaxKind>& Green() const { return green_; }
 
  private:
   /// The offset of the token in the source.
   const size_t offset_;
 
   /// The parent syntax node, if any.
-  const std::optional<SyntaxNode> parent_;
+  const std::optional<SyntaxNode<SyntaxKind>> parent_;
 
   /// The associated green token.
-  const GreenToken green_;
+  const GreenToken<SyntaxKind> green_;
 };
 
 /// \brief Represents a syntax token in the syntax tree.
 ///
 /// `SyntaxToken` encapsulates `SyntaxTokenData` and provides access to
 /// the token's properties and methods for interacting with the syntax tree.
+template <typename SyntaxKind = uint16_t>
 class SyntaxToken {
  public:
   /// \brief Constructs a `SyntaxToken` with the specified offset, parent node,
@@ -78,8 +81,8 @@ class SyntaxToken {
   /// \param parent Pointer to the parent `SyntaxNode`.
   /// \param green The associated `GreenToken`.
   explicit SyntaxToken(size_t offset, const SyntaxNode& parent,
-                       const GreenToken& green)
-      : data_(std::make_shared<SyntaxTokenData>(
+                       const GreenToken<SyntaxKind>& green)
+      : data_(std::make_shared<SyntaxTokenData<SyntaxKind>>(
             offset, std::make_optional(parent), green)) {}
 
   /// \brief Constructs a `SyntaxToken` with the specified offset and green
@@ -87,8 +90,9 @@ class SyntaxToken {
   ///
   /// \param offset The offset of the token in the source.
   /// \param green The associated `GreenToken`.
-  explicit SyntaxToken(size_t offset, const GreenToken& green)
-      : data_(std::make_shared<SyntaxTokenData>(offset, std::nullopt, green)) {}
+  explicit SyntaxToken(size_t offset, const GreenToken<SyntaxKind>& green)
+      : data_(std::make_shared<SyntaxTokenData<SyntaxKind>>(
+            offset, std::nullopt, green)) {}
 
   /// \brief Deleted default constructor.
   ///
@@ -104,20 +108,21 @@ class SyntaxToken {
   /// \brief Returns the optional parent syntax node.
   ///
   /// \return A reference to the optional parent `SyntaxNode`.
-  [[nodiscard]] const std::optional<SyntaxNode>& Parent() const noexcept {
+  [[nodiscard]] const std::optional<SyntaxNode<SyntaxKind>>& Parent()
+      const noexcept {
     return data_->Parent();
   }
 
   /// \brief Returns the associated green token.
   ///
   /// \return A reference to the `GreenToken`.
-  [[nodiscard]] const GreenToken& Green() const noexcept {
+  [[nodiscard]] const GreenToken<SyntaxKind>& Green() const noexcept {
     return data_->Green();
   }
 
  private:
   /// Pointer to the token data.
-  const std::shared_ptr<SyntaxTokenData> data_;
+  const std::shared_ptr<SyntaxTokenData<SyntaxKind>> data_;
 };
 
 }  // namespace yuzu::syntax

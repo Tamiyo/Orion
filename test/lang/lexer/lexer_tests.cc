@@ -41,7 +41,7 @@ class SingleTokenParameterizedTestFixture
     : public testing::TestWithParam<SingleTokenTestCase> {};
 
 INSTANTIATE_TEST_SUITE_P(
-    LexerTest, SingleTokenParameterizedTestFixture,
+    SingleTokens, SingleTokenParameterizedTestFixture,
     ::testing::Values(
         // Keywords
 
@@ -197,7 +197,7 @@ INSTANTIATE_TEST_SUITE_P(
         SingleTokenParameterizedTestFixture::ParamType>& info) {
       return info.param.test_name;
     });
-TEST_P(SingleTokenParameterizedTestFixture, SingleTokens) {
+TEST_P(SingleTokenParameterizedTestFixture, LexSingleTokens) {
   const SingleTokenTestCase& param = GetParam();
   auto lexer = Lexer(param.source);
   const std::optional<Token<TokenKind>> expected =
@@ -211,7 +211,7 @@ TEST_P(SingleTokenParameterizedTestFixture, SingleTokens) {
 }
 
 TEST(LexerTest, MultipleIntLit) {
-  const std::u32string_view utf8 = U"1337 3144";
+  const std::u32string utf8 = U"1337 3144";
   auto lexer = Lexer(utf8);
   const auto expected_1 = BuildToken(TokenKind::kIntLiteral, 0, 4, U"1337");
   const auto expected_2 = BuildToken(TokenKind::kWhitespace, 4, 5, U" ");

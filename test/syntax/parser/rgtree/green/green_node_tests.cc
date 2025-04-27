@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include <cstdint>
 
 #include "syntax/parser/rgtree/green/green.h"
@@ -7,7 +8,7 @@ namespace {
 using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenNodeData;
 
-enum class SyntaxKind : uint16_t {  };
+enum class SyntaxKind : uint16_t {};
 
 TEST(GreenNodeTest, GreenNodeSizeRequirements) {
   // shared_ptr:

@@ -1,4 +1,9 @@
+# Build Directories
 .vscode/
 .idea/
 build/
 cmake-build-debug/
+
+# Approval Tests
+*.received.*
+.approval_tests*

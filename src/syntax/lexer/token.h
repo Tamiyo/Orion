@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -25,8 +26,7 @@ class Token {
   ///
   /// \note The constructor is explicit to prevent unintended implicit
   /// conversions.
-  explicit Token(const TokenKind kind, const Span span,
-                 std::u32string_view source)
+  explicit Token(const TokenKind kind, const Span span, std::u32string source)
       : kind_(kind), span_(span), source_(std::move(source)) {}
 
   /// \brief Deleted default constructor.
@@ -51,14 +51,12 @@ class Token {
   /// \note This function assumes that `TokenKind` is an enum class where the
   /// token's kind value is a valid enumerator.
 
-  [[nodiscard]] TokenKind Kind() const noexcept {
-    return kind_;
-  }
+  [[nodiscard]] TokenKind Kind() const noexcept { return kind_; }
 
   /// \brief Returns the span (position range) of the token in the source text.
   ///
   /// \return The `Span` object representing the start and end positions.
-  [[nodiscard]] yuzu::syntax::Span Span() const noexcept { return span_; }
+  [[nodiscard]] Span Span() const noexcept { return span_; }
 
   /// \brief Returns the actual text content of the token.
   ///
@@ -77,8 +75,8 @@ class Token {
 
  private:
   const TokenKind kind_;
-  const yuzu::syntax::Span span_;
-  const std::u32string_view source_;
+  const syntax::Span span_;
+  const std::u32string source_;
 };
 
 }  // namespace yuzu::syntax

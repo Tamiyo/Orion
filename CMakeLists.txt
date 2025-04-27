@@ -17,7 +17,8 @@ endif()
 # Includes.
 include(FetchContent)
 
-# Fetch Content.
+# -------------------------------------------------------------------
+# GoogleTest
 FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -26,7 +27,18 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# Fetch LLVM
+# -------------------------------------------------------------------
+# ApprovalTests.cpp
+FetchContent_Declare(ApprovalTests
+        GIT_REPOSITORY https://github.com/approvals/ApprovalTests.cpp.git
+        GIT_TAG master)
+
+# Tell the ApprovalTests CMake files that we want to use its copy of Catch2:
+set(APPROVAL_TESTS_BUILD_THIRD_PARTY_CATCH2 ON CACHE BOOL "")
+FetchContent_MakeAvailable(ApprovalTests)
+
+# -------------------------------------------------------------------
+# LLVM
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")

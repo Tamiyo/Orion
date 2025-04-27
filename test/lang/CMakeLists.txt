@@ -6,6 +6,7 @@ add_executable(
 
 add_executable(
         lang_parser_tests
+        parser/parser_main.cc
         parser/grammar/expression/expression_tests.cc
 )
 
@@ -18,8 +19,10 @@ target_link_libraries(
 
 target_link_libraries(
         lang_parser_tests
+        PRIVATE ApprovalTests::ApprovalTests
         PRIVATE GTest::gtest_main
         PRIVATE lang
+        PRIVATE utils
 )
 
 # Discover Tests

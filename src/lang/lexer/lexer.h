@@ -12,7 +12,7 @@ namespace yuzu::lang {
 
 class Lexer final : public syntax::Lexer<TokenKind> {
  public:
-  explicit Lexer(const std::u32string_view source)
+  explicit Lexer(const std::u32string source)
       : syntax::Lexer<TokenKind>(source) {}
 
   Lexer() = delete;

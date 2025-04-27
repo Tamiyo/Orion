@@ -1,0 +1,14 @@
+InfixExpr@0..7
+  Literal@0..1
+    IntLiteral@0..1 "1"
+  Minus@1..2 "-"
+  ParenExpr@2..7
+    LeftParen@2..3 "("
+    InfixExpr@3..6
+      Literal@3..4
+        IntLiteral@3..4 "2"
+      Minus@4..5 "-"
+      Literal@5..6
+        IntLiteral@5..6 "3"
+    RightParen@6..7 ")"
+
