@@ -1,0 +1,9 @@
+InfixExpr@0..5
+  Literal@0..2
+    IntLiteral@0..1 "1"
+    Whitespace@1..2 " "
+  Plus@2..3 "+"
+  Whitespace@3..4 " "
+  Literal@4..5
+    IntLiteral@4..5 "2"
+

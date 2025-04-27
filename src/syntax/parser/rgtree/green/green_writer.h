@@ -73,15 +73,15 @@ class GreenWriter {
     Indent();
 
     const size_t token_width = token.Source().size();
-    string_ += syntax_kind_to_u32string_view_(token.Kind());
-    string_ += U"@";
-    string_ += ToU32String(width_);
-    string_ += U"..";
-    string_ += ToU32String(width_ + token_width);
-    string_ += U" \"";
-    string_ += token.Source();
-    string_ += U"\"";
-    string_ += U"\n";
+    u32string_ += syntax_kind_to_u32string_view_(token.Kind());
+    u32string_ += U"@";
+    u32string_ += ToU32String(width_);
+    u32string_ += U"..";
+    u32string_ += ToU32String(width_ + token_width);
+    u32string_ += U" \"";
+    u32string_ += token.Source();
+    u32string_ += U"\"";
+    u32string_ += U"\n";
 
     width_ += token_width;
     return *this;
@@ -91,12 +91,12 @@ class GreenWriter {
   GreenWriter& Write(const GreenNode& node) noexcept {
     Indent();
 
-    string_ += syntax_kind_to_u32string_view_(node.Kind());
-    string_ += U"@";
-    string_ += ToU32String(width_);
-    string_ += U"..";
-    string_ += ToU32String(width_ + node.Width());
-    string_ += U"\n";
+    u32string_ += syntax_kind_to_u32string_view_(node.Kind());
+    u32string_ += U"@";
+    u32string_ += ToU32String(width_);
+    u32string_ += U"..";
+    u32string_ += ToU32String(width_ + node.Width());
+    u32string_ += U"\n";
 
     IncreaseIndent();
     for (const GreenElement& element : node.Children()) {
@@ -125,12 +125,12 @@ class GreenWriter {
 
   /// \brief Returns the written representation as a u32string.
   [[nodiscard]] std::u32string AsU32String() const noexcept {
-    return {string_};
+    return {u32string_};
   }
 
   /// \brief Clears the internal stream and resets indentation/width counters.
   void Clear() noexcept {
-    string_.clear();
+    u32string_.clear();
     indent_ = 0;
     width_ = 0;
   }
@@ -139,7 +139,7 @@ class GreenWriter {
   /// \brief Writes the current indentation to the stream.
   void Indent() {
     for (size_t i = 0; i < indent_ * indent_size_; i++) {
-      string_ += U" ";
+      u32string_ += U" ";
     }
   }
 
@@ -161,7 +161,7 @@ class GreenWriter {
   const std::function<std::u32string_view(SyntaxKind)>&
       syntax_kind_to_u32string_view_;
   const size_t indent_size_;
-  std::u32string string_;
+  std::u32string u32string_;
   size_t indent_;
   size_t width_;
 };

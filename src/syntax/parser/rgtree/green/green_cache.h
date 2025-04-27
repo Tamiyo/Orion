@@ -50,9 +50,7 @@ class GreenCache {
     /// \brief Retrieves the cached green element.
     ///
     /// \return The `GreenElement` stored in this cache.
-    [[nodiscard]] const GreenElement& Element() const {
-      return this->element_;
-    }
+    [[nodiscard]] const GreenElement& Element() const { return this->element_; }
 
    private:
     size_t hash_;
@@ -183,9 +181,8 @@ class GreenCache {
     return hash_value;
   }
 
-  GreenNode BuildNode(const SyntaxKind kind,
-                                  std::vector<Cached>* children,
-                                  const size_t first_child) noexcept {
+  GreenNode BuildNode(const SyntaxKind kind, std::vector<Cached>* children,
+                      const size_t first_child) noexcept {
     const size_t size = children->size() - first_child;
 
     // Move children into the node allocation, removing old children in the

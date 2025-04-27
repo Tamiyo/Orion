@@ -7,12 +7,14 @@ add_executable(
 # Specify source libraries to build.
 add_subdirectory(lang)
 add_subdirectory(syntax)
+add_subdirectory(utils)
 
 # Link libraries.
 target_link_libraries(
         yuzu
         PUBLIC lang
         PUBLIC syntax
+        PUBLIC utils
 )
 
 # Link header files.
@@ -21,4 +23,5 @@ target_include_directories(
         PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
         PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lang"
         PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/syntax"
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/utils"
 )

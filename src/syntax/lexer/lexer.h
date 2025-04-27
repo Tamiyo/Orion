@@ -50,7 +50,7 @@ class Lexer {
   /// \brief Constructs a `Lexer` with the specified source string.
   ///
   /// \param source The source string to be tokenized.
-  explicit Lexer(std::u32string_view source)
+  explicit Lexer(std::u32string source)
       : source_(std::move(source)),
         source_length_(source_.length()),
         start_(0),
@@ -74,7 +74,7 @@ class Lexer {
   /// \return A newly created token.
   [[nodiscard]] Token CreateToken(const TokenKind kind) noexcept {
     const size_t distance = end_ - start_;
-    const std::u32string_view source = source_.substr(start_, distance);
+    const std::u32string source = source_.substr(start_, distance);
     const auto span = Span(start_, end_);
     const auto token = Token(kind, span, source);
 
@@ -140,8 +140,8 @@ class Lexer {
       return false;
     }
 
-    const std::u32string_view substring =
-        source_.substr(end_ + offset, value.size());
+    const auto substring =
+        std::u32string_view(source_).substr(end_ + offset, value.size());
 
     return substring == value;
   }
@@ -235,7 +235,7 @@ class Lexer {
   }
 
  private:
-  const std::u32string_view source_;
+  const std::u32string source_;
   const size_t source_length_;
   size_t start_;
   size_t end_;

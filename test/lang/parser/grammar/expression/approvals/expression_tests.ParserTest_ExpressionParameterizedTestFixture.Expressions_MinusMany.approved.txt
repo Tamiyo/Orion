@@ -1,0 +1,11 @@
+InfixExpr@0..5
+  InfixExpr@0..3
+    Literal@0..1
+      IntLiteral@0..1 "1"
+    Minus@1..2 "-"
+    Literal@2..3
+      IntLiteral@2..3 "2"
+  Minus@3..4 "-"
+  Literal@4..5
+    IntLiteral@4..5 "3"
+

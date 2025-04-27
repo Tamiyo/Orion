@@ -1,14 +1,14 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+
 #include "syntax/parser/rgtree/green/green.h"
 
 namespace {
 using yuzu::syntax::GreenToken;
 using yuzu::syntax::GreenTokenData;
 
-enum class SyntaxKind : uint16_t {  };
-
+enum class SyntaxKind : uint16_t {};
 
 TEST(GreenTokenTest, GreenTokenSizeRequirements) {
   // shared_ptr:

@@ -11,12 +11,14 @@
 namespace yuzu::syntax {
 
 /// Forward declare SyntaxNode for `SyntaxNodeData`.
+template <typename SyntaxKind = uint16_t>
 class SyntaxNode;
 
 /// \brief Represents the data associated with a syntax node.
 ///
 /// `SyntaxNodeData` holds the offset of the node, a pointer to its parent
 /// syntax node, and the associated green node.
+template <typename SyntaxKind = uint16_t>
 class SyntaxNodeData {
  public:
   /// \brief Constructs a `SyntaxNodeData` with the specified offset, parent
@@ -25,8 +27,9 @@ class SyntaxNodeData {
   /// \param offset The offset of the node in the source.
   /// \param parent Pointer to the parent `SyntaxNode`.
   /// \param green The associated `GreenNode`.
-  explicit SyntaxNodeData(const size_t offset, std::optional<SyntaxNode> parent,
-                          GreenNode green)
+  explicit SyntaxNodeData(const size_t offset,
+                          std::optional<SyntaxNode<SyntaxKind>> parent,
+                          GreenNode<SyntaxKind> green)
       : offset_(offset), parent_(std::move(parent)), green_(std::move(green)) {}
 
   /// \brief Deleted default constructor.
@@ -36,8 +39,8 @@ class SyntaxNodeData {
   SyntaxNodeData() = delete;
 
   /// Defaulted copy and move constructors.
-  SyntaxNodeData(const SyntaxNodeData&) = default;
-  SyntaxNodeData(SyntaxNodeData&&) = default;
+  SyntaxNodeData(const SyntaxNodeData<SyntaxKind>&) = default;
+  SyntaxNodeData(SyntaxNodeDat<SyntaxKind> a&&) = default;
 
   /// \brief Returns the offset of the node.
   ///
@@ -47,38 +50,39 @@ class SyntaxNodeData {
   /// \brief Returns the optional parent syntax node.
   ///
   /// \return A reference to the optional parent `SyntaxNode`.
-  [[nodiscard]] const std::optional<SyntaxNode>& Parent() const {
+  [[nodiscard]] const std::optional<SyntaxNode<SyntaxKind>>& Parent() const {
     return parent_;
   }
 
   /// \brief Returns the associated green node.
   ///
   /// \return A reference to the `GreenNode`.
-  [[nodiscard]] const GreenNode& Green() const { return green_; }
+  [[nodiscard]] const GreenNode<SyntaxKind>& Green() const { return green_; }
 
  private:
   /// The offset of the node in the source.
   const size_t offset_;
 
   /// The parent syntax node, if any.
-  const std::optional<SyntaxNode> parent_;
+  const std::optional<SyntaxNode<SyntaxKind>> parent_;
 
   /// The associated green node.
-  const GreenNode green_;
+  const GreenNode<SyntaxKind> green_;
 };
 
 /// \brief Represents a syntax node in the syntax tree.
 ///
 /// `SyntaxNode` encapsulates `SyntaxNodeData` and provides access to
 /// the node's properties and methods for interacting with the syntax tree.
+template <typename SyntaxKind = uint16_t>
 class SyntaxNode {
  public:
   /// \brief Creates a root syntax node from a green node.
   ///
   /// \param node The associated `GreenNode`.
   /// \return A new `SyntaxNode` representing the root.
-  static SyntaxNode CreateRoot(const GreenNode& node) {
-    return SyntaxNode(0, node);
+  static SyntaxNode<SyntaxKind> CreateRoot(const GreenNode<SyntaxKind>& node) {
+    return SyntaxNode<SyntaxKind>(0, node);
   }
 
   /// \brief Constructs a `SyntaxNode` with the specified offset, parent node,
@@ -87,8 +91,9 @@ class SyntaxNode {
   /// \param offset The offset of the node in the source.
   /// \param parent Pointer to the parent `SyntaxNode`.
   /// \param green The associated `GreenNode`.
-  explicit SyntaxNode(size_t offset, SyntaxNode parent, GreenNode green)
-      : data_(std::make_shared<SyntaxNodeData>(
+  explicit SyntaxNode(size_t offset, SyntaxNode<SyntaxKind> parent,
+                      GreenNode<SyntaxKind> green)
+      : data_(std::make_shared<SyntaxNodeData<SyntaxKind>>(
             offset, std::make_optional(std::move(parent)), std::move(green))) {}
 
   /// \brief Constructs a `SyntaxNode` with the specified offset and green node,
@@ -96,9 +101,9 @@ class SyntaxNode {
   ///
   /// \param offset The offset of the node in the source.
   /// \param green The associated `GreenNode`.
-  explicit SyntaxNode(size_t offset, GreenNode green)
-      : data_(std::make_shared<SyntaxNodeData>(offset, std::nullopt,
-                                               std::move(green))) {}
+  explicit SyntaxNode(size_t offset, GreenNode<SyntaxKind> green)
+      : data_(std::make_shared<SyntaxNodeData<SyntaxKind>>(offset, std::nullopt,
+                                                           std::move(green))) {}
 
   /// \brief Deleted default constructor.
   ///
@@ -113,20 +118,21 @@ class SyntaxNode {
   /// \brief Returns the optional parent syntax node.
   ///
   /// \return A reference to the optional parent `SyntaxNode`.
-  [[nodiscard]] const std::optional<SyntaxNode>& GetParent() const noexcept {
+  [[nodiscard]] const std::optional<SyntaxNode<SyntaxKind>>& GetParent()
+      const noexcept {
     return data_->Parent();
   }
 
   /// \brief Returns the associated green node.
   ///
   /// \return A reference to the `GreenNode`.
-  [[nodiscard]] const GreenNode& GetGreen() const noexcept {
+  [[nodiscard]] const GreenNode<SyntaxKind>& GetGreen() const noexcept {
     return data_->Green();
   }
 
  private:
   /// Pointer to the node data.
-  const std::shared_ptr<SyntaxNodeData> data_;
+  const std::shared_ptr<SyntaxNodeData<SyntaxKind>> data_;
 };
 
 }  // namespace yuzu::syntax
