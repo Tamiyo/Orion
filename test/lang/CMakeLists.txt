@@ -1,5 +1,11 @@
 # Create an executable to test this test suite.
 add_executable(
+        lang_ast_tests
+        ast/expr_tests.cc
+)
+
+
+add_executable(
         lang_lexer_tests
         lexer/lexer_tests.cc
 )
@@ -7,10 +13,16 @@ add_executable(
 add_executable(
         lang_parser_tests
         parser/parser_main.cc
-        parser/grammar/expression/expression_tests.cc
+        parser/grammar/expr_tests.cc
 )
 
 # Link GTest to this test suite.
+target_link_libraries(
+        lang_ast_tests
+        PRIVATE GTest::gtest_main
+        PRIVATE lang
+)
+
 target_link_libraries(
         lang_lexer_tests
         PRIVATE GTest::gtest_main
@@ -26,5 +38,6 @@ target_link_libraries(
 )
 
 # Discover Tests
+gtest_discover_tests(lang_ast_tests)
 gtest_discover_tests(lang_lexer_tests)
 gtest_discover_tests(lang_parser_tests)

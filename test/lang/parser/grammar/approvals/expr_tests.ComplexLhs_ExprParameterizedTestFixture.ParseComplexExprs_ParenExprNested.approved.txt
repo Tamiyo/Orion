@@ -1,0 +1,9 @@
+ParenExpr@0..5
+  LeftParen@0..1 "("
+  ParenExpr@1..4
+    LeftParen@1..2 "("
+    Literal@2..3
+      IntLit@2..3 "1"
+    RightParen@3..4 ")"
+  RightParen@4..5 ")"
+

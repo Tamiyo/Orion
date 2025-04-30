@@ -2,8 +2,8 @@
 add_library(
         lang
         lexer/lexer.cc
-        parser/grammar/expression/expression.cc
-        parser/grammar/statement/statement.cc
+        parser/grammar/expr.cc
+        parser/grammar/stmt.cc
 )
 
 target_link_libraries(

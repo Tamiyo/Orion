@@ -8,8 +8,12 @@ int main(int argc, char** argv) {
 
   ApprovalTests::initializeApprovalTestsForGoogleTests();
 
-  const auto& _ =
+  const auto& subdirectory =
       ApprovalTests::Approvals::useApprovalsSubdirectory("approvals");
+
+  const auto& _ =
+      ApprovalTests::GoogleConfiguration::addIgnorableTestCaseNameSuffix(
+          "Fixture");
 
   return RUN_ALL_TESTS();
 }

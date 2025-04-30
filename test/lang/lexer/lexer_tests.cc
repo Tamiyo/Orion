@@ -13,15 +13,16 @@
 #include "syntax/lexer/token.h"
 
 namespace yuzu::lang {
-std::optional<syntax::Token<TokenKind>> BuildToken(
-    const TokenKind kind, const size_t start, const size_t stop,
-    const std::u32string& source) {
+std::optional<syntax::Token<TokenKind>> BuildToken(const TokenKind kind,
+                                                   const size_t start,
+                                                   const size_t stop,
+                                                   std::u32string source) {
   return std::make_optional(
       syntax::Token(kind, syntax::Span(start, stop), std::move(source)));
 }
 
-std::optional<syntax::Token<TokenKind>> BuildToken(
-    const TokenKind kind, const std::u32string& source) {
+std::optional<syntax::Token<TokenKind>> BuildToken(const TokenKind kind,
+                                                   std::u32string source) {
   return BuildToken(kind, 0, source.length(), std::move(source));
 }
 }  // namespace yuzu::lang
@@ -95,95 +96,95 @@ INSTANTIATE_TEST_SUITE_P(
                             "UnicodeIdentMultipleChars"},
 
         // String Literals
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello World\"",
                             "StringLiteral"},
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\t World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello \\t World\"",
                             "StringLiteralWithTabEscapedCharacter"},
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\b World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello \\b World\"",
                             "StringLiteralWithBackspaceEscapedCharacter"},
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\n World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello \\n World\"",
                             "StringLiteralWithNewlineEscapedCharacter"},
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\r World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello \\r World\"",
                             "StringLiteralWithCarriageReturnEscapedCharacter"},
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\f World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello \\f World\"",
                             "StringLiteralWithFormFeedEscapedCharacter"},
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\' World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello \\' World\"",
                             "StringLiteralWithQuoteEscapedCharacter"},
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\\" World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello \\\" World\"",
                             "StringLiteralWithDoubleQuoteEscapedCharacter"},
-        SingleTokenTestCase{TokenKind::kStringLiteral, U"\"Hello \\\\ World\"",
+        SingleTokenTestCase{TokenKind::kStringLit, U"\"Hello \\\\ World\"",
                             "StringLiteralWithBackslashEscapedCharacter"},
 
         // Boolean Literals
-        SingleTokenTestCase{TokenKind::kBooleanLiteral, U"true",
+        SingleTokenTestCase{TokenKind::kBooleanLit, U"true",
                             "TrueBooleanLiteral"},
-        SingleTokenTestCase{TokenKind::kBooleanLiteral, U"false",
+        SingleTokenTestCase{TokenKind::kBooleanLit, U"false",
                             "FalseBooleanLiteral"},
 
         // Integer Literals
-        SingleTokenTestCase{TokenKind::kIntLiteral, U"1337", "IntLiteral"},
-        SingleTokenTestCase{TokenKind::kIntLiteral, U"1337E3",
+        SingleTokenTestCase{TokenKind::kIntLit, U"1337", "IntLiteral"},
+        SingleTokenTestCase{TokenKind::kIntLit, U"1337E3",
                             "IntLiteralWithBasicExponent"},
-        SingleTokenTestCase{TokenKind::kIntLiteral, U"1337E+3",
+        SingleTokenTestCase{TokenKind::kIntLit, U"1337E+3",
                             "IntLiteralWithPlusExponent"},
-        SingleTokenTestCase{TokenKind::kIntLiteral, U"1337E-3",
+        SingleTokenTestCase{TokenKind::kIntLit, U"1337E-3",
                             "IntLiteralWithMinusExponent"},
 
         // BigDecimal Literals
-        SingleTokenTestCase{TokenKind::kBigDecimalLiteral, U"1337BD",
+        SingleTokenTestCase{TokenKind::kBigDecimalLit, U"1337BD",
                             "BigDecimalLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kBigDecimalLiteral, U"1337bd",
+        SingleTokenTestCase{TokenKind::kBigDecimalLit, U"1337bd",
                             "BigDecimalLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kBigDecimalLiteral, U"1337E3BD",
+        SingleTokenTestCase{TokenKind::kBigDecimalLit, U"1337E3BD",
                             "BigDecimalLiteralWithBasicExponentAndQuantifier"},
 
         // BigInt Literals
-        SingleTokenTestCase{TokenKind::kBigIntLiteral, U"1337L",
+        SingleTokenTestCase{TokenKind::kBigIntLit, U"1337L",
                             "BigIntLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kBigIntLiteral, U"1337l",
+        SingleTokenTestCase{TokenKind::kBigIntLit, U"1337l",
                             "BigIntLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kBigIntLiteral, U"1337E3L",
+        SingleTokenTestCase{TokenKind::kBigIntLit, U"1337E3L",
                             "BigIntlLiteralWithBasicExponentAndQuantifier"},
 
         // SmallInt Literals
-        SingleTokenTestCase{TokenKind::kSmallIntLiteral, U"1337S",
+        SingleTokenTestCase{TokenKind::kSmallIntLit, U"1337S",
                             "SmallIntLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kSmallIntLiteral, U"1337s",
+        SingleTokenTestCase{TokenKind::kSmallIntLit, U"1337s",
                             "SmallIntLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kSmallIntLiteral, U"1337E3S",
+        SingleTokenTestCase{TokenKind::kSmallIntLit, U"1337E3S",
                             "SmallIntlLiteralWithBasicExponentAndQuantifier"},
 
         // TinyInt Literals
-        SingleTokenTestCase{TokenKind::kTinyIntLiteral, U"1337Y",
+        SingleTokenTestCase{TokenKind::kTinyIntLit, U"1337Y",
                             "TinyIntLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kTinyIntLiteral, U"1337y",
+        SingleTokenTestCase{TokenKind::kTinyIntLit, U"1337y",
                             "TinyIntLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kTinyIntLiteral, U"1337E3Y",
+        SingleTokenTestCase{TokenKind::kTinyIntLit, U"1337E3Y",
                             "TinyIntlLiteralWithBasicExponentAndQuantifier"},
 
         // Float Literals
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14", "FloatLiteral"},
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U".314",
+        SingleTokenTestCase{TokenKind::kFloatLit, U"3.14", "FloatLiteral"},
+        SingleTokenTestCase{TokenKind::kFloatLit, U".314",
                             "FloatLiteralNoLeadingDigit"},
 
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14E3",
+        SingleTokenTestCase{TokenKind::kFloatLit, U"3.14E3",
                             "FloatLiteralWithBasicExponent"},
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14E+3",
+        SingleTokenTestCase{TokenKind::kFloatLit, U"3.14E+3",
                             "FloatLiteralWithPlusExponent"},
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14E-3",
+        SingleTokenTestCase{TokenKind::kFloatLit, U"3.14E-3",
                             "FloatLiteralWithMinusExponent"},
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U".314E3",
+        SingleTokenTestCase{TokenKind::kFloatLit, U".314E3",
                             "FloatLiteralNoLeadingDigitWithBasicExponent"},
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U".314E+3",
+        SingleTokenTestCase{TokenKind::kFloatLit, U".314E+3",
                             "FloatLiteralNoLeadingDigitWithPlusExponent"},
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U".314E-3",
+        SingleTokenTestCase{TokenKind::kFloatLit, U".314E-3",
                             "FloatLiteralNoLeadingDigitWithMinusExponent"},
 
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14F",
+        SingleTokenTestCase{TokenKind::kFloatLit, U"3.14F",
                             "FloatLiteralUppercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14f",
+        SingleTokenTestCase{TokenKind::kFloatLit, U"3.14f",
                             "FloatLiteralLowercaseQuantifier"},
-        SingleTokenTestCase{TokenKind::kFloatLiteral, U"3.14E3F",
+        SingleTokenTestCase{TokenKind::kFloatLit, U"3.14E3F",
                             "FloatLiteralWithBasicExponentAndQuantifier"},
 
         // Double Literals
@@ -213,9 +214,9 @@ TEST_P(SingleTokenParameterizedTestFixture, LexSingleTokens) {
 TEST(LexerTest, MultipleIntLit) {
   const std::u32string utf8 = U"1337 3144";
   auto lexer = Lexer(utf8);
-  const auto expected_1 = BuildToken(TokenKind::kIntLiteral, 0, 4, U"1337");
+  const auto expected_1 = BuildToken(TokenKind::kIntLit, 0, 4, U"1337");
   const auto expected_2 = BuildToken(TokenKind::kWhitespace, 4, 5, U" ");
-  const auto expected_3 = BuildToken(TokenKind::kIntLiteral, 5, 9, U"3144");
+  const auto expected_3 = BuildToken(TokenKind::kIntLit, 5, 9, U"3144");
 
   const std::vector<Token<TokenKind>> tokens = lexer.Tokenize();
   ASSERT_EQ(3, tokens.size());

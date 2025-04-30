@@ -1,0 +1,8 @@
+Index@0..4
+  Ident@0..1
+    UnquotedIdent@0..1 "a"
+  LeftSquare@1..2 "["
+  Literal@2..3
+    IntLit@2..3 "0"
+  RightSquare@3..4 "]"
+
