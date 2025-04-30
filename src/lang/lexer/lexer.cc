@@ -5,6 +5,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include "lang/lexer/token_kind.h"
 
@@ -50,8 +51,8 @@ constexpr char32_t kAsterisk = U'*';
 constexpr char32_t kSlash = U'/';
 constexpr char32_t kPercent = U'%';
 
-const std::u32string kTrueKeyword = U"true";
-const std::u32string kFalseKeyword = U"false";
+constexpr std::u32string_view kTrueKeyword = U"true";
+constexpr std::u32string_view kFalseKeyword = U"false";
 
 constexpr char32_t kAsciiMaxCodepoint = 0x7F;
 
@@ -253,16 +254,16 @@ std::optional<Lexer::Token> TryStringLiteral(Lexer* l) {
   }
 
   l->Bump();  // Eat delimiter.
-  return l->CreateToken(TokenKind::kStringLiteral);
+  return l->CreateToken(TokenKind::kStringLit);
 }
 
 std::optional<Lexer::Token> TryBooleanLiteral(Lexer* l) {
   if (l->At(kTrueKeyword)) {
-    return l->BumpAndCreateToken(TokenKind::kBooleanLiteral, 4);
+    return l->BumpAndCreateToken(TokenKind::kBooleanLit, 4);
   }
 
   if (l->At(kFalseKeyword)) {
-    return l->BumpAndCreateToken(TokenKind::kBooleanLiteral, 5);
+    return l->BumpAndCreateToken(TokenKind::kBooleanLit, 5);
   }
 
   return std::nullopt;
@@ -277,7 +278,7 @@ std::optional<Lexer::Token> TryNumericLiteral(Lexer* l,
     // If there are no more digits, there is nothing else to consume. We're at
     // the end of our input.
     if (l->AtEnd()) {
-      return l->CreateToken(TokenKind::kIntLiteral);
+      return l->CreateToken(TokenKind::kIntLit);
     }
   }
 
@@ -299,12 +300,12 @@ std::optional<Lexer::Token> TryNumericLiteral(Lexer* l,
   }
 
   if (l->At(kFUpper) || l->At(kFLower)) {
-    return l->BumpAndCreateToken(TokenKind::kFloatLiteral);
+    return l->BumpAndCreateToken(TokenKind::kFloatLit);
   }
 
   if ((l->At(kBUpper) && l->At(kDUpper, 1)) ||
       (l->At(kBLower) && l->At(kDLower, 1))) {
-    return l->BumpAndCreateToken(TokenKind::kBigDecimalLiteral, 2);
+    return l->BumpAndCreateToken(TokenKind::kBigDecimalLit, 2);
   }
 
   if (l->At(kDUpper) || l->At(kDLower)) {
@@ -312,22 +313,22 @@ std::optional<Lexer::Token> TryNumericLiteral(Lexer* l,
   }
 
   if (l->At(kLUpper) || l->At(kLLower)) {
-    return l->BumpAndCreateToken(TokenKind::kBigIntLiteral);
+    return l->BumpAndCreateToken(TokenKind::kBigIntLit);
   }
 
   if (l->At(kSUpper) || l->At(kSLower)) {
-    return l->BumpAndCreateToken(TokenKind::kSmallIntLiteral);
+    return l->BumpAndCreateToken(TokenKind::kSmallIntLit);
   }
 
   if (l->At(kYUpper) || l->At(kYLower)) {
-    return l->BumpAndCreateToken(TokenKind::kTinyIntLiteral);
+    return l->BumpAndCreateToken(TokenKind::kTinyIntLit);
   }
 
   if (numericKind == NumericKind::kExact) {
-    return l->CreateToken(TokenKind::kIntLiteral);
+    return l->CreateToken(TokenKind::kIntLit);
   }
 
-  return l->CreateToken(TokenKind::kFloatLiteral);
+  return l->CreateToken(TokenKind::kFloatLit);
 }
 
 // Grammar: E[+-]? DIGITS

@@ -31,21 +31,21 @@ enum class TokenKind : uint16_t {
   kRightSquare,  /// Right square bracket (e.g. `]`).
 
   // --- Boolean Literals ---
-  kBooleanLiteral,  /// A boolean literal (`true`, `false`).
+  kBooleanLit,  /// A boolean literal (`true`, `false`).
 
   // --- String Literals ---
-  kStringLiteral,  /// A string literal (e.g. `"hello"`).
+  kStringLit,  /// A string literal (e.g. `"hello"`).
 
   // --- Exact Numeric Literals ---
-  kBigDecimalLiteral,  /// A arbitrary-precision signed decimal number.
-  kBigIntLiteral,      /// A 64-bit (4 byte) big integer literal.
-  kIntLiteral,         /// A 32-bit (3 byte) integer literal.
-  kSmallIntLiteral,    /// A 16-bit (2 byte) small integer literal.
-  kTinyIntLiteral,     /// A 8-bit (1 byte) tiny integer literal.
+  kBigDecimalLit,  /// A arbitrary-precision signed decimal number.
+  kBigIntLit,      /// A 64-bit (4 byte) big integer literal.
+  kIntLit,         /// A 32-bit (3 byte) integer literal.
+  kSmallIntLit,    /// A 16-bit (2 byte) small integer literal.
+  kTinyIntLit,     /// A 8-bit (1 byte) tiny integer literal.
 
   // --- Approx Numeric Literals ---
-  kFloatLiteral,  /// A floating-point number literal.
-  kDoubleLit,     /// A double precision floating-point literal.
+  kFloatLit,   /// A floating-point number literal.
+  kDoubleLit,  /// A double precision floating-point literal.
 
   // --- Other ---
   kUnquotedIdent,  /// An unquoted identifier (e.g. variable name).

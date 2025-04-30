@@ -5,7 +5,6 @@ add_executable(
 )
 
 # Specify source libraries to build.
-add_subdirectory(ast)
 add_subdirectory(lang)
 add_subdirectory(syntax)
 add_subdirectory(utils)

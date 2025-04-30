@@ -35,14 +35,14 @@ enum class SyntaxKind : uint16_t {
   kStringLiteral,  /// A string literal (e.g. `"hello"`).
 
   // --- Exact Numeric Literals ---
-  kBigDecimalLiteral,  /// A arbitrary-precision signed decimal number.
-  kBigIntLiteral,      /// A 64-bit (4 byte) big integer literal.
-  kIntLiteral,         /// A 32-bit (3 byte) integer literal.
-  kSmallIntLiteral,    /// A 16-bit (2 byte) small integer literal.
-  kTinyIntLiteral,     /// A 8-bit (1 byte) tiny integer literal.
+  kBigDecimalLit,  /// A arbitrary-precision signed decimal number.
+  kBigIntLit,      /// A 64-bit (4 byte) big integer literal.
+  kIntLit,         /// A 32-bit (3 byte) integer literal.
+  kSmallIntLit,    /// A 16-bit (2 byte) small integer literal.
+  kTinyIntLit,     /// A 8-bit (1 byte) tiny integer literal.
 
   // --- Approx Numeric Literals ---
-  kFloatLiteral,  /// A floating-point number literal.
+  kFloatLit,  /// A floating-point number literal.
   kDoubleLit,     /// A double precision floating-point literal.
 
   // --- Other ---
@@ -94,17 +94,17 @@ inline constexpr std::array<std::u32string_view,
         U"LeftParen", U"RightParen", U"LeftSquare", U"RightSquare",
 
         // --- Boolean Literals ---
-        U"BooleanLiteral",
+        U"BooleanLit",
 
         // --- String Literals ---
-        U"StringLiteral",
+        U"StringLit",
 
         // --- Exact Numeric Literals ---
-        U"BigDecimalLiteral", U"BigIntLiteral", U"IntLiteral",
-        U"SmallIntLiteral", U"TinyIntLiteral",
+        U"BigDecimalLit", U"BigIntLit", U"IntLit",
+        U"SmallIntLit", U"TinyIntLit",
 
         // --- Approx Numeric Literals ---
-        U"FloatLiteral", U"DoubleLit",
+        U"FloatLit", U"DoubleLit",
 
         // --- Other ---
         U"UnquotedIdent", U"QuotedIdent",

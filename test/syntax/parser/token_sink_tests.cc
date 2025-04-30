@@ -9,8 +9,8 @@
 #include "syntax/lexer/token.h"
 #include "syntax/parser/error/parse_error.h"
 #include "syntax/parser/event.h"
-#include "syntax/parser/rgtree/green/green.h"
 #include "syntax/parser/token_sink.h"
+#include "syntax/rgtree/green.h"
 
 namespace {
 enum class TokenKind : uint16_t { kPlus, kMinus, kWhitespace };

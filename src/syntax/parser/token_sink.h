@@ -9,8 +9,8 @@
 #include "syntax/lexer/token.h"
 #include "syntax/parser/error/parse_error.h"
 #include "syntax/parser/event.h"
-#include "syntax/parser/rgtree/green/green.h"
-#include "syntax/parser/rgtree/green/green_builder.h"
+#include "syntax/rgtree/green.h"
+#include "syntax/rgtree/green_builder.h"
 
 namespace yuzu::syntax {
 /// \brief TokenSink is responsible for consuming a sequence of parser events

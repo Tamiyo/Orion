@@ -1,0 +1,3 @@
+Literal@0..5
+  SmallIntLit@0..5 "1337S"
+
