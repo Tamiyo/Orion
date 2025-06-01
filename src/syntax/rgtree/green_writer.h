@@ -26,22 +26,7 @@ class GreenWriter {
   using GreenToken = GreenToken<SyntaxKind>;
 
  public:
-  /// \brief Constructs a writer with a configurable indentation size.
-  /// \param to_u32string A function to convert between SyntaxKind to an u32.
-  /// \param indent_size Number of spaces per indentation level. Defaults to 2.
-  explicit GreenWriter(
-      const std::function<std::u32string_view(SyntaxKind)>& to_u32string,
-      const size_t indent_size = 2)
-      : syntax_kind_to_u32string_view_(to_u32string),
-        indent_size_(indent_size),
-        indent_(0),
-        width_(0) {}
-
   /// \brief Serializes a GreenElement into an u32string.
-  /// \param element The element to write.
-  /// \param to_u32string A function to convert between SyntaxKind to an u32.
-  /// \param indent_size The indentation level (optional).
-  /// \returns An u32string representing the tree.
   [[nodiscard]] static std::u32string WriteAsU32String(
       const GreenElement& element,
       const std::function<std::u32string_view(SyntaxKind)>& to_u32string,
@@ -67,6 +52,18 @@ class GreenWriter {
     auto writer = GreenWriter(to_u32string, indent_size);
     return writer.Write(token).AsU32String();
   }
+
+ private:
+  /// \brief Constructs a writer with a configurable indentation size.
+  /// \param to_u32string A function to convert between SyntaxKind to an u32.
+  /// \param indent_size Number of spaces per indentation level. Defaults to 2.
+  explicit GreenWriter(
+      const std::function<std::u32string_view(SyntaxKind)>& to_u32string,
+      const size_t indent_size = 2)
+      : syntax_kind_to_u32string_view_(to_u32string),
+        indent_size_(indent_size),
+        indent_(0),
+        width_(0) {}
 
   /// \brief Writes a single GreenToken to the stream with width and source.
   GreenWriter& Write(const GreenToken& token) noexcept {
@@ -128,14 +125,6 @@ class GreenWriter {
     return {u32string_};
   }
 
-  /// \brief Clears the internal stream and resets indentation/width counters.
-  void Clear() noexcept {
-    u32string_.clear();
-    indent_ = 0;
-    width_ = 0;
-  }
-
- private:
   /// \brief Writes the current indentation to the stream.
   void Indent() {
     for (size_t i = 0; i < indent_ * indent_size_; i++) {
@@ -143,10 +132,8 @@ class GreenWriter {
     }
   }
 
-  /// \brief Increases the current indentation level by one.
   void IncreaseIndent() noexcept { indent_ += 1; }
 
-  /// \brief Decreases the current indentation level by one.
   void DecreaseIndent() noexcept {
     if (indent_ > 0) {
       indent_ -= 1;
@@ -168,4 +155,4 @@ class GreenWriter {
 
 }  // namespace yuzu::syntax
 
-#endif  // SYNTAX_PARSER_RGTREE_GREEN_GREEN_WRITER_H_
+#endif  // SYNTAX_RGTREE_GREEN_WRITER_H_

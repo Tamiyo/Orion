@@ -21,39 +21,18 @@ class GreenElement;
 template <typename SyntaxKind = uint16_t>
 class GreenTokenData {
  public:
-  /// \brief Constructs a `GreenTokenData` with the specified token kind and
-  /// source text.
-  ///
-  /// \param kind The type of the token as defined by `SyntaxKind`.
-  /// \param source The actual text content of the token.
   explicit GreenTokenData(const SyntaxKind kind,
                           const std::u32string_view source)
       : kind_(kind), source_(source) {}
 
-  /// \brief Deleted default constructor.
-  ///
-  /// A `GreenTokenData` must always be constructed with a kind and source.
   GreenTokenData() = delete;
-
-  /// Defaulted copy and move constructors.
   GreenTokenData(const GreenTokenData&) = default;
   GreenTokenData(GreenTokenData&&) = default;
 
-  /// \brief Returns the kind of the token.
-  ///
-  /// \return The token's `SyntaxKind`.
   [[nodiscard]] SyntaxKind Kind() const { return kind_; }
 
-  /// \brief Returns the source text of the token.
-  ///
-  /// \return A reference to the token's source string.
   [[nodiscard]] std::u32string_view Source() const { return source_; }
 
-  /// \brief Compares two `GreenTokenData` objects for equality.
-  ///
-  /// \param other The other `GreenTokenData` to compare with.
-  /// \return `true` if both tokens have the same kind and source text,
-  /// otherwise `false`.
   [[nodiscard]] bool operator==(const GreenTokenData& other) const {
     return kind_ == other.kind_ && source_ == other.source_;
   }
@@ -70,44 +49,20 @@ class GreenTokenData {
 template <typename SyntaxKind = uint16_t>
 class GreenToken {
  public:
-  /// \brief Constructs a `GreenToken` with the specified kind and source text.
-  ///
-  /// \param kind The type of the token as defined by `SyntaxKind`.
-  /// \param source The actual text content of the token.
   explicit GreenToken(const SyntaxKind kind, const std::u32string_view source)
       : data_(std::make_shared<GreenTokenData<SyntaxKind>>(
             GreenTokenData(kind, source))) {}
 
-  /// \brief Deleted default constructor.
-  ///
-  /// A `GreenToken` must always be constructed with a kind and source.
   GreenToken() = delete;
-
-  /// Defaulted copy and move constructors.
   GreenToken(const GreenToken&) = default;
   GreenToken(GreenToken&&) = default;
 
-  /// \brief Returns the kind of the token.
-  ///
-  /// \return The token's `SyntaxKind`.
   [[nodiscard]] SyntaxKind Kind() const { return data_->Kind(); }
 
-  /// \brief Returns the source text of the token.
-  ///
-  /// \return A reference to the token's source string.
   [[nodiscard]] std::u32string_view Source() const { return data_->Source(); }
 
-  /// \brief Returns the current use count of the shared token data.
-  ///
-  /// \return The number of `GreenToken` instances sharing the same
-  /// `GreenTokenData`.
   [[nodiscard]] size_t UseCount() const { return data_.use_count(); }
 
-  /// \brief Compares two `GreenToken` objects for equality.
-  ///
-  /// \param other The other `GreenToken` to compare with.
-  /// \return `true` if both tokens share the same underlying data, otherwise
-  /// `false`.
   bool operator==(const GreenToken& other) const {
     return data_ == other.data_;
   }
@@ -124,48 +79,22 @@ class GreenToken {
 template <typename SyntaxKind = uint16_t>
 class GreenNodeData {
  public:
-  /// \brief Constructs a `GreenNodeData` with the specified token kind, width,
-  /// and child elements.
-  ///
-  /// \param kind The type of the node as defined by `SyntaxKind`.
-  /// \param width The width of the node in terms of layout.
-  /// \param children The child elements contained within this node.
   explicit GreenNodeData(const SyntaxKind kind, const size_t width,
                          std::vector<GreenElement<SyntaxKind>> children)
       : kind_(kind), width_(width), children_(std::move(children)) {}
 
-  /// \brief Deleted default constructor.
-  ///
-  /// A `GreenNodeData` must always be constructed with a kind, width, and
-  /// children.
   GreenNodeData() = delete;
-
-  /// Defaulted copy and move constructors.
   GreenNodeData(const GreenNodeData&) = default;
   GreenNodeData(GreenNodeData&&) = default;
 
-  /// \brief Returns the kind of the node.
-  ///
-  /// \return The node's `SyntaxKind`.
   [[nodiscard]] SyntaxKind Kind() const { return kind_; }
 
-  /// \brief Returns the width of the node.
-  ///
-  /// \return The width of the node.
   [[nodiscard]] size_t Width() const { return width_; }
 
-  /// \brief Returns the child elements of the node.
-  ///
-  /// \return A reference to the vector of child `GreenElement`s.
   [[nodiscard]] const std::vector<GreenElement<SyntaxKind>>& Children() const {
     return children_;
   }
 
-  /// \brief Compares two `GreenNodeData` objects for equality.
-  ///
-  /// \param other The other `GreenNodeData` to compare with.
-  /// \return `true` if both nodes have the same kind, width, and children,
-  /// otherwise `false`.
   bool operator==(const GreenNodeData& other) const {
     return kind_ == other.kind_ && width_ == other.width_ &&
            children_ == other.children_;
@@ -184,54 +113,26 @@ class GreenNodeData {
 template <typename SyntaxKind = uint16_t>
 class GreenNode {
  public:
-  /// \brief Constructs a `GreenNode` with the specified kind and child
-  /// elements.
-  ///
-  /// \param kind The type of the node as defined by `SyntaxKind`.
-  /// \param children The child elements contained within this node.
   explicit GreenNode(SyntaxKind kind,
                      const std::vector<GreenElement<SyntaxKind>>& children)
       : data_(std::make_shared<GreenNodeData<SyntaxKind>>(
             GreenNodeData<SyntaxKind>(kind, ComputeWidth(children),
                                       children))) {}
 
-  /// \brief Deleted default constructor.
-  ///
-  /// A `GreenNode` must always be constructed with a kind and children.
   GreenNode() = delete;
-
-  /// Defaulted copy and move constructors.
   GreenNode(const GreenNode&) = default;
   GreenNode(GreenNode&&) noexcept = default;
 
-  /// \brief Returns the kind of the node.
-  ///
-  /// \return The node's `SyntaxKind`.
   [[nodiscard]] SyntaxKind Kind() const { return data_->Kind(); }
 
-  /// \brief Returns the width of the node.
-  ///
-  /// \return The width of the node.
   [[nodiscard]] size_t Width() const { return data_->Width(); }
 
-  /// \brief Returns the child elements of the node.
-  ///
-  /// \return A reference to the vector of child `GreenElement`s.
   [[nodiscard]] const std::vector<GreenElement<SyntaxKind>>& Children() const {
     return data_->Children();
   }
 
-  /// \brief Returns the current use count of the shared node data.
-  ///
-  /// \return The number of `GreenNode` instances sharing the same
-  /// `GreenNodeData`.
   [[nodiscard]] size_t UseCount() const { return data_.use_count(); }
 
-  /// \brief Compares two `GreenNode` objects for equality.
-  ///
-  /// \param other The other `GreenNode` to compare with.
-  /// \return `true` if both nodes share the same underlying data, otherwise
-  /// `false`.
   bool operator==(const GreenNode& other) const { return data_ == other.data_; }
 
  private:
@@ -274,49 +175,27 @@ class GreenNode {
 template <typename SyntaxKind>
 class GreenElement {
  public:
-  /// \brief Constructs a `GreenElement` from a `GreenNode`.
-  ///
-  /// \param node The `GreenNode` to be stored in the element.
   explicit GreenElement(GreenNode<SyntaxKind> node)
       : variant_(std::move(node)) {}
 
-  /// \brief Constructs a `GreenElement` from a `GreenToken`.
-  ///
-  /// \param token The `GreenToken` to be stored in the element.
   explicit GreenElement(GreenToken<SyntaxKind> token)
       : variant_(std::move(token)) {}
 
-  /// \brief Default constructor that initializes the element to an empty state.
   explicit GreenElement() : variant_(std::monostate()) {}
 
-  /// Defaulted copy and move constructors.
   GreenElement(const GreenElement&) = default;
   GreenElement(GreenElement&&) = default;
 
-  /// \brief Move assignment operator.
-  ///
-  /// \param other The `GreenElement` to move from.
-  /// \return A reference to this `GreenElement`.
   GreenElement& operator=(GreenElement&& other) noexcept { return other; }
 
-  /// \brief Checks if the element holds a `GreenNode`.
-  ///
-  /// \return `true` if the element is a `GreenNode`, otherwise `false`.
   [[nodiscard]] bool IsNode() const noexcept {
     return std::holds_alternative<GreenNode<SyntaxKind>>(variant_);
   }
 
-  /// \brief Checks if the element holds a `GreenToken`.
-  ///
-  /// \return `true` if the element is a `GreenToken`, otherwise `false`.
   [[nodiscard]] bool IsToken() const noexcept {
     return std::holds_alternative<GreenToken<SyntaxKind>>(variant_);
   }
 
-  /// \brief Attempts to retrieve the stored `GreenNode`.
-  ///
-  /// \return An optional containing the `GreenNode` if it is present, otherwise
-  /// `nullopt`.
   [[nodiscard]] std::optional<GreenNode<SyntaxKind>> TryGetNode()
       const noexcept {
     if (std::holds_alternative<GreenNode<SyntaxKind>>(variant_)) {
@@ -326,10 +205,6 @@ class GreenElement {
     return std::nullopt;
   }
 
-  /// \brief Attempts to retrieve the stored `GreenToken`.
-  ///
-  /// \return An optional containing the `GreenToken` if it is present,
-  /// otherwise `nullopt`.
   [[nodiscard]] std::optional<GreenToken<SyntaxKind>> TryGetToken()
       const noexcept {
     if (std::holds_alternative<GreenToken<SyntaxKind>>(variant_)) {
@@ -339,10 +214,6 @@ class GreenElement {
     return std::nullopt;
   }
 
-  /// \brief Returns the current use count of the stored element's data.
-  ///
-  /// \return The number of instances sharing the same `GreenNode` or
-  /// `GreenToken`.
   [[nodiscard]] size_t UseCount() const noexcept {
     if (std::holds_alternative<GreenNode<SyntaxKind>>(variant_)) {
       return std::get<GreenNode<SyntaxKind>>(variant_).UseCount();
@@ -355,10 +226,6 @@ class GreenElement {
     return 0;  // No shared data for monostate.
   }
 
-  /// \brief Compares two `GreenElement` objects for equality.
-  ///
-  /// \param other The other `GreenElement` to compare with.
-  /// \return `true` if both elements are equal, otherwise `false`.
   bool operator==(const GreenElement& other) const noexcept {
     return variant_ == other.variant_;
   }
@@ -370,4 +237,4 @@ class GreenElement {
 };
 }  // namespace yuzu::syntax
 
-#endif  // SYNTAX_PARSER_RGTREE_GREEN_GREEN_H_
+#endif  // SYNTAX_RGTREE_GREEN_H_

@@ -14,7 +14,7 @@
 #include "lang/parser/token_sink.h"
 #include "lang/parser/token_source.h"
 #include "syntax/rgtree/green_writer.h"
-#include "utils/string_utils.h"
+#include "utils/strings.h"
 
 namespace {
 using yuzu::lang::Expr;

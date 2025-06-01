@@ -140,13 +140,4 @@ TEST(GreenWriterTests, GreenNodeWithTokenAndNodeChildrenReverseOrder) {
       U"  Identifier@4..5 \"🍕\"\n";
   EXPECT_EQ(expected, actual);
 }
-
-TEST(GreenWriterTests, Clear) {
-  auto writer = GreenWriter<SyntaxKind>(internal::ToU32String);
-  writer.Write(kGreenToken1).Clear();
-
-  const auto actual = writer.AsU32String();
-  const auto expected = U"";
-  EXPECT_EQ(expected, actual);
-}
 };  // namespace

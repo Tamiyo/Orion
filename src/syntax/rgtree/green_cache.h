@@ -37,19 +37,8 @@ class GreenCache {
     explicit Cached(const size_t hash, GreenElement element)
         : hash_(hash), element_(std::move(element)) {}
 
-    /// \brief Deleted default constructor.
-    ///
-    /// A `Cached` must always be constructed explicitly.
     Cached() = delete;
-
-    /// \brief Retrieves the hash value of the cached green element.
-    ///
-    /// \return The hash value.
     [[nodiscard]] size_t Hash() const { return this->hash_; }
-
-    /// \brief Retrieves the cached green element.
-    ///
-    /// \return The `GreenElement` stored in this cache.
     [[nodiscard]] const GreenElement& Element() const { return this->element_; }
 
    private:
@@ -64,9 +53,6 @@ class GreenCache {
   explicit GreenCache(const size_t max_cached_node_size)
       : max_cached_node_size_(max_cached_node_size), nodes_({}), tokens_({}) {}
 
-  /// \brief Deleted default constructor.
-  ///
-  /// A `GreenCache` must always be constructed with a maximum cached node size.
   GreenCache() = delete;
 
   /// \brief Retrieves a cached node based on its kind and child elements.
@@ -143,13 +129,9 @@ class GreenCache {
   }
 
   /// \brief Returns the current size of the cached nodes.
-  ///
-  /// \return The number of cached nodes.
   [[nodiscard]] size_t NodeSize() const noexcept { return nodes_.size(); }
 
   /// \brief Returns the current size of the cached tokens.
-  ///
-  /// \return The number of cached tokens.
   [[nodiscard]] size_t TokenSize() const noexcept { return tokens_.size(); }
 
  private:
@@ -211,14 +193,8 @@ class GreenCache {
   /// internally instead of `CachedGreenNode`.
   struct NoHash {
     const size_t hash;
-
-    /// The element being cached.
     const GreenElement element;
 
-    /// \brief Compares two `NoHash` objects for equality.
-    ///
-    /// \param other The other `NoHash` to compare with.
-    /// \return `true` if both hash values are equal, otherwise `false`.
     bool operator==(const NoHash& other) const noexcept {
       return hash == other.hash;
     }
@@ -229,10 +205,6 @@ class GreenCache {
   /// The `NoHashHasher` struct provides a way to obtain the hash value of a
   /// `NoHash` object for use in unordered sets.
   struct NoHashHasher {
-    /// \brief Computes the hash of a `NoHash` key.
-    ///
-    /// \param key The `NoHash` object to hash.
-    /// \return The hash value of the key.
     size_t operator()(const NoHash& key) const noexcept { return key.hash; }
   };
 
