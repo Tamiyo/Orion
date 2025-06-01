@@ -1,5 +1,5 @@
-#ifndef UTILS_STRING_UTILS_H_
-#define UTILS_STRING_UTILS_H_
+#ifndef UTILS_STRINGS_H_
+#define UTILS_STRINGS_H_
 
 #include <stdexcept>
 #include <string>
@@ -30,4 +30,4 @@ inline std::string U32ToU8(const std::u32string& input) {
 }
 }  // namespace yuzu::utils
 
-#endif  // UTILS_STRING_UTILS_H_
+#endif  // UTILS_STRINGS_H_

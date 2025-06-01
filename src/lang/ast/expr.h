@@ -14,7 +14,7 @@ class Expr;
 // TODO(tamiyo) Implement this.
 class BinaryExpr {
  public:
-  explicit BinaryExpr(SyntaxNode syntax) : syntax_(syntax) {}
+  explicit BinaryExpr(SyntaxNode node) : node_(node) {}
   BinaryExpr() = delete;
 
   std::optional<Expr> Lhs() const noexcept;
@@ -22,7 +22,7 @@ class BinaryExpr {
   std::optional<SyntaxToken> Op() const noexcept;
 
  private:
-  const SyntaxNode syntax_;
+  const SyntaxNode node_;
 };
 
 // TODO(tamiyo) Implement this.

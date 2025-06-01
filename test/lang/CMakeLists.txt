@@ -4,7 +4,6 @@ add_executable(
         ast/expr_tests.cc
 )
 
-
 add_executable(
         lang_lexer_tests
         lexer/lexer_tests.cc
