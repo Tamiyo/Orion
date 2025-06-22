@@ -1,0 +1,26 @@
+# ==============================================================================
+# Common build flags applied to all 'bazel build' commands
+# These flags set C++ standard, enable warnings, and treat warnings as errors.
+# ==============================================================================
+build --cxxopt=-std=c++20
+build --cxxopt=-Wall
+build --cxxopt=-Wextra
+build --cxxopt=-Werror
+
+# ==============================================================================
+# Common test flags applied to all 'bazel test' commands
+# These flags control test output verbosity and parallel execution.
+# ==============================================================================
+test --test_output=errors   # Only show errors for failed tests
+test --local_test_jobs=auto # Use a reasonable number of local jobs for tests
+
+# ==============================================================================
+# Debugging configuration: `--config=dbg`
+# Enables debugging symbols and disables stripping for easier debugging.
+# This config should be used when you want to step through your code.
+# Example usage: `bazel build //src/syntax:yuzu_syntax --config=dbg`
+#                `bazel test //test/syntax:green_node_test --config=dbg`
+# ==============================================================================
+common:dbg --copt="-g"          # Emit debug information
+common:dbg --strip=never        # Do not strip debug information from binaries
+common:dbg --linkopt="-UNDEBUG" # Often useful to keep debug code paths active

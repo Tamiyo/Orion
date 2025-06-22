@@ -1,3 +1,0 @@
-Literal@0..5
-  DoubleLit@0..5 "1.34D"
-
