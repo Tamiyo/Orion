@@ -1,6 +1,0 @@
-PrefixExpr@0..3
-  Plus@0..1 "+"
-  Whitespace@1..2 " "
-  Literal@2..3
-    IntLit@2..3 "1"
-

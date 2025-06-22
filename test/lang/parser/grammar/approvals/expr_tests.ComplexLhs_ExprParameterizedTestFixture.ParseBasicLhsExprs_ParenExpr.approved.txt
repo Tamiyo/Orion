@@ -1,6 +1,0 @@
-ParenExpr@0..3
-  LeftParen@0..1 "("
-  Literal@1..2
-    IntLit@1..2 "1"
-  RightParen@2..3 ")"
-

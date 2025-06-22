@@ -1,0 +1,15 @@
+"""Define bazel dependencies."""
+
+# Bazel C/C++ compilation rules.
+bazel_dep(name = "rules_cc", version = "0.1.2")
+
+# Google Test.
+bazel_dep(name = "googletest", version = "1.17.0")
+
+# Generate compile_commands.json for VSCode syntax analysis.
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    commit = "4f28899228fb3ad0126897876f147ca15026151e",
+)

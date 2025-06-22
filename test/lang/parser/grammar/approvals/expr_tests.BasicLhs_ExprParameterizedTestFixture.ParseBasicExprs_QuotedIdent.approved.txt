@@ -1,3 +1,0 @@
-Ident@0..5
-  QuotedIdent@0..5 "`abc`"
-
