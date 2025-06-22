@@ -188,6 +188,16 @@ class GreenElement {
 
   GreenElement& operator=(GreenElement&& other) noexcept { return other; }
 
+  [[nodiscard]] size_t Width() const noexcept {
+    if (std::holds_alternative<GreenNode<SyntaxKind>>(variant_)) {
+      const GreenNode<SyntaxKind> node =
+          std::get<GreenNode<SyntaxKind>>(variant_);
+      return node.Width();
+    }
+
+    return 0;
+  }
+
   [[nodiscard]] bool IsNode() const noexcept {
     return std::holds_alternative<GreenNode<SyntaxKind>>(variant_);
   }

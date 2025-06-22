@@ -1,6 +1,7 @@
 #ifndef SYNTAX_RGTREE_CURSOR_H_
 #define SYNTAX_RGTREE_CURSOR_H_
 
+#include <cstdint>
 #include <iterator>
 #include <vector>
 
@@ -18,8 +19,9 @@ class SyntaxElementChildren {
                              const SyntaxElement<SyntaxKind>&> {
    public:
     explicit Iterator(
+        const SyntaxNode<SyntaxKind> parent,
         typename std::vector<GreenElement<SyntaxKind>>::const_iterator current)
-        : current_(current) {}
+        : parent_(parent), next_(std::nullopt), current_(current) {}
 
     Iterator& operator++() {
       current_ += 1;
@@ -31,21 +33,18 @@ class SyntaxElementChildren {
       return *this;
     }
 
-    // TODO(tamiyo) Implement this.
-    // SyntaxElement<SyntaxKind> operator*() const {
-    //   const GreenElement<SyntaxKind> child = *current_;
-    //   return SyntaxElement<SyntaxKind>(
-    //     child,
-    //
-    //     parent_.Offset() + child.Offset()
-    //     );
-    // }
+    SyntaxElement<SyntaxKind> operator*() const {
+      const size_t index = current_->Index();
+      const size_t offset = parent_.Offset() + current_.Width();
+      return SyntaxNode<SyntaxKind>(index, offset, parent_, current_);
+    }
 
     bool operator==(Iterator other) const { return current_ == other.current_; }
-
     bool operator!=(Iterator other) const { return !(*this == other); }
 
    private:
+    const SyntaxNode<SyntaxKind> parent_;
+    std::optional<SyntaxElement<SyntaxKind>> next_;
     typename std::vector<GreenElement<SyntaxKind>>::const_iterator current_;
   };
 
@@ -53,10 +52,10 @@ class SyntaxElementChildren {
       : parent_(parent) {}
 
   [[nodiscard]] Iterator Begin() const {
-    return Iterator(parent_.Green().Children().begin());
+    return Iterator(parent_, parent_.Green().Children().begin());
   }
   [[nodiscard]] Iterator End() const {
-    return Iterator(parent_.Green().Children().end());
+    return Iterator(parent_, parent_.Green().Children().end());
   }
 
  private:

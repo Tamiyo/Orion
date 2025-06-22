@@ -22,15 +22,19 @@ class SyntaxNode;
 template <typename SyntaxKind = uint16_t>
 class SyntaxNodeData {
  public:
-  explicit SyntaxNodeData(const size_t offset,
+  explicit SyntaxNodeData(const size_t index, const size_t offset,
                           std::optional<SyntaxNode<SyntaxKind>> parent,
                           GreenNode<SyntaxKind> green)
-      : offset_(offset), parent_(std::move(parent)), green_(std::move(green)) {}
+      : index_(index),
+        offset_(offset),
+        parent_(std::move(parent)),
+        green_(std::move(green)) {}
 
   SyntaxNodeData() = delete;
   SyntaxNodeData(const SyntaxNodeData<SyntaxKind>&) = default;
   SyntaxNodeData(SyntaxNodeData<SyntaxKind>&&) = default;
 
+  [[nodiscard]] size_t Index() const { return index_; }
   [[nodiscard]] size_t Offset() const { return offset_; }
   [[nodiscard]] const std::optional<SyntaxNode<SyntaxKind>>& Parent() const {
     return parent_;
@@ -38,6 +42,7 @@ class SyntaxNodeData {
   [[nodiscard]] const GreenNode<SyntaxKind>& Green() const { return green_; }
 
  private:
+  const size_t index_;
   const size_t offset_;
   const std::optional<SyntaxNode<SyntaxKind>> parent_;
   const GreenNode<SyntaxKind> green_;
@@ -52,19 +57,24 @@ class SyntaxNode {
  public:
   /// \brief Creates a root syntax node from a green node.
   static SyntaxNode<SyntaxKind> CreateRoot(const GreenNode<SyntaxKind>& node) {
-    return SyntaxNode<SyntaxKind>(0, node);
+    return SyntaxNode<SyntaxKind>(0, 0, node);
   }
 
-  explicit SyntaxNode(size_t offset, SyntaxNode<SyntaxKind> parent,
+  explicit SyntaxNode(const size_t index, const size_t offset,
+                      SyntaxNode<SyntaxKind> parent,
                       GreenNode<SyntaxKind> green)
       : data_(std::make_shared<SyntaxNodeData<SyntaxKind>>(
-            offset, std::make_optional(std::move(parent)), std::move(green))) {}
+            index, offset, std::make_optional(std::move(parent)),
+            std::move(green))) {}
 
-  explicit SyntaxNode(size_t offset, GreenNode<SyntaxKind> green)
-      : data_(std::make_shared<SyntaxNodeData<SyntaxKind>>(offset, std::nullopt,
-                                                           std::move(green))) {}
+  explicit SyntaxNode(const size_t index, const size_t offset,
+                      GreenNode<SyntaxKind> green)
+      : data_(std::make_shared<SyntaxNodeData<SyntaxKind>>(
+            index, offset, std::nullopt, std::move(green))) {}
 
   SyntaxNode() = delete;
+
+  [[nodiscard]] size_t Index() const { return data_->Index(); }
 
   [[nodiscard]] size_t Offset() const noexcept { return data_->Offset(); }
 
@@ -92,16 +102,19 @@ class SyntaxNode {
 template <typename SyntaxKind = uint16_t>
 class SyntaxTokenData {
  public:
-  explicit SyntaxTokenData(const size_t offset,
+  explicit SyntaxTokenData(const size_t index, const size_t offset,
                            std::optional<SyntaxNode<SyntaxKind>> parent,
                            GreenToken<SyntaxKind> green)
-      : offset_(offset), parent_(std::move(parent)), green_(std::move(green)) {}
-
+      : index_(index),
+        offset_(offset),
+        parent_(std::move(parent)),
+        green_(std::move(green)) {}
 
   SyntaxTokenData() = delete;
   SyntaxTokenData(const SyntaxTokenData<SyntaxKind>&) = default;
   SyntaxTokenData(SyntaxTokenData<SyntaxKind>&&) = default;
 
+  [[nodiscard]] size_t Index() const { return index_; }
 
   [[nodiscard]] size_t Offset() const { return offset_; }
 
@@ -112,6 +125,7 @@ class SyntaxTokenData {
   [[nodiscard]] const GreenToken<SyntaxKind>& Green() const { return green_; }
 
  private:
+  const size_t index_;
   const size_t offset_;
   const std::optional<SyntaxNode<SyntaxKind>> parent_;
   const GreenToken<SyntaxKind> green_;
@@ -124,27 +138,28 @@ class SyntaxTokenData {
 template <typename SyntaxKind = uint16_t>
 class SyntaxToken {
  public:
-  explicit SyntaxToken(size_t offset, const SyntaxNode<SyntaxKind>& parent,
+  explicit SyntaxToken(const size_t index, const size_t offset,
+                       const SyntaxNode<SyntaxKind>& parent,
                        const GreenToken<SyntaxKind>& green)
       : data_(std::make_shared<SyntaxTokenData<SyntaxKind>>(
-            offset, std::make_optional(parent), green)) {}
+            index, offset, std::make_optional(parent), green)) {}
 
-  explicit SyntaxToken(size_t offset, const GreenToken<SyntaxKind>& green)
+  explicit SyntaxToken(const size_t index, const size_t offset,
+                       const GreenToken<SyntaxKind>& green)
       : data_(std::make_shared<SyntaxTokenData<SyntaxKind>>(
-            offset, std::nullopt, green)) {}
+            index, offset, std::nullopt, green)) {}
 
   SyntaxToken() = delete;
 
+  [[nodiscard]] size_t Index() const { return data_->Index(); }
 
   [[nodiscard]] size_t Offset() const noexcept { return data_->Offset(); }
-
 
   [[nodiscard]] const std::optional<SyntaxNode<SyntaxKind>>& Parent()
       const noexcept {
     return data_->Parent();
   }
 
- 
   [[nodiscard]] const GreenToken<SyntaxKind>& Green() const noexcept {
     return data_->Green();
   }
@@ -171,6 +186,26 @@ class SyntaxElement {
   explicit SyntaxElement(SyntaxToken token) : variant_(std::move(token)) {}
 
   SyntaxElement() = delete;
+
+  [[nodiscard]] size_t Index() const noexcept {
+    if (std::holds_alternative<SyntaxNode>(variant_)) {
+      const SyntaxNode& node = std::get<SyntaxNode>(variant_);
+      return node.Index();
+    }
+
+    const SyntaxToken& token = std::get<SyntaxToken>(variant_);
+    return token.Index();
+  }
+
+  [[nodiscard]] size_t Offset() const noexcept {
+    if (std::holds_alternative<SyntaxNode>(variant_)) {
+      const SyntaxNode& node = std::get<SyntaxNode>(variant_);
+      return node.Offset();
+    }
+
+    const SyntaxToken& token = std::get<SyntaxToken>(variant_);
+    return token.Offset();
+  }
 
   [[nodiscard]] SyntaxKind Kind() const noexcept {
     if (std::holds_alternative<SyntaxNode>(variant_)) {
