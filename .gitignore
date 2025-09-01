@@ -7,3 +7,12 @@ cmake-build-debug/
 # Approval Tests
 *.received.*
 .approval_tests*
+
+
+# CMake 
+compile_commands.json
+
+# Bazel
+bazel-*/
+.bazel/
+MODULE.bazel.lock

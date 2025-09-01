@@ -2,12 +2,20 @@
 
 # Define common Bazel command
 BAZEL := bazel
-CC 	:= clang++-18
+CC := clang++-18
+
+.PHONY: all build test compdb clean
 
 # Default target: build the main library
 all: 
-	CC=$(CC) $(BAZEL) build //...
+	$(MAKE) build
 	$(MAKE) compdb
+
+build:
+	CC=$(CC) $(BAZEL) build //...
+
+test:
+	CC=$(CC) $(BAZEL) test --test_output=all //...
 
 # Target to generate compile_commands.json for IDEs (e.g., VS Code)
 # This will also build the necessary C++ targets as its dependencies.
