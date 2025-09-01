@@ -1,12 +1,24 @@
 #include <gtest/gtest.h>
 
 #include "syntax/green/green_node.h"
-#include "syntax/green/green_token.h"
 
-// Demonstrate some basic assertions.
-TEST(HelloTest, BasicAssertions) {
-  // Expect two strings not to be equal.
-  EXPECT_STRNE("hello", "world");
-  // Expect equality.
-  EXPECT_EQ(7 * 6, 42);
+
+namespace {
+using yuzu::syntax::GreenNode;
+using yuzu::syntax::GreenNodeData;
+
+TEST(GreenNodeTest, GreenNodeSizeRequirements) {
+  // shared_ptr:
+  //   pointer   = 8
+  //   ref_count = 8
+  EXPECT_EQ(16, sizeof(GreenNode));
 }
+
+TEST(GreenNodeTest, GreenNodeDataSizeRequirements) {
+  // kind           = 2
+  // alignment      = 6
+  // width          = 8
+  // std::vector    = 24
+  EXPECT_EQ(40, sizeof(GreenNodeData));
+}
+};  // namespace

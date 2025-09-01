@@ -4,8 +4,8 @@ cc_test(
     name = "yuzu_syntax_tests",
     srcs = glob(["**/*.cc"]),
     deps = [
+        "//src/syntax:yuzu_syntax",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "//src/syntax:yuzu_syntax",
     ],
 )
