@@ -15,7 +15,6 @@ namespace yuzu::syntax {
 class GreenElementData {
  public:
   explicit GreenElementData(const GreenNode& node) : variant_(node) {}
-
   explicit GreenElementData(const GreenToken& token) : variant_(token) {}
 
   GreenElementData() = delete;
@@ -57,14 +56,6 @@ class GreenElement {
 
   explicit GreenElement(const GreenToken& token)
       : data_(std::make_shared<GreenElementData>(token)) {}
-
-  GreenElement(const GreenElement&) = default;
-  GreenElement& operator=(const GreenElement&) = default;
-
-  GreenElement(GreenElement&&) noexcept = default;
-  GreenElement& operator=(GreenElement&&) noexcept = default;
-
-  ~GreenElement() = default;
 
   [[nodiscard]] std::optional<GreenNode> TryGetNode() const noexcept {
     return data_->TryGetNode();
