@@ -25,4 +25,5 @@ compdb:
 # Target to clean Bazel's cache thoroughly
 clean:
 	CC=$(CC) $(BAZEL) clean --expunge
+	rm compile_commands.json
 

@@ -7,6 +7,9 @@ build --cxxopt=-Wall
 build --cxxopt=-Wextra
 build --cxxopt=-Werror
 
+# Override -Werror for external dependencies.
+build --per_file_copt=^external/.*@-Wno-error
+
 # ==============================================================================
 # Common test flags applied to all 'bazel test' commands
 # These flags control test output verbosity and parallel execution.
@@ -18,8 +21,8 @@ test --local_test_jobs=auto # Use a reasonable number of local jobs for tests
 # Debugging configuration: `--config=dbg`
 # Enables debugging symbols and disables stripping for easier debugging.
 # This config should be used when you want to step through your code.
-# Example usage: `bazel build //src/syntax:yuzu_syntax --config=dbg`
-#                `bazel test //test/syntax:green_node_test --config=dbg`
+# Example usage: `bazel build //src/Syntax:yuzu_syntax --config=dbg`
+#                `bazel test //test/Syntax:green_node_test --config=dbg`
 # ==============================================================================
 common:dbg --copt="-g"          # Emit debug information
 common:dbg --strip=never        # Do not strip debug information from binaries
