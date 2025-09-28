@@ -25,13 +25,13 @@ public:
   void finishNode() noexcept;
 
   void startNodeAt(const GreenBuilderCheckpoint &Checkpoint,
-                   const SyntaxKind Kind);
+                   const SyntaxKind Kind) noexcept;
 
   [[nodiscard]] GreenBuilderCheckpoint checkpoint() const noexcept;
 
   void token(const SyntaxKind Kind, const std::u32string &Source) noexcept;
 
-  [[nodiscard]] GreenNode finish();
+  [[nodiscard]] GreenNode finish() noexcept;
 
   [[nodiscard]] size_t getParentsSize() const noexcept {
     return Parents_.size();

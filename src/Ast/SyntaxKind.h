@@ -9,7 +9,7 @@
 #include "Syntax/SyntaxKind.h"
 
 namespace yuzu::ast {
-enum class SyntaxKind { SK_Add };
+enum class SyntaxKind { Add };
 } // namespace yuzu::ast
 
 #endif // AST_SYNTAX_KIND_H

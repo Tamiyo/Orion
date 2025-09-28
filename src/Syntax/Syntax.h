@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "Syntax/Green/Green.h"
+#include "Syntax/SyntaxIterator.h"
 #include "Syntax/SyntaxKind.h"
 
 namespace yuzu::syntax {
@@ -18,7 +19,7 @@ struct SyntaxData {
   const GreenElement Green;
 };
 
-class SyntaxNode : public std::enable_shared_from_this<SyntaxNode> {
+class SyntaxNode {
 public:
   static SyntaxNode createRoot(GreenNode Node) {
     return SyntaxNode(0, nullptr, Node);
@@ -46,6 +47,10 @@ public:
     return Data_->Green.getKind();
   }
 
+  [[nodiscard]] SyntaxChildren getChildren();
+
+  [[nodiscard]] SyntaxChildrenWithTokens getChildrenWithTokens();
+
   bool operator==(const SyntaxNode &Other) const noexcept {
     return Data_->Offset == Other.Data_->Offset &&
            Data_->Parent == Other.Data_->Parent &&
@@ -53,18 +58,19 @@ public:
   }
 
 private:
-  std::shared_ptr<SyntaxData> Data_;
+  const std::shared_ptr<SyntaxData> Data_;
 };
 
 class SyntaxToken {
 public:
-  explicit SyntaxToken(size_t Offset, SyntaxNode *Parent, GreenNode Green)
+  explicit SyntaxToken(size_t Offset, const SyntaxNode *Parent,
+                       GreenToken Green)
       : Data_(std::make_shared<SyntaxData>(
             SyntaxData{.Offset = Offset,
                        .Parent = Parent,
                        .Green = GreenElement(Green)})) {}
 
-  explicit SyntaxToken(size_t Offset, GreenNode Green)
+  explicit SyntaxToken(size_t Offset, GreenToken Green)
       : Data_(std::make_shared<SyntaxData>(
             SyntaxData{.Offset = Offset,
                        .Parent = nullptr,
@@ -93,8 +99,10 @@ public:
   }
 
 private:
-  std::shared_ptr<SyntaxData> Data_;
+  const std::shared_ptr<SyntaxData> Data_;
 };
+
+using SyntaxElement = std::variant<SyntaxNode, SyntaxToken>;
 } // namespace yuzu::syntax
 
 #endif // SYNTAX_SYNTAX_H

@@ -1,7 +1,7 @@
 #ifndef UTIL_ERROR_HANDLING_H
 #define UTIL_ERROR_HANDLING_H
 
-#include <fmt/core.h>
+// #include <fmt/core.h>
 #include <utility>
 
 namespace yuzu::util {

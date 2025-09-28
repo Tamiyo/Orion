@@ -1,7 +1,9 @@
 #ifndef SYNTAX_SYNTAX_ITERATOR_H
 #define SYNTAX_SYNTAX_ITERATOR_H
 
+#include <functional>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -10,81 +12,101 @@
 #include "Util/ErrorHandling.h"
 
 namespace yuzu::syntax {
-class SyntaxNodeChildren {
+
+struct NoFilter {
+  bool operator()(const GreenElement &) const;
+};
+
+struct NodeOnlyFilter {
+  bool operator()(const GreenElement &Element) const;
+};
+
+template <typename ValueType, typename FilterPredicate = NoFilter>
+class SyntaxIterator {
 public:
-  class Iterator {
-  public:
-    using iterator_category = std::forward_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using value_type = SyntaxNode;
-    using pointer = value_type *;
-    using reference = value_type &;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = ValueType;
+  using pointer = value_type *;
+  using reference = value_type &;
 
-    explicit Iterator(std::vector<GreenElement>::const_iterator It,
-                      SyntaxNode Parent)
-        : It_(It), Parent_(Parent), Offset_(Parent.getOffset()) {}
+  explicit SyntaxIterator(std::vector<GreenElement>::const_iterator It,
+                          SyntaxNode Parent,
+                          std::vector<GreenElement>::const_iterator End,
+                          FilterPredicate Filter = FilterPredicate{})
+      : It_(It), Parent_(Parent), End_(End), Offset_(Parent.getOffset()),
+        Filter_(Filter) {
+    skipToValid();
+  }
 
-    value_type operator*() const {
-      if (const std::optional<GreenNode> Node = It_->tryGetNode()) {
-        return SyntaxNode(Offset_ + Node->getWidth(), &Parent_, Node.value());
-      }
+  value_type operator*() const { return createElement(); }
 
-      util::yuzu_unreachable();
-    }
+  SyntaxIterator &operator++() {
+    Offset_ += (It_++)->getWidth();
+    skipToValid();
+    return *this;
+  }
 
-    Iterator &operator++() {
+  SyntaxIterator operator++(int) {
+    SyntaxIterator Tmp = *this;
+    ++(*this);
+    return Tmp;
+  }
+
+  friend bool operator==(const SyntaxIterator &A, const SyntaxIterator &B) {
+    return A.It_ == B.It_ && A.Parent_ == B.Parent_;
+  }
+
+  friend bool operator!=(const SyntaxIterator &A, const SyntaxIterator &B) {
+    return !(A == B);
+  }
+
+private:
+  value_type createElement() const;
+
+  inline void skipToValid() {
+    while (It_ != End_ && !Filter_(*It_)) {
       Offset_ += (It_++)->getWidth();
-
-      while (It_ != Parent_.getGreen().getChildren().end() && !It_->isNode())
-        Offset_ += (It_++)->getWidth();
-
-      return *this;
     }
+  }
 
-    Iterator operator++(int) {
-      Iterator Tmp = *this;
-      ++(*this);
-      return Tmp;
-    }
+  std::vector<GreenElement>::const_iterator It_;
+  const SyntaxNode Parent_;
+  std::vector<GreenElement>::const_iterator End_;
+  size_t Offset_;
+  FilterPredicate Filter_;
+};
 
-    friend bool operator==(const Iterator &A, const Iterator &B) {
-      return A.It_ == B.It_ && A.Parent_ == B.Parent_;
-    };
+template <typename ValueType, typename FilterPredicate = NoFilter>
+class SyntaxElementChildren {
+public:
+  using Iterator = SyntaxIterator<ValueType, FilterPredicate>;
 
-    friend bool operator!=(const Iterator &A, const Iterator &B) {
-      return !(A == B);
-    };
+  explicit SyntaxElementChildren(SyntaxNode Node,
+                                 FilterPredicate Filter = FilterPredicate{})
+      : Node_(Node), Filter_(Filter) {}
 
-  private:
-    std::vector<GreenElement>::const_iterator It_;
-    const SyntaxNode Parent_;
-    size_t Offset_;
-  };
-
-  explicit SyntaxNodeChildren(SyntaxNode Node) : Node_(Node) {}
-
-  SyntaxNodeChildren() = delete;
+  SyntaxElementChildren() = delete;
 
   Iterator begin() {
-    std::vector<GreenElement>::const_iterator Begin =
-        Node_.getGreen().getChildren().begin();
-
-    std::vector<GreenElement>::const_iterator End =
-        Node_.getGreen().getChildren().end();
-
-    while (Begin != End && !(Begin->isNode()))
-      Begin++;
-
-    return Iterator(Begin, Node_);
+    auto Begin = Node_.getGreen().getChildren().begin();
+    auto End = Node_.getGreen().getChildren().end();
+    return Iterator(Begin, Node_, End, Filter_);
   }
 
   Iterator end() {
-    return Iterator(Node_.getGreen().getChildren().end(), Node_);
+    auto End = Node_.getGreen().getChildren().end();
+    return Iterator(End, Node_, End, Filter_);
   }
 
 private:
   SyntaxNode Node_;
+  FilterPredicate Filter_;
 };
+
+using SyntaxChildren = SyntaxElementChildren<SyntaxNode, NodeOnlyFilter>;
+using SyntaxChildrenWithTokens = SyntaxElementChildren<SyntaxElement, NoFilter>;
+
 } // namespace yuzu::syntax
 
 #endif // SYNTAX_SYNTAX_ITERATOR_H

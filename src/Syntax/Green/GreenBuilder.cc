@@ -1,7 +1,6 @@
 #include "Syntax/Green/GreenBuilder.h"
 
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -38,14 +37,16 @@ void GreenBuilder::finishNode() noexcept {
 }
 
 void GreenBuilder::startNodeAt(const GreenBuilderCheckpoint &Checkpoint,
-                               const SyntaxKind Kind) {
-  if (Checkpoint.Index > Children_.size())
-    throw std::invalid_argument("checkpoint no longer valid");
+                               const SyntaxKind Kind) noexcept {
+  if (Checkpoint.Index > Children_.size()) {
+    util::yuzu_unreachable();
+  }
 
   if (!Parents_.empty()) {
     if (const GreenBuilder::Parent Parent = Parents_.back();
-        Checkpoint.Index < Parent.FirstChild)
-      throw std::invalid_argument("checkpoint no longer valid");
+        Checkpoint.Index < Parent.FirstChild) {
+      util::yuzu_unreachable();
+    }
   }
 
   Parents_.emplace_back(GreenBuilder::Parent{Kind, Checkpoint.Index});
@@ -61,9 +62,10 @@ void GreenBuilder::token(const SyntaxKind Kind,
   Children_.emplace_back(Token);
 }
 
-GreenNode GreenBuilder::finish() {
-  if (!Parents_.empty())
-    throw std::invalid_argument("unexpected empty stack");
+GreenNode GreenBuilder::finish() noexcept {
+  if (!Parents_.empty()) {
+    util::yuzu_unreachable();
+  }
 
   const auto Entry = Children_.back();
   Children_.pop_back();
