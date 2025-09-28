@@ -1,14 +1,14 @@
 #ifndef SYNTAX_GREEN_GREEN_H
 #define SYNTAX_GREEN_GREEN_H
 
+#include "Syntax/SyntaxKind.h"
+
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
-
-#include "Syntax/SyntaxKind.h"
 
 namespace yuzu::syntax {
 

@@ -1,14 +1,14 @@
 #ifndef SYNTAX_SYNTAX_H
 #define SYNTAX_SYNTAX_H
 
+#include "Syntax/Green/Green.h"
+#include "Syntax/SyntaxIterator.h"
+#include "Syntax/SyntaxKind.h"
+
 #include <memory>
 #include <optional>
 #include <utility>
 #include <variant>
-
-#include "Syntax/Green/Green.h"
-#include "Syntax/SyntaxIterator.h"
-#include "Syntax/SyntaxKind.h"
 
 namespace yuzu::syntax {
 class SyntaxNode;

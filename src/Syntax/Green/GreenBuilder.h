@@ -1,14 +1,14 @@
 #ifndef SYNTAX_GREEN_GREEN_BUILDER_H
 #define SYNTAX_GREEN_GREEN_BUILDER_H
 
+#include "Syntax/Green/GreenCache.h"
+#include "Syntax/SyntaxKind.h"
+
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "Syntax/Green/GreenCache.h"
-#include "Syntax/SyntaxKind.h"
 
 namespace yuzu::syntax {
 struct GreenBuilderCheckpoint {

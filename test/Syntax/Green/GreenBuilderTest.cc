@@ -1,10 +1,9 @@
-
 #include "Syntax/Green/GreenBuilder.h"
-
-#include <gtest/gtest.h>
 
 #include "Syntax/Green/Green.h"
 #include "Syntax/SyntaxKind.h"
+
+#include <gtest/gtest.h>
 
 namespace {
 using yuzu::syntax::GreenBuilder;

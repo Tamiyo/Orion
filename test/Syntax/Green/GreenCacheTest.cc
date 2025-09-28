@@ -1,5 +1,7 @@
 #include "Syntax/Green/GreenCache.h"
 
+#include "Syntax/Green/Green.h"
+
 #include <gtest/gtest.h>
 
 #include <cstddef>
@@ -8,8 +10,6 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-
-#include "Syntax/Green/Green.h"
 
 namespace {
 using yuzu::syntax::GreenCache;

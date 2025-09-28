@@ -1,13 +1,13 @@
 #include "Syntax/Green/GreenBuilder.h"
 
-#include <memory>
-#include <string>
-#include <utility>
-
 #include "Syntax/Green/Green.h"
 #include "Syntax/Green/GreenCache.h"
 #include "Syntax/SyntaxKind.h"
 #include "Util/ErrorHandling.h"
+
+#include <memory>
+#include <string>
+#include <utility>
 
 namespace yuzu::syntax {
 namespace {

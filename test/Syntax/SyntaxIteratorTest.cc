@@ -1,14 +1,14 @@
 #include "Syntax/SyntaxIterator.h"
 
-#include <gtest/gtest.h>
-
-#include <memory>
-#include <vector>
-#include <variant>
-
 #include "Syntax/Green/Green.h"
 #include "Syntax/Syntax.h"
 #include "Syntax/SyntaxKind.h"
+
+#include <gtest/gtest.h>
+
+#include <memory>
+#include <variant>
+#include <vector>
 
 namespace {
 using yuzu::syntax::GreenElement;

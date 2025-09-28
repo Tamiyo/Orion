@@ -1,10 +1,10 @@
 #ifndef AST_EXPR_H
 #define AST_EXPR_H
 
+#include "Syntax/Syntax.h"
+
 #include <memory>
 #include <optional>
-
-#include "Syntax/Syntax.h"
 
 namespace yuzu::ast {
 class Expr {

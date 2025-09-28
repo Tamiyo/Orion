@@ -1,11 +1,11 @@
 #include "Syntax/Green/Green.h"
 
+#include "Util/ErrorHandling.h"
+
 #include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
-
-#include "Util/ErrorHandling.h"
 
 namespace yuzu::syntax {
 GreenNode::GreenNode(SyntaxKind Kind, std::vector<GreenElement> Children)

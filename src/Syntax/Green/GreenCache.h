@@ -1,13 +1,13 @@
 #ifndef SYNTAX_GREEN_GREEN_CACHE_H
 #define SYNTAX_GREEN_GREEN_CACHE_H
 
+#include "Syntax/Green/Green.h"
+#include "Syntax/SyntaxKind.h"
+
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "Syntax/Green/Green.h"
-#include "Syntax/SyntaxKind.h"
 
 namespace yuzu::syntax {
 

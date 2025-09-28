@@ -1,15 +1,15 @@
 #ifndef SYNTAX_SYNTAX_ITERATOR_H
 #define SYNTAX_SYNTAX_ITERATOR_H
 
+#include "Syntax/Green/Green.h"
+#include "Syntax/Syntax.h"
+#include "Util/ErrorHandling.h"
+
 #include <functional>
 #include <memory>
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-#include "Syntax/Green/Green.h"
-#include "Syntax/Syntax.h"
-#include "Util/ErrorHandling.h"
 
 namespace yuzu::syntax {
 

@@ -1,12 +1,12 @@
 #include "Syntax/Green/GreenCache.h"
 
+#include "Syntax/Green/Green.h"
+#include "Syntax/SyntaxKind.h"
+
 #include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "Syntax/Green/Green.h"
-#include "Syntax/SyntaxKind.h"
 
 namespace yuzu::syntax {
 
