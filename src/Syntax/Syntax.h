@@ -2,7 +2,6 @@
 #define SYNTAX_SYNTAX_H
 
 #include "Syntax/Green/Green.h"
-#include "Syntax/SyntaxIterator.h"
 #include "Syntax/SyntaxKind.h"
 
 #include <memory>
@@ -12,6 +11,8 @@
 
 namespace yuzu::syntax {
 class SyntaxNode;
+class SyntaxChildren;
+class SyntaxChildrenWithTokens;
 
 struct SyntaxData {
   const size_t Offset;
@@ -47,9 +48,9 @@ public:
     return Data_->Green.getKind();
   }
 
-  [[nodiscard]] SyntaxChildren getChildren();
+  [[nodiscard]] SyntaxChildren getChildren() const;
 
-  [[nodiscard]] SyntaxChildrenWithTokens getChildrenWithTokens();
+  [[nodiscard]] SyntaxChildrenWithTokens getChildrenWithTokens() const;
 
   bool operator==(const SyntaxNode &Other) const noexcept {
     return Data_->Offset == Other.Data_->Offset &&

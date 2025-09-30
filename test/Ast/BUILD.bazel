@@ -1,0 +1,14 @@
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+cc_test(
+    name = "yuzu_ast_tests",
+    srcs = glob(
+        ["**/*.cc"],
+        allow_empty = True,
+    ),
+    deps = [
+        "//src/Ast:yuzu_ast",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

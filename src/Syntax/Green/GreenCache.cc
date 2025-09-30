@@ -36,7 +36,7 @@ GreenCache::Entry GreenCache::getToken(const SyntaxKind Kind,
 
 size_t GreenCache::hashToken(const SyntaxKind Kind,
                              const std::u32string &Source) const noexcept {
-  size_t Hash = std::hash<uint16_t>{}(Kind.Value);
+  size_t Hash = std::hash<uint16_t>{}(Kind);
   Hash ^= std::hash<std::u32string>{}(Source) + kHashConstant + (Hash << 6) +
           (Hash >> 2);
   return Hash;
@@ -87,7 +87,7 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
 size_t GreenCache::hashNode(const SyntaxKind Kind,
                             const std::vector<Entry> &Children,
                             const size_t FirstChild) const noexcept {
-  size_t Hash = std::hash<uint16_t>{}(Kind.Value);
+  size_t Hash = std::hash<uint16_t>{}(Kind);
 
   for (size_t I = FirstChild; I < Children.size(); ++I) {
     const size_t ChildHash = Children[I].Hash;

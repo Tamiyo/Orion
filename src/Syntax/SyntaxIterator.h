@@ -12,7 +12,6 @@
 #include <vector>
 
 namespace yuzu::syntax {
-
 struct NoFilter {
   bool operator()(const GreenElement &) const;
 };
@@ -31,11 +30,11 @@ public:
   using reference = value_type &;
 
   explicit SyntaxIterator(std::vector<GreenElement>::const_iterator It,
-                          SyntaxNode Parent,
                           std::vector<GreenElement>::const_iterator End,
+                          SyntaxNode Parent,
                           FilterPredicate Filter = FilterPredicate{})
-      : It_(It), Parent_(Parent), End_(End), Offset_(Parent.getOffset()),
-        Filter_(Filter) {
+      : It_(It), End_(End), Parent_(Parent), Filter_(Filter),
+        Offset_(Parent.getOffset()) {
     skipToValid();
   }
 
@@ -62,7 +61,25 @@ public:
   }
 
 private:
-  value_type createElement() const;
+  value_type createElement() const {
+    if constexpr (std::is_same_v<ValueType, SyntaxNode>) {
+      if (const std::optional<GreenNode> Node = It_->tryGetNode()) {
+        return SyntaxNode(Offset_, &Parent_, Node.value());
+      }
+    }
+
+    if constexpr (std::is_same_v<ValueType, SyntaxElement>) {
+      if (const std::optional<GreenNode> Node = It_->tryGetNode()) {
+        return SyntaxNode(Offset_, &Parent_, Node.value());
+      }
+
+      if (const std::optional<GreenToken> Token = It_->tryGetToken()) {
+        return SyntaxToken(Offset_, &Parent_, Token.value());
+      }
+    }
+
+    util::yuzu_unreachable();
+  }
 
   inline void skipToValid() {
     while (It_ != End_ && !Filter_(*It_)) {
@@ -71,10 +88,10 @@ private:
   }
 
   std::vector<GreenElement>::const_iterator It_;
-  const SyntaxNode Parent_;
   std::vector<GreenElement>::const_iterator End_;
-  size_t Offset_;
+  const SyntaxNode Parent_;
   FilterPredicate Filter_;
+  size_t Offset_;
 };
 
 template <typename ValueType, typename FilterPredicate = NoFilter>
@@ -88,15 +105,15 @@ public:
 
   SyntaxElementChildren() = delete;
 
-  Iterator begin() {
+  Iterator begin() const {
     auto Begin = Node_.getGreen().getChildren().begin();
     auto End = Node_.getGreen().getChildren().end();
-    return Iterator(Begin, Node_, End, Filter_);
+    return Iterator(Begin, End, Node_, Filter_);
   }
 
-  Iterator end() {
+  Iterator end() const {
     auto End = Node_.getGreen().getChildren().end();
-    return Iterator(End, Node_, End, Filter_);
+    return Iterator(End, End, Node_, Filter_);
   }
 
 private:
@@ -104,8 +121,24 @@ private:
   FilterPredicate Filter_;
 };
 
-using SyntaxChildren = SyntaxElementChildren<SyntaxNode, NodeOnlyFilter>;
-using SyntaxChildrenWithTokens = SyntaxElementChildren<SyntaxElement, NoFilter>;
+class SyntaxChildren
+    : public SyntaxElementChildren<SyntaxNode, NodeOnlyFilter> {
+public:
+  explicit SyntaxChildren(SyntaxNode Node)
+      : SyntaxElementChildren<SyntaxNode, NodeOnlyFilter>(Node,
+                                                          NodeOnlyFilter{}) {}
+
+  SyntaxChildren() = delete;
+};
+
+class SyntaxChildrenWithTokens
+    : public SyntaxElementChildren<SyntaxElement, NoFilter> {
+public:
+  explicit SyntaxChildrenWithTokens(SyntaxNode Node)
+      : SyntaxElementChildren<SyntaxElement, NoFilter>(Node, NoFilter{}) {}
+
+  SyntaxChildrenWithTokens() = delete;
+};
 
 } // namespace yuzu::syntax
 

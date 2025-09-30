@@ -14,24 +14,22 @@ namespace {
 using yuzu::syntax::GreenElement;
 using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenToken;
+using yuzu::syntax::SyntaxChildren;
+using yuzu::syntax::SyntaxChildrenWithTokens;
+using yuzu::syntax::SyntaxElement;
 using yuzu::syntax::SyntaxKind;
 using yuzu::syntax::SyntaxNode;
 using yuzu::syntax::SyntaxToken;
-using yuzu::syntax::SyntaxElement;
-using yuzu::syntax::SyntaxChildren;
-using yuzu::syntax::SyntaxChildrenWithTokens;
 
-const auto Token1 = GreenToken({.Value = 1}, U"token");
-const auto Token2 = GreenToken({.Value = 1}, U"token");
-const auto NodeEmpty = GreenNode({.Value = 10}, {});
-const auto NodeWithTokens = GreenNode(
-    {.Value = 11}, {GreenElement(Token1), GreenElement(Token2)});
-const auto NodeWithNodes =
-    GreenNode({.Value = 12}, {GreenElement(NodeEmpty)});
-const auto NodeMixed = GreenNode(
-    {.Value = 13},
-    {GreenElement(Token1), GreenElement(NodeEmpty),
-     GreenElement(Token2), GreenElement(NodeWithTokens)});
+const auto Token1 = GreenToken(1, U"token");
+const auto Token2 = GreenToken(1, U"token");
+const auto NodeEmpty = GreenNode(10, {});
+const auto NodeWithTokens =
+    GreenNode(11, {GreenElement(Token1), GreenElement(Token2)});
+const auto NodeWithNodes = GreenNode(12, {GreenElement(NodeEmpty)});
+const auto NodeMixed =
+    GreenNode(13, {GreenElement(Token1), GreenElement(NodeEmpty),
+                   GreenElement(Token2), GreenElement(NodeWithTokens)});
 
 TEST(SyntaxChildrenTest, NoChildren) {
   const auto Root = SyntaxNode::createRoot(NodeEmpty);
@@ -91,20 +89,13 @@ TEST(SyntaxChildrenTest, NotEquals) {
 
 TEST(SyntaxChildrenTest, NodesWithOffsets) {
   const auto ManyChildren = GreenNode(
-      {.Value = 0},
-      {
-          GreenElement(GreenToken({.Value = 1}, U"(")),
-          GreenElement(GreenNode(
-              {.Value = 4},
-              {GreenElement(GreenToken({.Value = 3}, U"*"))})),
-          GreenElement(GreenNode(
-              {.Value = 5},
-              {GreenElement(GreenToken({.Value = 2}, U"4"))})),
-          GreenElement(GreenNode(
-              {.Value = 5},
-              {GreenElement(GreenToken({.Value = 2}, U"3"))})),
-          GreenElement(GreenToken({.Value = 1}, U")")),
-      });
+      0, {
+             GreenElement(GreenToken(1, U"(")),
+             GreenElement(GreenNode(4, {GreenElement(GreenToken(3, U"*"))})),
+             GreenElement(GreenNode(5, {GreenElement(GreenToken(2, U"4"))})),
+             GreenElement(GreenNode(5, {GreenElement(GreenToken(2, U"3"))})),
+             GreenElement(GreenToken(1, U")")),
+         });
 
   const auto Root = SyntaxNode::createRoot(ManyChildren);
   auto Children = SyntaxChildren(Root);
@@ -172,20 +163,13 @@ TEST(SyntaxChildrenWithTokensTest, NodesAndTokensChildren) {
 
 TEST(SyntaxChildrenWithTokensTest, ElementOffsets) {
   const auto ManyChildren = GreenNode(
-      {.Value = 0},
-      {
-          GreenElement(GreenToken({.Value = 1}, U"(")),
-          GreenElement(GreenNode(
-              {.Value = 4},
-              {GreenElement(GreenToken({.Value = 3}, U"*"))})),
-          GreenElement(GreenNode(
-              {.Value = 5},
-              {GreenElement(GreenToken({.Value = 2}, U"4"))})),
-          GreenElement(GreenNode(
-              {.Value = 5},
-              {GreenElement(GreenToken({.Value = 2}, U"3"))})),
-          GreenElement(GreenToken({.Value = 1}, U")")),
-      });
+      0, {
+             GreenElement(GreenToken(1, U"(")),
+             GreenElement(GreenNode(4, {GreenElement(GreenToken(3, U"*"))})),
+             GreenElement(GreenNode(5, {GreenElement(GreenToken(2, U"4"))})),
+             GreenElement(GreenNode(5, {GreenElement(GreenToken(2, U"3"))})),
+             GreenElement(GreenToken(1, U")")),
+         });
 
   const auto Root = SyntaxNode::createRoot(ManyChildren);
   auto Children = SyntaxChildrenWithTokens(Root);

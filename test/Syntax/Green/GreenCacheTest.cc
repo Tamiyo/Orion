@@ -16,9 +16,9 @@ using yuzu::syntax::GreenCache;
 using yuzu::syntax::SyntaxKind;
 
 constexpr size_t kMaxCachedNodeSize = 3;
-constexpr SyntaxKind kTestSyntaxKindZero = SyntaxKind{.Value = 0};
-constexpr SyntaxKind kTestSyntaxKindOne = SyntaxKind{.Value = 1};
-constexpr SyntaxKind kTestSyntaxKindThree = SyntaxKind{.Value = 2};
+constexpr SyntaxKind kTestSyntaxKindZero = 0;
+constexpr SyntaxKind kTestSyntaxKindOne = 1;
+constexpr SyntaxKind kTestSyntaxKindTwo = 2;
 
 const std::u32string kTestSource1 = U"hello world";
 const std::u32string kTestSource2 = U"goodbye world";
@@ -74,7 +74,7 @@ TEST(GreenCacheTest, GetNode) {
 
   auto Children = std::vector{Entry1, Entry2};
 
-  auto Entry = Cache.getNode(kTestSyntaxKindThree, &Children, 0);
+  auto Entry = Cache.getNode(kTestSyntaxKindTwo, &Children, 0);
 
   // The node should have two children.
   EXPECT_EQ(2, Entry.Element.tryGetNode()->getChildren().size());
@@ -101,7 +101,7 @@ TEST(GreenCacheTest, GetNodeLeftoverChildren) {
       Cache.getToken(kTestSyntaxKindOne, kTestSource2);
 
   auto Children = std::vector{Entry1, Entry2};
-  const auto Entry = Cache.getNode(kTestSyntaxKindThree, &Children, 1);
+  const auto Entry = Cache.getNode(kTestSyntaxKindTwo, &Children, 1);
 
   // The node should have two children.
   EXPECT_EQ(1, Entry.Element.tryGetNode()->getChildren().size());
@@ -129,8 +129,8 @@ TEST(GreenCacheTest, GetNodeDuplicateNodes) {
 
   auto Children = std::vector{Child1, Child2};
 
-  const auto Entry1 = Cache.getNode(kTestSyntaxKindThree, &Children, 1);
-  const auto Entry2 = Cache.getNode(kTestSyntaxKindThree, &Children, 0);
+  const auto Entry1 = Cache.getNode(kTestSyntaxKindTwo, &Children, 1);
+  const auto Entry2 = Cache.getNode(kTestSyntaxKindTwo, &Children, 0);
 
   // Children vector should have its elements removed.
   EXPECT_EQ(0, Children.size());
@@ -164,8 +164,8 @@ TEST(GreenCacheTest, GetNodeDuplicateNodesOverMaxCacheSize) {
 
   auto Children = std::vector{Child1, Child2};
 
-  const auto Entry1 = Cache.getNode(kTestSyntaxKindThree, &Children, 1);
-  const auto Entry2 = Cache.getNode(kTestSyntaxKindThree, &Children, 0);
+  const auto Entry1 = Cache.getNode(kTestSyntaxKindTwo, &Children, 1);
+  const auto Entry2 = Cache.getNode(kTestSyntaxKindTwo, &Children, 0);
 
   // Children vector should have its elements removed.
   EXPECT_EQ(0, Children.size());

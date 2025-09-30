@@ -4,13 +4,7 @@
 #include <cstdint>
 
 namespace yuzu::syntax {
-struct SyntaxKind {
-  uint16_t Value;
-
-  bool operator==(const SyntaxKind &Other) const {
-    return Value == Other.Value;
-  }
-};
+using SyntaxKind = uint16_t;
 
 template <typename ExternalKind> class SyntaxKindConverter {
 public:

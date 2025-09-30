@@ -9,7 +9,7 @@ namespace {
 using yuzu::syntax::GreenBuilder;
 using yuzu::syntax::SyntaxKind;
 
-constexpr auto kTestSyntaxKind = SyntaxKind{.Value = 0};
+constexpr auto kTestSyntaxKind = 0;
 
 TEST(GreenBuilderTest, StartNode) {
   auto Builder = GreenBuilder();
