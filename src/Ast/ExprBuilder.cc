@@ -8,8 +8,7 @@
 #include <optional>
 
 namespace yuzu::ast {
-std::unique_ptr<Expr>
-ExprBuilder::tryFrom(syntax::SyntaxNode Node) {
+std::unique_ptr<Expr> ExprBuilder::tryFrom(syntax::SyntaxNode Node) {
   switch (static_cast<SyntaxKind>(Node.getKind())) {
   case SyntaxKind::InfixExpr:
     return std::make_unique<BinaryExpr>(std::move(Node));

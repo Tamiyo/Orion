@@ -16,7 +16,7 @@ class SyntaxChildrenWithTokens;
 
 struct SyntaxData {
   const size_t Offset;
-  const SyntaxNode *Parent;
+  const SyntaxNode *const Parent;
   const GreenElement Green;
 };
 

@@ -70,11 +70,13 @@ private:
 
     if constexpr (std::is_same_v<ValueType, SyntaxElement>) {
       if (const std::optional<GreenNode> Node = It_->tryGetNode()) {
-        return value_type(std::in_place_type<SyntaxNode>, Offset_, Parent_, Node.value());
+        return value_type(std::in_place_type<SyntaxNode>, Offset_, Parent_,
+                          Node.value());
       }
 
       if (const std::optional<GreenToken> Token = It_->tryGetToken()) {
-        return value_type(std::in_place_type<SyntaxToken>, Offset_, Parent_, Token.value());
+        return value_type(std::in_place_type<SyntaxToken>, Offset_, Parent_,
+                          Token.value());
       }
     }
 

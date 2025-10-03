@@ -15,8 +15,7 @@
 namespace yuzu::ast {
 class Expr {
 public:
-  template <typename SUBTYPE>
-  [[nodiscard]] bool is() const noexcept {
+  template <typename SUBTYPE>[[nodiscard]] bool is() const noexcept {
     return dynamic_cast<const SUBTYPE *>(this) != nullptr;
   }
 
@@ -50,7 +49,8 @@ public:
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
       syntax::SyntaxNode Node = *It;
 
-      if (std::unique_ptr<Expr> CastNode = ExprBuilder::tryFrom(std::move(Node))) {
+      if (std::unique_ptr<Expr> CastNode =
+              ExprBuilder::tryFrom(std::move(Node))) {
         return CastNode;
       }
     }
@@ -65,7 +65,8 @@ public:
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
       syntax::SyntaxNode Node = *It;
 
-      if (std::unique_ptr<Expr> CastNode = ExprBuilder::tryFrom(std::move(Node))) {
+      if (std::unique_ptr<Expr> CastNode =
+              ExprBuilder::tryFrom(std::move(Node))) {
         if (LookingForSecondExpr) {
           return CastNode;
         }
@@ -92,7 +93,8 @@ public:
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
       syntax::SyntaxNode Node = *It;
 
-      if (std::unique_ptr<Expr> CastNode = ExprBuilder::tryFrom(std::move(Node))) {
+      if (std::unique_ptr<Expr> CastNode =
+              ExprBuilder::tryFrom(std::move(Node))) {
         return CastNode;
       }
     }
