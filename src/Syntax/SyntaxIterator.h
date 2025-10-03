@@ -31,14 +31,14 @@ public:
 
   explicit SyntaxIterator(std::vector<GreenElement>::const_iterator It,
                           std::vector<GreenElement>::const_iterator End,
-                          SyntaxNode Parent,
+                          const SyntaxNode &Parent,
                           FilterPredicate Filter = FilterPredicate{})
-      : It_(It), End_(End), Parent_(Parent), Filter_(Filter),
+      : It_(It), End_(End), Parent_(&Parent), Filter_(Filter),
         Offset_(Parent.getOffset()) {
     skipToValid();
   }
 
-  value_type operator*() const { return createElement(); }
+  const value_type operator*() const { return createElement(); }
 
   SyntaxIterator &operator++() {
     Offset_ += (It_++)->getWidth();
@@ -64,17 +64,17 @@ private:
   value_type createElement() const {
     if constexpr (std::is_same_v<ValueType, SyntaxNode>) {
       if (const std::optional<GreenNode> Node = It_->tryGetNode()) {
-        return SyntaxNode(Offset_, &Parent_, Node.value());
+        return SyntaxNode(Offset_, Parent_, Node.value());
       }
     }
 
     if constexpr (std::is_same_v<ValueType, SyntaxElement>) {
       if (const std::optional<GreenNode> Node = It_->tryGetNode()) {
-        return SyntaxNode(Offset_, &Parent_, Node.value());
+        return value_type(std::in_place_type<SyntaxNode>, Offset_, Parent_, Node.value());
       }
 
       if (const std::optional<GreenToken> Token = It_->tryGetToken()) {
-        return SyntaxToken(Offset_, &Parent_, Token.value());
+        return value_type(std::in_place_type<SyntaxToken>, Offset_, Parent_, Token.value());
       }
     }
 
@@ -89,8 +89,8 @@ private:
 
   std::vector<GreenElement>::const_iterator It_;
   std::vector<GreenElement>::const_iterator End_;
-  const SyntaxNode Parent_;
-  FilterPredicate Filter_;
+  const SyntaxNode *Parent_;
+  const FilterPredicate Filter_;
   size_t Offset_;
 };
 
@@ -99,7 +99,7 @@ class SyntaxElementChildren {
 public:
   using Iterator = SyntaxIterator<ValueType, FilterPredicate>;
 
-  explicit SyntaxElementChildren(SyntaxNode Node,
+  explicit SyntaxElementChildren(const SyntaxNode &Node,
                                  FilterPredicate Filter = FilterPredicate{})
       : Node_(Node), Filter_(Filter) {}
 
@@ -117,15 +117,15 @@ public:
   }
 
 private:
-  SyntaxNode Node_;
-  FilterPredicate Filter_;
+  const SyntaxNode &Node_;
+  const FilterPredicate Filter_;
 };
 
 class SyntaxChildren
     : public SyntaxElementChildren<SyntaxNode, NodeOnlyFilter> {
 public:
-  explicit SyntaxChildren(SyntaxNode Node)
-      : SyntaxElementChildren<SyntaxNode, NodeOnlyFilter>(Node,
+  explicit SyntaxChildren(const SyntaxNode &Node)
+      : SyntaxElementChildren<SyntaxNode, NodeOnlyFilter>(std::move(Node),
                                                           NodeOnlyFilter{}) {}
 
   SyntaxChildren() = delete;
@@ -134,8 +134,9 @@ public:
 class SyntaxChildrenWithTokens
     : public SyntaxElementChildren<SyntaxElement, NoFilter> {
 public:
-  explicit SyntaxChildrenWithTokens(SyntaxNode Node)
-      : SyntaxElementChildren<SyntaxElement, NoFilter>(Node, NoFilter{}) {}
+  explicit SyntaxChildrenWithTokens(const SyntaxNode &Node)
+      : SyntaxElementChildren<SyntaxElement, NoFilter>(std::move(Node),
+                                                       NoFilter{}) {}
 
   SyntaxChildrenWithTokens() = delete;
 };

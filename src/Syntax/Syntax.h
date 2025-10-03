@@ -27,7 +27,7 @@ public:
   }
 
   explicit SyntaxNode(size_t Offset, const SyntaxNode *Parent, GreenNode Green)
-      : Data_(std::make_shared<SyntaxData>(
+      : Data_(std::make_unique<SyntaxData>(
             SyntaxData{.Offset = Offset,
                        .Parent = Parent,
                        .Green = GreenElement(Green)})) {}
@@ -59,20 +59,20 @@ public:
   }
 
 private:
-  const std::shared_ptr<SyntaxData> Data_;
+  std::unique_ptr<SyntaxData> Data_;
 };
 
 class SyntaxToken {
 public:
   explicit SyntaxToken(size_t Offset, const SyntaxNode *Parent,
                        GreenToken Green)
-      : Data_(std::make_shared<SyntaxData>(
+      : Data_(std::make_unique<SyntaxData>(
             SyntaxData{.Offset = Offset,
                        .Parent = Parent,
                        .Green = GreenElement(Green)})) {}
 
   explicit SyntaxToken(size_t Offset, GreenToken Green)
-      : Data_(std::make_shared<SyntaxData>(
+      : Data_(std::make_unique<SyntaxData>(
             SyntaxData{.Offset = Offset,
                        .Parent = nullptr,
                        .Green = GreenElement(Green)})) {}
@@ -100,7 +100,7 @@ public:
   }
 
 private:
-  const std::shared_ptr<SyntaxData> Data_;
+  std::unique_ptr<SyntaxData> Data_;
 };
 
 using SyntaxElement = std::variant<SyntaxNode, SyntaxToken>;

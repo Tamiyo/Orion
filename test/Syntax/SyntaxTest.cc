@@ -17,15 +17,13 @@ using yuzu::syntax::SyntaxToken;
 TEST(SyntaxNodeTest, SyntaxNodeSizeRequirements) {
   // shared_ptr:
   //   pointer    = 8
-  //   ref_count  = 8
-  EXPECT_EQ(16, sizeof(SyntaxNode));
+  EXPECT_EQ(8, sizeof(SyntaxNode));
 }
 
 TEST(SyntaxTokenTest, SyntaxTokenSizeRequirements) {
   // shared_ptr:
   //   pointer    = 8
-  //   ref_count  = 8
-  EXPECT_EQ(16, sizeof(SyntaxToken));
+  EXPECT_EQ(8, sizeof(SyntaxToken));
 }
 
 TEST(SyntaxDataTest, SyntaxDataSizeRequirements) {
