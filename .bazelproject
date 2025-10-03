@@ -1,7 +1,5 @@
 # Bazel project configuration for yuzu
 
-workspace_type: c
-
 directories:
   .
   -bazel-bin
@@ -14,8 +12,6 @@ targets:
   //test/...
 
 build_flags:
-  --repo_env=CC=clang
-  --repo_env=CXX=clang++
   --cxxopt=-std=c++17
   --copt=-Wall
   --copt=-Wextra
@@ -26,9 +22,6 @@ test_flags:
   --test_output=errors
   --test_summary=detailed
 
-# Additional source directories for IDE indexing
-additional_languages:
-  c
 
 derive_targets_from_directories: true
 

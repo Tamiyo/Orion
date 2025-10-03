@@ -35,7 +35,7 @@ protected:
   syntax::SyntaxNode Node_;
 };
 
-class BinaryExpr : public Expr {
+class BinaryExpr final : public Expr {
 public:
   explicit BinaryExpr(syntax::SyntaxNode Node) : Expr(std::move(Node)) {}
 
@@ -79,7 +79,7 @@ public:
   }
 };
 
-class ParenExpr : public Expr {
+class ParenExpr final : public Expr {
 public:
   explicit ParenExpr(syntax::SyntaxNode Node) : Expr(std::move(Node)) {}
 
@@ -103,7 +103,7 @@ public:
   }
 };
 
-class LiteralExpr : public Expr {
+class LiteralExpr final : public Expr {
 public:
   explicit LiteralExpr(syntax::SyntaxNode Node) : Expr(std::move(Node)) {}
 
