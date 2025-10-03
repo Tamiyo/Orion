@@ -59,7 +59,7 @@ public:
   }
 
 private:
-  std::unique_ptr<SyntaxData> Data_;
+  std::unique_ptr<const SyntaxData> Data_;
 };
 
 class SyntaxToken {
@@ -100,7 +100,7 @@ public:
   }
 
 private:
-  std::unique_ptr<SyntaxData> Data_;
+  std::unique_ptr<const SyntaxData> Data_;
 };
 
 using SyntaxElement = std::variant<SyntaxNode, SyntaxToken>;

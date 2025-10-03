@@ -53,7 +53,7 @@ public:
   }
 
 private:
-  std::shared_ptr<GreenTokenData> Data_;
+  std::shared_ptr<const GreenTokenData> Data_;
 };
 
 class GreenNode {
@@ -78,7 +78,7 @@ public:
   static size_t computeWidth(const std::vector<GreenElement> &Children);
 
 private:
-  std::shared_ptr<GreenNodeData> Data_;
+  std::shared_ptr<const GreenNodeData> Data_;
 };
 
 class GreenElement {
