@@ -28,7 +28,7 @@ struct GreenNodeData {
 class GreenToken {
 public:
   explicit GreenToken(const SyntaxKind Kind, const std::u32string &Source)
-      : Data_(std::make_shared<GreenTokenData>(
+      : Data_(std::make_shared<const GreenTokenData>(
             GreenTokenData{Kind, std::move(Source)})) {}
 
   GreenToken() = delete;
@@ -58,7 +58,8 @@ private:
 
 class GreenNode {
 public:
-  explicit GreenNode(SyntaxKind Kind, std::vector<GreenElement> Children);
+  explicit GreenNode(SyntaxKind Kind,
+                     const std::vector<GreenElement> &Children);
   GreenNode() = delete;
 
   [[nodiscard]] SyntaxKind getKind() const noexcept { return Data_->Kind; }
@@ -113,25 +114,25 @@ public:
   [[nodiscard]] SyntaxKind getKind() const noexcept {
     if (std::holds_alternative<GreenNode>(Variant_)) {
       return std::get<GreenNode>(Variant_).getKind();
-    } else {
-      return std::get<GreenToken>(Variant_).getKind();
     }
+
+    return std::get<GreenToken>(Variant_).getKind();
   }
 
   [[nodiscard]] size_t getWidth() const noexcept {
     if (std::holds_alternative<GreenNode>(Variant_)) {
       return std::get<GreenNode>(Variant_).getWidth();
-    } else {
-      return std::get<GreenToken>(Variant_).getSource().size();
     }
+
+    return std::get<GreenToken>(Variant_).getSource().size();
   }
 
   [[nodiscard]] long getUseCount() const noexcept {
-    if (auto P = std::get_if<GreenNode>(&Variant_)) {
+    if (const GreenNode *P = std::get_if<GreenNode>(&Variant_)) {
       return P->getUseCount();
     }
 
-    if (auto P = std::get_if<GreenToken>(&Variant_)) {
+    if (const GreenToken *P = std::get_if<GreenToken>(&Variant_)) {
       return P->getUseCount();
     }
 

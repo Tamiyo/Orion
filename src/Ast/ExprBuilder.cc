@@ -5,7 +5,6 @@
 #include "Syntax/Syntax.h"
 
 #include <memory>
-#include <optional>
 
 namespace yuzu::ast {
 std::unique_ptr<Expr> ExprBuilder::tryFrom(syntax::SyntaxNode Node) {

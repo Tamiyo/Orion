@@ -1,6 +1,7 @@
 # Build Directories
 .vscode/
 .idea/
+.clwb/
 build/
 cmake-build-debug/
 external/

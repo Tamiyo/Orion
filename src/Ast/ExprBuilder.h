@@ -4,7 +4,6 @@
 #include "Syntax/Syntax.h"
 
 #include <memory>
-#include <optional>
 
 namespace yuzu::ast {
 class Expr;

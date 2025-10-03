@@ -5,8 +5,6 @@
 #include "Syntax/SyntaxKind.h"
 
 #include <memory>
-#include <optional>
-#include <utility>
 #include <variant>
 
 namespace yuzu::syntax {

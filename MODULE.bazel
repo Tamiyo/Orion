@@ -1,5 +1,7 @@
 """Define bazel dependencies."""
 
+module(name = "yuzu")
+
 # Dependencies available in BCR
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 bazel_dep(name = "rules_python", version = "1.2.0")
@@ -22,12 +24,14 @@ bazel_dep(name = "zlib-ng", version = "2.0.7")
 
 # LLVM
 import_llvm = use_extension("//bazel:extensions.bzl", "import_llvm")
+
 llvm_configure = use_repo_rule("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure")
+
 use_repo(
     import_llvm,
     "llvm-raw",
-    "llvm_zstd",
     "llvm_zlib",
+    "llvm_zstd",
 )
 
 llvm_configure(
@@ -56,6 +60,6 @@ bazel_dep(name = "googletest", version = "1.17.0")
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
     module_name = "hedron_compile_commands",
-    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
     commit = "4f28899228fb3ad0126897876f147ca15026151e",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
 )

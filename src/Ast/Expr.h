@@ -6,7 +6,6 @@
 #include "Syntax/SyntaxIterator.h"
 #include "Util/ErrorHandling.h"
 
-#include <cassert>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -15,6 +14,8 @@
 namespace yuzu::ast {
 class Expr {
 public:
+  virtual ~Expr() = default;
+
   template <typename SUBTYPE>[[nodiscard]] bool is() const noexcept {
     return dynamic_cast<const SUBTYPE *>(this) != nullptr;
   }
@@ -29,10 +30,9 @@ public:
   }
 
 protected:
-  explicit Expr(syntax::SyntaxNode Node)
-      : Node_(std::make_unique<syntax::SyntaxNode>(std::move(Node))) {}
+  explicit Expr(syntax::SyntaxNode Node) : Node_(std::move(Node)) {}
 
-  const std::unique_ptr<syntax::SyntaxNode> Node_;
+  syntax::SyntaxNode Node_;
 };
 
 class BinaryExpr : public Expr {
@@ -44,7 +44,7 @@ public:
   BinaryExpr &operator=(const BinaryExpr &) = delete;
 
   [[nodiscard]] std::unique_ptr<Expr> getLhs() const {
-    const syntax::SyntaxChildren Children = Node_->getChildren();
+    const syntax::SyntaxChildren Children = Node_.getChildren();
 
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
       syntax::SyntaxNode Node = *It;
@@ -59,7 +59,7 @@ public:
   }
 
   [[nodiscard]] std::unique_ptr<Expr> getRhs() const {
-    const syntax::SyntaxChildren Children = Node_->getChildren();
+    const syntax::SyntaxChildren Children = Node_.getChildren();
 
     bool LookingForSecondExpr = false;
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
@@ -88,7 +88,7 @@ public:
   ParenExpr &operator=(const ParenExpr &) = delete;
 
   [[nodiscard]] std::unique_ptr<Expr> getValue() {
-    const syntax::SyntaxChildren Children = Node_->getChildren();
+    const syntax::SyntaxChildren Children = Node_.getChildren();
 
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
       syntax::SyntaxNode Node = *It;
@@ -113,7 +113,7 @@ public:
 
   [[nodiscard]] std::u32string_view getValue() const {
     const syntax::SyntaxChildrenWithTokens ChildrenWithTokens =
-        Node_->getChildrenWithTokens();
+        Node_.getChildrenWithTokens();
 
     for (auto It = ChildrenWithTokens.begin(), End = ChildrenWithTokens.end();
          It != End; It++) {

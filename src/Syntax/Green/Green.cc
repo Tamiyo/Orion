@@ -8,7 +8,7 @@
 #include <vector>
 
 namespace yuzu::syntax {
-GreenNode::GreenNode(SyntaxKind Kind, std::vector<GreenElement> Children)
+GreenNode::GreenNode(SyntaxKind Kind, const std::vector<GreenElement> &Children)
     : Data_(std::make_shared<GreenNodeData>(
           GreenNodeData{.Kind = Kind,
                         .Width = computeWidth(Children),
