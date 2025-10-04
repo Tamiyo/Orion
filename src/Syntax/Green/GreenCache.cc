@@ -25,10 +25,9 @@ GreenCache::Entry GreenCache::getToken(const SyntaxKind Kind,
     return Entry{Hash, It->second};
 
   auto Token = GreenToken(Kind, Source);
-  auto Element = GreenElement(Token);
 
   // Use emplace to avoid copy assignment.
-  Tokens_.emplace(Hash, std::move(Element));
+  Tokens_.emplace(Hash, std::move(Token));
 
   // Return a GreenCache::Entry with a copy/move of the element.
   return Entry{Hash, Tokens_.at(Hash)};
@@ -51,7 +50,7 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
 
   if (ChildrenSize > MaxCachedNodeSize_) {
     auto Node = buildNode(Kind, Children, FirstChild);
-    return Entry{0, GreenElement(Node)};
+    return Entry{0, Node};
   }
 
   const size_t Hash = hashNode(Kind, *Children, FirstChild);
@@ -66,20 +65,20 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
     for (size_t I = FirstChild; I < Children->size(); ++I)
       EntryElements.push_back(Children->at(I).Element);
 
-    if (std::optional<GreenNode> EntryNodeOpt = CachedElement.tryGetNode();
-        EntryNodeOpt != std::nullopt && EntryNodeOpt->getKind() == Kind &&
-        EntryNodeOpt->getChildren().size() == ChildrenSize &&
-        EntryNodeOpt->getChildren() == EntryElements) {
+    if (const GreenNode *EntryNode = std::get_if<GreenNode>(&CachedElement);
+        EntryNode != nullptr && EntryNode->getKind() == Kind &&
+        std::equal(EntryNode->getChildren().begin(),
+                   EntryNode->getChildren().end(), EntryElements.begin(),
+                   EntryElements.end())) {
       Children->erase(Children->begin() + FirstChild, Children->end());
       return Entry{Hash, CachedElement};
     }
   }
 
   auto Node = buildNode(Kind, Children, FirstChild);
-  GreenElement Element(Node);
 
   // Use emplace to insert move-only element.
-  Nodes_.emplace(Hash, std::move(Element));
+  Nodes_.emplace(Hash, std::move(Node));
 
   return Entry{Hash, Nodes_.at(Hash)};
 }
@@ -110,7 +109,7 @@ GreenNode GreenCache::buildNode(const SyntaxKind Kind,
 
   Children->erase(Children->begin() + FirstChild, Children->end());
 
-  return GreenNode(Kind, Elements);
+  return GreenNode::create(Kind, std::move(Elements));
 }
 
 } // namespace yuzu::syntax

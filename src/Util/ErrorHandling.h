@@ -2,14 +2,14 @@
 #define UTIL_ERROR_HANDLING_H
 
 #include <cstdlib>
-// #include <fmt/core.h>
+#include <fmt/core.h>
 
 namespace yuzu::util {
-// [[noreturn]] void yuzu_unreachable(const char *msg = nullptr,
-//                                    const char *file = nullptr,
-//                                    unsigned line = 0) {
-[[noreturn]] inline void yuzu_unreachable() {
-  //   fmt::println("");
+[[noreturn]] inline void yuzu_unreachable(const char *Msg = nullptr) {
+  if (Msg) {
+    fmt::println("unreachable reached: %s", Msg);
+  }
+
   std::abort();
 }
 } // namespace yuzu::util

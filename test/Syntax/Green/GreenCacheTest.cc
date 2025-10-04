@@ -5,14 +5,13 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
-#include <memory>
 #include <string>
-#include <string_view>
-#include <utility>
 #include <vector>
 
 namespace {
 using yuzu::syntax::GreenCache;
+using yuzu::syntax::GreenNode;
+using yuzu::syntax::GreenToken;
 using yuzu::syntax::SyntaxKind;
 
 constexpr size_t kMaxCachedNodeSize = 3;
@@ -28,7 +27,7 @@ TEST(GreenCacheTest, GetToken) {
   const auto Entry = Cache.getToken(kTestSyntaxKindZero, kTestSource1);
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, Entry.Element.getUseCount());
+  EXPECT_EQ(2, std::get<GreenToken>(Entry.Element).getUseCount());
 
   // Only one instance of this token.
   EXPECT_EQ(1, Cache.getTokenSize());
@@ -40,8 +39,8 @@ TEST(GreenCacheTest, GetTokensDifferentKind) {
   const auto Entry2 = Cache.getToken(kTestSyntaxKindOne, kTestSource1);
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, Entry1.Element.getUseCount());
-  EXPECT_EQ(2, Entry2.Element.getUseCount());
+  EXPECT_EQ(2, std::get<GreenToken>(Entry1.Element).getUseCount());
+  EXPECT_EQ(2, std::get<GreenToken>(Entry2.Element).getUseCount());
 
   // Hashes for two distinct tokens should never be equal.
   EXPECT_NE(Entry1.Hash, Entry2.Hash);
@@ -56,8 +55,8 @@ TEST(GreenCacheTest, GetTokensDifferentSource) {
   const auto Entry2 = Cache.getToken(kTestSyntaxKindZero, kTestSource2);
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, Entry1.Element.getUseCount());
-  EXPECT_EQ(2, Entry2.Element.getUseCount());
+  EXPECT_EQ(2, std::get<GreenToken>(Entry1.Element).getUseCount());
+  EXPECT_EQ(2, std::get<GreenToken>(Entry2.Element).getUseCount());
 
   // Two different tokens for Entry1.Element, and Entry2.Element.
   EXPECT_EQ(2, Cache.getTokenSize());
@@ -77,13 +76,13 @@ TEST(GreenCacheTest, GetNode) {
   auto Entry = Cache.getNode(kTestSyntaxKindTwo, &Children, 0);
 
   // The node should have two children.
-  EXPECT_EQ(2, Entry.Element.tryGetNode()->getChildren().size());
+  EXPECT_EQ(2, std::get<GreenNode>(Entry.Element).getChildren().size());
 
   // Children vector should have its elements removed.
   EXPECT_EQ(0, Children.size());
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, Entry.Element.getUseCount());
+  EXPECT_EQ(2, std::get<GreenNode>(Entry.Element).getUseCount());
 
   // Two different tokens for Entry1.Element, and Entry2.Element. One node
   // for node.
@@ -104,13 +103,13 @@ TEST(GreenCacheTest, GetNodeLeftoverChildren) {
   const auto Entry = Cache.getNode(kTestSyntaxKindTwo, &Children, 1);
 
   // The node should have two children.
-  EXPECT_EQ(1, Entry.Element.tryGetNode()->getChildren().size());
+  EXPECT_EQ(1, std::get<GreenNode>(Entry.Element).getChildren().size());
 
   // Children vector should have its elements reduced.
   EXPECT_EQ(1, Children.size());
 
   // One in the cache, one held in this test method.
-  EXPECT_EQ(2, Entry.Element.getUseCount());
+  EXPECT_EQ(2, std::get<GreenNode>(Entry.Element).getUseCount());
 
   // Two different tokens for Entry1.Element, and Entry2.Element. One node
   // for node.
@@ -144,13 +143,13 @@ TEST(GreenCacheTest, GetNodeDuplicateNodes) {
   EXPECT_EQ(Entry1.Hash, Entry2.Hash);
 
   // The node should have two children.
-  EXPECT_EQ(1, Entry1.Element.tryGetNode()->getChildren().size());
-  EXPECT_EQ(1, Entry2.Element.tryGetNode()->getChildren().size());
+  EXPECT_EQ(1, std::get<GreenNode>(Entry1.Element).getChildren().size());
+  EXPECT_EQ(1, std::get<GreenNode>(Entry2.Element).getChildren().size());
 
   // One in the cache, two held in this test method since the ndoes are the
   // same.
-  EXPECT_EQ(3, Entry1.Element.getUseCount());
-  EXPECT_EQ(3, Entry2.Element.getUseCount());
+  EXPECT_EQ(3, std::get<GreenNode>(Entry1.Element).getUseCount());
+  EXPECT_EQ(3, std::get<GreenNode>(Entry2.Element).getUseCount());
 }
 
 TEST(GreenCacheTest, GetNodeDuplicateNodesOverMaxCacheSize) {
@@ -180,11 +179,11 @@ TEST(GreenCacheTest, GetNodeDuplicateNodesOverMaxCacheSize) {
   EXPECT_EQ(0, Entry2.Hash);
 
   // The node should have two children.
-  EXPECT_EQ(1, Entry1.Element.tryGetNode()->getChildren().size());
-  EXPECT_EQ(1, Entry2.Element.tryGetNode()->getChildren().size());
+  EXPECT_EQ(1, std::get<GreenNode>(Entry1.Element).getChildren().size());
+  EXPECT_EQ(1, std::get<GreenNode>(Entry2.Element).getChildren().size());
 
   // At this point, each node is *not* cached.
-  EXPECT_EQ(1, Entry1.Element.getUseCount());
-  EXPECT_EQ(1, Entry2.Element.getUseCount());
+  EXPECT_EQ(1, std::get<GreenNode>(Entry1.Element).getUseCount());
+  EXPECT_EQ(1, std::get<GreenNode>(Entry2.Element).getUseCount());
 }
 } // namespace

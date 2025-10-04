@@ -9,7 +9,7 @@
 
 namespace yuzu::syntax {
 class SyntaxNode;
-class SyntaxChildren;
+class SyntaxChildrenWithoutTokens;
 class SyntaxChildrenWithTokens;
 
 struct SyntaxData {
@@ -26,9 +26,7 @@ public:
 
   explicit SyntaxNode(size_t Offset, const SyntaxNode *Parent, GreenNode Green)
       : Data_(std::make_unique<SyntaxData>(
-            SyntaxData{.Offset = Offset,
-                       .Parent = Parent,
-                       .Green = GreenElement(Green)})) {}
+            SyntaxData{.Offset = Offset, .Parent = Parent, .Green = Green})) {}
 
   SyntaxNode() = delete;
 
@@ -38,15 +36,15 @@ public:
     return Data_->Parent;
   }
 
-  [[nodiscard]] GreenNode getGreen() const noexcept {
-    return Data_->Green.tryGetNode().value();
+  [[nodiscard]] const GreenNode &getGreen() const noexcept {
+    return std::get<GreenNode>(Data_->Green);
   }
 
   [[nodiscard]] SyntaxKind getKind() const noexcept {
-    return Data_->Green.getKind();
+    return std::get<GreenNode>(Data_->Green).getKind();
   }
 
-  [[nodiscard]] SyntaxChildren getChildren() const;
+  [[nodiscard]] SyntaxChildrenWithoutTokens getChildren() const;
 
   [[nodiscard]] SyntaxChildrenWithTokens getChildrenWithTokens() const;
 
@@ -65,15 +63,11 @@ public:
   explicit SyntaxToken(size_t Offset, const SyntaxNode *Parent,
                        GreenToken Green)
       : Data_(std::make_unique<SyntaxData>(
-            SyntaxData{.Offset = Offset,
-                       .Parent = Parent,
-                       .Green = GreenElement(Green)})) {}
+            SyntaxData{.Offset = Offset, .Parent = Parent, .Green = Green})) {}
 
   explicit SyntaxToken(size_t Offset, GreenToken Green)
       : Data_(std::make_unique<SyntaxData>(
-            SyntaxData{.Offset = Offset,
-                       .Parent = nullptr,
-                       .Green = GreenElement(Green)})) {}
+            SyntaxData{.Offset = Offset, .Parent = nullptr, .Green = Green})) {}
 
   SyntaxToken() = delete;
 
@@ -83,12 +77,12 @@ public:
     return Data_->Parent;
   }
 
-  [[nodiscard]] GreenToken getGreen() const noexcept {
-    return Data_->Green.tryGetToken().value();
+  [[nodiscard]] const GreenToken &getGreen() const noexcept {
+    return std::get<GreenToken>(Data_->Green);
   }
 
   [[nodiscard]] SyntaxKind getKind() const noexcept {
-    return Data_->Green.getKind();
+    return std::get<GreenToken>(Data_->Green).getKind();
   }
 
   bool operator==(const SyntaxToken &Other) const noexcept {

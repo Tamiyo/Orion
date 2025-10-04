@@ -1,6 +1,5 @@
 #include "Syntax/Green/GreenBuilder.h"
 
-#include "Syntax/Green/Green.h"
 #include "Syntax/SyntaxKind.h"
 
 #include <gtest/gtest.h>

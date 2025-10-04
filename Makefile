@@ -4,7 +4,7 @@
 BAZEL := bazel
 CC := clang++-18
 
-.PHONY: all build test compdb clean
+.PHONY: all build test test_single compdb clean
 
 # Default target: build the main library
 all: 
@@ -15,7 +15,11 @@ build:
 	CC=$(CC) $(BAZEL) build //...
 
 test:
-	CC=$(CC) $(BAZEL) test --test_output=all //...
+ifdef TEST
+	CC=$(CC) $(BAZEL) test //... --test_arg=--gtest_filter=$(TEST)
+else
+	CC=$(CC) $(BAZEL) test //...
+endif
 
 # Target to generate compile_commands.json for IDEs (e.g., VS Code)
 # This will also build the necessary C++ targets as its dependencies.

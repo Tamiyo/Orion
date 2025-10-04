@@ -11,5 +11,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/Util:yuzu_util",
+        "@fmt",
     ],
 )

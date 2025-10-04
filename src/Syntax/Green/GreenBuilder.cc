@@ -70,7 +70,7 @@ GreenNode GreenBuilder::finish() noexcept {
   const auto Entry = Children_.back();
   Children_.pop_back();
 
-  if (std::optional<GreenNode> Node = Entry.Element.tryGetNode()) {
+  if (const GreenNode *Node = std::get_if<GreenNode>(&Entry.Element)) {
     return *Node;
   } else {
     util::yuzu_unreachable();

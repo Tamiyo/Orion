@@ -3,9 +3,9 @@
 #include "Syntax/SyntaxIterator.h"
 
 namespace yuzu::syntax {
-SyntaxChildren SyntaxNode::getChildren() const { return SyntaxChildren(*this); }
+SyntaxChildrenWithoutTokens SyntaxNode::getChildren() const { return SyntaxChildrenWithoutTokens(this); }
 
 SyntaxChildrenWithTokens SyntaxNode::getChildrenWithTokens() const {
-  return SyntaxChildrenWithTokens(*this);
+  return SyntaxChildrenWithTokens(this);
 }
 } // namespace yuzu::syntax

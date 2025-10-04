@@ -2,28 +2,65 @@
 
 #include "Util/ErrorHandling.h"
 
+#include <cstdlib>
 #include <memory>
-#include <optional>
+#include <new>
 #include <utility>
 #include <vector>
 
 namespace yuzu::syntax {
-GreenNode::GreenNode(SyntaxKind Kind, const std::vector<GreenElement> &Children)
-    : Data_(std::make_shared<GreenNodeData>(
-          GreenNodeData{.Kind = Kind,
-                        .Width = computeWidth(Children),
-                        .Children = std::move(Children)})) {}
+GreenNode::GreenNode(SyntaxKind Kind, GreenElement *Children,
+                     size_t NumChildren, size_t Width) {
+
+  const auto deleter = [Children, NumChildren](GreenNodeData *data) {
+    if (Children) {
+      for (size_t i = 0; i < NumChildren; ++i) {
+        Children[i].~GreenElement();
+      }
+      std::free(Children);
+    }
+    delete data;
+  };
+
+  Data_ = std::shared_ptr<const GreenNodeData>(
+      new GreenNodeData{
+          .Children = Children,
+          .NumChildren = NumChildren,
+          .Width = Width,
+          .Kind = Kind,
+      },
+      deleter);
+}
+
+GreenNode GreenNode::create(SyntaxKind Kind,
+                            std::vector<GreenElement> Children) {
+  const size_t NumChildren = Children.size();
+  const size_t Width = computeWidth(Children);
+
+  GreenElement *ChildrenArray = nullptr;
+
+  if (NumChildren > 0) {
+    ChildrenArray = static_cast<GreenElement *>(
+        std::malloc(sizeof(GreenElement) * NumChildren));
+
+    for (size_t i = 0; i < NumChildren; ++i) {
+      new (&ChildrenArray[i]) GreenElement(std::move(Children[i]));
+    }
+  }
+
+  return GreenNode(Kind, ChildrenArray, NumChildren, Width);
+}
 
 size_t GreenNode::computeWidth(const std::vector<GreenElement> &Children) {
   size_t Width = 0;
 
   for (const GreenElement &Child : Children) {
-    if (const std::optional<GreenNode> Node = Child.tryGetNode()) {
+    if (const GreenNode *Node = std::get_if<GreenNode>(&Child)) {
       Width += Node->getWidth();
       continue;
     }
 
-    if (const std::optional<GreenToken> Token = Child.tryGetToken()) {
+    if (const GreenToken *Token = std::get_if<GreenToken>(&Child)) {
       Width += Token->getWidth();
       continue;
     }
@@ -35,8 +72,17 @@ size_t GreenNode::computeWidth(const std::vector<GreenElement> &Children) {
 }
 
 bool GreenNode::operator==(const GreenNode &Other) const noexcept {
-  return Data_->Kind == Other.Data_->Kind &&
-         Data_->Width == Other.Data_->Width &&
-         Data_->Children == Other.Data_->Children;
+  if (Data_->Kind != Other.Data_->Kind || Data_->Width != Other.Data_->Width ||
+      Data_->NumChildren != Other.Data_->NumChildren) {
+    return false;
+  }
+
+  for (size_t i = 0; i < Data_->NumChildren; ++i) {
+    if (!(Data_->Children[i] == Other.Data_->Children[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 } // namespace yuzu::syntax
