@@ -16,14 +16,14 @@ class Expr {
 public:
   virtual ~Expr() = default;
 
-  template <typename SUBTYPE>[[nodiscard]] bool is() const noexcept {
-    return dynamic_cast<const SUBTYPE *>(this) != nullptr;
+  template <typename Subtype>[[nodiscard]] bool is() const noexcept {
+    return dynamic_cast<const Subtype *>(this) != nullptr;
   }
 
-  template <typename SUBTYPE>
-  [[nodiscard]] std::optional<const SUBTYPE *> tryAs() const {
-    if (is<SUBTYPE>()) {
-      return static_cast<const SUBTYPE *>(this);
+  template <typename Subtype>
+  [[nodiscard]] std::optional<const Subtype *const> tryAs() const {
+    if (is<Subtype>()) {
+      return static_cast<const Subtype *>(this);
     }
 
     return std::nullopt;

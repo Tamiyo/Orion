@@ -1,13 +1,6 @@
 #include "Syntax/Syntax.h"
 
-#include "Syntax/Green/Green.h"
-#include "Syntax/SyntaxKind.h"
-
 #include <gtest/gtest.h>
-
-#include <memory>
-#include <string>
-#include <vector>
 
 namespace {
 using yuzu::syntax::SyntaxData;

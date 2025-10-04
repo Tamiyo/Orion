@@ -21,10 +21,11 @@ GreenCache::Entry GreenCache::getToken(const SyntaxKind Kind,
   const size_t Hash = hashToken(Kind, Source);
 
   auto It = Tokens_.find(Hash);
-  if (It != Tokens_.end())
+  if (It != Tokens_.end()) {
     return Entry{Hash, It->second};
+  }
 
-  auto Token = GreenToken(Kind, Source);
+  const auto Token = GreenToken(Kind, Source);
 
   // Use emplace to avoid copy assignment.
   Tokens_.emplace(Hash, std::move(Token));
@@ -62,8 +63,9 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
     std::vector<GreenElement> EntryElements;
     EntryElements.reserve(ChildrenSize);
 
-    for (size_t I = FirstChild; I < Children->size(); ++I)
+    for (size_t I = FirstChild; I < Children->size(); ++I) {
       EntryElements.push_back(Children->at(I).Element);
+    }
 
     if (const GreenNode *EntryNode = std::get_if<GreenNode>(&CachedElement);
         EntryNode != nullptr && EntryNode->getKind() == Kind &&
@@ -90,8 +92,9 @@ size_t GreenCache::hashNode(const SyntaxKind Kind,
 
   for (size_t I = FirstChild; I < Children.size(); ++I) {
     const size_t ChildHash = Children[I].Hash;
-    if (ChildHash == 0)
+    if (ChildHash == 0) {
       return 0;
+    }
     Hash ^= ChildHash + kHashConstant + (Hash << 6) + (Hash >> 2);
   }
 
@@ -104,8 +107,9 @@ GreenNode GreenCache::buildNode(const SyntaxKind Kind,
   std::vector<GreenElement> Elements;
   Elements.reserve(Children->size() - FirstChild);
 
-  for (size_t I = FirstChild; I < Children->size(); ++I)
+  for (size_t I = FirstChild; I < Children->size(); ++I) {
     Elements.push_back(std::move(Children->at(I).Element));
+  }
 
   Children->erase(Children->begin() + FirstChild, Children->end());
 

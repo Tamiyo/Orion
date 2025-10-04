@@ -4,10 +4,7 @@
 #include "Syntax/Green/GreenCache.h"
 #include "Syntax/SyntaxKind.h"
 
-#include <memory>
 #include <string>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 
 namespace yuzu::syntax {
@@ -47,9 +44,9 @@ private:
     const size_t FirstChild;
   };
 
+  GreenCache Cache_;
   std::vector<GreenBuilder::Parent> Parents_;
   std::vector<GreenCache::Entry> Children_;
-  GreenCache Cache_;
 };
 
 } // namespace yuzu::syntax

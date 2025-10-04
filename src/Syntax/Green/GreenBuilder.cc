@@ -5,9 +5,9 @@
 #include "Syntax/SyntaxKind.h"
 #include "Util/ErrorHandling.h"
 
-#include <memory>
 #include <string>
-#include <utility>
+#include <variant>
+#include <vector>
 
 namespace yuzu::syntax {
 namespace {
@@ -20,7 +20,8 @@ GreenBuilder::GreenBuilder(const size_t MaxNodeSize)
     : Cache_(GreenCache(MaxNodeSize)) {}
 
 void GreenBuilder::startNode(const SyntaxKind Kind) noexcept {
-  Parents_.emplace_back(GreenBuilder::Parent{Kind, Children_.size()});
+  Parents_.emplace_back(
+      GreenBuilder::Parent{.Kind = Kind, .FirstChild = Children_.size()});
 }
 
 void GreenBuilder::finishNode() noexcept {
@@ -49,11 +50,12 @@ void GreenBuilder::startNodeAt(const GreenBuilderCheckpoint &Checkpoint,
     }
   }
 
-  Parents_.emplace_back(GreenBuilder::Parent{Kind, Checkpoint.Index});
+  Parents_.emplace_back(
+      GreenBuilder::Parent{.Kind = Kind, .FirstChild = Checkpoint.Index});
 }
 
 GreenBuilderCheckpoint GreenBuilder::checkpoint() const noexcept {
-  return {Children_.size()};
+  return GreenBuilderCheckpoint{.Index = Children_.size()};
 }
 
 void GreenBuilder::token(const SyntaxKind Kind,
@@ -67,7 +69,7 @@ GreenNode GreenBuilder::finish() noexcept {
     util::yuzu_unreachable();
   }
 
-  const auto Entry = Children_.back();
+  const GreenCache::Entry Entry = Children_.back();
   Children_.pop_back();
 
   if (const GreenNode *Node = std::get_if<GreenNode>(&Entry.Element)) {
