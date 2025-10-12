@@ -1,5 +1,4 @@
 #include "Syntax/Green/Green.h"
-#include "src/Syntax/Green/Green.h"
 
 #include <gtest/gtest.h>
 
@@ -9,16 +8,6 @@ using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenNodeData;
 using yuzu::syntax::GreenToken;
 using yuzu::syntax::GreenTokenData;
-
-TEST(GreenElementTest, GreenElementSizeRequirements) {
-  // std::variant:
-  //   shared_ptr:
-  //     pointer    = 8
-  //     ref_count  = 8
-  // index          = 4
-  // alignment      = 4
-  EXPECT_EQ(24, sizeof(GreenElement));
-}
 
 TEST(GreenNodeTest, GreenNodeSizeRequirements) {
   // shared_ptr:
@@ -38,10 +27,11 @@ TEST(GreenNodeTest, GreenNodeDataSizeRequirements) {
 
 TEST(GreenNodeTest, GreenChildrenAndIterator) {
   const auto Node = GreenNode::create(
-      4, std::vector<GreenElement>{
-             GreenToken(2, U"hello"),
-             GreenNode::create(
-                 4, std::vector<GreenElement>{GreenToken(4, U"world")})});
+      4,
+      std::vector<GreenElement>{GreenElement(GreenToken(2, U"hello")),
+                                GreenElement(GreenNode::create(
+                                    4, std::vector<GreenElement>{GreenElement(
+                                           GreenToken(4, U"world"))}))});
 
   const GreenNode::Children Children = Node.getChildren();
 
@@ -67,4 +57,15 @@ TEST(GreenTokenTest, GreenTokenDataSizeRequirements) {
   // std::u32string_view  = 32
   EXPECT_EQ(40, sizeof(GreenTokenData));
 }
+
+TEST(GreenElementTest, GreenElementSizeRequirements) {
+  // std::variant:
+  //   shared_ptr:
+  //     pointer    = 8
+  //     ref_count  = 8
+  // index          = 4
+  // alignment      = 4
+  EXPECT_EQ(24, sizeof(GreenElement));
+}
+
 } // namespace

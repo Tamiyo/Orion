@@ -9,6 +9,22 @@
 #include <vector>
 
 namespace yuzu::syntax {
+/// =======================
+/// = GreenNode::Iterator =
+/// =======================
+GreenNode::GreenNode::Iterator::reference
+GreenNode::GreenNode::Iterator::operator*() const {
+  return Node_->Data_->Children[Index_];
+}
+
+GreenNode::GreenNode::Iterator::pointer
+GreenNode::GreenNode::Iterator::operator->() const {
+  return &(Node_->Data_->Children[Index_]);
+}
+
+/// =============
+/// = GreenNode =
+/// =============
 GreenNode::GreenNode(SyntaxKind Kind, GreenElement *Children,
                      size_t NumChildren, size_t Width) {
 
@@ -23,12 +39,10 @@ GreenNode::GreenNode(SyntaxKind Kind, GreenElement *Children,
   };
 
   Data_ = std::shared_ptr<const GreenNodeData>(
-      new GreenNodeData{
-          .Children = Children,
-          .NumChildren = NumChildren,
-          .Width = Width,
-          .Kind = Kind,
-      },
+      new GreenNodeData{.Children = Children,
+                        .NumChildren = NumChildren,
+                        .Width = Width,
+                        .Kind = Kind},
       deleter);
 }
 
@@ -55,12 +69,12 @@ size_t GreenNode::computeWidth(const std::vector<GreenElement> &Children) {
   size_t Width = 0;
 
   for (const GreenElement &Child : Children) {
-    if (const GreenNode *Node = std::get_if<GreenNode>(&Child)) {
+    if (const GreenNode *Node = Child.getIfNode()) {
       Width += Node->getWidth();
       continue;
     }
 
-    if (const GreenToken *Token = std::get_if<GreenToken>(&Child)) {
+    if (const GreenToken *Token = Child.getIfToken()) {
       Width += Token->getWidth();
       continue;
     }

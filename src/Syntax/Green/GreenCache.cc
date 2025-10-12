@@ -51,7 +51,7 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
 
   if (ChildrenSize > MaxCachedNodeSize_) {
     auto Node = buildNode(Kind, Children, FirstChild);
-    return Entry{0, Node};
+    return Entry{0, GreenElement(Node)};
   }
 
   const size_t Hash = hashNode(Kind, *Children, FirstChild);
@@ -64,10 +64,10 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
     EntryElements.reserve(ChildrenSize);
 
     for (size_t I = FirstChild; I < Children->size(); ++I) {
-      EntryElements.push_back(Children->at(I).Element);
+      EntryElements.emplace_back(std::move(Children->at(I).Element));
     }
 
-    if (const GreenNode *EntryNode = std::get_if<GreenNode>(&CachedElement);
+    if (const GreenNode *EntryNode = CachedElement.getIfNode();
         EntryNode != nullptr && EntryNode->getKind() == Kind &&
         std::equal(EntryNode->getChildren().begin(),
                    EntryNode->getChildren().end(), EntryElements.begin(),
@@ -108,7 +108,7 @@ GreenNode GreenCache::buildNode(const SyntaxKind Kind,
   Elements.reserve(Children->size() - FirstChild);
 
   for (size_t I = FirstChild; I < Children->size(); ++I) {
-    Elements.push_back(std::move(Children->at(I).Element));
+    Elements.emplace_back(std::move(Children->at(I).Element));
   }
 
   Children->erase(Children->begin() + FirstChild, Children->end());

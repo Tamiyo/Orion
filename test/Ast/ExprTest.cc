@@ -38,19 +38,20 @@ TEST(ExprTest, CastWithChildren) {
       static_cast<uint16_t>(SyntaxKind::InfixExpr),
       std::vector<GreenElement>{
           // 2
-          GreenNode::create(
+          GreenElement(GreenNode::create(
               static_cast<uint16_t>(SyntaxKind::LiteralExpr),
-              std::vector<GreenElement>{
-                  GreenToken(static_cast<uint16_t>(SyntaxKind::Number), U"2")}),
+              std::vector<GreenElement>{GreenElement(GreenToken(
+                  static_cast<uint16_t>(SyntaxKind::Number), U"2"))})),
 
           // +
-          GreenToken(static_cast<uint16_t>(SyntaxKind::Plus), U"+"),
+          GreenElement(
+              GreenToken(static_cast<uint16_t>(SyntaxKind::Plus), U"+")),
 
           // 3
-          GreenNode::create(
+          GreenElement(GreenNode::create(
               static_cast<uint16_t>(SyntaxKind::LiteralExpr),
-              std::vector<GreenElement>{
-                  GreenToken(static_cast<uint16_t>(SyntaxKind::Number), U"3")}),
+              std::vector<GreenElement>{GreenElement(GreenToken(
+                  static_cast<uint16_t>(SyntaxKind::Number), U"3"))})),
       }));
 
   std::unique_ptr<Expr> Ast = ExprBuilder::tryFrom(std::move(Syntax));

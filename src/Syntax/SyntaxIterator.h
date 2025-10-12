@@ -1,128 +1,76 @@
 #ifndef SYNTAX_SYNTAX_ITERATOR_H
 #define SYNTAX_SYNTAX_ITERATOR_H
 
-#include "Syntax/Green/Green.h"
 #include "Syntax/Syntax.h"
-#include "Util/ErrorHandling.h"
+
+#include <iterator>
+#include <optional>
 
 namespace yuzu::syntax {
-class SyntaxIteratorWithoutTokens {
+class SyntaxIterator {
 public:
   using iterator_category = std::forward_iterator_tag;
   using difference_type = std::ptrdiff_t;
   using value_type = const SyntaxNode;
-  using pointer = value_type *;
-  using reference = value_type &;
+  using pointer = const SyntaxNode *;
+  using reference = const SyntaxNode &;
 
-  explicit SyntaxIteratorWithoutTokens(GreenNode::Iterator It,
-                                       const SyntaxNode &Parent)
-      : It_(It), Parent_(&Parent), Offset_(Parent.getOffset()) {
-    skipTokens();
-  }
+  explicit SyntaxIterator(std::optional<SyntaxNode> Current)
+      : Current_(Current) {}
 
-  SyntaxIteratorWithoutTokens() = delete;
+  SyntaxIterator() = delete;
 
-  value_type operator*() const {
-    if (const GreenNode *Node = std::get_if<GreenNode>(&(*It_))) {
-      return SyntaxNode(Offset_, Parent_, *Node);
+  reference operator*() const { return Current_.value(); }
+
+  pointer operator->() const { return &Current_.value(); }
+
+  SyntaxIterator &operator++() {
+    if (Current_.has_value()) {
+      Current_ = Current_->getNextSibling();
     }
-
-    util::yuzu_unreachable();
+    return *this;
   }
 
-  SyntaxIteratorWithoutTokens &operator++() {
-    if (const GreenNode *Node = std::get_if<GreenNode>(&(*It_))) {
-      Offset_ += Node->getWidth();
-
-      ++It_;
-      skipTokens();
-
-      return *this;
-    }
-
-    util::yuzu_unreachable();
-  }
-
-  SyntaxIteratorWithoutTokens operator++(int) {
-    SyntaxIteratorWithoutTokens Tmp = *this;
+  SyntaxIterator operator++(int) {
+    SyntaxIterator Tmp = *this;
     ++(*this);
     return Tmp;
   }
 
-  friend bool operator==(const SyntaxIteratorWithoutTokens &A,
-                         const SyntaxIteratorWithoutTokens &B) {
-    return A.It_ == B.It_ && A.Parent_ == B.Parent_;
+  friend bool operator==(const SyntaxIterator &A, const SyntaxIterator &B) {
+    return A.Current_ == B.Current_;
   }
 
-  friend bool operator!=(const SyntaxIteratorWithoutTokens &A,
-                         const SyntaxIteratorWithoutTokens &B) {
+  friend bool operator!=(const SyntaxIterator &A, const SyntaxIterator &B) {
     return !(A == B);
   }
 
 private:
-  inline void skipTokens() {
-    const GreenNode::Iterator End = Parent_->getGreen().getChildren().end();
-
-    while (It_ != End) {
-      if (const GreenNode *_ = std::get_if<GreenNode>(&(*It_))) {
-        return;
-      }
-
-      if (const GreenToken *Token = std::get_if<GreenToken>(&(*It_))) {
-        Offset_ += Token->getWidth();
-        ++It_;
-        continue;
-      }
-
-      util::yuzu_unreachable();
-    }
-  }
-
-  GreenNode::Iterator It_;
-  const SyntaxNode *const Parent_;
-  size_t Offset_;
+  std::optional<SyntaxNode> Current_;
 };
 
 class SyntaxIteratorWithTokens {
 public:
   using iterator_category = std::forward_iterator_tag;
   using difference_type = std::ptrdiff_t;
-  using value_type = SyntaxElement;
-  using pointer = value_type *;
-  using reference = value_type &;
+  using value_type = const SyntaxElement;
+  using pointer = const SyntaxElement *;
+  using reference = const SyntaxElement &;
 
-  explicit SyntaxIteratorWithTokens(GreenNode::Iterator It,
-                                    const SyntaxNode &Parent)
-      : It_(It), Parent_(&Parent), Offset_(Parent.getOffset()) {}
+  explicit SyntaxIteratorWithTokens(std::optional<SyntaxElement> Current)
+      : Current_(Current) {}
 
   SyntaxIteratorWithTokens() = delete;
 
-  value_type operator*() const {
-    if (const GreenNode *Node = std::get_if<GreenNode>(&(*It_))) {
-      return SyntaxNode(Offset_, Parent_, *Node);
-    }
+  reference operator*() const { return Current_.value(); }
 
-    if (const GreenToken *Token = std::get_if<GreenToken>(&(*It_))) {
-      return SyntaxToken(Offset_, Parent_, *Token);
-    }
-
-    util::yuzu_unreachable();
-  }
+  pointer operator->() const { return &Current_.value(); }
 
   SyntaxIteratorWithTokens &operator++() {
-    if (const GreenNode *Node = std::get_if<GreenNode>(&(*It_))) {
-      Offset_ += Node->getWidth();
-      ++It_;
-      return *this;
+    if (Current_.has_value()) {
+      Current_ = Current_->getNextSiblingOrToken();
     }
-
-    if (const GreenToken *Token = std::get_if<GreenToken>(&(*It_))) {
-      Offset_ += Token->getWidth();
-      ++It_;
-      return *this;
-    }
-
-    util::yuzu_unreachable();
+    return *this;
   }
 
   SyntaxIteratorWithTokens operator++(int) {
@@ -133,7 +81,7 @@ public:
 
   friend bool operator==(const SyntaxIteratorWithTokens &A,
                          const SyntaxIteratorWithTokens &B) {
-    return A.It_ == B.It_ && A.Parent_ == B.Parent_;
+    return A.Current_ == B.Current_;
   }
 
   friend bool operator!=(const SyntaxIteratorWithTokens &A,
@@ -142,25 +90,19 @@ public:
   }
 
 private:
-  GreenNode::Iterator It_;
-  const SyntaxNode *const Parent_;
-  size_t Offset_;
+  std::optional<SyntaxElement> Current_;
 };
 
-class SyntaxChildrenWithoutTokens {
+class SyntaxChildren {
 public:
-  using Iterator = SyntaxIteratorWithoutTokens;
+  using Iterator = SyntaxIterator;
 
-  explicit SyntaxChildrenWithoutTokens(const SyntaxNode *Node) : Node_(Node) {}
-  SyntaxChildrenWithoutTokens() = delete;
+  explicit SyntaxChildren(const SyntaxNode *Node) : Node_(Node) {}
+  SyntaxChildren() = delete;
 
-  Iterator begin() const noexcept {
-    return Iterator(Node_->getGreen().getChildren().begin(), *Node_);
-  }
+  Iterator begin() const noexcept { return Iterator(Node_->getFirstChild()); }
 
-  Iterator end() const noexcept {
-    return Iterator(Node_->getGreen().getChildren().end(), *Node_);
-  }
+  Iterator end() const noexcept { return Iterator(std::nullopt); }
 
 private:
   const SyntaxNode *const Node_;
@@ -174,12 +116,10 @@ public:
   SyntaxChildrenWithTokens() = delete;
 
   Iterator begin() const noexcept {
-    return Iterator(Node_->getGreen().getChildren().begin(), *Node_);
+    return Iterator(Node_->getFirstChildOrToken());
   }
 
-  Iterator end() const noexcept {
-    return Iterator(Node_->getGreen().getChildren().end(), *Node_);
-  }
+  Iterator end() const noexcept { return Iterator(std::nullopt); }
 
 private:
   const SyntaxNode *const Node_;

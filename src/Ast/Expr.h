@@ -9,7 +9,6 @@
 #include <memory>
 #include <optional>
 #include <utility>
-#include <variant>
 
 namespace yuzu::ast {
 class Expr {
@@ -44,7 +43,7 @@ public:
   BinaryExpr &operator=(const BinaryExpr &) = delete;
 
   [[nodiscard]] std::unique_ptr<Expr> getLhs() const {
-    const syntax::SyntaxChildrenWithoutTokens Children = Node_.getChildren();
+    const syntax::SyntaxChildren Children = Node_.getChildren();
 
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
       syntax::SyntaxNode Node = *It;
@@ -59,7 +58,7 @@ public:
   }
 
   [[nodiscard]] std::unique_ptr<Expr> getRhs() const {
-    const syntax::SyntaxChildrenWithoutTokens Children = Node_.getChildren();
+    const syntax::SyntaxChildren Children = Node_.getChildren();
 
     bool LookingForSecondExpr = false;
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
@@ -88,7 +87,7 @@ public:
   ParenExpr &operator=(const ParenExpr &) = delete;
 
   [[nodiscard]] std::unique_ptr<Expr> getValue() {
-    const syntax::SyntaxChildrenWithoutTokens Children = Node_.getChildren();
+    const syntax::SyntaxChildren Children = Node_.getChildren();
 
     for (auto It = Children.begin(), End = Children.end(); It != End; It++) {
       syntax::SyntaxNode Node = *It;
@@ -118,8 +117,8 @@ public:
     for (auto It = ChildrenWithTokens.begin(), End = ChildrenWithTokens.end();
          It != End; It++) {
 
-      const syntax::SyntaxElement Element = *It;
-      if (auto Token = std::get_if<syntax::SyntaxToken>(&Element)) {
+      const auto Element = *It;
+      if (const syntax::SyntaxToken *Token = Element.getIfToken()) {
         return Token->getGreen().getSource();
       }
     }

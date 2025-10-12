@@ -10,7 +10,8 @@ class Expr;
 
 class ExprBuilder {
 public:
-  [[nodiscard]] static std::unique_ptr<Expr> tryFrom(syntax::SyntaxNode Node);
+  [[nodiscard]] static std::unique_ptr<Expr>
+  tryFrom(const syntax::SyntaxNode &Node);
 };
 } // namespace yuzu::ast
 

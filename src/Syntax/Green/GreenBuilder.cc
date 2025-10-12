@@ -6,7 +6,6 @@
 #include "Util/ErrorHandling.h"
 
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace yuzu::syntax {
@@ -72,7 +71,7 @@ GreenNode GreenBuilder::finish() noexcept {
   const GreenCache::Entry Entry = Children_.back();
   Children_.pop_back();
 
-  if (const GreenNode *Node = std::get_if<GreenNode>(&Entry.Element)) {
+  if (const GreenNode *Node = Entry.Element.getIfNode()) {
     return *Node;
   } else {
     util::yuzu_unreachable();
