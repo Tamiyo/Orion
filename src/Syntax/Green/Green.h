@@ -94,7 +94,7 @@ class GreenNode {
 public:
   class Iterator {
   public:
-    using iterator_category = std::forward_iterator_tag;
+    using iterator_category = std::bidirectional_iterator_tag;
     using difference_type = std::ptrdiff_t;
     using value_type = const GreenChild;
     using pointer = value_type *;
@@ -146,22 +146,28 @@ public:
 
   class Children {
   public:
+    using const_iterator = Iterator;
+    using const_reverse_iterator = ReverseIterator;
+    using value_type = Iterator::value_type;
+
     explicit Children(const GreenNode *Node) : Node_(Node) {}
 
     [[nodiscard]] size_t size() const { return Node_->Data_->NumChildren; };
 
-    [[nodiscard]] Iterator begin() const { return Iterator(Node_, 0); }
-
-    [[nodiscard]] Iterator end() const {
-      return Iterator(Node_, Node_->Data_->NumChildren);
+    [[nodiscard]] const_iterator begin() const {
+      return const_iterator(Node_, 0);
     }
 
-    [[nodiscard]] ReverseIterator rbegin() const {
-      return ReverseIterator(begin());
+    [[nodiscard]] const_iterator end() const {
+      return const_iterator(Node_, Node_->Data_->NumChildren);
     }
 
-    [[nodiscard]] ReverseIterator rend() const {
-      return ReverseIterator(end());
+    [[nodiscard]] const_reverse_iterator rbegin() const {
+      return const_reverse_iterator(end());
+    }
+
+    [[nodiscard]] const_reverse_iterator rend() const {
+      return const_reverse_iterator(begin());
     }
 
   private:

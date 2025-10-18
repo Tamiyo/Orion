@@ -1,5 +1,6 @@
 #include "Syntax/Green/Green.h"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 namespace {
@@ -27,22 +28,35 @@ TEST(GreenNodeTest, GreenNodeDataSizeRequirements) {
 }
 
 TEST(GreenNodeTest, GreenChildrenAndIterator) {
+  const auto LeftNode =
+      GreenElement(GreenNode::create(12, std::vector<GreenElement>{
+                                             GreenElement(GreenToken(2, U"3")),
+                                             GreenElement(GreenToken(3, U"-")),
+                                             GreenElement(GreenToken(2, U"2")),
+                                         }));
+
+  const auto EqualToken = GreenElement(GreenToken(9, U"="));
+
+  const auto RightNode =
+      GreenElement(GreenNode::create(11, std::vector<GreenElement>{
+                                             GreenElement(GreenToken(2, U"4")),
+                                             GreenElement(GreenToken(3, U"+")),
+                                             GreenElement(GreenToken(2, U"7")),
+                                         }));
+
   const auto Node = GreenNode::create(
-      4,
-      std::vector<GreenElement>{GreenElement(GreenToken(2, U"hello")),
-                                GreenElement(GreenNode::create(
-                                    4, std::vector<GreenElement>{GreenElement(
-                                           GreenToken(4, U"world"))}))});
+      19, std::vector<GreenElement>{LeftNode, EqualToken, RightNode});
 
-  const GreenNode::Children Children = Node.getChildren();
+  const size_t NumChildren = Node.getNumChildren();
+  EXPECT_EQ(3, NumChildren);
 
-  size_t Count = 0;
-  for (const GreenChild &_ : Children) {
-    Count += 1;
-  }
-
-  EXPECT_EQ(2, Count);
-  EXPECT_EQ(2, Children.size());
+  const GreenNode::Children GreenChildren = Node.getChildren();
+  EXPECT_THAT(GreenChildren, testing::BeginEndDistanceIs(3));
+  EXPECT_THAT(GreenChildren,
+              testing::ElementsAre(
+                  testing::Property(&GreenChild::getElement, LeftNode),
+                  testing::Property(&GreenChild::getElement, EqualToken),
+                  testing::Property(&GreenChild::getElement, RightNode)));
 }
 
 TEST(GreenTokenTest, GreenTokenSizeRequirements) {
