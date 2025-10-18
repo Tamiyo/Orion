@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 namespace {
+using yuzu::syntax::GreenChild;
 using yuzu::syntax::GreenElement;
 using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenNodeData;
@@ -36,7 +37,7 @@ TEST(GreenNodeTest, GreenChildrenAndIterator) {
   const GreenNode::Children Children = Node.getChildren();
 
   size_t Count = 0;
-  for (const GreenElement &_ : Children) {
+  for (const GreenChild &_ : Children) {
     Count += 1;
   }
 
@@ -56,6 +57,12 @@ TEST(GreenTokenTest, GreenTokenDataSizeRequirements) {
   // alignment            = 6
   // std::u32string_view  = 32
   EXPECT_EQ(40, sizeof(GreenTokenData));
+}
+
+TEST(GreenChildTest, GreenChiildSizeRequirements) {
+  // RelativeOffset    = 8
+  // GreenElement      = 24
+  EXPECT_EQ(32, sizeof(GreenChild));
 }
 
 TEST(GreenElementTest, GreenElementSizeRequirements) {

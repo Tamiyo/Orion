@@ -13,6 +13,7 @@
 #include <vector>
 
 namespace yuzu::syntax {
+class GreenChild;
 class GreenNode;
 class GreenToken;
 class GreenElement;
@@ -43,7 +44,7 @@ struct GreenNodeData {
   ///
   /// 3. Children drop with their parents, removing the risk of dangling
   /// pointers.
-  const GreenElement *const Children;
+  const GreenChild *const Children;
 
   /// The number of children that this 'GreenNode' has.
   const size_t NumChildren;
@@ -95,7 +96,7 @@ public:
   public:
     using iterator_category = std::forward_iterator_tag;
     using difference_type = std::ptrdiff_t;
-    using value_type = const GreenElement;
+    using value_type = const GreenChild;
     using pointer = value_type *;
     using reference = value_type &;
 
@@ -173,8 +174,8 @@ public:
   [[nodiscard]] static size_t
   computeWidth(const std::vector<GreenElement> &Children);
 
-  explicit GreenNode(SyntaxKind Kind, GreenElement *Children,
-                     size_t NumChildren, size_t Width);
+  explicit GreenNode(SyntaxKind Kind, GreenChild *Children, size_t NumChildren,
+                     size_t Width);
 
   GreenNode() = delete;
 
@@ -274,6 +275,31 @@ public:
 
 private:
   std::variant<GreenNode, GreenToken> Variant_;
+};
+
+class GreenChild {
+public:
+  explicit GreenChild(const size_t RelativeOffset, const GreenElement &Element)
+      : RelativeOffset_(RelativeOffset), Element_(std::move(Element)) {}
+
+  GreenChild() = delete;
+
+  [[nodiscard]] size_t getRelativeOffset() const noexcept {
+    return RelativeOffset_;
+  }
+
+  [[nodiscard]] const GreenElement &getElement() const noexcept {
+    return Element_;
+  }
+
+  bool operator==(const GreenChild &other) const {
+    return Element_ == other.Element_ &&
+           RelativeOffset_ == other.RelativeOffset_;
+  }
+
+private:
+  const size_t RelativeOffset_;
+  const GreenElement Element_;
 };
 } // namespace yuzu::syntax
 

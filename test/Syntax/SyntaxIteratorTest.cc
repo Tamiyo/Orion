@@ -2,22 +2,18 @@
 
 #include "Syntax/Green/Green.h"
 #include "Syntax/Syntax.h"
-#include "Syntax/SyntaxDebug.h"
 #include "Syntax/SyntaxKind.h"
 
 #include <gtest/gtest.h>
 
-#include <iostream>
 #include <vector>
 
 namespace {
 using yuzu::syntax::GreenElement;
 using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenToken;
-using yuzu::syntax::SyntaxElement;
 using yuzu::syntax::SyntaxKind;
 using yuzu::syntax::SyntaxNode;
-using yuzu::syntax::SyntaxToken;
 
 TEST(SyntaxChildrenTest, NoChildren) {
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());

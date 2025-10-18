@@ -68,12 +68,20 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
     }
 
     if (const GreenNode *EntryNode = CachedElement.getIfNode();
-        EntryNode != nullptr && EntryNode->getKind() == Kind &&
-        std::equal(EntryNode->getChildren().begin(),
-                   EntryNode->getChildren().end(), EntryElements.begin(),
-                   EntryElements.end())) {
-      Children->erase(Children->begin() + FirstChild, Children->end());
-      return Entry{Hash, CachedElement};
+        EntryNode != nullptr) {
+      const bool IsSameKinds = EntryNode->getKind() == Kind;
+
+      const bool IsSameChildren = std::equal(
+          EntryNode->getChildren().begin(), EntryNode->getChildren().end(),
+          EntryElements.begin(), EntryElements.end(),
+          [](const GreenChild &Child, const GreenElement &Element) {
+            return Child.getElement() == Element;
+          });
+
+      if (IsSameKinds && IsSameChildren) {
+        Children->erase(Children->begin() + FirstChild, Children->end());
+        return Entry{Hash, CachedElement};
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 #include "Syntax/Green/Green.h"
 
 #include "Util/ErrorHandling.h"
+#include "src/Syntax/Green/Green.h"
 
 #include <cstdlib>
 #include <memory>
@@ -25,13 +26,13 @@ GreenNode::GreenNode::Iterator::operator->() const {
 /// =============
 /// = GreenNode =
 /// =============
-GreenNode::GreenNode(SyntaxKind Kind, GreenElement *Children,
-                     size_t NumChildren, size_t Width) {
+GreenNode::GreenNode(SyntaxKind Kind, GreenChild *Children, size_t NumChildren,
+                     size_t Width) {
 
   const auto deleter = [Children, NumChildren](GreenNodeData *data) {
     if (Children) {
       for (size_t i = 0; i < NumChildren; ++i) {
-        Children[i].~GreenElement();
+        Children[i].~GreenChild();
       }
       std::free(Children);
     }
@@ -49,16 +50,21 @@ GreenNode::GreenNode(SyntaxKind Kind, GreenElement *Children,
 GreenNode GreenNode::create(SyntaxKind Kind,
                             std::vector<GreenElement> Children) {
   const size_t NumChildren = Children.size();
-  const size_t Width = computeWidth(Children);
+  // const size_t Width = computeWidth(Children);
 
-  GreenElement *ChildrenArray = nullptr;
+  GreenChild *ChildrenArray = nullptr;
+  size_t Width = 0;
 
   if (NumChildren > 0) {
-    ChildrenArray = static_cast<GreenElement *>(
-        std::malloc(sizeof(GreenElement) * NumChildren));
+    ChildrenArray = static_cast<GreenChild *>(
+        std::malloc(sizeof(GreenChild) * NumChildren));
 
     for (size_t i = 0; i < NumChildren; ++i) {
-      new (&ChildrenArray[i]) GreenElement(std::move(Children[i]));
+      size_t RelativeOffset = Width;
+      Width += Children[i].getWidth();
+
+      new (&ChildrenArray[i])
+          GreenChild(RelativeOffset, std::move(Children[i]));
     }
   }
 

@@ -18,6 +18,16 @@ class SyntaxNode;
 class SyntaxToken;
 
 struct SyntaxData {
+  [[nodiscard]] std::optional<const SyntaxNode> getNextSibling() const noexcept;
+
+  [[nodiscard]] std::optional<const SyntaxElement>
+  getNextSiblingOrToken() const noexcept;
+
+  [[nodiscard]] std::optional<const SyntaxNode> getPrevSibling() const noexcept;
+
+  [[nodiscard]] std::optional<const SyntaxElement>
+  getPrevSiblingOrToken() const noexcept;
+
   /// The 'GreenElement' associated with this 'SyntaxData'. When parented to a
   /// 'SyntaxNode', this is a 'GreenNode'. When parented to a 'SyntaxToken',
   /// this is a 'GreenToken'.
@@ -37,11 +47,6 @@ struct SyntaxData {
 
   /// The index of this 'SyntaxData' in the children of 'Parent'.
   const size_t Idx;
-
-  [[nodiscard]] std::optional<const SyntaxNode> getNextSibling() const noexcept;
-
-  [[nodiscard]] std::optional<const SyntaxElement>
-  getNextSiblingOrToken() const noexcept;
 };
 
 class SyntaxNode {
@@ -83,10 +88,20 @@ public:
   [[nodiscard]] std::optional<const SyntaxElement>
   getFirstChildOrToken() const noexcept;
 
+  [[nodiscard]] std::optional<const SyntaxNode> getLastChild() const noexcept;
+
+  [[nodiscard]] std::optional<const SyntaxElement>
+  getLastChildOrToken() const noexcept;
+
   [[nodiscard]] std::optional<const SyntaxNode> getNextSibling() const noexcept;
 
   [[nodiscard]] std::optional<const SyntaxElement>
   getNextSiblingOrToken() const noexcept;
+
+  [[nodiscard]] std::optional<const SyntaxNode> getPrevSibling() const noexcept;
+
+  [[nodiscard]] std::optional<const SyntaxElement>
+  getPrevSiblingOrToken() const noexcept;
 
   bool operator==(const SyntaxNode &Other) const noexcept {
     return Data_->Offset == Other.Data_->Offset &&
@@ -135,6 +150,11 @@ public:
 
   [[nodiscard]] std::optional<const SyntaxElement>
   getNextSiblingOrToken() const noexcept;
+
+  [[nodiscard]] std::optional<const SyntaxNode> getPrevSibling() const noexcept;
+
+  [[nodiscard]] std::optional<const SyntaxElement>
+  getPrevSiblingOrToken() const noexcept;
 
   bool operator==(const SyntaxToken &Other) const noexcept {
     return Data_->Offset == Other.Data_->Offset &&
@@ -199,6 +219,32 @@ public:
 
     if (const SyntaxToken *Token = getIfToken()) {
       return Token->getNextSiblingOrToken();
+    }
+
+    util::yuzu_unreachable();
+  }
+
+  [[nodiscard]] std::optional<const SyntaxNode>
+  getPrevSibling() const noexcept {
+    if (const SyntaxNode *Node = getIfNode()) {
+      return Node->getPrevSibling();
+    }
+
+    if (const SyntaxToken *Token = getIfToken()) {
+      return Token->getPrevSibling();
+    }
+
+    util::yuzu_unreachable();
+  }
+
+  [[nodiscard]] std::optional<const SyntaxElement>
+  getPrevSiblingOrToken() const noexcept {
+    if (const SyntaxNode *Node = getIfNode()) {
+      return Node->getPrevSiblingOrToken();
+    }
+
+    if (const SyntaxToken *Token = getIfToken()) {
+      return Token->getPrevSiblingOrToken();
     }
 
     util::yuzu_unreachable();

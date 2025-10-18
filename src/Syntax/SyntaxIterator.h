@@ -37,6 +37,19 @@ public:
     return Tmp;
   }
 
+  SyntaxIterator &operator--() {
+    if (Current_.has_value()) {
+      Current_ = Current_->getPrevSibling();
+    }
+    return *this;
+  }
+
+  SyntaxIterator operator--(int) {
+    SyntaxIterator Tmp = *this;
+    --(*this);
+    return Tmp;
+  }
+
   friend bool operator==(const SyntaxIterator &A, const SyntaxIterator &B) {
     return A.Current_ == B.Current_;
   }
@@ -79,6 +92,19 @@ public:
     return Tmp;
   }
 
+  SyntaxIteratorWithTokens &operator--() {
+    if (Current_.has_value()) {
+      Current_ = Current_->getPrevSiblingOrToken();
+    }
+    return *this;
+  }
+
+  SyntaxIteratorWithTokens operator--(int) {
+    SyntaxIteratorWithTokens Tmp = *this;
+    --(*this);
+    return Tmp;
+  }
+
   friend bool operator==(const SyntaxIteratorWithTokens &A,
                          const SyntaxIteratorWithTokens &B) {
     return A.Current_ == B.Current_;
@@ -96,6 +122,7 @@ private:
 class SyntaxChildren {
 public:
   using Iterator = SyntaxIterator;
+  using ReverseIterator = std::reverse_iterator<Iterator>;
 
   explicit SyntaxChildren(const SyntaxNode *Node) : Node_(Node) {}
   SyntaxChildren() = delete;
@@ -104,6 +131,14 @@ public:
 
   Iterator end() const noexcept { return Iterator(std::nullopt); }
 
+  ReverseIterator rbegin() const noexcept {
+    return ReverseIterator(Iterator(Node_->getLastChild()));
+  }
+
+  ReverseIterator rend() const noexcept {
+    return ReverseIterator(Iterator(std::nullopt));
+  }
+
 private:
   const SyntaxNode *const Node_;
 };
@@ -111,6 +146,7 @@ private:
 class SyntaxChildrenWithTokens {
 public:
   using Iterator = SyntaxIteratorWithTokens;
+  using ReverseIterator = std::reverse_iterator<Iterator>;
 
   explicit SyntaxChildrenWithTokens(const SyntaxNode *Node) : Node_(Node) {}
   SyntaxChildrenWithTokens() = delete;
@@ -120,6 +156,14 @@ public:
   }
 
   Iterator end() const noexcept { return Iterator(std::nullopt); }
+
+  ReverseIterator rbegin() const noexcept {
+    return ReverseIterator(Iterator(Node_->getLastChildOrToken()));
+  }
+
+  ReverseIterator rend() const noexcept {
+    return ReverseIterator(Iterator(std::nullopt));
+  }
 
 private:
   const SyntaxNode *const Node_;
