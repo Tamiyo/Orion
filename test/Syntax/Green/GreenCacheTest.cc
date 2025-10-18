@@ -1,6 +1,7 @@
 #include "Syntax/Green/GreenCache.h"
 
 #include "Syntax/Green/Green.h"
+#include "Syntax/Green/GreenIterator.h"
 
 #include <gtest/gtest.h>
 
@@ -10,8 +11,6 @@
 
 namespace {
 using yuzu::syntax::GreenCache;
-using yuzu::syntax::GreenNode;
-using yuzu::syntax::GreenToken;
 using yuzu::syntax::SyntaxKind;
 
 constexpr size_t kMaxCachedNodeSize = 3;

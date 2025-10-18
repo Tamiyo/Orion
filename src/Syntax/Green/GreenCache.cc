@@ -1,6 +1,7 @@
 #include "Syntax/Green/GreenCache.h"
 
 #include "Syntax/Green/Green.h"
+#include "Syntax/Green/GreenIterator.h"
 #include "Syntax/SyntaxKind.h"
 
 #include <algorithm>
@@ -22,7 +23,7 @@ GreenCache::Entry GreenCache::getToken(const SyntaxKind Kind,
 
   auto It = Tokens_.find(Hash);
   if (It != Tokens_.end()) {
-    return Entry{Hash, It->second};
+    return Entry{.Hash = Hash, .Element = It->second};
   }
 
   const auto Token = GreenToken(Kind, Source);
@@ -31,7 +32,7 @@ GreenCache::Entry GreenCache::getToken(const SyntaxKind Kind,
   Tokens_.emplace(Hash, std::move(Token));
 
   // Return a GreenCache::Entry with a copy/move of the element.
-  return Entry{Hash, Tokens_.at(Hash)};
+  return Entry{.Hash = Hash, .Element = Tokens_.at(Hash)};
 }
 
 size_t GreenCache::hashToken(const SyntaxKind Kind,

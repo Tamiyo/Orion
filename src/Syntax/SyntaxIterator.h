@@ -121,22 +121,23 @@ private:
 
 class SyntaxChildren {
 public:
-  using Iterator = SyntaxIterator;
-  using ReverseIterator = std::reverse_iterator<Iterator>;
+  using const_iterator = SyntaxIterator;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using value_type = const_iterator::value_type;
 
   explicit SyntaxChildren(const SyntaxNode *Node) : Node_(Node) {}
   SyntaxChildren() = delete;
 
-  Iterator begin() const noexcept { return Iterator(Node_->getFirstChild()); }
+  const_iterator begin() const noexcept { return const_iterator(Node_->getFirstChild()); }
 
-  Iterator end() const noexcept { return Iterator(std::nullopt); }
+  const_iterator end() const noexcept { return const_iterator(std::nullopt); }
 
-  ReverseIterator rbegin() const noexcept {
-    return ReverseIterator(Iterator(Node_->getLastChild()));
+  const_reverse_iterator rbegin() const noexcept {
+    return const_reverse_iterator(const_iterator(Node_->getLastChild()));
   }
 
-  ReverseIterator rend() const noexcept {
-    return ReverseIterator(Iterator(std::nullopt));
+  const_reverse_iterator rend() const noexcept {
+    return const_reverse_iterator(const_iterator(std::nullopt));
   }
 
 private:
@@ -145,24 +146,25 @@ private:
 
 class SyntaxChildrenWithTokens {
 public:
-  using Iterator = SyntaxIteratorWithTokens;
-  using ReverseIterator = std::reverse_iterator<Iterator>;
+  using const_iterator = SyntaxIteratorWithTokens;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using value_type = const_iterator::value_type;
 
   explicit SyntaxChildrenWithTokens(const SyntaxNode *Node) : Node_(Node) {}
   SyntaxChildrenWithTokens() = delete;
 
-  Iterator begin() const noexcept {
-    return Iterator(Node_->getFirstChildOrToken());
+  const_iterator begin() const noexcept {
+    return const_iterator(Node_->getFirstChildOrToken());
   }
 
-  Iterator end() const noexcept { return Iterator(std::nullopt); }
+  const_iterator end() const noexcept { return const_iterator(std::nullopt); }
 
-  ReverseIterator rbegin() const noexcept {
-    return ReverseIterator(Iterator(Node_->getLastChildOrToken()));
+  const_reverse_iterator rbegin() const noexcept {
+    return const_reverse_iterator(const_iterator(Node_->getLastChildOrToken()));
   }
 
-  ReverseIterator rend() const noexcept {
-    return ReverseIterator(Iterator(std::nullopt));
+  const_reverse_iterator rend() const noexcept {
+    return const_reverse_iterator(const_iterator(std::nullopt));
   }
 
 private:

@@ -1,7 +1,6 @@
 #include "Syntax/Green/Green.h"
 
-#include "Util/ErrorHandling.h"
-#include "src/Syntax/Green/Green.h"
+#include "Syntax/Green/GreenIterator.h"
 
 #include <cstdlib>
 #include <memory>
@@ -10,19 +9,6 @@
 #include <vector>
 
 namespace yuzu::syntax {
-/// =======================
-/// = GreenNode::Iterator =
-/// =======================
-GreenNode::GreenNode::Iterator::reference
-GreenNode::GreenNode::Iterator::operator*() const {
-  return Node_->Data_->Children[Index_];
-}
-
-GreenNode::GreenNode::Iterator::pointer
-GreenNode::GreenNode::Iterator::operator->() const {
-  return &(Node_->Data_->Children[Index_]);
-}
-
 /// =============
 /// = GreenNode =
 /// =============
@@ -71,24 +57,8 @@ GreenNode GreenNode::create(SyntaxKind Kind,
   return GreenNode(Kind, ChildrenArray, NumChildren, Width);
 }
 
-size_t GreenNode::computeWidth(const std::vector<GreenElement> &Children) {
-  size_t Width = 0;
-
-  for (const GreenElement &Child : Children) {
-    if (const GreenNode *Node = Child.getIfNode()) {
-      Width += Node->getWidth();
-      continue;
-    }
-
-    if (const GreenToken *Token = Child.getIfToken()) {
-      Width += Token->getWidth();
-      continue;
-    }
-
-    util::yuzu_unreachable();
-  }
-
-  return Width;
+GreenChildren GreenNode::getChildren() const noexcept {
+  return GreenChildren(this);
 }
 
 bool GreenNode::operator==(const GreenNode &Other) const noexcept {

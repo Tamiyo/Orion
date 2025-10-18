@@ -5,7 +5,6 @@
 #include "Util/ErrorHandling.h"
 
 #include <cstddef>
-#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -14,9 +13,11 @@
 
 namespace yuzu::syntax {
 class GreenChild;
+class GreenChildren;
+class GreenElement;
+class GreenIterator;
 class GreenNode;
 class GreenToken;
-class GreenElement;
 
 struct GreenTokenData {
   /// The source code that this 'GreenToken' references. The source code is
@@ -92,93 +93,11 @@ private:
 
 class GreenNode {
 public:
-  class Iterator {
-  public:
-    using iterator_category = std::bidirectional_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using value_type = const GreenChild;
-    using pointer = value_type *;
-    using reference = value_type &;
-
-    explicit Iterator(const GreenNode *Node, size_t Index)
-        : Node_(Node), Index_(Index) {}
-
-    Iterator() = delete;
-
-    [[nodiscard]] reference operator*() const;
-
-    [[nodiscard]] pointer operator->() const;
-
-    Iterator &operator++() {
-      ++Index_;
-      return *this;
-    }
-
-    Iterator &operator--() {
-      --Index_;
-      return *this;
-    }
-
-    Iterator operator++(int) {
-      Iterator tmp = *this;
-      ++Index_;
-      return tmp;
-    }
-
-    Iterator operator--(int) {
-      Iterator tmp = *this;
-      --Index_;
-      return tmp;
-    }
-
-    bool operator==(const Iterator &other) const {
-      return Node_ == other.Node_ && Index_ == other.Index_;
-    }
-
-    bool operator!=(const Iterator &other) const { return !(*this == other); }
-
-  private:
-    const GreenNode *Node_;
-    size_t Index_;
-  };
-
-  using ReverseIterator = std::reverse_iterator<Iterator>;
-
-  class Children {
-  public:
-    using const_iterator = Iterator;
-    using const_reverse_iterator = ReverseIterator;
-    using value_type = Iterator::value_type;
-
-    explicit Children(const GreenNode *Node) : Node_(Node) {}
-
-    [[nodiscard]] size_t size() const { return Node_->Data_->NumChildren; };
-
-    [[nodiscard]] const_iterator begin() const {
-      return const_iterator(Node_, 0);
-    }
-
-    [[nodiscard]] const_iterator end() const {
-      return const_iterator(Node_, Node_->Data_->NumChildren);
-    }
-
-    [[nodiscard]] const_reverse_iterator rbegin() const {
-      return const_reverse_iterator(end());
-    }
-
-    [[nodiscard]] const_reverse_iterator rend() const {
-      return const_reverse_iterator(begin());
-    }
-
-  private:
-    const GreenNode *Node_;
-  };
+  friend class GreenIterator;
+  friend class GreenChildren;
 
   [[nodiscard]] static GreenNode create(SyntaxKind Kind,
                                         std::vector<GreenElement> Children);
-
-  [[nodiscard]] static size_t
-  computeWidth(const std::vector<GreenElement> &Children);
 
   explicit GreenNode(SyntaxKind Kind, GreenChild *Children, size_t NumChildren,
                      size_t Width);
@@ -190,7 +109,7 @@ public:
 
   [[nodiscard]] size_t getWidth() const noexcept { return Data_->Width; }
 
-  [[nodiscard]] Children getChildren() const noexcept { return Children(this); }
+  [[nodiscard]] GreenChildren getChildren() const noexcept;
 
   [[nodiscard]] size_t getNumChildren() const noexcept {
     return Data_->NumChildren;

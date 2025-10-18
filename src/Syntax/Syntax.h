@@ -46,7 +46,7 @@ struct SyntaxData {
   const size_t Offset;
 
   /// The index of this 'SyntaxData' in the children of 'Parent'.
-  const size_t Idx;
+  const size_t Index;
 };
 
 class SyntaxNode {
@@ -61,7 +61,7 @@ public:
             SyntaxData{.Green = GreenElement(Green),
                        .Parent = Parent,
                        .Offset = Offset,
-                       .Idx = Idx})) {}
+                       .Index = Idx})) {}
 
   SyntaxNode() = delete;
 
@@ -121,14 +121,14 @@ public:
             SyntaxData{.Green = GreenElement(Green),
                        .Parent = Parent,
                        .Offset = Offset,
-                       .Idx = Idx})) {}
+                       .Index = Idx})) {}
 
   explicit SyntaxToken(size_t Offset, size_t Idx, GreenToken Green)
       : Data_(std::make_shared<SyntaxData>(
             SyntaxData{.Green = GreenElement(Green),
                        .Parent = nullptr,
                        .Offset = Offset,
-                       .Idx = Idx})) {}
+                       .Index = Idx})) {}
 
   SyntaxToken() = delete;
 
