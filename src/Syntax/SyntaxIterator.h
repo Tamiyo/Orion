@@ -3,6 +3,7 @@
 
 #include "Syntax/Syntax.h"
 
+#include <cstddef>
 #include <iterator>
 #include <optional>
 
@@ -12,8 +13,8 @@ public:
   using iterator_category = std::bidirectional_iterator_tag;
   using difference_type = std::ptrdiff_t;
   using value_type = const SyntaxNode;
-  using pointer = const SyntaxNode *;
-  using reference = const SyntaxNode &;
+  using pointer = value_type *;
+  using reference = value_type &;
 
   explicit SyntaxIterator(std::optional<SyntaxNode> Current)
       : Current_(Current) {}
@@ -28,6 +29,7 @@ public:
     if (Current_.has_value()) {
       Current_ = Current_->getNextSibling();
     }
+
     return *this;
   }
 
@@ -41,6 +43,7 @@ public:
     if (Current_.has_value()) {
       Current_ = Current_->getPrevSibling();
     }
+
     return *this;
   }
 
@@ -67,8 +70,8 @@ public:
   using iterator_category = std::bidirectional_iterator_tag;
   using difference_type = std::ptrdiff_t;
   using value_type = const SyntaxElement;
-  using pointer = const SyntaxElement *;
-  using reference = const SyntaxElement &;
+  using pointer = value_type *;
+  using reference = value_type &;
 
   explicit SyntaxIteratorWithTokens(std::optional<SyntaxElement> Current)
       : Current_(Current) {}
@@ -83,6 +86,7 @@ public:
     if (Current_.has_value()) {
       Current_ = Current_->getNextSiblingOrToken();
     }
+
     return *this;
   }
 
@@ -96,6 +100,7 @@ public:
     if (Current_.has_value()) {
       Current_ = Current_->getPrevSiblingOrToken();
     }
+
     return *this;
   }
 
@@ -128,7 +133,9 @@ public:
   explicit SyntaxChildren(const SyntaxNode *Node) : Node_(Node) {}
   SyntaxChildren() = delete;
 
-  const_iterator begin() const noexcept { return const_iterator(Node_->getFirstChild()); }
+  const_iterator begin() const noexcept {
+    return const_iterator(Node_->getFirstChild());
+  }
 
   const_iterator end() const noexcept { return const_iterator(std::nullopt); }
 

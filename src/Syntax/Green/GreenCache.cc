@@ -5,6 +5,7 @@
 #include "Syntax/SyntaxKind.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,17 +22,15 @@ GreenCache::Entry GreenCache::getToken(const SyntaxKind Kind,
                                        const std::u32string &Source) noexcept {
   const size_t Hash = hashToken(Kind, Source);
 
-  auto It = Tokens_.find(Hash);
+  const auto It = Tokens_.find(Hash);
   if (It != Tokens_.end()) {
     return Entry{.Hash = Hash, .Element = It->second};
   }
 
   const auto Token = GreenToken(Kind, Source);
 
-  // Use emplace to avoid copy assignment.
   Tokens_.emplace(Hash, std::move(Token));
 
-  // Return a GreenCache::Entry with a copy/move of the element.
   return Entry{.Hash = Hash, .Element = Tokens_.at(Hash)};
 }
 
@@ -51,13 +50,13 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
   const size_t ChildrenSize = Children->size() - FirstChild;
 
   if (ChildrenSize > MaxCachedNodeSize_) {
-    auto Node = buildNode(Kind, Children, FirstChild);
-    return Entry{0, GreenElement(Node)};
+    const GreenNode Node = buildNode(Kind, Children, FirstChild);
+    return Entry{.Hash = 0, .Element = GreenElement(Node)};
   }
 
   const size_t Hash = hashNode(Kind, *Children, FirstChild);
 
-  auto It = Nodes_.find(Hash);
+  const auto It = Nodes_.find(Hash);
   if (It != Nodes_.end()) {
     const auto &CachedElement = It->second;
 
@@ -68,8 +67,7 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
       EntryElements.emplace_back(std::move(Children->at(I).Element));
     }
 
-    if (const GreenNode *EntryNode = CachedElement.getIfNode();
-        EntryNode != nullptr) {
+    if (const GreenNode *EntryNode = CachedElement.getIfNode()) {
       const bool IsSameKinds = EntryNode->getKind() == Kind;
 
       const bool IsSameChildren = std::equal(
@@ -86,9 +84,7 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
     }
   }
 
-  auto Node = buildNode(Kind, Children, FirstChild);
-
-  // Use emplace to insert move-only element.
+  const GreenNode Node = buildNode(Kind, Children, FirstChild);
   Nodes_.emplace(Hash, std::move(Node));
 
   return Entry{Hash, Nodes_.at(Hash)};
@@ -116,8 +112,9 @@ GreenNode GreenCache::buildNode(const SyntaxKind Kind,
   std::vector<GreenElement> Elements;
   Elements.reserve(Children->size() - FirstChild);
 
-  for (size_t I = FirstChild; I < Children->size(); ++I) {
-    Elements.emplace_back(std::move(Children->at(I).Element));
+  for (size_t ChildIndex = FirstChild; ChildIndex < Children->size();
+       ++ChildIndex) {
+    Elements.emplace_back(std::move(Children->at(ChildIndex).Element));
   }
 
   Children->erase(Children->begin() + FirstChild, Children->end());

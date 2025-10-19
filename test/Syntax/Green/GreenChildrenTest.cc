@@ -5,6 +5,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <vector>
+
 namespace {
 using yuzu::syntax::GreenChild;
 using yuzu::syntax::GreenChildren;

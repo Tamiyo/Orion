@@ -30,6 +30,18 @@ struct GreenTokenData {
 };
 
 struct GreenNodeData {
+  /// The number of children that this 'GreenNode' has.
+  const size_t NumChildren;
+
+  /// The kind of data this 'GreenNode' references.
+  const SyntaxKind Kind;
+
+  /// The relative size of this 'GreenNode' and it's children. To illustrate
+  /// this, consider a 'GreenNode' with 3 'GreenToken's of that span 2
+  /// characters. The 'Width' of the 'GreenNode' is 6, which is the sum of the
+  /// widths of all of it's children.
+  const size_t Width;
+
   /// A pointer to the start of the children of 'GreenNodeData', stored
   /// contiguously. Storing a raw pointer here is OK, and preferred over using
   /// standard containers like std::vector for a number of reasons.
@@ -46,18 +58,6 @@ struct GreenNodeData {
   /// 3. Children drop with their parents, removing the risk of dangling
   /// pointers.
   const GreenChild *const Children;
-
-  /// The number of children that this 'GreenNode' has.
-  const size_t NumChildren;
-
-  /// The relative size of this 'GreenNode' and it's children. To illustrate
-  /// this, consider a 'GreenNode' with 3 'GreenToken's of that span 2
-  /// characters. The 'Width' of the 'GreenNode' is 6, which is the sum of the
-  /// widths of all of it's children.
-  const size_t Width;
-
-  /// The kind of data this 'GreenNode' references.
-  const SyntaxKind Kind;
 };
 
 class GreenToken {

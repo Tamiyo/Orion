@@ -4,6 +4,7 @@
 #include "Syntax/Green/GreenCache.h"
 #include "Syntax/SyntaxKind.h"
 
+#include <cstddef>
 #include <string>
 #include <vector>
 

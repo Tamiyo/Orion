@@ -3,6 +3,7 @@
 
 #include "Syntax/Green/Green.h"
 
+#include <cstddef>
 #include <iterator>
 
 namespace yuzu::syntax {

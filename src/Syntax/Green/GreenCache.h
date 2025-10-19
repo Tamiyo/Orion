@@ -4,6 +4,7 @@
 #include "Syntax/Green/Green.h"
 #include "Syntax/SyntaxKind.h"
 
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <vector>

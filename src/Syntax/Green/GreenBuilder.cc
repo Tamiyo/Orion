@@ -5,7 +5,9 @@
 #include "Syntax/SyntaxKind.h"
 #include "Util/ErrorHandling.h"
 
+#include <cstddef>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace yuzu::syntax {
@@ -24,6 +26,7 @@ void GreenBuilder::startNode(const SyntaxKind Kind) noexcept {
 }
 
 void GreenBuilder::finishNode() noexcept {
+  // Finishing a node requires a parent.
   if (Parents_.empty()) {
     util::yuzu_unreachable();
   }
@@ -32,17 +35,18 @@ void GreenBuilder::finishNode() noexcept {
   Parents_.pop_back();
 
   const auto Entry = Cache_.getNode(Kind, &Children_, FirstChild);
-
   Children_.emplace_back(Entry);
 }
 
 void GreenBuilder::startNodeAt(const GreenBuilderCheckpoint &Checkpoint,
                                const SyntaxKind Kind) noexcept {
-  if (Checkpoint.Index > Children_.size()) {
+  // Checkpoints should never reference elements outside of Children.
+  if (Checkpoint.Index >= Children_.size()) {
     util::yuzu_unreachable();
   }
 
   if (!Parents_.empty()) {
+    // Checkpoints should never reference elements prior to the current Parent.
     if (const GreenBuilder::Parent Parent = Parents_.back();
         Checkpoint.Index < Parent.FirstChild) {
       util::yuzu_unreachable();
@@ -64,6 +68,7 @@ void GreenBuilder::token(const SyntaxKind Kind,
 }
 
 GreenNode GreenBuilder::finish() noexcept {
+  // Finishing building requires a parent.
   if (!Parents_.empty()) {
     util::yuzu_unreachable();
   }
@@ -71,8 +76,10 @@ GreenNode GreenBuilder::finish() noexcept {
   const GreenCache::Entry Entry = Children_.back();
   Children_.pop_back();
 
+  // The last entry should be a Node, Tokens cannot represent finished Green
+  // trees.
   if (const GreenNode *Node = Entry.Element.getIfNode()) {
-    return *Node;
+    return std::move(*Node);
   } else {
     util::yuzu_unreachable();
   }

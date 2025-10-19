@@ -2,6 +2,7 @@
 
 #include "Syntax/Green/GreenIterator.h"
 
+#include <cstddef>
 #include <cstdlib>
 #include <memory>
 #include <new>
@@ -26,10 +27,10 @@ GreenNode::GreenNode(SyntaxKind Kind, GreenChild *Children, size_t NumChildren,
   };
 
   Data_ = std::shared_ptr<const GreenNodeData>(
-      new GreenNodeData{.Children = Children,
-                        .NumChildren = NumChildren,
+      new GreenNodeData{.NumChildren = NumChildren,
+                        .Kind = Kind,
                         .Width = Width,
-                        .Kind = Kind},
+                        .Children = Children},
       deleter);
 }
 

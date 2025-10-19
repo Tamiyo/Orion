@@ -2,10 +2,10 @@
 
 #include "Syntax/Green/Green.h"
 #include "Syntax/Green/GreenIterator.h"
-#include "Syntax/Syntax.h"
 #include "Syntax/SyntaxIterator.h"
 #include "Util/ErrorHandling.h"
 
+#include <cstddef>
 #include <iterator>
 #include <optional>
 
