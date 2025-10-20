@@ -10,11 +10,10 @@ using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenNodeData;
 using yuzu::syntax::GreenToken;
 
-const auto Node = GreenNode::create(12, std::vector<GreenElement>{
-                                            GreenElement(GreenToken(2, U"3")),
-                                            GreenElement(GreenToken(3, U"-")),
-                                            GreenElement(GreenToken(2, U"2")),
-                                        });
+const auto Node = GreenNode::create(
+    12, std::vector<GreenElement>{GreenElement(GreenToken(2, U"3")),
+                                  GreenElement(GreenToken(3, U"-")),
+                                  GreenElement(GreenToken(2, U"2"))});
 
 TEST(GreenNodeTest, GetKind) {
   // Node has a kind of 12.
@@ -37,12 +36,10 @@ TEST(GreenNodeTest, GetUseCount) {
 }
 
 TEST(GreenNodeTest, Equals) {
-  const auto NodeCopy =
-      GreenNode::create(12, std::vector<GreenElement>{
-                                GreenElement(GreenToken(2, U"3")),
-                                GreenElement(GreenToken(3, U"-")),
-                                GreenElement(GreenToken(2, U"2")),
-                            });
+  const auto NodeCopy = GreenNode::create(
+      12, std::vector<GreenElement>{GreenElement(GreenToken(2, U"3")),
+                                    GreenElement(GreenToken(3, U"-")),
+                                    GreenElement(GreenToken(2, U"2"))});
   EXPECT_TRUE(Node == NodeCopy);
 }
 
