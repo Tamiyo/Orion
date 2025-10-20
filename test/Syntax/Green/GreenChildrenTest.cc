@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <vector>
 
 namespace {
@@ -33,7 +34,25 @@ const auto RightNode =
 const auto Node = GreenNode::create(
     19, std::vector<GreenElement>{LeftNode, EqualToken, RightNode});
 
-TEST(GreenNodeTest, GreenChildrenAndIterator) {
+TEST(GreenChildrenTest, IteratorSize) {
+  EXPECT_EQ(3, Node.getChildren().size());
+}
+
+TEST(GreenChildrenTest, IteratorsEqualTo) {
+  EXPECT_EQ(Node.getChildren().begin(), Node.getChildren().begin());
+  EXPECT_EQ(Node.getChildren().end(), Node.getChildren().end());
+  EXPECT_EQ(Node.getChildren().rbegin(), Node.getChildren().rbegin());
+  EXPECT_EQ(Node.getChildren().rend(), Node.getChildren().rend());
+}
+
+TEST(GreenChildrenTest, IteratorsNotEqualTo) {
+  EXPECT_NE(Node.getChildren().begin(), Node.getChildren().end());
+  EXPECT_NE(Node.getChildren().end(), Node.getChildren().begin());
+  EXPECT_NE(Node.getChildren().rbegin(), Node.getChildren().rend());
+  EXPECT_NE(Node.getChildren().rend(), Node.getChildren().rbegin());
+}
+
+TEST(GreenChildrenTest, IteratesOverAllGreenElements) {
   const size_t NumChildren = Node.getNumChildren();
   EXPECT_EQ(3, NumChildren);
 
@@ -46,7 +65,7 @@ TEST(GreenNodeTest, GreenChildrenAndIterator) {
                   testing::Property(&GreenChild::getElement, RightNode)));
 }
 
-TEST(GreenNodeTest, GreenChildrenAndReverseIterator) {
+TEST(GreenChildrenTest, IteratesOverAllGreenElementsInReverse) {
   const size_t NumChildren = Node.getNumChildren();
   EXPECT_EQ(3, NumChildren);
 

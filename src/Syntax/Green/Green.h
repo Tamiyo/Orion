@@ -87,6 +87,11 @@ public:
            Data_->Source == Other.Data_->Source;
   }
 
+  bool operator!=(const GreenToken &Other) const noexcept {
+    return Data_->Kind != Other.Data_->Kind ||
+           Data_->Source != Other.Data_->Source;
+  }
+
 private:
   std::shared_ptr<const GreenTokenData> Data_;
 };
@@ -120,6 +125,10 @@ public:
   }
 
   bool operator==(const GreenNode &Other) const noexcept;
+
+  bool operator!=(const GreenNode &Other) const noexcept {
+    return !(this == &Other);
+  }
 
 private:
   std::shared_ptr<const GreenNodeData> Data_;
@@ -198,6 +207,10 @@ public:
     return Variant_ == other.Variant_;
   }
 
+  bool operator!=(const GreenElement &other) const {
+    return Variant_ != other.Variant_;
+  }
+
 private:
   std::variant<GreenNode, GreenToken> Variant_;
 };
@@ -220,6 +233,11 @@ public:
   bool operator==(const GreenChild &other) const {
     return Element_ == other.Element_ &&
            RelativeOffset_ == other.RelativeOffset_;
+  }
+
+  bool operator!=(const GreenChild &other) const {
+    return Element_ != other.Element_ ||
+           RelativeOffset_ != other.RelativeOffset_;
   }
 
 private:
