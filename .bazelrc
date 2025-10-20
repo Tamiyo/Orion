@@ -7,8 +7,9 @@ build --cxxopt=-Wall
 build --cxxopt=-Wextra
 build --cxxopt=-Werror
 
-# Override -Werror for external dependencies.
+# Override -Werror for external dependencies and suppress warnings.
 build --per_file_copt=^external/.*@-Wno-error
+build --per_file_copt=^external/.*@-w
 
 # ==============================================================================
 # Common test flags applied to all 'bazel test' commands

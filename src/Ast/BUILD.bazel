@@ -1,4 +1,39 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+# Define the TableGen files as a library
+td_library(
+    name = "yuzu_ast_td_files",
+    srcs = glob(["TableGen/**/*.td"]),
+    includes = ["TableGen"],
+    deps = [
+    ],
+)
+
+# Generate C++ header from TableGen
+gentbl_cc_library(
+    name = "yuzu_ast_expr_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-ast-decls",
+            ],
+            "Expr.h.inc",
+        ),
+        (
+            [
+                "-gen-ast-defs",
+            ],
+            "Expr.cpp.inc",
+        ),
+    ],
+    tblgen = "//tools/TableGen:yuzu_tblgen",
+    td_file = "TableGen/Expr.td",
+    deps = [
+        ":yuzu_ast_td_files",
+        "//src/Syntax:yuzu_syntax",
+    ],
+)
 
 cc_library(
     name = "yuzu_ast",
@@ -10,6 +45,7 @@ cc_library(
     include_prefix = "Ast",
     visibility = ["//visibility:public"],
     deps = [
+        ":yuzu_ast_expr_gen",
         "//src/Syntax:yuzu_syntax",
     ],
 )
