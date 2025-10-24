@@ -1,5 +1,5 @@
-#ifndef SYNTAX_GREEN_GREEN_H
-#define SYNTAX_GREEN_GREEN_H
+#ifndef YUZU_SYNTAX_GREEN_GREEN_H
+#define YUZU_SYNTAX_GREEN_GREEN_H
 
 #include "Syntax/SyntaxKind.h"
 #include "Util/ErrorHandling.h"
@@ -60,7 +60,7 @@ struct GreenNodeData {
   const GreenChild *const Children;
 };
 
-class GreenToken {
+class GreenToken final {
 public:
   explicit GreenToken(const SyntaxKind Kind, const std::u32string &Source)
       : Data_(std::make_shared<const GreenTokenData>(
@@ -96,7 +96,7 @@ private:
   std::shared_ptr<const GreenTokenData> Data_;
 };
 
-class GreenNode {
+class GreenNode final {
 public:
   friend class GreenIterator;
   friend class GreenChildren;
@@ -134,37 +134,34 @@ private:
   std::shared_ptr<const GreenNodeData> Data_;
 };
 
-class GreenElement {
+class GreenElement final : public std::variant<GreenNode, GreenToken> {
 public:
-  explicit GreenElement(const GreenNode &Node) : Variant_(Node) {}
-  explicit GreenElement(const GreenToken &Token) : Variant_(Token) {}
-  explicit GreenElement(GreenNode &&Node) : Variant_(std::move(Node)) {}
-  explicit GreenElement(GreenToken &&Token) : Variant_(std::move(Token)) {}
+  using std::variant<GreenNode, GreenToken>::variant;
 
   GreenElement() = delete;
 
   [[nodiscard]] const GreenNode &getNode() const noexcept {
-    return std::get<GreenNode>(Variant_);
+    return std::get<GreenNode>(*this);
   }
 
   [[nodiscard]] const GreenNode *getIfNode() const noexcept {
-    return std::get_if<GreenNode>(&Variant_);
+    return std::get_if<GreenNode>(this);
   }
 
   [[nodiscard]] const GreenToken &getToken() const noexcept {
-    return std::get<GreenToken>(Variant_);
+    return std::get<GreenToken>(*this);
   }
 
   [[nodiscard]] const GreenToken *getIfToken() const noexcept {
-    return std::get_if<GreenToken>(&Variant_);
+    return std::get_if<GreenToken>(this);
   }
 
   [[nodiscard]] bool isNode() const noexcept {
-    return std::holds_alternative<GreenNode>(Variant_);
+    return std::holds_alternative<GreenNode>(*this);
   }
 
   [[nodiscard]] bool isToken() const noexcept {
-    return std::holds_alternative<GreenToken>(Variant_);
+    return std::holds_alternative<GreenToken>(*this);
   }
 
   [[nodiscard]] SyntaxKind getKind() const noexcept {
@@ -202,20 +199,9 @@ public:
 
     util::yuzu_unreachable();
   }
-
-  bool operator==(const GreenElement &other) const {
-    return Variant_ == other.Variant_;
-  }
-
-  bool operator!=(const GreenElement &other) const {
-    return Variant_ != other.Variant_;
-  }
-
-private:
-  std::variant<GreenNode, GreenToken> Variant_;
 };
 
-class GreenChild {
+class GreenChild final {
 public:
   explicit GreenChild(const size_t RelativeOffset, const GreenElement &Element)
       : RelativeOffset_(RelativeOffset), Element_(std::move(Element)) {}
@@ -246,4 +232,4 @@ private:
 };
 } // namespace yuzu::syntax
 
-#endif // SYNTAX_GREEN_GREEN_H
+#endif // YUZU_SYNTAX_GREEN_GREEN_H

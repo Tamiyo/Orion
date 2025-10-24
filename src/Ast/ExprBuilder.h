@@ -1,5 +1,5 @@
-#ifndef AST_EXPR_BUILDER_H
-#define AST_EXPR_BUILDER_H
+#ifndef YUZU_AST_EXPR_BUILDER_H
+#define YUZU_AST_EXPR_BUILDER_H
 
 #include "Syntax/Syntax.h"
 
@@ -15,4 +15,4 @@ public:
 };
 } // namespace yuzu::ast
 
-#endif // AST_EXPR_BUILDER_H
+#endif // YUZU_AST_EXPR_BUILDER_H

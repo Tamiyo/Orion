@@ -1,43 +1,21 @@
-#ifndef AST_EXPR_H
-#define AST_EXPR_H
+#ifndef YUZU_AST_EXPR_H
+#define YUZU_AST_EXPR_H
 
+#include "Ast/Ast.h"
 #include "Ast/ExprBuilder.h"
 #include "Syntax/Syntax.h"
 #include "Syntax/SyntaxIterator.h"
 #include "Util/ErrorHandling.h"
 
 #include <memory>
-#include <optional>
-#include <string_view>
-#include <utility>
+#include <variant>
 
 namespace yuzu::ast {
-class Expr {
+class Expr;
+
+class BinaryExpr final : public AstNode {
 public:
-  virtual ~Expr() = default;
-
-  template <typename Subtype>[[nodiscard]] bool is() const noexcept {
-    return dynamic_cast<const Subtype *>(this) != nullptr;
-  }
-
-  template <typename Subtype>
-  [[nodiscard]] std::optional<const Subtype *const> tryAs() const {
-    if (is<Subtype>()) {
-      return static_cast<const Subtype *>(this);
-    }
-
-    return std::nullopt;
-  }
-
-protected:
-  explicit Expr(syntax::SyntaxNode Node) : Node_(std::move(Node)) {}
-
-  syntax::SyntaxNode Node_;
-};
-
-class BinaryExpr final : public Expr {
-public:
-  explicit BinaryExpr(syntax::SyntaxNode Node) : Expr(std::move(Node)) {}
+  explicit BinaryExpr(syntax::SyntaxNode Node) : AstNode(std::move(Node)) {}
 
   BinaryExpr() = delete;
   BinaryExpr(const BinaryExpr &) = delete;
@@ -79,9 +57,9 @@ public:
   }
 };
 
-class ParenExpr final : public Expr {
+class ParenExpr final : public AstNode {
 public:
-  explicit ParenExpr(syntax::SyntaxNode Node) : Expr(std::move(Node)) {}
+  explicit ParenExpr(syntax::SyntaxNode Node) : AstNode(std::move(Node)) {}
 
   ParenExpr() = delete;
   ParenExpr(const ParenExpr &) = delete;
@@ -103,9 +81,9 @@ public:
   }
 };
 
-class LiteralExpr final : public Expr {
+class LiteralExpr final : public AstNode {
 public:
-  explicit LiteralExpr(syntax::SyntaxNode Node) : Expr(std::move(Node)) {}
+  explicit LiteralExpr(syntax::SyntaxNode Node) : AstNode(std::move(Node)) {}
 
   LiteralExpr() = delete;
   LiteralExpr(const LiteralExpr &) = delete;
@@ -127,6 +105,13 @@ public:
     util::yuzu_unreachable();
   }
 };
+
+class Expr : public AstNodeLike,
+             public std::variant<BinaryExpr, ParenExpr, LiteralExpr> {
+  using std::variant<BinaryExpr, ParenExpr, LiteralExpr>::variant;
+
+  Expr() = delete;
+};
 } // namespace yuzu::ast
 
-#endif // AST_EXPR_H
+#endif // YUZU_AST_EXPR_H

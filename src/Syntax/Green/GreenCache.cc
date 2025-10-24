@@ -51,7 +51,7 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
 
   if (ChildrenSize > MaxCachedNodeSize_) {
     const GreenNode Node = buildNode(Kind, Children, FirstChild);
-    return Entry{.Hash = 0, .Element = GreenElement(Node)};
+    return Entry{.Hash = 0, .Element = Node};
   }
 
   const size_t Hash = hashNode(Kind, *Children, FirstChild);

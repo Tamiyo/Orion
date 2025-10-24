@@ -1,5 +1,5 @@
-#ifndef AST_SYNTAX_KIND_H
-#define AST_SYNTAX_KIND_H
+#ifndef YUZU_AST_SYNTAX_KIND_H
+#define YUZU_AST_SYNTAX_KIND_H
 
 #include "Syntax/SyntaxKind.h"
 
@@ -20,4 +20,4 @@ enum class SyntaxKind : uint16_t {
 };
 } // namespace yuzu::ast
 
-#endif // AST_SYNTAX_KIND_H
+#endif // YUZU_AST_SYNTAX_KIND_H

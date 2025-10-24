@@ -11,13 +11,13 @@ namespace yuzu::ast {
 std::unique_ptr<Expr> ExprBuilder::tryFrom(const syntax::SyntaxNode &Node) {
   switch (static_cast<SyntaxKind>(Node.getKind())) {
   case SyntaxKind::InfixExpr:
-    return std::make_unique<BinaryExpr>(std::move(Node));
+    return std::make_unique<Expr>(std::in_place_type<BinaryExpr>, Node);
 
   case SyntaxKind::ParenExpr:
-    return std::make_unique<ParenExpr>(std::move(Node));
+    return std::make_unique<Expr>(std::in_place_type<ParenExpr>, Node);
 
   case SyntaxKind::LiteralExpr:
-    return std::make_unique<LiteralExpr>(std::move(Node));
+    return std::make_unique<Expr>(std::in_place_type<LiteralExpr>, Node);
 
   default:
     break;

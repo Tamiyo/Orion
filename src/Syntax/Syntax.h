@@ -1,5 +1,5 @@
-#ifndef SYNTAX_SYNTAX_H
-#define SYNTAX_SYNTAX_H
+#ifndef YUZU_SYNTAX_SYNTAX_H
+#define YUZU_SYNTAX_SYNTAX_H
 
 #include "Syntax/Green/Green.h"
 #include "Syntax/SyntaxKind.h"
@@ -7,7 +7,6 @@
 
 #include <cstddef>
 #include <optional>
-#include <utility>
 #include <variant>
 
 namespace yuzu::syntax {
@@ -49,7 +48,7 @@ struct SyntaxData {
   const size_t Index;
 };
 
-class SyntaxNode {
+class SyntaxNode final {
 public:
   static SyntaxNode createRoot(GreenNode Node) {
     return SyntaxNode(0, 0, nullptr, Node);
@@ -58,7 +57,7 @@ public:
   explicit SyntaxNode(size_t Offset, size_t Idx, const SyntaxNode *Parent,
                       GreenNode Green)
       : Data_(std::make_shared<SyntaxData>(
-            SyntaxData{.Green = GreenElement(Green),
+            SyntaxData{.Green = Green,
                        .Parent = Parent,
                        .Offset = Offset,
                        .Index = Idx})) {}
@@ -113,19 +112,19 @@ private:
   std::shared_ptr<const SyntaxData> Data_;
 };
 
-class SyntaxToken {
+class SyntaxToken final {
 public:
   explicit SyntaxToken(size_t Offset, size_t Idx, const SyntaxNode *Parent,
                        GreenToken Green)
       : Data_(std::make_shared<SyntaxData>(
-            SyntaxData{.Green = GreenElement(Green),
+            SyntaxData{.Green = Green,
                        .Parent = Parent,
                        .Offset = Offset,
                        .Index = Idx})) {}
 
   explicit SyntaxToken(size_t Offset, size_t Idx, GreenToken Green)
       : Data_(std::make_shared<SyntaxData>(
-            SyntaxData{.Green = GreenElement(Green),
+            SyntaxData{.Green = Green,
                        .Parent = nullptr,
                        .Offset = Offset,
                        .Index = Idx})) {}
@@ -166,36 +165,34 @@ private:
   std::shared_ptr<const SyntaxData> Data_;
 };
 
-class SyntaxElement {
+class SyntaxElement final : public std::variant<SyntaxNode, SyntaxToken>{
 public:
-  explicit SyntaxElement(SyntaxNode &Node) : Variant_(std::move(Node)) {}
-
-  explicit SyntaxElement(SyntaxToken &Token) : Variant_(std::move(Token)) {}
+  using std::variant<SyntaxNode, SyntaxToken>::variant;
 
   SyntaxElement() = delete;
 
   [[nodiscard]] const SyntaxNode &getNode() const noexcept {
-    return std::get<SyntaxNode>(Variant_);
+    return std::get<SyntaxNode>(*this);
   }
 
   [[nodiscard]] const SyntaxNode *getIfNode() const noexcept {
-    return std::get_if<SyntaxNode>(&Variant_);
+    return std::get_if<SyntaxNode>(this);
   }
 
   [[nodiscard]] const SyntaxToken &getToken() const noexcept {
-    return std::get<SyntaxToken>(Variant_);
+    return std::get<SyntaxToken>(*this);
   }
 
   [[nodiscard]] const SyntaxToken *getIfToken() const noexcept {
-    return std::get_if<SyntaxToken>(&Variant_);
+    return std::get_if<SyntaxToken>(this);
   }
 
   [[nodiscard]] bool isNode() const noexcept {
-    return std::holds_alternative<SyntaxNode>(Variant_);
+    return std::holds_alternative<SyntaxNode>(*this);
   }
 
   [[nodiscard]] bool isToken() const noexcept {
-    return std::holds_alternative<SyntaxToken>(Variant_);
+    return std::holds_alternative<SyntaxToken>(*this);
   }
 
   [[nodiscard]] std::optional<const SyntaxNode>
@@ -249,14 +246,7 @@ public:
 
     util::yuzu_unreachable();
   }
-
-  bool operator==(const SyntaxElement &other) const {
-    return Variant_ == other.Variant_;
-  }
-
-private:
-  std::variant<SyntaxNode, SyntaxToken> Variant_;
 };
 } // namespace yuzu::syntax
 
-#endif // SYNTAX_SYNTAX_H
+#endif // YUZU_SYNTAX_SYNTAX_H

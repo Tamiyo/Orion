@@ -2,7 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 cc_binary(
     name = "yuzu_tblgen",
-    srcs = ["YuzuGenAstNodes.cc"],
+    srcs = glob(["**/*.cc"]),
     deps = [
         "@llvm-project//llvm:Support",
         "@llvm-project//llvm:TableGen",

@@ -1,5 +1,5 @@
-#ifndef UTIL_ERROR_HANDLING_H
-#define UTIL_ERROR_HANDLING_H
+#ifndef YUZU_UTIL_ERROR_HANDLING_H
+#define YUZU_UTIL_ERROR_HANDLING_H
 
 #include <cstdlib>
 #include <fmt/core.h>
@@ -14,4 +14,4 @@ namespace yuzu::util {
 }
 } // namespace yuzu::util
 
-#endif // UTIL_ERROR_HANDLING_H
+#endif // YUZU_UTIL_ERROR_HANDLING_H

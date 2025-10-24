@@ -30,8 +30,7 @@ TEST(SyntaxChildrenTest, TokensOnlyChildren) {
   const auto Token1 = GreenToken(1, U"t1");
   const auto Token2 = GreenToken(2, U"t2");
   const auto NodeWithTokens =
-      GreenNode::create(11, std::vector<GreenElement>{GreenElement(Token1),
-                                                      GreenElement(Token2)});
+      GreenNode::create(11, std::vector<GreenElement>{Token1, Token2});
   const auto Root = SyntaxNode::createRoot(NodeWithTokens);
 
   int Count = 0;
@@ -44,7 +43,7 @@ TEST(SyntaxChildrenTest, TokensOnlyChildren) {
 TEST(SyntaxChildrenTest, NodesOnlyChildren) {
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
   const auto NodeWithNodes =
-      GreenNode::create(12, std::vector<GreenElement>{GreenElement(NodeEmpty)});
+      GreenNode::create(12, std::vector<GreenElement>{NodeEmpty});
 
   const auto Root = SyntaxNode::createRoot(NodeWithNodes);
 
@@ -60,12 +59,9 @@ TEST(SyntaxChildrenTest, NodesAndTokensChildren) {
   const auto Token2 = GreenToken(2, U"t2");
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
   const auto NodeWithTokens =
-      GreenNode::create(11, std::vector<GreenElement>{GreenElement(Token1),
-                                                      GreenElement(Token2)});
+      GreenNode::create(11, std::vector<GreenElement>{Token1, Token2});
   const auto NodeMixed = GreenNode::create(
-      13, std::vector<GreenElement>{
-              GreenElement(Token1), GreenElement(NodeEmpty),
-              GreenElement(Token2), GreenElement(NodeWithTokens)});
+      13, std::vector<GreenElement>{Token1, NodeEmpty, Token2, NodeWithTokens});
   const auto Root = SyntaxNode::createRoot(NodeMixed);
 
   auto Children = Root.getChildren();
@@ -79,7 +75,7 @@ TEST(SyntaxChildrenTest, NodesAndTokensChildren) {
 TEST(SyntaxChildrenTest, Equals) {
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
   const auto NodeWithNodes =
-      GreenNode::create(12, std::vector<GreenElement>{GreenElement(NodeEmpty)});
+      GreenNode::create(12, std::vector<GreenElement>{NodeEmpty});
   const auto Root = SyntaxNode::createRoot(NodeWithNodes);
   auto Children = Root.getChildren();
 
@@ -89,7 +85,7 @@ TEST(SyntaxChildrenTest, Equals) {
 TEST(SyntaxChildrenTest, NotEquals) {
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
   const auto NodeWithNodes =
-      GreenNode::create(12, std::vector<GreenElement>{GreenElement(NodeEmpty)});
+      GreenNode::create(12, std::vector<GreenElement>{NodeEmpty});
   const auto Root = SyntaxNode::createRoot(NodeWithNodes);
   auto Children = Root.getChildren();
   auto It = Children.begin();
@@ -101,14 +97,11 @@ TEST(SyntaxChildrenTest, NodesWithOffsets) {
   const auto ManyChildren = GreenNode::create(
       0,
       std::vector<GreenElement>{
-          GreenElement(GreenToken(1, U"(")),
-          GreenElement(GreenNode::create(
-              4, std::vector<GreenElement>{GreenElement(GreenToken(3, U"*"))})),
-          GreenElement(GreenNode::create(
-              5, std::vector<GreenElement>{GreenElement(GreenToken(2, U"4"))})),
-          GreenElement(GreenNode::create(
-              5, std::vector<GreenElement>{GreenElement(GreenToken(2, U"3"))})),
-          GreenElement(GreenToken(1, U")")),
+          GreenToken(1, U"("),
+          GreenNode::create(4, std::vector<GreenElement>{GreenToken(3, U"*")}),
+          GreenNode::create(5, std::vector<GreenElement>{GreenToken(2, U"4")}),
+          GreenNode::create(5, std::vector<GreenElement>{GreenToken(2, U"3")}),
+          GreenToken(1, U")"),
       });
 
   const auto Root = SyntaxNode::createRoot(ManyChildren);
@@ -136,8 +129,7 @@ TEST(SyntaxChildrenWithTokensTest, TokensOnlyChildren) {
   const auto Token1 = GreenToken(1, U"t1");
   const auto Token2 = GreenToken(2, U"t2");
   const auto NodeWithTokens =
-      GreenNode::create(11, std::vector<GreenElement>{GreenElement(Token1),
-                                                      GreenElement(Token2)});
+      GreenNode::create(11, std::vector<GreenElement>{Token1, Token2});
   const auto Root = SyntaxNode::createRoot(NodeWithTokens);
 
   int TokenCount = 0;
@@ -151,7 +143,7 @@ TEST(SyntaxChildrenWithTokensTest, TokensOnlyChildren) {
 TEST(SyntaxChildrenWithTokensTest, NodesOnlyChildren) {
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
   const auto NodeWithNodes =
-      GreenNode::create(12, std::vector<GreenElement>{GreenElement(NodeEmpty)});
+      GreenNode::create(12, std::vector<GreenElement>{NodeEmpty});
   const auto Root = SyntaxNode::createRoot(NodeWithNodes);
 
   auto Children = Root.getChildrenWithTokens();
@@ -169,12 +161,9 @@ TEST(SyntaxChildrenWithTokensTest, NodesAndTokensChildren) {
   const auto Token2 = GreenToken(2, U"t2");
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
   const auto NodeWithTokens =
-      GreenNode::create(11, std::vector<GreenElement>{GreenElement(Token1),
-                                                      GreenElement(Token2)});
+      GreenNode::create(11, std::vector<GreenElement>{Token1, Token2});
   const auto NodeMixed = GreenNode::create(
-      13, std::vector<GreenElement>{
-              GreenElement(Token1), GreenElement(NodeEmpty),
-              GreenElement(Token2), GreenElement(NodeWithTokens)});
+      13, std::vector<GreenElement>{Token1, NodeEmpty, Token2, NodeWithTokens});
   const auto Root = SyntaxNode::createRoot(NodeMixed);
 
   auto Children = Root.getChildrenWithTokens();
@@ -199,14 +188,11 @@ TEST(SyntaxChildrenWithTokensTest, ElementOffsets) {
   const auto ManyChildren = GreenNode::create(
       0,
       std::vector<GreenElement>{
-          GreenElement(GreenToken(1, U"(")),
-          GreenElement(GreenNode::create(
-              4, std::vector<GreenElement>{GreenElement(GreenToken(3, U"*"))})),
-          GreenElement(GreenNode::create(
-              5, std::vector<GreenElement>{GreenElement(GreenToken(2, U"4"))})),
-          GreenElement(GreenNode::create(
-              5, std::vector<GreenElement>{GreenElement(GreenToken(2, U"3"))})),
-          GreenElement(GreenToken(5, U")")),
+          GreenToken(1, U"("),
+          GreenNode::create(4, std::vector<GreenElement>{GreenToken(3, U"*")}),
+          GreenNode::create(5, std::vector<GreenElement>{GreenToken(2, U"4")}),
+          GreenNode::create(5, std::vector<GreenElement>{GreenToken(2, U"3")}),
+          GreenToken(5, U")"),
       });
 
   const auto Root = SyntaxNode::createRoot(ManyChildren);
@@ -242,12 +228,9 @@ TEST(SyntaxChildrenWithTokensTest, Equals) {
   const auto Token2 = GreenToken(2, U"t2");
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
   const auto NodeWithTokens =
-      GreenNode::create(11, std::vector<GreenElement>{GreenElement(Token1),
-                                                      GreenElement(Token2)});
+      GreenNode::create(11, std::vector<GreenElement>{Token1, Token2});
   const auto NodeMixed = GreenNode::create(
-      13, std::vector<GreenElement>{
-              GreenElement(Token1), GreenElement(NodeEmpty),
-              GreenElement(Token2), GreenElement(NodeWithTokens)});
+      13, std::vector<GreenElement>{Token1, NodeEmpty, Token2, NodeWithTokens});
   const auto Root = SyntaxNode::createRoot(NodeMixed);
   auto Children = Root.getChildrenWithTokens();
 
@@ -259,12 +242,9 @@ TEST(SyntaxChildrenWithTokensTest, NotEquals) {
   const auto Token2 = GreenToken(2, U"t2");
   const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
   const auto NodeWithTokens =
-      GreenNode::create(11, std::vector<GreenElement>{GreenElement(Token1),
-                                                      GreenElement(Token2)});
+      GreenNode::create(11, std::vector<GreenElement>{Token1, Token2});
   const auto NodeMixed = GreenNode::create(
-      13, std::vector<GreenElement>{
-              GreenElement(Token1), GreenElement(NodeEmpty),
-              GreenElement(Token2), GreenElement(NodeWithTokens)});
+      13, std::vector<GreenElement>{Token1, NodeEmpty, Token2, NodeWithTokens});
   const auto Root = SyntaxNode::createRoot(NodeMixed);
   auto Children = Root.getChildrenWithTokens();
   auto It = Children.begin();

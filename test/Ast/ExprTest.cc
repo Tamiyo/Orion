@@ -13,6 +13,7 @@
 #include <vector>
 
 namespace {
+using yuzu::ast::AstNode;
 using yuzu::ast::BinaryExpr;
 using yuzu::ast::Expr;
 using yuzu::ast::ExprBuilder;
@@ -38,20 +39,19 @@ TEST(ExprTest, CastWithChildren) {
       static_cast<uint16_t>(SyntaxKind::InfixExpr),
       std::vector<GreenElement>{
           // 2
-          GreenElement(GreenNode::create(
+          GreenNode::create(
               static_cast<uint16_t>(SyntaxKind::LiteralExpr),
-              std::vector<GreenElement>{GreenElement(GreenToken(
-                  static_cast<uint16_t>(SyntaxKind::Number), U"2"))})),
+              std::vector<GreenElement>{
+                  GreenToken(static_cast<uint16_t>(SyntaxKind::Number), U"2")}),
 
           // +
-          GreenElement(
-              GreenToken(static_cast<uint16_t>(SyntaxKind::Plus), U"+")),
+          GreenToken(static_cast<uint16_t>(SyntaxKind::Plus), U"+"),
 
           // 3
-          GreenElement(GreenNode::create(
+          GreenNode::create(
               static_cast<uint16_t>(SyntaxKind::LiteralExpr),
-              std::vector<GreenElement>{GreenElement(GreenToken(
-                  static_cast<uint16_t>(SyntaxKind::Number), U"3"))})),
+              std::vector<GreenElement>{
+                  GreenToken(static_cast<uint16_t>(SyntaxKind::Number), U"3")}),
       }));
 
   std::unique_ptr<Expr> Ast = ExprBuilder::tryFrom(std::move(Syntax));

@@ -1,4 +1,5 @@
 #include "Syntax/Green/Green.h"
+#include "src/Syntax/Green/Green.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

@@ -1,5 +1,5 @@
-#ifndef SYNTAX_GREEN_GREEN_BUILDER_H
-#define SYNTAX_GREEN_GREEN_BUILDER_H
+#ifndef YUZU_SYNTAX_GREEN_GREEN_BUILDER_H
+#define YUZU_SYNTAX_GREEN_GREEN_BUILDER_H
 
 #include "Syntax/Green/GreenCache.h"
 #include "Syntax/SyntaxKind.h"
@@ -13,7 +13,7 @@ struct GreenBuilderCheckpoint {
   const size_t Index;
 };
 
-class GreenBuilder {
+class GreenBuilder final {
 public:
   explicit GreenBuilder();
   explicit GreenBuilder(const size_t MaxNodeSize);
@@ -52,4 +52,4 @@ private:
 
 } // namespace yuzu::syntax
 
-#endif // SYNTAX_GREEN_GREEN_BUILDER_H
+#endif // YUZU_SYNTAX_GREEN_GREEN_BUILDER_H

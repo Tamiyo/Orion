@@ -1,5 +1,5 @@
-#ifndef SYNTAX_SYNTAX_ITERATOR_H
-#define SYNTAX_SYNTAX_ITERATOR_H
+#ifndef YUZU_SYNTAX_SYNTAX_ITERATOR_H
+#define YUZU_SYNTAX_SYNTAX_ITERATOR_H
 
 #include "Syntax/Syntax.h"
 
@@ -8,7 +8,7 @@
 #include <optional>
 
 namespace yuzu::syntax {
-class SyntaxIterator {
+class SyntaxIterator final {
 public:
   using iterator_category = std::bidirectional_iterator_tag;
   using difference_type = std::ptrdiff_t;
@@ -65,7 +65,7 @@ private:
   std::optional<SyntaxNode> Current_;
 };
 
-class SyntaxIteratorWithTokens {
+class SyntaxIteratorWithTokens final {
 public:
   using iterator_category = std::bidirectional_iterator_tag;
   using difference_type = std::ptrdiff_t;
@@ -124,7 +124,7 @@ private:
   std::optional<SyntaxElement> Current_;
 };
 
-class SyntaxChildren {
+class SyntaxChildren final {
 public:
   using const_iterator = SyntaxIterator;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
@@ -151,7 +151,7 @@ private:
   const SyntaxNode *const Node_;
 };
 
-class SyntaxChildrenWithTokens {
+class SyntaxChildrenWithTokens final {
 public:
   using const_iterator = SyntaxIteratorWithTokens;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
@@ -179,4 +179,4 @@ private:
 };
 } // namespace yuzu::syntax
 
-#endif // SYNTAX_SYNTAX_ITERATOR_H
+#endif // YUZU_SYNTAX_SYNTAX_ITERATOR_H

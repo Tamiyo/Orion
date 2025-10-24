@@ -1,5 +1,5 @@
-#ifndef SYNTAX_GREEN_GREEN_CACHE_H
-#define SYNTAX_GREEN_GREEN_CACHE_H
+#ifndef YUZU_SYNTAX_GREEN_GREEN_CACHE_H
+#define YUZU_SYNTAX_GREEN_GREEN_CACHE_H
 
 #include "Syntax/Green/Green.h"
 #include "Syntax/SyntaxKind.h"
@@ -11,7 +11,7 @@
 
 namespace yuzu::syntax {
 
-class GreenCache {
+class GreenCache final {
 public:
   struct Entry {
     size_t Hash;
@@ -56,4 +56,4 @@ private:
 
 } // namespace yuzu::syntax
 
-#endif // SYNTAX_GREEN_GREEN_CACHE_H
+#endif // YUZU_SYNTAX_GREEN_GREEN_CACHE_H

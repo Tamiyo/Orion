@@ -78,14 +78,14 @@ SyntaxData::getNextSiblingOrToken() const noexcept {
     auto Node =
         SyntaxNode(SiblingOffset, SiblingIndex, Parent, Element.getNode());
 
-    return SyntaxElement(Node);
+    return Node;
   }
 
   if (Element.isToken()) {
     auto Token =
         SyntaxToken(SiblingOffset, SiblingIndex, Parent, Element.getToken());
 
-    return SyntaxElement(Token);
+    return Token;
   }
 
   util::yuzu_unreachable();
@@ -159,13 +159,13 @@ SyntaxData::getPrevSiblingOrToken() const noexcept {
   if (Element.isNode()) {
     auto Node =
         SyntaxNode(SiblingOffset, SiblingIndex, Parent, Element.getNode());
-    return SyntaxElement(Node);
+    return Node;
   }
 
   if (Element.isToken()) {
     auto Token =
         SyntaxToken(SiblingOffset, SiblingIndex, Parent, Element.getToken());
-    return SyntaxElement(Token);
+    return Token;
   }
 
   util::yuzu_unreachable();
@@ -223,12 +223,12 @@ SyntaxNode::getFirstChildOrToken() const noexcept {
 
   if (Element.isNode()) {
     auto Node = SyntaxNode(ChildOffset, ChildIndex, this, Element.getNode());
-    return SyntaxElement(Node);
+    return Node;
   }
 
   if (Element.isToken()) {
     auto Token = SyntaxToken(ChildOffset, ChildIndex, this, Element.getToken());
-    return SyntaxElement(Token);
+    return Token;
   }
 
   return std::nullopt;
@@ -276,13 +276,13 @@ SyntaxNode::getLastChildOrToken() const noexcept {
   if (It->getElement().isNode()) {
     auto Node =
         SyntaxNode(ChildOffset, ChildIndex, this, It->getElement().getNode());
-    return SyntaxElement(Node);
+    return Node;
   }
 
   if (It->getElement().isToken()) {
     auto Token =
         SyntaxToken(ChildOffset, ChildIndex, this, It->getElement().getToken());
-    return SyntaxElement(Token);
+    return Token;
   }
 
   util::yuzu_unreachable();

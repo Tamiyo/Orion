@@ -1,5 +1,5 @@
-#ifndef SYNTAX_GREEN_GREEN_ITERATOR_H
-#define SYNTAX_GREEN_GREEN_ITERATOR_H
+#ifndef YUZU_SYNTAX_GREEN_GREEN_ITERATOR_H
+#define YUZU_SYNTAX_GREEN_GREEN_ITERATOR_H
 
 #include "Syntax/Green/Green.h"
 
@@ -7,7 +7,7 @@
 #include <iterator>
 
 namespace yuzu::syntax {
-class GreenIterator {
+class GreenIterator final {
 public:
   using iterator_category = std::bidirectional_iterator_tag;
   using difference_type = std::ptrdiff_t;
@@ -63,7 +63,7 @@ private:
   size_t Index_;
 };
 
-class GreenChildren {
+class GreenChildren final {
 public:
   using const_iterator = GreenIterator;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
@@ -94,4 +94,4 @@ private:
 };
 } // namespace yuzu::syntax
 
-#endif // SYNTAX_GREEN_GREEN_ITERATOR_H
+#endif // YUZU_SYNTAX_GREEN_GREEN_ITERATOR_H

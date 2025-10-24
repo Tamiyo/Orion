@@ -1,6 +1,6 @@
-#ifndef AST_STMT_H
-#define AST_STMT_H
+#ifndef YUZU_AST_STMT_H
+#define YUZU_AST_STMT_H
 
 namespace yuzu::ast {} // namespace yuzu::ast
 
-#endif // AST_STMT_H
+#endif // YUZU_AST_STMT_H

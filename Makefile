@@ -6,13 +6,20 @@ CC := clang++-18
 
 .PHONY: all build test test_single compdb clean
 
-# Default target: build the main library
-all: 
+all:
 	$(MAKE) build
 	$(MAKE) compdb
 
-build:
-	CC=$(CC) $(BAZEL) build //...
+build: build-tools build-src build-test
+
+build-tools:
+	CC=$(CC) $(BAZEL) build //tools/...
+
+build-src:
+	CC=$(CC) $(BAZEL) build //src/...
+
+build-test:
+	CC=$(CC) $(BAZEL) build //test/...
 
 test:
 ifdef TEST
@@ -21,12 +28,9 @@ else
 	CC=$(CC) $(BAZEL) test //...
 endif
 
-# Target to generate compile_commands.json for IDEs (e.g., VS Code)
-# This will also build the necessary C++ targets as its dependencies.
 compdb:
 	CC=$(CC) $(BAZEL) run @hedron_compile_commands//:refresh_all
 
-# Target to clean Bazel's cache thoroughly
 clean:
 	CC=$(CC) $(BAZEL) clean --expunge
 	rm compile_commands.json
