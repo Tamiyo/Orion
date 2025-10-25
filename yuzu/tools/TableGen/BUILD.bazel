@@ -1,0 +1,27 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+cc_library(
+    name = "yuzu_tools_tablegen",
+    srcs = glob(
+        ["**/*.cc"],
+        allow_empty = True,
+    ),
+    hdrs = glob(["**/*.h"]),
+    include_prefix = "TableGen",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TableGen",
+    ],
+)
+
+cc_binary(
+    name = "yuzu_tblgen",
+    srcs = glob(["**/*.cc"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//yuzu/tools/TableGen:yuzu_tools_tablegen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TableGen",
+    ],
+)

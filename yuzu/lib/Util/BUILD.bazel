@@ -1,0 +1,16 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "yuzu_util",
+    srcs = glob(
+        ["**/*.cc"],
+        allow_empty = True,
+    ),
+    hdrs = glob(["**/*.h"]),
+    include_prefix = "yuzu/Util",
+    strip_include_prefix = "/yuzu/lib/Util",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@fmt",
+    ],
+)

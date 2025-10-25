@@ -10,16 +10,16 @@ all:
 	$(MAKE) build
 	$(MAKE) compdb
 
-build: build-tools build-src build-test
+build: build-tools build-lib build-test
 
 build-tools:
-	CC=$(CC) $(BAZEL) build //tools/...
+	CC=$(CC) $(BAZEL) build //yuzu/tools/...
 
-build-src:
-	CC=$(CC) $(BAZEL) build //src/...
+build-lib:
+	CC=$(CC) $(BAZEL) build //yuzu/lib/...
 
 build-test:
-	CC=$(CC) $(BAZEL) build //test/...
+	CC=$(CC) $(BAZEL) build //yuzu/test/...
 
 test:
 ifdef TEST
