@@ -10,22 +10,14 @@ all:
 	$(MAKE) build
 	$(MAKE) compdb
 
-build: build-tools build-lib build-test
-
-build-tools:
-	CC=$(CC) $(BAZEL) build //yuzu/tools/...
-
-build-lib:
-	CC=$(CC) $(BAZEL) build //yuzu/lib/...
-
-build-test:
-	CC=$(CC) $(BAZEL) build //yuzu/test/...
+build:
+	CC=$(CC) $(BAZEL) build //yuzu/...
 
 test:
 ifdef TEST
-	CC=$(CC) $(BAZEL) test //... --test_arg=--gtest_filter=$(TEST)
+	CC=$(CC) $(BAZEL) test //yuzu/... --test_arg=--gtest_filter=$(TEST)
 else
-	CC=$(CC) $(BAZEL) test //...
+	CC=$(CC) $(BAZEL) test //yuzu/...
 endif
 
 compdb:

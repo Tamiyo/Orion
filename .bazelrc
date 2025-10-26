@@ -22,8 +22,8 @@ test --local_test_jobs=auto # Use a reasonable number of local jobs for tests
 # Debugging configuration: `--config=dbg`
 # Enables debugging symbols and disables stripping for easier debugging.
 # This config should be used when you want to step through your code.
-# Example usage: `bazel build //yuzu/lib/Syntax:yuzu_syntax --config=dbg`
-#                `bazel test //yuzu/lib/test/Syntax:green_node_test --config=dbg`
+# Example usage: `bazel build //yuzu/Syntax:yuzu_syntax --config=dbg`
+#                `bazel test //yuzu/test/Syntax:green_node_test --config=dbg`
 # ==============================================================================
 common:dbg --copt="-g"          # Emit debug information
 common:dbg --strip=never        # Do not strip debug information from binaries

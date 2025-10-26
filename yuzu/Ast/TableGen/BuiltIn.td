@@ -1,0 +1,3 @@
+class AstNode {
+    string SyntaxKind;
+}
