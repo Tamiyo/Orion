@@ -18,14 +18,14 @@ class SyntaxNode;
 class SyntaxToken;
 
 struct SyntaxData {
-  [[nodiscard]] std::optional< SyntaxNode> getNextSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getNextSiblingOrToken() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxNode> getPrevSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getPrevSiblingOrToken() const noexcept;
 
   /// The 'GreenElement' associated with this 'SyntaxData'. When parented to a
@@ -68,7 +68,6 @@ public:
 
   [[nodiscard]] size_t getIndex() const noexcept { return Data_->Index; }
 
-
   [[nodiscard]] const SyntaxNode *getParent() const noexcept {
     return Data_->Parent;
   }
@@ -85,24 +84,24 @@ public:
 
   [[nodiscard]] SyntaxChildrenWithTokens getChildrenWithTokens() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxNode> getFirstChild() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getFirstChild() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getFirstChildOrToken() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxNode> getLastChild() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getLastChild() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getLastChildOrToken() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxNode> getNextSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getNextSiblingOrToken() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxNode> getPrevSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getPrevSiblingOrToken() const noexcept;
 
   bool operator==(const SyntaxNode &Other) const noexcept {
@@ -148,14 +147,14 @@ public:
     return Data_->Green.getKind();
   }
 
-  [[nodiscard]] std::optional< SyntaxNode> getNextSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getNextSiblingOrToken() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxNode> getPrevSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept;
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getPrevSiblingOrToken() const noexcept;
 
   bool operator==(const SyntaxToken &Other) const noexcept {
@@ -189,6 +188,18 @@ public:
     return std::get_if<SyntaxToken>(this);
   }
 
+  [[nodiscard]] SyntaxKind getKind() const noexcept {
+    if (const SyntaxNode *Node = getIfNode()) {
+      return Node->getKind();
+    }
+
+    if (const SyntaxToken *Token = getIfToken()) {
+      return Token->getKind();
+    }
+
+    util::yuzu_unreachable();
+  }
+
   [[nodiscard]] bool isNode() const noexcept {
     return std::holds_alternative<SyntaxNode>(*this);
   }
@@ -197,8 +208,7 @@ public:
     return std::holds_alternative<SyntaxToken>(*this);
   }
 
-  [[nodiscard]] std::optional< SyntaxNode>
-  getNextSibling() const noexcept {
+  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept {
     if (const SyntaxNode *Node = getIfNode()) {
       return Node->getNextSibling();
     }
@@ -210,7 +220,7 @@ public:
     util::yuzu_unreachable();
   }
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getNextSiblingOrToken() const noexcept {
     if (const SyntaxNode *Node = getIfNode()) {
       return Node->getNextSiblingOrToken();
@@ -223,8 +233,7 @@ public:
     util::yuzu_unreachable();
   }
 
-  [[nodiscard]] std::optional< SyntaxNode>
-  getPrevSibling() const noexcept {
+  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept {
     if (const SyntaxNode *Node = getIfNode()) {
       return Node->getPrevSibling();
     }
@@ -236,7 +245,7 @@ public:
     util::yuzu_unreachable();
   }
 
-  [[nodiscard]] std::optional< SyntaxElement>
+  [[nodiscard]] std::optional<SyntaxElement>
   getPrevSiblingOrToken() const noexcept {
     if (const SyntaxNode *Node = getIfNode()) {
       return Node->getPrevSiblingOrToken();

@@ -27,15 +27,16 @@ public:
   }
 
 protected:
-  virtual void runImpl(llvm::raw_ostream &OS) const = 0;
+  virtual void runImpl(llvm::raw_ostream &OS) const noexcept = 0;
 
-  // Format a string using clang-format
-  // Uses a temp file to avoid shell escaping issues
-  static std::string formatCode(const std::string &Code) {
+  // Format a string using clang-format, using a temp file to avoid shell
+  // escaping issues.
+  static std::string formatCode(const std::string &Code) noexcept {
     // Create a temporary file
     char tempFile[] = "/tmp/clang_format_XXXXXX";
     int fd = mkstemp(tempFile);
-    if (fd == -1) return Code;
+    if (fd == -1)
+      return Code;
 
     // Write code to temp file
     write(fd, Code.c_str(), Code.size());
@@ -47,7 +48,7 @@ protected:
     system(cmd.c_str());
 
     // Read back the formatted file
-    FILE* file = fopen(tempFile, "r");
+    FILE *file = fopen(tempFile, "r");
     if (!file) {
       unlink(tempFile);
       return Code;
@@ -59,7 +60,7 @@ protected:
       result += buffer;
 
     fclose(file);
-    unlink(tempFile);  // Delete temp file
+    unlink(tempFile); // Delete temp file
 
     return result.empty() ? Code : result;
   }

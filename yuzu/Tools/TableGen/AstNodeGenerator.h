@@ -23,21 +23,22 @@ public:
                      std::move(ExternalIncludes), std::move(SystemIncludes)) {}
 
 protected:
-  void runImpl(llvm::raw_ostream &OS) const override;
+  void runImpl(llvm::raw_ostream &OS) const noexcept override;
 
 private:
-  std::string getIncludeGuardName() const override;
+  std::string getIncludeGuardName() const noexcept override;
 
-  void emitClassDefinitions(llvm::raw_ostream &OS) const override;
+  void emitClassDefinitions(llvm::raw_ostream &OS) const noexcept override;
 
   void emitNthAstMethod(llvm::raw_ostream &OS,
-                        const llvm::Record *Record) const;
+                        const llvm::Record *Record) const noexcept;
 
   void emitClassMethods(llvm::raw_ostream &OS,
-                        const llvm::Record *Record) const override;
+                        const llvm::Record *Record) const noexcept override;
 
-  void emitHeader(llvm::raw_ostream &OS) const override;
-  void emitSource(llvm::raw_ostream &OS) const override;
+  void emitHeader(llvm::raw_ostream &OS) const noexcept override;
+
+  void emitSource(llvm::raw_ostream &OS) const noexcept override;
 };
 } // namespace yuzu_tools
 

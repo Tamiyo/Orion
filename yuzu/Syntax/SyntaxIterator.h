@@ -128,7 +128,7 @@ class SyntaxChildren final {
 public:
   using const_iterator = SyntaxIterator;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  using value_type = const_iterator::value_type;
+  using value_type = typename const_iterator::value_type;
 
   explicit SyntaxChildren(const SyntaxNode *Node) : Node_(Node) {}
   SyntaxChildren() = delete;

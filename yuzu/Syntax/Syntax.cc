@@ -51,7 +51,7 @@ std::optional<SyntaxNode> SyntaxData::getNextSibling() const noexcept {
   return SyntaxNode(SiblingOffset, SiblingIndex, Parent, Element.getNode());
 }
 
-std::optional< SyntaxElement>
+std::optional<SyntaxElement>
 SyntaxData::getNextSiblingOrToken() const noexcept {
   // Root nodes have no siblings.
   if (!Parent) {
@@ -91,7 +91,7 @@ SyntaxData::getNextSiblingOrToken() const noexcept {
   util::yuzu_unreachable();
 }
 
-std::optional< SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
   // Root nodes have no siblings.
   if (!Parent) {
     return std::nullopt;
@@ -132,7 +132,7 @@ std::optional< SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
   return SyntaxNode(SiblingOffset, SiblingIndex, Parent, Element.getNode());
 }
 
-std::optional< SyntaxElement>
+std::optional<SyntaxElement>
 SyntaxData::getPrevSiblingOrToken() const noexcept {
   // Root nodes have no siblings.
   if (!Parent) {
@@ -182,7 +182,7 @@ SyntaxChildrenWithTokens SyntaxNode::getChildrenWithTokens() const noexcept {
   return SyntaxChildrenWithTokens(this);
 }
 
-std::optional< SyntaxNode> SyntaxNode::getFirstChild() const noexcept {
+std::optional<SyntaxNode> SyntaxNode::getFirstChild() const noexcept {
   const GreenNode &Green = getGreen();
 
   // Empty nodes have no children.
@@ -206,8 +206,7 @@ std::optional< SyntaxNode> SyntaxNode::getFirstChild() const noexcept {
   return std::nullopt;
 }
 
-std::optional< SyntaxElement>
-SyntaxNode::getFirstChildOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxNode::getFirstChildOrToken() const noexcept {
   const GreenNode &Green = getGreen();
 
   // Empty nodes have no children.
@@ -234,7 +233,7 @@ SyntaxNode::getFirstChildOrToken() const noexcept {
   return std::nullopt;
 }
 
-std::optional< SyntaxNode> SyntaxNode::getLastChild() const noexcept {
+std::optional<SyntaxNode> SyntaxNode::getLastChild() const noexcept {
   const GreenNode &Green = getGreen();
 
   // Empty nodes have no children.
@@ -258,8 +257,7 @@ std::optional< SyntaxNode> SyntaxNode::getLastChild() const noexcept {
   return std::nullopt;
 }
 
-std::optional< SyntaxElement>
-SyntaxNode::getLastChildOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxNode::getLastChildOrToken() const noexcept {
   const GreenNode &Green = getGreen();
 
   // Empty nodes have no children.
@@ -292,16 +290,16 @@ std::optional<SyntaxNode> SyntaxNode::getNextSibling() const noexcept {
   return Data_->getNextSibling();
 }
 
-std::optional< SyntaxElement>
+std::optional<SyntaxElement>
 SyntaxNode::getNextSiblingOrToken() const noexcept {
   return Data_->getNextSiblingOrToken();
 }
 
-std::optional< SyntaxNode> SyntaxNode::getPrevSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxNode::getPrevSibling() const noexcept {
   return Data_->getPrevSibling();
 }
 
-std::optional< SyntaxElement>
+std::optional<SyntaxElement>
 SyntaxNode::getPrevSiblingOrToken() const noexcept {
   return Data_->getPrevSiblingOrToken();
 }
@@ -309,20 +307,20 @@ SyntaxNode::getPrevSiblingOrToken() const noexcept {
 /// ===============
 /// = SyntaxToken =
 /// ===============
-std::optional< SyntaxNode> SyntaxToken::getNextSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxToken::getNextSibling() const noexcept {
   return Data_->getNextSibling();
 }
 
-std::optional< SyntaxElement>
+std::optional<SyntaxElement>
 SyntaxToken::getNextSiblingOrToken() const noexcept {
   return Data_->getNextSiblingOrToken();
 }
 
-std::optional< SyntaxNode> SyntaxToken::getPrevSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxToken::getPrevSibling() const noexcept {
   return Data_->getPrevSibling();
 }
 
-std::optional< SyntaxElement>
+std::optional<SyntaxElement>
 SyntaxToken::getPrevSiblingOrToken() const noexcept {
   return Data_->getPrevSiblingOrToken();
 }

@@ -14,29 +14,17 @@ td_library(
 gentbl_cc_library(
     name = "yuzu_ast_expr_gen",
     tbl_outs = [
-        # (
-        #     [
-        #         "-gen-ast-decls",
-        #     ],
-        #     "Expr.h.inc",
-        # ),
-        # (
-        #     [
-        #         "-gen-ast-defs",
-        #     ],
-        #     "Expr.cpp.inc",
-        # ),
         (
             [
-                "-gen-ast-builder-decls",
+                "-gen-ast-decls",
             ],
-            "ExprBuilder.h.inc",
+            "Expr.h.inc",
         ),
         (
             [
-                "-gen-ast-builder-defs",
+                "-gen-ast-defs",
             ],
-            "ExprBuilder.cpp.inc",
+            "Expr.cpp.inc",
         ),
     ],
     tblgen = "//yuzu/Tools/TableGen:yuzu_tblgen",

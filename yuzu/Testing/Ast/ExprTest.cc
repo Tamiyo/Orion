@@ -1,6 +1,7 @@
 #include "yuzu/Ast/Expr.h"
 
-#include "yuzu/Ast/ExprBuilder.h"
+#include "yuzu/Ast/Ast.h"
+#include "yuzu/Ast/AstIterator.h"
 #include "yuzu/Ast/SyntaxKind.h"
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Syntax.h"
@@ -16,7 +17,6 @@ namespace {
 using yuzu::ast::AstNode;
 using yuzu::ast::BinaryExpr;
 using yuzu::ast::Expr;
-using yuzu::ast::ExprBuilder;
 using yuzu::ast::LiteralExpr;
 using yuzu::ast::SyntaxKind;
 using yuzu::syntax::GreenElement;
@@ -24,62 +24,12 @@ using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenToken;
 using yuzu::syntax::SyntaxNode;
 
-// TEST(ExprTest, CastNoChildren) {
-//   SyntaxNode Syntax = SyntaxNode::createRoot(
-//       GreenNode::create(static_cast<uint16_t>(SyntaxKind::InfixExpr),
-//                         std::vector<GreenElement>()));
+TEST(ExprTest, CastNoChildren) {
+  SyntaxNode Syntax = SyntaxNode::createRoot(
+      GreenNode::create(static_cast<uint16_t>(SyntaxKind::InfixExpr),
+                        std::vector<GreenElement>()));
 
-//   const std::unique_ptr<Expr> Ast = ExprBuilder::tryFrom(std::move(Syntax));
-//   EXPECT_TRUE(Ast->is<BinaryExpr>());
-// }
-
-// TEST(ExprTest, CastWithChildren) {
-//   // 2+3
-//   SyntaxNode Syntax = SyntaxNode::createRoot(GreenNode::create(
-//       static_cast<uint16_t>(SyntaxKind::InfixExpr),
-//       std::vector<GreenElement>{
-//           // 2
-//           GreenNode::create(
-//               static_cast<uint16_t>(SyntaxKind::LiteralExpr),
-//               std::vector<GreenElement>{
-//                   GreenToken(static_cast<uint16_t>(SyntaxKind::Number), U"2")}),
-
-//           // +
-//           GreenToken(static_cast<uint16_t>(SyntaxKind::Plus), U"+"),
-
-//           // 3
-//           GreenNode::create(
-//               static_cast<uint16_t>(SyntaxKind::LiteralExpr),
-//               std::vector<GreenElement>{
-//                   GreenToken(static_cast<uint16_t>(SyntaxKind::Number), U"3")}),
-//       }));
-
-//   std::unique_ptr<Expr> Ast = ExprBuilder::tryFrom(std::move(Syntax));
-//   ASSERT_NE(nullptr, Ast);
-
-//   EXPECT_TRUE(Ast->is<BinaryExpr>());
-
-//   const std::optional<const BinaryExpr *> AstAsBinary =
-//       Ast->tryAs<BinaryExpr>();
-//   ASSERT_NE(nullptr, AstAsBinary);
-
-//   std::unique_ptr<Expr> Lhs = (*AstAsBinary)->getLhs();
-//   std::unique_ptr<Expr> Rhs = (*AstAsBinary)->getRhs();
-//   ASSERT_NE(nullptr, Lhs);
-//   ASSERT_NE(nullptr, Rhs);
-
-//   EXPECT_TRUE(Lhs->is<LiteralExpr>());
-//   EXPECT_TRUE(Rhs->is<LiteralExpr>());
-
-//   const std::optional<const LiteralExpr *> LhsAsLiteral =
-//       Lhs->tryAs<LiteralExpr>();
-
-//   const std::optional<const LiteralExpr *> RhsAsLiteral =
-//       Rhs->tryAs<LiteralExpr>();
-//   ASSERT_NE(nullptr, LhsAsLiteral);
-//   ASSERT_NE(nullptr, RhsAsLiteral);
-
-//   EXPECT_EQ(U"2", (*LhsAsLiteral)->getValue());
-//   EXPECT_EQ(U"3", (*RhsAsLiteral)->getValue());
-// }
+  const std::optional<BinaryExpr> CastedNode = BinaryExpr::cast(Syntax);
+  EXPECT_TRUE(CastedNode.has_value());
+}
 } // namespace

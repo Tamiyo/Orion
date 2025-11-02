@@ -28,27 +28,42 @@ public:
         SystemIncludes_(std::move(SystemIncludes)) {}
 
 protected:
-  virtual std::string getIncludeGuardName() const = 0;
+  virtual std::string getIncludeGuardName() const noexcept = 0;
 
-  void emitOpenIncludeGuards(llvm::raw_ostream &OS) const {
+  virtual void emitClassDefinitions(llvm::raw_ostream &OS) const noexcept = 0;
+
+  virtual void emitClassMethods(llvm::raw_ostream &OS,
+                                const llvm::Record *Record) const noexcept = 0;
+
+  virtual void emitHeader(llvm::raw_ostream &OS) const noexcept = 0;
+
+  virtual void emitSource(llvm::raw_ostream &OS) const noexcept = 0;
+
+  void emitOpenIncludeGuards(llvm::raw_ostream &OS) const noexcept {
     const std::string GuardName = getIncludeGuardName();
     OS << llvm::formatv("#ifndef {0}\n#define {0}\n\n", GuardName);
   }
 
-  void emitCloseIncludeGuards(llvm::raw_ostream &OS) const {
+  void emitCloseIncludeGuards(llvm::raw_ostream &OS) const noexcept {
     OS << llvm::formatv("#endif // {0}\n", getIncludeGuardName());
   }
 
-  void emitIncludes(llvm::raw_ostream &OS) const {
+  void emitIncludes(llvm::raw_ostream &OS) const noexcept {
     const auto EmitIncludes = [&OS](const std::set<std::string> &Includes) {
+      // Don't emit any includes if there are none, this would emit extra
+      // whitespace.
       if (Includes.empty()) {
         return;
       }
 
       for (const auto &Include : Includes) {
+        // Local and customer headers files should use the #include "header"
+        // syntax.
         if (Include.find(".h") != std::string::npos) {
           OS << "#include \"" << Include << "\"\n";
-        } else {
+        }
+        // System headers should use the #include <header> syntax.
+        else {
           OS << "#include <" << Include << ">\n";
         }
       }
@@ -61,13 +76,24 @@ protected:
     EmitIncludes(SystemIncludes_);
   }
 
-  virtual void emitClassDefinitions(llvm::raw_ostream &OS) const = 0;
+  [[nodiscard]] bool
+  isIgnored(const llvm::Record *const Record) const noexcept {
+    // Skip anonymous and base classes. These classes serve as abstractions to
+    // generate AstNodes, but are not actually AstNodes themselves.
+    if (Record->isAnonymous() ||
+        IgnoredClasses_.count(Record->getName().str())) {
+      return true;
+    }
 
-  virtual void emitClassMethods(llvm::raw_ostream &OS,
-                                const llvm::Record *Record) const = 0;
+    // Skip if any superclass should be ignored.
+    for (const llvm::Record *SuperClass : Record->getSuperClasses()) {
+      if (IgnoredSuperClasses_.count(SuperClass->getName().str())) {
+        return true;
+      }
+    }
 
-  virtual void emitHeader(llvm::raw_ostream &OS) const = 0;
-  virtual void emitSource(llvm::raw_ostream &OS) const = 0;
+    return false;
+  }
 
   const std::set<std::string> IgnoredClasses_ = {
       "AstNode",
@@ -78,7 +104,7 @@ protected:
       "AstMethod",
   };
 
-  Type Type_;
+  const Type Type_;
 
 private:
   const std::set<std::string> ProjectIncludes_;
