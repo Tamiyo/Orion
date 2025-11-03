@@ -1,4 +1,3 @@
-#include "TableGen/AstGenerator.h"
 #include "yuzu/Tools/TableGen/AstNodeGenerator.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -15,16 +14,13 @@
 namespace {
 enum ActionType {
   GenAstNodeDecls,
-  GenAstNodeDefs,
 };
 } // namespace
 
 static llvm::cl::opt<ActionType>
     Action(llvm::cl::desc("Action to perform:"),
            llvm::cl::values(clEnumValN(GenAstNodeDecls, "gen-ast-decls",
-                                       "Generate AST node declarations"),
-                            clEnumValN(GenAstNodeDefs, "gen-ast-defs",
-                                       "Generate AST node definitions")));
+                                       "Generate AST node declarations")));
 
 static bool YuzuTableGenMain(llvm::raw_ostream &OS,
                              const llvm::RecordKeeper &Records) {
@@ -36,28 +32,11 @@ static bool YuzuTableGenMain(llvm::raw_ostream &OS,
 
     const auto ExternalIncludes = std::set<std::string>{};
 
-    const auto SystemIncludes = std::set<std::string>{"variant", "utility"};
-
-    yuzu_tools::AstNodeGenerator(
-        Records, yuzu_tools::AstGenerator::Type::Header, ProjectIncludes,
-        ExternalIncludes, SystemIncludes)
-        .run(OS);
-    break;
-  }
-
-  case GenAstNodeDefs: {
-    const auto ProjectIncludes = std::set<std::string>{
-        "yuzu/Ast/Ast.h", "yuzu/Ast/SyntaxKind.h", "yuzu/Syntax/Syntax.h",
-        "yuzu/Syntax/SyntaxIterator.h", "yuzu/Util/ErrorHandling.h"};
-
-    const auto ExternalIncludes = std::set<std::string>{};
-
     const auto SystemIncludes =
-        std::set<std::string>{"memory", "optional", "string", "variant"};
+        std::set<std::string>{"memory", "optional", "variant", "utility"};
 
-    yuzu_tools::AstNodeGenerator(
-        Records, yuzu_tools::AstGenerator::Type::Source, ProjectIncludes,
-        ExternalIncludes, SystemIncludes)
+    yuzu_tools::AstNodeGenerator(Records, ProjectIncludes, ExternalIncludes,
+                                 SystemIncludes)
         .run(OS);
     break;
   }

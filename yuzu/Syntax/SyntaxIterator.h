@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <iterator>
 #include <optional>
+#include <utility>
 
 namespace yuzu::syntax {
 class SyntaxIterator final {
@@ -91,7 +92,7 @@ public:
   }
 
   SyntaxIteratorWithTokens operator++(int) {
-    SyntaxIteratorWithTokens Tmp = *this;
+    SyntaxIteratorWithTokens Tmp = std::move(*this);
     ++(*this);
     return Tmp;
   }
@@ -105,7 +106,7 @@ public:
   }
 
   SyntaxIteratorWithTokens operator--(int) {
-    SyntaxIteratorWithTokens Tmp = *this;
+    SyntaxIteratorWithTokens Tmp = std::move(*this);
     --(*this);
     return Tmp;
   }

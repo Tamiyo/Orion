@@ -12,24 +12,22 @@ TEST(SyntaxNodeTest, SyntaxNodeSizeRequirements) {
   //   shared_ptr:
   //     pointer    = 8
   //     ref_count  = 8
-  EXPECT_EQ(16, sizeof(SyntaxNode));
+  EXPECT_EQ(8, sizeof(SyntaxNode));
 }
 
 TEST(SyntaxTokenTest, SyntaxTokenSizeRequirements) {
   //   shared_ptr:
   //     pointer    = 8
-  //     ref_count  = 88
-  EXPECT_EQ(16, sizeof(SyntaxToken));
+  EXPECT_EQ(8, sizeof(SyntaxToken));
 }
 
 TEST(SyntaxElementTest, SyntaxElementSizeRequirements) {
   // std::variant:
   //   shared_ptr:
   //     pointer    = 8
-  //     ref_count  = 8
   // index          = 4
   // alignment      = 4
-  EXPECT_EQ(24, sizeof(SyntaxElement));
+  EXPECT_EQ(16, sizeof(SyntaxElement));
 }
 
 TEST(SyntaxDataTest, SyntaxDataSizeRequirements) {
@@ -37,6 +35,6 @@ TEST(SyntaxDataTest, SyntaxDataSizeRequirements) {
   // index          = 8
   // parent         = 16
   // green          = 16
-  EXPECT_EQ(48, sizeof(SyntaxData));
+  EXPECT_EQ(56, sizeof(SyntaxData));
 }
 } // namespace

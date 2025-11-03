@@ -20,12 +20,6 @@ gentbl_cc_library(
             ],
             "Expr.h.inc",
         ),
-        (
-            [
-                "-gen-ast-defs",
-            ],
-            "Expr.cpp.inc",
-        ),
     ],
     tblgen = "//yuzu/Tools/TableGen:yuzu_tblgen",
     td_file = "TableGen/Expr.td",

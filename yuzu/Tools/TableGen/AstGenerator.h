@@ -15,14 +15,11 @@
 namespace yuzu_tools {
 class AstGenerator : public Generator {
 public:
-  enum Type { Header, Source };
-
   explicit AstGenerator(const llvm::RecordKeeper &Records,
-                        AstGenerator::Type Type,
                         const std::set<std::string> &ProjectIncludes = {},
                         const std::set<std::string> &ExternalIncludes = {},
                         const std::set<std::string> &SystemIncludes = {})
-      : Generator(std::move(Records)), Type_(Type),
+      : Generator(std::move(Records)),
         ProjectIncludes_(std::move(ProjectIncludes)),
         ExternalIncludes_(std::move(ExternalIncludes)),
         SystemIncludes_(std::move(SystemIncludes)) {}
@@ -32,12 +29,7 @@ protected:
 
   virtual void emitClassDefinitions(llvm::raw_ostream &OS) const noexcept = 0;
 
-  virtual void emitClassMethods(llvm::raw_ostream &OS,
-                                const llvm::Record *Record) const noexcept = 0;
-
   virtual void emitHeader(llvm::raw_ostream &OS) const noexcept = 0;
-
-  virtual void emitSource(llvm::raw_ostream &OS) const noexcept = 0;
 
   void emitOpenIncludeGuards(llvm::raw_ostream &OS) const noexcept {
     const std::string GuardName = getIncludeGuardName();
@@ -103,8 +95,6 @@ protected:
   const std::set<std::string> IgnoredSuperClasses_ = {
       "AstMethod",
   };
-
-  const Type Type_;
 
 private:
   const std::set<std::string> ProjectIncludes_;

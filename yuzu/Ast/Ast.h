@@ -5,14 +5,18 @@
 #include "yuzu/Syntax/Syntax.h"
 #include "yuzu/Syntax/SyntaxIterator.h"
 
+#include <memory>
 #include <optional>
+#include <utility>
 
 namespace yuzu::ast {
 template <typename Self> class AstNode {
 public:
   virtual ~AstNode() = default;
+
   AstNode(const AstNode &) = delete;
   AstNode &operator=(const AstNode &) = delete;
+  
   AstNode(AstNode &&) = default;
   AstNode &operator=(AstNode &&) = default;
 
@@ -32,19 +36,19 @@ protected:
 };
 
 template <typename T>
-[[nodiscard]] std::optional<AstNode<T>> child(syntax::SyntaxNode Node,
-                                              size_t N = 0) noexcept {
+[[nodiscard]] std::unique_ptr<T> child(syntax::SyntaxNode Node,
+                                       size_t N = 0) noexcept {
   size_t Count = 0;
   for (const auto &Child : Node.getChildren()) {
-    const auto CastNode = AstNode<T>::cast(Child.getKind());
+    std::optional<T> CastNode = T::cast(Child);
     if (CastNode.has_value() && Count == N) {
-      return CastNode.value();
+      return std::make_unique<T>(std::move(CastNode.value()));
     } else if (CastNode.has_value() && Count != N) {
       Count += 1;
     }
   }
 
-  return std::nullopt;
+  return nullptr;
 }
 
 template <typename T>

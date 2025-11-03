@@ -7,13 +7,14 @@
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
+#include <cstdint>
 #include <string>
 #include <utility>
 
 namespace yuzu_tools {
-namespace {
-void emitNodeCanCast(llvm::raw_ostream &OS,
-                     const llvm::Record *Record) noexcept {
+
+namespace node {
+void emitCanCast(llvm::raw_ostream &OS, const llvm::Record *Record) noexcept {
   const llvm::StringRef SyntaxKind = Record->getValueAsString("SyntaxKind");
   OS << llvm::formatv(
       R"(
@@ -24,7 +25,7 @@ void emitNodeCanCast(llvm::raw_ostream &OS,
       SyntaxKind);
 }
 
-void emitNodeCast(llvm::raw_ostream &OS, const llvm::Record *Record) noexcept {
+void emitCast(llvm::raw_ostream &OS, const llvm::Record *Record) noexcept {
   OS << llvm::formatv(
       R"(
       [[nodiscard]] static std::optional<{0}>
@@ -41,7 +42,34 @@ void emitNodeCast(llvm::raw_ostream &OS, const llvm::Record *Record) noexcept {
       Record->getName());
 }
 
-void emitVariantCanCast(
+void emitChildAstMethod(llvm::raw_ostream &OS,
+                        const llvm::Record *Method) noexcept {
+  const llvm::StringRef Name = Method->getValueAsString("Name");
+  const int64_t N = Method->getValueAsInt("N");
+  const llvm::StringRef Subclass = Method->getValueAsString("AstNodeSubclass");
+
+  OS << llvm::formatv(
+      R"(
+        [[nodiscard]] std::unique_ptr<{2}>
+        get{0}() const noexcept {
+          return child<{2}>(Node_, {1});
+        }
+        )",
+      Name, N, Subclass);
+}
+
+void emitAstMethods(llvm::raw_ostream &OS,
+                    const llvm::Record *Record) noexcept {
+  for (const auto &Method : Record->getValueAsListOfDefs("Methods")) {
+    if (Method->isSubClassOf("ChildAstMethod")) {
+      emitChildAstMethod(OS, Method);
+    }
+  }
+}
+} // namespace node
+
+namespace variant {
+void emitCanCast(
     llvm::raw_ostream &OS, const llvm::Record *Record,
     const llvm::ArrayRef<const llvm::Record *> DerivedDefinitions) noexcept {
   const auto IfStatements = llvm::map_range(
@@ -66,7 +94,7 @@ void emitVariantCanCast(
       Record->getName(), llvm::join(IfStatements, "\n"));
 }
 
-void emitVariantCast(
+void emitCast(
     llvm::raw_ostream &OS, const llvm::Record *Record,
     const llvm::ArrayRef<const llvm::Record *> DerivedDefinitions) noexcept {
   const auto IfStatements = llvm::map_range(
@@ -94,7 +122,7 @@ void emitVariantCast(
       )",
       Record->getName(), llvm::join(IfStatements, "\n"));
 }
-} // namespace
+} // namespace variant
 
 std::string AstNodeGenerator::getIncludeGuardName() const noexcept {
   const llvm::StringRef Basename =
@@ -130,8 +158,10 @@ void AstNodeGenerator::emitClassDefinitions(
         )",
         Name);
 
-    emitNodeCanCast(OS, Record.get());
-    emitNodeCast(OS, Record.get());
+    node::emitCanCast(OS, Record.get());
+    node::emitCast(OS, Record.get());
+
+    node::emitAstMethods(OS, Record.get());
 
     OS << "\n};\n\n";
   }
@@ -162,24 +192,11 @@ void AstNodeGenerator::emitClassDefinitions(
         )",
         Name, VariantClasses);
 
-    emitVariantCanCast(OS, Record.get(), DerivedDefinitions);
-    emitVariantCast(OS, Record.get(), DerivedDefinitions);
+    variant::emitCanCast(OS, Record.get(), DerivedDefinitions);
+    variant::emitCast(OS, Record.get(), DerivedDefinitions);
 
     OS << "\n};\n\n";
   }
-}
-
-void AstNodeGenerator::emitClassMethods(
-    llvm::raw_ostream &OS, const llvm::Record *Record) const noexcept {
-  const llvm::StringRef SyntaxKind = Record->getValueAsString("SyntaxKind");
-
-  OS << llvm::formatv(
-      R"(
-          [[nodiscard]] static bool canCast(SyntaxKind Kind) noexcept {
-            return Kind == SyntaxKind::{0};
-          }
-      )",
-      SyntaxKind);
 }
 
 void AstNodeGenerator::emitHeader(llvm::raw_ostream &OS) const noexcept {
@@ -197,15 +214,7 @@ void AstNodeGenerator::emitHeader(llvm::raw_ostream &OS) const noexcept {
   emitCloseIncludeGuards(OS);
 }
 
-void AstNodeGenerator::emitSource(llvm::raw_ostream &OS) const noexcept {
-  (void)OS;
-}
-
 void AstNodeGenerator::runImpl(llvm::raw_ostream &OS) const noexcept {
-  if (Type_ == AstGenerator::Type::Source) {
-    emitSource(OS);
-  } else {
-    emitHeader(OS);
-  }
+  emitHeader(OS);
 }
 } // namespace yuzu_tools

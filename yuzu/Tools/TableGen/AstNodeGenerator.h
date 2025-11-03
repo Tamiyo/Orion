@@ -15,11 +15,10 @@ namespace yuzu_tools {
 class AstNodeGenerator final : public AstGenerator {
 public:
   explicit AstNodeGenerator(const llvm::RecordKeeper &Records,
-                            AstGenerator::Type Type,
                             const std::set<std::string> &ProjectIncludes = {},
                             const std::set<std::string> &ExternalIncludes = {},
                             const std::set<std::string> &SystemIncludes = {})
-      : AstGenerator(Records, Type, std::move(ProjectIncludes),
+      : AstGenerator(Records, std::move(ProjectIncludes),
                      std::move(ExternalIncludes), std::move(SystemIncludes)) {}
 
 protected:
@@ -30,15 +29,7 @@ private:
 
   void emitClassDefinitions(llvm::raw_ostream &OS) const noexcept override;
 
-  void emitNthAstMethod(llvm::raw_ostream &OS,
-                        const llvm::Record *Record) const noexcept;
-
-  void emitClassMethods(llvm::raw_ostream &OS,
-                        const llvm::Record *Record) const noexcept override;
-
   void emitHeader(llvm::raw_ostream &OS) const noexcept override;
-
-  void emitSource(llvm::raw_ostream &OS) const noexcept override;
 };
 } // namespace yuzu_tools
 

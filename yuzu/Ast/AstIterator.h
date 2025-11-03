@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <iterator>
 #include <optional>
+#include <utility>
 
 namespace yuzu::ast {
 template <typename T> class AstIterator final {
@@ -17,7 +18,7 @@ public:
   using pointer = value_type *;
   using reference = value_type &;
 
-  explicit AstIterator(syntax::SyntaxChildren::const_iterator It) : It_(It) {}
+  explicit AstIterator(syntax::SyntaxChildren::const_iterator It) : It_(std::move(It)) {}
 
   AstIterator() = delete;
 

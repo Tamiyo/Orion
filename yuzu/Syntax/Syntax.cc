@@ -15,25 +15,25 @@ namespace yuzu::syntax {
 /// ===============
 std::optional<SyntaxNode> SyntaxData::getNextSibling() const noexcept {
   // Root nodes have no siblings.
-  if (!Parent) {
+  if (!Parent_) {
     return std::nullopt;
   }
 
-  const GreenNode &Green = Parent->getGreen();
+  const GreenNode &Green = Parent_->getGreen().getNode();
 
   // Ensure we don't iterate past the last child.
-  if (Index + 1 >= Green.getNumChildren()) {
+  if (Index_ + 1 >= Green.getNumChildren()) {
     return std::nullopt;
   }
 
   const auto Siblings = Green.getChildren();
 
   // Start after the current element to find the next sibling node.
-  auto It = std::next(Siblings.begin(), Index + 1);
+  auto It = std::next(Siblings.begin(), Index_ + 1);
   const auto End = Siblings.end();
 
   // Find the next node, skipping any tokens.
-  size_t SiblingIndex = Index + 1;
+  size_t SiblingIndex = Index_ + 1;
   for (; It != End; ++It, ++SiblingIndex) {
     const auto &Element = It->getElement();
     if (Element.isNode()) {
@@ -47,43 +47,43 @@ std::optional<SyntaxNode> SyntaxData::getNextSibling() const noexcept {
   }
 
   const auto &Element = It->getElement();
-  const size_t SiblingOffset = Parent->getOffset() + It->getRelativeOffset();
-  return SyntaxNode(SiblingOffset, SiblingIndex, Parent, Element.getNode());
+  const size_t SiblingOffset = Parent_->getOffset() + It->getRelativeOffset();
+  return SyntaxNode(SiblingOffset, SiblingIndex, Parent_, Element.getNode());
 }
 
 std::optional<SyntaxElement>
 SyntaxData::getNextSiblingOrToken() const noexcept {
   // Root nodes have no siblings.
-  if (!Parent) {
+  if (!Parent_) {
     return std::nullopt;
   }
 
-  const GreenNode &Green = Parent->getGreen();
+  const GreenNode &Green = Parent_->getGreen().getNode();
 
   // Ensure we don't iterate past the last child.
-  if (Index + 1 >= Green.getNumChildren()) {
+  if (Index_ + 1 >= Green.getNumChildren()) {
     return std::nullopt;
   }
 
   const auto Siblings = Green.getChildren();
 
   // Get the element immediately after the current position.
-  auto It = std::next(Siblings.begin(), Index + 1);
+  auto It = std::next(Siblings.begin(), Index_ + 1);
 
   const auto &Element = It->getElement();
-  const size_t SiblingOffset = Parent->getOffset() + It->getRelativeOffset();
-  const size_t SiblingIndex = Index + 1;
+  const size_t SiblingOffset = Parent_->getOffset() + It->getRelativeOffset();
+  const size_t SiblingIndex = Index_ + 1;
 
   if (Element.isNode()) {
     auto Node =
-        SyntaxNode(SiblingOffset, SiblingIndex, Parent, Element.getNode());
+        SyntaxNode(SiblingOffset, SiblingIndex, Parent_, Element.getNode());
 
     return Node;
   }
 
   if (Element.isToken()) {
     auto Token =
-        SyntaxToken(SiblingOffset, SiblingIndex, Parent, Element.getToken());
+        SyntaxToken(SiblingOffset, SiblingIndex, Parent_, Element.getToken());
 
     return Token;
   }
@@ -93,14 +93,14 @@ SyntaxData::getNextSiblingOrToken() const noexcept {
 
 std::optional<SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
   // Root nodes have no siblings.
-  if (!Parent) {
+  if (!Parent_) {
     return std::nullopt;
   }
 
-  const GreenNode &Green = Parent->getGreen();
+  const GreenNode &Green = Parent_->getGreen().getNode();
 
   // First child has no previous siblings.
-  if (Index == 0) {
+  if (Index_ == 0) {
     return std::nullopt;
   }
 
@@ -109,11 +109,11 @@ std::optional<SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
   // Use reverse iterator to search backwards from current position.
   // std::next on rbegin() skips elements from the end, so we need to
   // calculate the offset to position just before the current element.
-  auto It = std::next(Siblings.rbegin(), Green.getNumChildren() - Index);
+  auto It = std::next(Siblings.rbegin(), Green.getNumChildren() - Index_);
   const auto End = Siblings.rend();
 
   // Find the previous node, skipping any tokens.
-  size_t SiblingIndex = Index - 1;
+  size_t SiblingIndex = Index_ - 1;
   for (; It != End; ++It, --SiblingIndex) {
     const auto &Element = It->getElement();
     if (Element.isNode()) {
@@ -127,22 +127,22 @@ std::optional<SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
   }
 
   const auto &Element = It->getElement();
-  const size_t SiblingOffset = Parent->getOffset() + It->getRelativeOffset();
+  const size_t SiblingOffset = Parent_->getOffset() + It->getRelativeOffset();
 
-  return SyntaxNode(SiblingOffset, SiblingIndex, Parent, Element.getNode());
+  return SyntaxNode(SiblingOffset, SiblingIndex, Parent_, Element.getNode());
 }
 
 std::optional<SyntaxElement>
 SyntaxData::getPrevSiblingOrToken() const noexcept {
   // Root nodes have no siblings.
-  if (!Parent) {
+  if (!Parent_) {
     return std::nullopt;
   }
 
-  const GreenNode &Green = Parent->getGreen();
+  const GreenNode &Green = Parent_->getGreen().getNode();
 
   // First child has no previous siblings.
-  if (Index == 0) {
+  if (Index_ == 0) {
     return std::nullopt;
   }
 
@@ -150,21 +150,21 @@ SyntaxData::getPrevSiblingOrToken() const noexcept {
 
   // Get the element immediately before the current position using reverse
   // iterator.
-  auto It = std::next(Siblings.rbegin(), Green.getNumChildren() - Index);
+  auto It = std::next(Siblings.rbegin(), Green.getNumChildren() - Index_);
 
   const auto &Element = It->getElement();
-  const size_t SiblingOffset = Parent->getOffset() + It->getRelativeOffset();
-  const size_t SiblingIndex = Index + 1;
+  const size_t SiblingOffset = Parent_->getOffset() + It->getRelativeOffset();
+  const size_t SiblingIndex = Index_ + 1;
 
   if (Element.isNode()) {
     auto Node =
-        SyntaxNode(SiblingOffset, SiblingIndex, Parent, Element.getNode());
+        SyntaxNode(SiblingOffset, SiblingIndex, Parent_, Element.getNode());
     return Node;
   }
 
   if (Element.isToken()) {
     auto Token =
-        SyntaxToken(SiblingOffset, SiblingIndex, Parent, Element.getToken());
+        SyntaxToken(SiblingOffset, SiblingIndex, Parent_, Element.getToken());
     return Token;
   }
 
@@ -198,7 +198,7 @@ std::optional<SyntaxNode> SyntaxNode::getFirstChild() const noexcept {
   for (auto It = GreenChildren.begin(); It != End; ++It, ++ChildIndex) {
     if (It->getElement().isNode()) {
       const size_t ChildOffset = getOffset() + It->getRelativeOffset();
-      return SyntaxNode(ChildOffset, ChildIndex, this,
+      return SyntaxNode(ChildOffset, ChildIndex, Data_,
                         It->getElement().getNode());
     }
   }
@@ -221,12 +221,13 @@ std::optional<SyntaxElement> SyntaxNode::getFirstChildOrToken() const noexcept {
   const size_t ChildIndex = 0;
 
   if (Element.isNode()) {
-    auto Node = SyntaxNode(ChildOffset, ChildIndex, this, Element.getNode());
+    auto Node = SyntaxNode(ChildOffset, ChildIndex, Data_, Element.getNode());
     return Node;
   }
 
   if (Element.isToken()) {
-    auto Token = SyntaxToken(ChildOffset, ChildIndex, this, Element.getToken());
+    auto Token =
+        SyntaxToken(ChildOffset, ChildIndex, Data_, Element.getToken());
     return Token;
   }
 
@@ -249,7 +250,7 @@ std::optional<SyntaxNode> SyntaxNode::getLastChild() const noexcept {
   for (auto It = GreenChildren.rbegin(); It != End; ++It, --ChildIndex) {
     if (It->getElement().isNode()) {
       const size_t ChildOffset = getOffset() + It->getRelativeOffset();
-      return SyntaxNode(ChildOffset, ChildIndex, this,
+      return SyntaxNode(ChildOffset, ChildIndex, Data_,
                         It->getElement().getNode());
     }
   }
@@ -273,13 +274,13 @@ std::optional<SyntaxElement> SyntaxNode::getLastChildOrToken() const noexcept {
 
   if (It->getElement().isNode()) {
     auto Node =
-        SyntaxNode(ChildOffset, ChildIndex, this, It->getElement().getNode());
+        SyntaxNode(ChildOffset, ChildIndex, Data_, It->getElement().getNode());
     return Node;
   }
 
   if (It->getElement().isToken()) {
-    auto Token =
-        SyntaxToken(ChildOffset, ChildIndex, this, It->getElement().getToken());
+    auto Token = SyntaxToken(ChildOffset, ChildIndex, Data_,
+                             It->getElement().getToken());
     return Token;
   }
 
