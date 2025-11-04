@@ -6,15 +6,16 @@ class Expr : AstNode {
 def BinaryExpr : Expr {
     let SyntaxKind = "InfixExpr";
     let Methods = [
-        ChildAstMethod<"Lhs", 0, "Expr">,
-        ChildAstMethod<"Rhs", 1, "Expr">,
+        ChildAstMethod<"Lhs", "Expr">,
+        TokenAstMethod<"Op">,
+        ChildAstMethod<"Rhs", "Expr", 1>,
     ];
 }
 
 def ParenExpr : Expr {
     let SyntaxKind = "ParenExpr";
     let Methods = [
-        ChildAstMethod<"Expr", 0, "Expr">,
+        ChildAstMethod<"Expr", "Expr">,
     ];
 }
 

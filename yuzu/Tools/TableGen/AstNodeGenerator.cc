@@ -18,10 +18,10 @@ void emitCanCast(llvm::raw_ostream &OS, const llvm::Record *Record) noexcept {
   const llvm::StringRef SyntaxKind = Record->getValueAsString("SyntaxKind");
   OS << llvm::formatv(
       R"(
-    [[nodiscard]] static bool canCast(SyntaxKind Kind) noexcept {
-      return Kind == SyntaxKind::{0};
-    }
-)",
+      [[nodiscard]] static bool canCast(SyntaxKind Kind) noexcept {
+        return Kind == SyntaxKind::{0};
+      }
+      )",
       SyntaxKind);
 }
 
@@ -29,15 +29,15 @@ void emitCast(llvm::raw_ostream &OS, const llvm::Record *Record) noexcept {
   OS << llvm::formatv(
       R"(
       [[nodiscard]] static std::optional<{0}>
-        cast(syntax::SyntaxNode Node) noexcept {
-          const SyntaxKind Kind = static_cast<SyntaxKind>(Node.getKind());
-          
-          if ({0}::canCast(Kind)) {
-            return std::make_optional<{0}>(std::move(Node));
-          }
-
-          return std::nullopt;
+      cast(syntax::SyntaxNode Node) noexcept {
+        const SyntaxKind Kind = static_cast<SyntaxKind>(Node.getKind());
+        
+        if ({0}::canCast(Kind)) {
+          return std::make_optional<{0}>(std::move(Node));
         }
+
+        return std::nullopt;
+      }
       )",
       Record->getName());
 }
@@ -58,11 +58,42 @@ void emitChildAstMethod(llvm::raw_ostream &OS,
       Name, N, Subclass);
 }
 
+void emitTokenAstMethod(llvm::raw_ostream &OS,
+                        const llvm::Record *Method) noexcept {
+  const llvm::StringRef Name = Method->getValueAsString("Name");
+  const llvm::StringRef Kind = Method->getValueAsString("Kind");
+  const int64_t N = Method->getValueAsInt("N");
+
+  // When kind is empty, then defer the implementation to a source file. Most
+  // nodes will be represented by a single SyntaxKind.
+  if (Kind == "") {
+    OS << llvm::formatv(
+        R"(
+        [[nodiscard]] std::optional<syntax::SyntaxToken>
+        get{0}() const noexcept;
+        )",
+        Name, Kind, N);
+  }
+  // When kind is not empty, inline the implementation.
+  else {
+    OS << llvm::formatv(
+        R"(
+        [[nodiscard]] std::optional<syntax::SyntaxToken>
+        get{0}() const noexcept {
+          return token<(Node_, SyntaxKind::{1}, {2});
+        }
+        )",
+        Name, Kind, N);
+  }
+}
+
 void emitAstMethods(llvm::raw_ostream &OS,
                     const llvm::Record *Record) noexcept {
   for (const auto &Method : Record->getValueAsListOfDefs("Methods")) {
     if (Method->isSubClassOf("ChildAstMethod")) {
       emitChildAstMethod(OS, Method);
+    } else if (Method->isSubClassOf("TokenAstMethod")) {
+      emitTokenAstMethod(OS, Method);
     }
   }
 }
@@ -102,10 +133,11 @@ void emitCast(
       [Record](const llvm::Record *DerivedRecord) -> std::string {
         llvm::StringRef Derivedname = DerivedRecord->getName();
         return llvm::formatv(
-            R"(if ({1}::canCast(Kind)) {{
-                  return std::make_optional<{0}>({1}(std::move(Node)));
-                }
-                )",
+            R"(
+              if ({1}::canCast(Kind)) {{
+                return std::make_optional<{0}>({1}(std::move(Node)));
+              }
+              )",
             Record->getName(), Derivedname);
       });
 

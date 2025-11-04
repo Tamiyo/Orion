@@ -4,8 +4,8 @@ class AstMethod<string name> {
 
 class ChildAstMethod<
     string name,
-    int n,
-    string subclass
+    string subclass,
+    int n = 0
 > : AstMethod<name> {
     int N = n;
     string AstNodeSubclass = subclass;
@@ -20,9 +20,11 @@ class ChildrenAstMethod<
 
 class TokenAstMethod<
     string name,
-    int n
+    string kind = "",
+    int n = 0
 > : AstMethod<name> {
     int N = n;
+    string Kind = kind;
 }
 
 class AstNode {

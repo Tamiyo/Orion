@@ -16,7 +16,7 @@ public:
 
   AstNode(const AstNode &) = delete;
   AstNode &operator=(const AstNode &) = delete;
-  
+
   AstNode(AstNode &&) = default;
   AstNode &operator=(AstNode &&) = default;
 
@@ -39,7 +39,8 @@ template <typename T>
 [[nodiscard]] std::unique_ptr<T> child(syntax::SyntaxNode Node,
                                        size_t N = 0) noexcept {
   size_t Count = 0;
-  for (const auto &Child : Node.getChildren()) {
+  const syntax::SyntaxChildren Children = Node.getChildren();
+  for (const auto &Child : Children) {
     std::optional<T> CastNode = T::cast(Child);
     if (CastNode.has_value() && Count == N) {
       return std::make_unique<T>(std::move(CastNode.value()));
@@ -51,19 +52,8 @@ template <typename T>
   return nullptr;
 }
 
-template <typename T>
 [[nodiscard]] std::optional<syntax::SyntaxToken>
-token(syntax::SyntaxNode Node, syntax::SyntaxKind Kind, size_t N = 0) noexcept {
-  size_t Count = 0;
-  for (const auto &Child : Node.getChildrenWithTokens()) {
-    const bool isMatch = Child.isToken() && Child.getKind() == Kind;
-    if (isMatch && Count == N) {
-      return Child.getToken();
-    } else if (isMatch && Count != N) {
-      Count += 1;
-    }
-  }
-}
+token(syntax::SyntaxNode Node, syntax::SyntaxKind Kind, size_t N = 0) noexcept;
 } // namespace yuzu::ast
 
 #endif // YUZU_AST_AST_H
