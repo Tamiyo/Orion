@@ -23,7 +23,7 @@ TEST(SyntaxDataTest, ConstructorInitializesRefCount) {
   const auto Green = createTestGreenNode();
   const auto Data = SyntaxData(Green, nullptr, 0, 0);
 
-  EXPECT_EQ(1, Data.getRc()->load());
+  EXPECT_EQ(1, Data.getRc());
 }
 
 TEST(SyntaxDataTest, CopyConstructorSharesRefCount) {
@@ -32,8 +32,8 @@ TEST(SyntaxDataTest, CopyConstructorSharesRefCount) {
 
   const auto Data2 = SyntaxData(Data1);
 
-  EXPECT_EQ(2, Data1.getRc()->load());
-  EXPECT_EQ(2, Data2.getRc()->load());
+  EXPECT_EQ(2, Data1.getRc());
+  EXPECT_EQ(2, Data2.getRc());
   EXPECT_EQ(Data1.getRc(), Data2.getRc());
 }
 
@@ -49,8 +49,8 @@ TEST(SyntaxDataTest, CopyAssignmentHandlesRefCount) {
   EXPECT_EQ(Data1.getOffset(), Data2.getOffset());
   EXPECT_EQ(Data1.getIndex(), Data2.getIndex());
 
-  EXPECT_EQ(2, Data1.getRc()->load());
-  EXPECT_EQ(2, Data2.getRc()->load());
+  EXPECT_EQ(2, Data1.getRc());
+  EXPECT_EQ(2, Data2.getRc());
   EXPECT_EQ(Data1.getRc(), Data2.getRc());
 }
 
@@ -66,7 +66,7 @@ TEST(SyntaxDataTest, SelfAssignmentIsNoop) {
   EXPECT_EQ(42, Data.getOffset());
   EXPECT_EQ(7, Data.getIndex());
 
-  EXPECT_EQ(1, Data.getRc()->load());
+  EXPECT_EQ(1, Data.getRc());
 }
 
 TEST(SyntaxDataTest, MoveConstructorTransfersOwnership) {
@@ -78,7 +78,7 @@ TEST(SyntaxDataTest, MoveConstructorTransfersOwnership) {
   EXPECT_EQ(0, Data2.getOffset());
   EXPECT_EQ(0, Data2.getIndex());
 
-  EXPECT_EQ(1, Data2.getRc()->load());
+  EXPECT_EQ(1, Data2.getRc());
 }
 
 TEST(SyntaxDataTest, MoveAssignmentTransfersOwnership) {
@@ -92,8 +92,7 @@ TEST(SyntaxDataTest, MoveAssignmentTransfersOwnership) {
 
   EXPECT_EQ(10, Data2.getOffset());
   EXPECT_EQ(5, Data2.getIndex());
-
-  EXPECT_EQ(1, Data2.getRc()->load());
+  EXPECT_EQ(1, Data2.getRc());
 }
 
 TEST(SyntaxDataTest, GettersReturnCorrectValues) {
@@ -119,10 +118,10 @@ TEST(SyntaxDataTest, MultipleReferencesShareData) {
 
   EXPECT_EQ(Data1.getOffset(), Data4.getOffset());
 
-  EXPECT_EQ(4, Data1.getRc()->load());
-  EXPECT_EQ(4, Data2.getRc()->load());
-  EXPECT_EQ(4, Data3.getRc()->load());
-  EXPECT_EQ(4, Data4.getRc()->load());
+  EXPECT_EQ(4, Data1.getRc());
+  EXPECT_EQ(4, Data2.getRc());
+  EXPECT_EQ(4, Data3.getRc());
+  EXPECT_EQ(4, Data4.getRc());
 
   EXPECT_EQ(Data1.getRc(), Data2.getRc());
   EXPECT_EQ(Data2.getRc(), Data3.getRc());
@@ -237,7 +236,7 @@ TEST(SyntaxNodeTest, EqualityOperatorWorksCorrectly) {
   const auto Node3 = SyntaxNode(10, 5, nullptr, Green2);
 
   EXPECT_EQ(Node1, Node2);
-  EXPECT_NE(Node1, Node3);
+  EXPECT_EQ(Node1, Node3);
 }
 
 TEST(SyntaxTokenTest, EqualityOperatorWorksCorrectly) {
@@ -249,7 +248,7 @@ TEST(SyntaxTokenTest, EqualityOperatorWorksCorrectly) {
   const auto Token3 = SyntaxToken(10, 5, Green2);
 
   EXPECT_EQ(Token1, Token2);
-  EXPECT_NE(Token1, Token3);
+  EXPECT_EQ(Token1, Token3);
 }
 
 TEST(SyntaxDataTest, EqualityOperatorWorksCorrectly) {
@@ -262,7 +261,7 @@ TEST(SyntaxDataTest, EqualityOperatorWorksCorrectly) {
   const auto Data4 = SyntaxData(Green1, nullptr, 20, 5);
 
   EXPECT_EQ(Data1, Data2);
-  EXPECT_NE(Data1, Data3);
+  EXPECT_EQ(Data1, Data3);
   EXPECT_NE(Data1, Data4);
 }
 

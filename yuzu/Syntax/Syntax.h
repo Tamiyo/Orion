@@ -46,9 +46,9 @@ public:
 
   /// Deleted default constructor to enforce non-null invariant.
   ///
-  /// Invariant: SyntaxData can never be in a nullptr state. Though SyntaxData is
-  /// a smart pointer mimicing std::shared_ptr, we intentionally choose to not allow
-  /// a nullptr state to exist.
+  /// Invariant: SyntaxData can never be in a nullptr state. Though SyntaxData
+  /// is a smart pointer mimicing std::shared_ptr, we intentionally choose to
+  /// not allow a nullptr state to exist.
   SyntaxData() = delete;
 
   /// \brief Copy constructor.
@@ -150,6 +150,11 @@ public:
     // and the Rc_ has already been deleted by free()
   }
 
+  /// \brief Get the reference count of this SyntaxNode.
+  ///
+  /// \return Pointer to the atomic reference count.
+  [[nodiscard]] int64_t getRc() const noexcept { return Rc_->load(); }
+
   /// \brief Increment the reference count.
   void incRc() noexcept { Rc_->fetch_add(1); }
 
@@ -178,13 +183,6 @@ public:
   /// \return The zero-based index.
   [[nodiscard]] size_t getIndex() const noexcept { return Index_; }
 
-  /// \brief Get the reference count pointer.
-  ///
-  /// \return Pointer to the atomic reference count.
-  [[nodiscard]] const std::atomic<int64_t> *getRc() const noexcept {
-    return Rc_;
-  }
-
   /// \brief Get the next sibling node.
   ///
   /// \return The next SyntaxNode sibling, or nullopt if none exists.
@@ -212,9 +210,7 @@ public:
   /// \param Other The SyntaxData to compare with.
   /// \return True if both objects refer to the same data.
   bool operator==(const SyntaxData &Other) const noexcept {
-    return Green_ == Other.Green_ && Parent_ == Other.Parent_ &&
-           Offset_ == Other.Offset_ && Index_ == Other.Index_ &&
-           Rc_ == Other.Rc_;
+    return Green_ == Other.Green_ && Offset_ == Other.Offset_;
   }
 
   /// \brief Inequality comparison operator.
@@ -232,7 +228,7 @@ private:
   /// is released. Deletes the reference counter and decrements parent's
   /// reference count if applicable.
   void free() {
-    assert(getRc()->load() == 0);
+    assert(Rc_->load() == 0);
 
     // Delete the reference counter since we're at 0
     delete Rc_;
@@ -383,6 +379,11 @@ public:
     return Data_->getGreen().getKind();
   }
 
+  /// \brief Get the reference count of this SyntaxNode.
+  ///
+  /// \return Pointer to the atomic reference count.
+  [[nodiscard]] int64_t getRc() const noexcept { return Data_->Rc_->load(); }
+
   /// \brief Get the children of this SyntaxNode.
   ///
   /// \return An iterator over child SyntaxNodes only (excludes tokens).
@@ -466,7 +467,7 @@ public:
   /// \param Other The SyntaxNode to compare with.
   /// \return True if both nodes refer to the same underlying data.
   bool operator==(const SyntaxNode &Other) const noexcept {
-    return Data_ == Other.Data_;
+    return *Data_ == *Other.Data_;
   }
 
   /// \brief Inequality comparison operator.
@@ -568,7 +569,8 @@ public:
 
   /// \brief Get the parent of this SyntaxToken.
   ///
-  /// \return Pointer to parent SyntaxData, or nullptr if this token has no parent.
+  /// \return Pointer to parent SyntaxData, or nullptr if this token has no
+  /// parent.
   [[nodiscard]] const SyntaxData *getParent() const noexcept {
     return Data_->getParent();
   }
@@ -588,6 +590,11 @@ public:
   [[nodiscard]] SyntaxKind getKind() const noexcept {
     return Data_->getGreen().getKind();
   }
+
+  /// \brief Get the reference count of this SyntaxNode.
+  ///
+  /// \return Pointer to the atomic reference count.
+  [[nodiscard]] int64_t getRc() const noexcept { return Data_->Rc_->load(); }
 
   /// \brief Get the next sibling node.
   ///
@@ -616,7 +623,7 @@ public:
   /// \param Other The SyntaxToken to compare with.
   /// \return True if both tokens refer to the same underlying data.
   bool operator==(const SyntaxToken &Other) const noexcept {
-    return Data_ == Other.Data_;
+    return *Data_ == *Other.Data_;
   }
 
   /// \brief Inequality comparison operator.

@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
 #include <vector>
 
 namespace {
@@ -133,7 +134,7 @@ TEST(SyntaxChildrenWithTokensTest, Equals) {
   const auto NodeMixed = GreenNode::create(
       13, std::vector<GreenElement>{Token1, NodeEmpty, Token2, NodeWithTokens});
   const auto Root = SyntaxNode::createRoot(NodeMixed);
-  auto Children = Root.getChildrenWithTokens();
+  const auto Children = Root.getChildrenWithTokens();
 
   EXPECT_EQ(Children.begin(), Children.begin());
 }
@@ -147,7 +148,7 @@ TEST(SyntaxChildrenWithTokensTest, NotEquals) {
   const auto NodeMixed = GreenNode::create(
       13, std::vector<GreenElement>{Token1, NodeEmpty, Token2, NodeWithTokens});
   const auto Root = SyntaxNode::createRoot(NodeMixed);
-  auto Children = Root.getChildrenWithTokens();
+  const auto Children = Root.getChildrenWithTokens();
   auto It = Children.begin();
 
   EXPECT_NE(++It, Children.begin());

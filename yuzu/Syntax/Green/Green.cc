@@ -47,11 +47,11 @@ GreenNode GreenNode::create(SyntaxKind Kind,
         std::malloc(sizeof(GreenChild) * NumChildren));
 
     for (size_t i = 0; i < NumChildren; ++i) {
-      size_t RelativeOffset = Width;
+      const size_t RelativeOffset = Width;
       Width += Children[i].getWidth();
 
-      new (&ChildrenArray[i])
-          GreenChild(RelativeOffset, std::move(Children[i]));
+      new (&ChildrenArray[i]) GreenChild{.Element = std::move(Children[i]),
+                                         .RelativeOffset = RelativeOffset};
     }
   }
 

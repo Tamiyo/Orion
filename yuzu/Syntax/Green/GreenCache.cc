@@ -74,7 +74,7 @@ GreenCache::Entry GreenCache::getNode(const SyntaxKind Kind,
           EntryNode->getChildren().begin(), EntryNode->getChildren().end(),
           EntryElements.begin(), EntryElements.end(),
           [](const GreenChild &Child, const GreenElement &Element) {
-            return Child.getElement() == Element;
+            return Child.Element == Element;
           });
 
       if (IsSameKinds && IsSameChildren) {

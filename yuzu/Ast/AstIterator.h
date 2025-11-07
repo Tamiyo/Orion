@@ -18,7 +18,8 @@ public:
   using pointer = value_type *;
   using reference = value_type &;
 
-  explicit AstIterator(syntax::SyntaxChildren::const_iterator It) : It_(std::move(It)) {}
+  explicit AstIterator(syntax::SyntaxChildren::const_iterator It)
+      : It_(std::move(It)) {}
 
   AstIterator() = delete;
 

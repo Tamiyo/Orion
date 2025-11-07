@@ -12,12 +12,17 @@
 #include <vector>
 
 namespace yuzu::syntax {
-class GreenChild;
+struct GreenChild;
 class GreenChildren;
 class GreenElement;
 class GreenIterator;
 class GreenNode;
 class GreenToken;
+
+// https://github.com/rust-analyzer/rowan/blob/master/src/green.rs#L20
+// struct SyntaxKind {
+//   const uint16_t Data;
+// }
 
 /// \brief Data structure for immutable green tokens.
 ///
@@ -220,6 +225,37 @@ private:
   std::shared_ptr<const GreenNodeData> Data_;
 };
 
+/// \brief A child element in a green node with its relative offset.
+///
+/// GreenChild represents a child element (either a node or token) within
+/// a parent GreenNode, along with its relative offset from the start of
+/// the parent. This allows efficient position calculation during tree
+/// traversal.
+struct GreenChild final {
+  /// The variant (node or token) for this child. GreenElement is specifically
+  /// not used to avoid
+  const std::variant<GreenNode, GreenToken> Element;
+
+  /// The offset of this child relative to its parent's start position.
+  const size_t RelativeOffset;
+
+  /// \brief Equality comparison operator.
+  ///
+  /// \param other The GreenChild to compare with.
+  /// \return True if both children have the same element and offset.
+  bool operator==(const GreenChild &other) const {
+    return Element == other.Element && RelativeOffset == other.RelativeOffset;
+  }
+
+  /// \brief Inequality comparison operator.
+  ///
+  /// \param other The GreenChild to compare with.
+  /// \return True if the children differ in element or offset.
+  bool operator!=(const GreenChild &other) const {
+    return Element != other.Element || RelativeOffset != other.RelativeOffset;
+  }
+};
+
 /// \brief A variant type representing either a GreenNode or GreenToken.
 ///
 /// GreenElement is used when an element in the green tree could be either
@@ -320,64 +356,6 @@ public:
 
     util::yuzu_unreachable();
   }
-};
-
-/// \brief A child element in a green node with its relative offset.
-///
-/// GreenChild represents a child element (either a node or token) within
-/// a parent GreenNode, along with its relative offset from the start of
-/// the parent. This allows efficient position calculation during tree
-/// traversal.
-class GreenChild final {
-public:
-  /// \brief Construct a GreenChild.
-  ///
-  /// \param RelativeOffset The offset of this child relative to its parent's
-  /// start. \param Element The green element (node or token) for this child.
-  explicit GreenChild(const size_t RelativeOffset, const GreenElement &Element)
-      : RelativeOffset_(RelativeOffset), Element_(std::move(Element)) {}
-
-  /// Deleted default constructor to enforce proper initialization.
-  GreenChild() = delete;
-
-  /// \brief Get the relative offset of this child.
-  ///
-  /// \return The offset in characters from the start of the parent node.
-  [[nodiscard]] size_t getRelativeOffset() const noexcept {
-    return RelativeOffset_;
-  }
-
-  /// \brief Get the green element for this child.
-  ///
-  /// \return Reference to the GreenElement (node or token).
-  [[nodiscard]] const GreenElement &getElement() const noexcept {
-    return Element_;
-  }
-
-  /// \brief Equality comparison operator.
-  ///
-  /// \param other The GreenChild to compare with.
-  /// \return True if both children have the same element and offset.
-  bool operator==(const GreenChild &other) const {
-    return Element_ == other.Element_ &&
-           RelativeOffset_ == other.RelativeOffset_;
-  }
-
-  /// \brief Inequality comparison operator.
-  ///
-  /// \param other The GreenChild to compare with.
-  /// \return True if the children differ in element or offset.
-  bool operator!=(const GreenChild &other) const {
-    return Element_ != other.Element_ ||
-           RelativeOffset_ != other.RelativeOffset_;
-  }
-
-private:
-  /// The offset of this child relative to its parent's start position.
-  const size_t RelativeOffset_;
-
-  /// The green element (node or token) for this child.
-  const GreenElement Element_;
 };
 } // namespace yuzu::syntax
 

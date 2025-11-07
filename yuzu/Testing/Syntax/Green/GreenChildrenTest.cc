@@ -2,6 +2,7 @@
 
 #include "yuzu/Syntax/Green/Green.h"
 
+#include "gmock/gmock.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -52,11 +53,11 @@ TEST(GreenChildrenTest, IteratesOverAllGreenElements) {
 
   const GreenChildren GreenChildren = Node.getChildren();
   EXPECT_THAT(GreenChildren, testing::BeginEndDistanceIs(3));
-  EXPECT_THAT(GreenChildren,
-              testing::ElementsAre(
-                  testing::Property(&GreenChild::getElement, LeftNode),
-                  testing::Property(&GreenChild::getElement, EqualToken),
-                  testing::Property(&GreenChild::getElement, RightNode)));
+  EXPECT_THAT(
+      GreenChildren,
+      testing::ElementsAre(testing::Field(&GreenChild::Element, LeftNode),
+                           testing::Field(&GreenChild::Element, EqualToken),
+                           testing::Field(&GreenChild::Element, RightNode)));
 }
 
 TEST(GreenChildrenTest, IteratesOverAllGreenElementsInReverse) {
@@ -68,11 +69,11 @@ TEST(GreenChildrenTest, IteratesOverAllGreenElementsInReverse) {
                                                       GreenChildren.rend());
 
   EXPECT_THAT(ReversedGreenChildren, testing::BeginEndDistanceIs(3));
-  EXPECT_THAT(ReversedGreenChildren,
-              testing::ElementsAre(
-                  testing::Property(&GreenChild::getElement, RightNode),
-                  testing::Property(&GreenChild::getElement, EqualToken),
-                  testing::Property(&GreenChild::getElement, LeftNode)));
+  EXPECT_THAT(
+      ReversedGreenChildren,
+      testing::ElementsAre(testing::Field(&GreenChild::Element, RightNode),
+                           testing::Field(&GreenChild::Element, EqualToken),
+                           testing::Field(&GreenChild::Element, LeftNode)));
 }
 
 } // namespace

@@ -64,19 +64,19 @@ TEST(GreenNodeTest, GreenNodeDataSizeRequirements) {
 
 TEST(GreenChildTest, GetRelativeOffset) {
   const auto It = Node.getChildren().begin();
-  EXPECT_EQ(0, It->getRelativeOffset());
+  EXPECT_EQ(0, It->RelativeOffset);
 }
 
 TEST(GreenChildTest, GetElement) {
   const auto Element = GreenElement(GreenToken(2, U"3"));
   const auto It = Node.getChildren().begin();
 
-  EXPECT_EQ(Element, It->getElement());
+  EXPECT_EQ(Element, It->Element);
 }
 
 TEST(GreenChildTest, Equals) {
   const auto Element = GreenElement(GreenToken(2, U"3"));
-  const auto Child = GreenChild(0, Element);
+  const auto Child = GreenChild{.Element = Element, .RelativeOffset = 0};
   const auto It = Node.getChildren().begin();
 
   EXPECT_EQ(Child, *It);
@@ -84,7 +84,7 @@ TEST(GreenChildTest, Equals) {
 
 TEST(GreenChildTest, NotEquals) {
   const auto Element = GreenElement(GreenToken(2, U"3"));
-  const auto Child = GreenChild(1, Element);
+  const auto Child = GreenChild{.Element = Element, .RelativeOffset = 1};
   const auto It = Node.getChildren().begin();
 
   EXPECT_NE(Child, *It);

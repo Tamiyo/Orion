@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <iterator>
 #include <optional>
+#include <variant>
 
 namespace yuzu::syntax {
 /// ===============
@@ -35,8 +36,8 @@ std::optional<SyntaxNode> SyntaxData::getNextSibling() const noexcept {
   // Find the next node, skipping any tokens.
   size_t SiblingIndex = Index_ + 1;
   for (; It != End; ++It, ++SiblingIndex) {
-    const auto &Element = It->getElement();
-    if (Element.isNode()) {
+    const auto &Element = It->Element;
+    if (std::holds_alternative<GreenNode>(Element)) {
       break;
     }
   }
@@ -46,9 +47,10 @@ std::optional<SyntaxNode> SyntaxData::getNextSibling() const noexcept {
     return std::nullopt;
   }
 
-  const auto &Element = It->getElement();
-  const size_t SiblingOffset = Parent_->getOffset() + It->getRelativeOffset();
-  return SyntaxNode(SiblingOffset, SiblingIndex, Parent_, Element.getNode());
+  const auto &Element = It->Element;
+  const size_t SiblingOffset = Parent_->getOffset() + It->RelativeOffset;
+  return SyntaxNode(SiblingOffset, SiblingIndex, Parent_,
+                    std::get<GreenNode>(Element));
 }
 
 std::optional<SyntaxElement>
@@ -70,20 +72,20 @@ SyntaxData::getNextSiblingOrToken() const noexcept {
   // Get the element immediately after the current position.
   auto It = std::next(Siblings.begin(), Index_ + 1);
 
-  const auto &Element = It->getElement();
-  const size_t SiblingOffset = Parent_->getOffset() + It->getRelativeOffset();
+  const auto &Element = It->Element;
+  const size_t SiblingOffset = Parent_->getOffset() + It->RelativeOffset;
   const size_t SiblingIndex = Index_ + 1;
 
-  if (Element.isNode()) {
-    auto Node =
-        SyntaxNode(SiblingOffset, SiblingIndex, Parent_, Element.getNode());
+  if (std::holds_alternative<GreenNode>(Element)) {
+    auto Node = SyntaxNode(SiblingOffset, SiblingIndex, Parent_,
+                           std::get<GreenNode>(Element));
 
     return Node;
   }
 
-  if (Element.isToken()) {
-    auto Token =
-        SyntaxToken(SiblingOffset, SiblingIndex, Parent_, Element.getToken());
+  if (std::holds_alternative<GreenToken>(Element)) {
+    auto Token = SyntaxToken(SiblingOffset, SiblingIndex, Parent_,
+                             std::get<GreenToken>(Element));
 
     return Token;
   }
@@ -115,8 +117,8 @@ std::optional<SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
   // Find the previous node, skipping any tokens.
   size_t SiblingIndex = Index_ - 1;
   for (; It != End; ++It, --SiblingIndex) {
-    const auto &Element = It->getElement();
-    if (Element.isNode()) {
+    const auto &Element = It->Element;
+    if (std::holds_alternative<GreenNode>(Element)) {
       break;
     }
   }
@@ -126,10 +128,11 @@ std::optional<SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
     return std::nullopt;
   }
 
-  const auto &Element = It->getElement();
-  const size_t SiblingOffset = Parent_->getOffset() + It->getRelativeOffset();
+  const auto &Element = It->Element;
+  const size_t SiblingOffset = Parent_->getOffset() + It->RelativeOffset;
 
-  return SyntaxNode(SiblingOffset, SiblingIndex, Parent_, Element.getNode());
+  return SyntaxNode(SiblingOffset, SiblingIndex, Parent_,
+                    std::get<GreenNode>(Element));
 }
 
 std::optional<SyntaxElement>
@@ -152,19 +155,19 @@ SyntaxData::getPrevSiblingOrToken() const noexcept {
   // iterator.
   auto It = std::next(Siblings.rbegin(), Green.getNumChildren() - Index_);
 
-  const auto &Element = It->getElement();
-  const size_t SiblingOffset = Parent_->getOffset() + It->getRelativeOffset();
+  const auto &Element = It->Element;
+  const size_t SiblingOffset = Parent_->getOffset() + It->RelativeOffset;
   const size_t SiblingIndex = Index_ + 1;
 
-  if (Element.isNode()) {
-    auto Node =
-        SyntaxNode(SiblingOffset, SiblingIndex, Parent_, Element.getNode());
+  if (std::holds_alternative<GreenNode>(Element)) {
+    auto Node = SyntaxNode(SiblingOffset, SiblingIndex, Parent_,
+                           std::get<GreenNode>(Element));
     return Node;
   }
 
-  if (Element.isToken()) {
-    auto Token =
-        SyntaxToken(SiblingOffset, SiblingIndex, Parent_, Element.getToken());
+  if (std::holds_alternative<GreenToken>(Element)) {
+    auto Token = SyntaxToken(SiblingOffset, SiblingIndex, Parent_,
+                             std::get<GreenToken>(Element));
     return Token;
   }
 
@@ -196,10 +199,11 @@ std::optional<SyntaxNode> SyntaxNode::getFirstChild() const noexcept {
   // Find the first node child, skipping any leading tokens.
   size_t ChildIndex = 0;
   for (auto It = GreenChildren.begin(); It != End; ++It, ++ChildIndex) {
-    if (It->getElement().isNode()) {
-      const size_t ChildOffset = getOffset() + It->getRelativeOffset();
+    const std::variant<GreenNode, GreenToken> Element = It->Element;
+    if (std::holds_alternative<GreenNode>(Element)) {
+      const size_t ChildOffset = getOffset() + It->RelativeOffset;
       return SyntaxNode(ChildOffset, ChildIndex, Data_,
-                        It->getElement().getNode());
+                        std::get<GreenNode>(Element));
     }
   }
 
@@ -215,19 +219,20 @@ std::optional<SyntaxElement> SyntaxNode::getFirstChildOrToken() const noexcept {
   }
 
   const GreenChildren GreenChildren = Green.getChildren();
-  const auto &Element = GreenChildren.begin()->getElement();
+  const auto &Element = GreenChildren.begin()->Element;
 
   const size_t ChildOffset = getOffset();
   const size_t ChildIndex = 0;
 
-  if (Element.isNode()) {
-    auto Node = SyntaxNode(ChildOffset, ChildIndex, Data_, Element.getNode());
+  if (std::holds_alternative<GreenNode>(Element)) {
+    auto Node = SyntaxNode(ChildOffset, ChildIndex, Data_,
+                           std::get<GreenNode>(Element));
     return Node;
   }
 
-  if (Element.isToken()) {
-    auto Token =
-        SyntaxToken(ChildOffset, ChildIndex, Data_, Element.getToken());
+  if (std::holds_alternative<GreenToken>(Element)) {
+    auto Token = SyntaxToken(ChildOffset, ChildIndex, Data_,
+                             std::get<GreenToken>(Element));
     return Token;
   }
 
@@ -248,10 +253,11 @@ std::optional<SyntaxNode> SyntaxNode::getLastChild() const noexcept {
   // Find the last node child, skipping any trailing tokens.
   size_t ChildIndex = Green.getNumChildren() - 1;
   for (auto It = GreenChildren.rbegin(); It != End; ++It, --ChildIndex) {
-    if (It->getElement().isNode()) {
-      const size_t ChildOffset = getOffset() + It->getRelativeOffset();
+    const std::variant<GreenNode, GreenToken> Element = It->Element;
+    if (std::holds_alternative<GreenNode>(Element)) {
+      const size_t ChildOffset = getOffset() + It->RelativeOffset;
       return SyntaxNode(ChildOffset, ChildIndex, Data_,
-                        It->getElement().getNode());
+                        std::get<GreenNode>(Element));
     }
   }
 
@@ -269,18 +275,19 @@ std::optional<SyntaxElement> SyntaxNode::getLastChildOrToken() const noexcept {
   const GreenChildren GreenChildren = Green.getChildren();
   const GreenChildren::const_reverse_iterator It = GreenChildren.rbegin();
 
-  const size_t ChildOffset = getOffset() + It->getRelativeOffset();
+  const size_t ChildOffset = getOffset() + It->RelativeOffset;
   const size_t ChildIndex = Green.getNumChildren() - 1;
+  const std::variant<GreenNode, GreenToken> Element = It->Element;
 
-  if (It->getElement().isNode()) {
-    auto Node =
-        SyntaxNode(ChildOffset, ChildIndex, Data_, It->getElement().getNode());
+  if (std::holds_alternative<GreenNode>(Element)) {
+    auto Node = SyntaxNode(ChildOffset, ChildIndex, Data_,
+                           std::get<GreenNode>(Element));
     return Node;
   }
 
-  if (It->getElement().isToken()) {
+  if (std::holds_alternative<GreenToken>(Element)) {
     auto Token = SyntaxToken(ChildOffset, ChildIndex, Data_,
-                             It->getElement().getToken());
+                             std::get<GreenToken>(Element));
     return Token;
   }
 
