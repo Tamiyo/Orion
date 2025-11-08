@@ -21,4 +21,7 @@ def ParenExpr : Expr {
 
 def LiteralExpr : Expr {
     let SyntaxKind = "LiteralExpr";
+     let Methods = [
+        TokenAstMethod<"Value", "Number">,
+    ];
 }

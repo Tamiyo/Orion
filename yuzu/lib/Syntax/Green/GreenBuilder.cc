@@ -73,7 +73,7 @@ GreenNode GreenBuilder::finish() noexcept {
     util::yuzu_unreachable();
   }
 
-  const GreenCache::Entry Entry = Children_.back();
+  const GreenCacheEntry Entry = Children_.back();
   Children_.pop_back();
 
   // The last entry should be a Node, Tokens cannot represent finished Green

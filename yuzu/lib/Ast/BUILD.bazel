@@ -42,7 +42,7 @@ cc_library(
         "Ast.h",
         "AstIterator.h",
         "Expr.h",
-        "SyntaxKind.h",
+        "Syntax.h",
     ],
     include_prefix = "yuzu/Ast",
     strip_include_prefix = "/yuzu/lib/Ast",

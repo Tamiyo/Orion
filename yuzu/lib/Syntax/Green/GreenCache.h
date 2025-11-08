@@ -10,24 +10,23 @@
 #include <vector>
 
 namespace yuzu::syntax {
+struct GreenCacheEntry {
+  size_t Hash;
+  GreenElement Element;
+};
 
 class GreenCache final {
 public:
-  struct Entry {
-    size_t Hash;
-    GreenElement Element;
-  };
-
   explicit GreenCache(const size_t MaxCachedNodeSize)
       : MaxCachedNodeSize_(MaxCachedNodeSize) {}
 
   GreenCache() = delete;
 
-  [[nodiscard]] Entry getNode(const SyntaxKind Kind,
-                              std::vector<Entry> *Children,
+  [[nodiscard]] GreenCacheEntry getNode(const SyntaxKind Kind,
+                              std::vector<GreenCacheEntry> *Children,
                               const size_t FirstChild) noexcept;
 
-  [[nodiscard]] Entry getToken(const SyntaxKind Kind,
+  [[nodiscard]] GreenCacheEntry getToken(const SyntaxKind Kind,
                                const std::u32string &Source) noexcept;
 
   [[nodiscard]] size_t getNodeSize() const noexcept { return Nodes_.size(); }
@@ -36,14 +35,14 @@ public:
 
 private:
   [[nodiscard]] size_t hashNode(const SyntaxKind Kind,
-                                const std::vector<Entry> &Children,
+                                const std::vector<GreenCacheEntry> &Children,
                                 const size_t FirstChild) const noexcept;
 
   [[nodiscard]] size_t hashToken(const SyntaxKind Kind,
                                  const std::u32string &Source) const noexcept;
 
   [[nodiscard]] GreenNode buildNode(const SyntaxKind Kind,
-                                    std::vector<Entry> *Children,
+                                    std::vector<GreenCacheEntry> *Children,
                                     const size_t FirstChild) const noexcept;
 
   const size_t MaxCachedNodeSize_;

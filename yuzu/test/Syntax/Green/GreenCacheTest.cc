@@ -2,6 +2,7 @@
 
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Green/GreenIterator.h"
+#include "yuzu/lib/Syntax/Green/GreenCache.h"
 
 #include <gtest/gtest.h>
 
@@ -11,6 +12,7 @@
 
 namespace {
 using yuzu::syntax::GreenCache;
+using yuzu::syntax::GreenCacheEntry;
 using yuzu::syntax::SyntaxKind;
 
 constexpr size_t kMaxCachedNodeSize = 3;
@@ -64,10 +66,10 @@ TEST(GreenCacheTest, GetTokensDifferentSource) {
 TEST(GreenCacheTest, GetNode) {
   auto Cache = GreenCache(kMaxCachedNodeSize);
 
-  const GreenCache::Entry Entry1 =
+  const GreenCacheEntry Entry1 =
       Cache.getToken(kTestSyntaxKindZero, kTestSource1);
 
-  const GreenCache::Entry Entry2 =
+  const GreenCacheEntry Entry2 =
       Cache.getToken(kTestSyntaxKindOne, kTestSource2);
 
   auto Children = std::vector{Entry1, Entry2};
@@ -92,10 +94,10 @@ TEST(GreenCacheTest, GetNode) {
 TEST(GreenCacheTest, GetNodeLeftoverChildren) {
   auto Cache = GreenCache(kMaxCachedNodeSize);
 
-  const GreenCache::Entry Entry1 =
+  const GreenCacheEntry Entry1 =
       Cache.getToken(kTestSyntaxKindZero, kTestSource1);
 
-  const GreenCache::Entry Entry2 =
+  const GreenCacheEntry Entry2 =
       Cache.getToken(kTestSyntaxKindOne, kTestSource2);
 
   auto Children = std::vector{Entry1, Entry2};
@@ -119,10 +121,10 @@ TEST(GreenCacheTest, GetNodeLeftoverChildren) {
 TEST(GreenCacheTest, GetNodeDuplicateNodes) {
   auto Cache = GreenCache(kMaxCachedNodeSize);
 
-  const GreenCache::Entry Child1 =
+  const GreenCacheEntry Child1 =
       Cache.getToken(kTestSyntaxKindZero, kTestSource1);
 
-  const GreenCache::Entry Child2 =
+  const GreenCacheEntry Child2 =
       Cache.getToken(kTestSyntaxKindZero, kTestSource1);
 
   auto Children = std::vector{Child1, Child2};
@@ -154,10 +156,10 @@ TEST(GreenCacheTest, GetNodeDuplicateNodes) {
 TEST(GreenCacheTest, GetNodeDuplicateNodesOverMaxCacheSize) {
   auto Cache = GreenCache(0);
 
-  const GreenCache::Entry Child1 =
+  const GreenCacheEntry Child1 =
       Cache.getToken(kTestSyntaxKindZero, kTestSource1);
 
-  const GreenCache::Entry Child2 =
+  const GreenCacheEntry Child2 =
       Cache.getToken(kTestSyntaxKindZero, kTestSource1);
 
   auto Children = std::vector{Child1, Child2};

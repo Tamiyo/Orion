@@ -3,6 +3,7 @@
 
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Syntax/SyntaxIterator.h"
+#include "yuzu/lib/Ast/Ast.h"
 
 #include <cstddef>
 #include <iterator>
@@ -11,6 +12,9 @@
 
 namespace yuzu::ast {
 template <typename T> class AstIterator final {
+  static_assert(IsAstSubclass<T>::value,
+                "T must be a subclass of AstNode<T> for some type T");
+
 public:
   using iterator_category = std::bidirectional_iterator_tag;
   using difference_type = std::ptrdiff_t;

@@ -21,6 +21,7 @@ cc_library(
     strip_include_prefix = "/yuzu/lib/Syntax",
     visibility = [
         "//yuzu/lib/Ast:__pkg__",
+        "//yuzu/lib/Parsing:__pkg__",
         "//yuzu/test:__subpackages__",
     ],
     deps = [

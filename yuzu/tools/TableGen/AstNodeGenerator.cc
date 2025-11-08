@@ -80,7 +80,7 @@ void emitTokenAstMethod(llvm::raw_ostream &OS,
         R"(
         [[nodiscard]] std::optional<syntax::SyntaxToken>
         get{0}() const noexcept {
-          return token<(Node_, SyntaxKind::{1}, {2});
+          return token(Node_, SyntaxKind::{1}, {2});
         }
         )",
         Name, Kind, N);

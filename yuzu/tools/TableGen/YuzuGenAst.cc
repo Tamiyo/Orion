@@ -27,7 +27,7 @@ static bool YuzuTableGenMain(llvm::raw_ostream &OS,
   switch (Action) {
   case GenAstNodeDecls: {
     const auto ProjectIncludes = std::set<std::string>{
-        "yuzu/Ast/Ast.h", "yuzu/Ast/SyntaxKind.h", "yuzu/Syntax/Syntax.h",
+        "yuzu/Ast/Ast.h", "yuzu/Ast/Syntax.h", "yuzu/Syntax/Syntax.h",
         "yuzu/Util/ErrorHandling.h"};
 
     const auto ExternalIncludes = std::set<std::string>{};

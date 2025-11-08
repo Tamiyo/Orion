@@ -2,7 +2,7 @@
 
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Ast/AstIterator.h"
-#include "yuzu/Ast/SyntaxKind.h"
+#include "yuzu/Ast/Syntax.h"
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Syntax.h"
 

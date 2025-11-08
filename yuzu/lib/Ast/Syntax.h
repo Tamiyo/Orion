@@ -1,8 +1,6 @@
 #ifndef YUZU_AST_SYNTAX_KIND_H
 #define YUZU_AST_SYNTAX_KIND_H
 
-#include "yuzu/Syntax/SyntaxKind.h"
-
 #include <cstdint>
 
 namespace yuzu::ast {

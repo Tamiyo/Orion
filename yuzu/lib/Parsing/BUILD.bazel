@@ -1,0 +1,21 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "yuzu_parsing",
+    srcs = [],
+    hdrs = [
+        "Event.h",
+        "Marker.h",
+        "Span.h",
+        "Token.h",
+    ],
+    include_prefix = "yuzu/Parsing",
+    strip_include_prefix = "/yuzu/lib/Parsing",
+    visibility = [
+        "//yuzu/lib:__subpackages__",
+        "//yuzu/test:__subpackages__",
+    ],
+    deps = [
+        "//yuzu/lib/Ast:yuzu_ast",
+    ],
+)

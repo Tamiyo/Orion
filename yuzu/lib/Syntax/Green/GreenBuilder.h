@@ -47,7 +47,7 @@ private:
 
   GreenCache Cache_;
   std::vector<GreenBuilder::Parent> Parents_;
-  std::vector<GreenCache::Entry> Children_;
+  std::vector<GreenCacheEntry> Children_;
 };
 
 } // namespace yuzu::syntax
