@@ -1,4 +1,4 @@
-#include "yuzu/Tools/TableGen/AstNodeGenerator.h"
+#include "yuzu/tools/TableGen/AstNodeGenerator.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/CommandLine.h"

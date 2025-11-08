@@ -6,7 +6,7 @@
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Syntax.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include <cstdint>
 #include <optional>

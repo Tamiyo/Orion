@@ -23,7 +23,7 @@ bazel_dep(name = "scip", version = "9.2.0.bcr.3")
 bazel_dep(name = "zlib-ng", version = "2.0.7")
 
 # LLVM
-import_llvm = use_extension("//bazel:extensions.bzl", "import_llvm")
+import_llvm = use_extension("//bazel:import_extensions.bzl", "import_llvm")
 llvm_configure = use_repo_rule("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure")
 
 use_repo(

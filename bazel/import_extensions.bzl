@@ -1,12 +1,10 @@
-"""Module extensions for MLIR Tutorial dependencies."""
+"""Module extensions for MLIR dependencies."""
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 def _import_llvm_impl(module_ctx):
-    """Implementation of the mlir_tutorial_deps module extension."""
-
     # Download LLVM/MLIR using a git repository
     new_git_repository(
         name = "llvm-raw",

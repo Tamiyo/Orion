@@ -1,7 +1,7 @@
 #ifndef YUZU_TOOLS_AST_NODE_GENERATOR_H
 #define YUZU_TOOLS_AST_NODE_GENERATOR_H
 
-#include "yuzu/Tools/TableGen/AstGenerator.h"
+#include "yuzu/tools/TableGen/AstGenerator.h"
 
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Main.h"

@@ -20,7 +20,7 @@ cc_binary(
     srcs = ["YuzuGenAst.cc"],
     visibility = ["//visibility:public"],
     deps = [
-        "//yuzu/Tools/TableGen:yuzu_tools_tablegen",
+        "//yuzu/tools/TableGen:yuzu_tools_tablegen",
         "@llvm-project//llvm:Support",
         "@llvm-project//llvm:TableGen",
     ],
