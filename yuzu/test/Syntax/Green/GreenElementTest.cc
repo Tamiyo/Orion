@@ -8,63 +8,63 @@ using yuzu::syntax::GreenElement;
 using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenToken;
 
-const auto Node = GreenNode::create(12, std::vector<GreenElement>{});
-const auto NodeElement = GreenElement(Node);
-const auto Token = GreenToken(2, U"3");
-const auto TokenElement = GreenElement(Token);
+const auto node = GreenNode::create(12, std::vector<GreenElement>{});
+const auto nodeElement = GreenElement(node);
+const auto token = GreenToken(2, U"3");
+const auto tokenElement = GreenElement(token);
 
-TEST(GreenElementTest, GetNode) { EXPECT_EQ(Node, NodeElement.getNode()); }
+TEST(GreenElementTest, GetNode) { EXPECT_EQ(node, nodeElement.getNode()); }
 
 TEST(GreenElementTest, GetIfNode) {
-  EXPECT_EQ(Node, *NodeElement.getIfNode());
-  EXPECT_EQ(nullptr, NodeElement.getIfToken());
+  EXPECT_EQ(node, *nodeElement.getIfNode());
+  EXPECT_EQ(nullptr, nodeElement.getIfToken());
 }
 
-TEST(GreenElementTest, GetToken) { EXPECT_EQ(Token, TokenElement.getToken()); }
+TEST(GreenElementTest, GetToken) { EXPECT_EQ(token, tokenElement.getToken()); }
 
 TEST(GreenElementTest, GetIfToken) {
-  EXPECT_EQ(Token, *TokenElement.getIfToken());
-  EXPECT_EQ(nullptr, TokenElement.getIfNode());
+  EXPECT_EQ(token, *tokenElement.getIfToken());
+  EXPECT_EQ(nullptr, tokenElement.getIfNode());
 }
 
 TEST(GreenElementTest, IsNode) {
-  EXPECT_TRUE(NodeElement.isNode());
-  EXPECT_FALSE(NodeElement.isToken());
+  EXPECT_TRUE(nodeElement.isNode());
+  EXPECT_FALSE(nodeElement.isToken());
 }
 
 TEST(GreenElementTest, IsToken) {
-  EXPECT_TRUE(TokenElement.isToken());
-  EXPECT_FALSE(TokenElement.isNode());
+  EXPECT_TRUE(tokenElement.isToken());
+  EXPECT_FALSE(tokenElement.isNode());
 }
 
 TEST(GreenElementTest, GetKind) {
-  // Node has a kind of 12, Token has a kind of 2.
-  EXPECT_EQ(Node.getKind(), NodeElement.getKind());
-  EXPECT_EQ(Token.getKind(), TokenElement.getKind());
+  // node has a kind of 12, token has a kind of 2.
+  EXPECT_EQ(node.getKind(), nodeElement.getKind());
+  EXPECT_EQ(token.getKind(), tokenElement.getKind());
 }
 
 TEST(GreenElementTest, GetWidth) {
-  // Node has a width of 0, Token has a width of 1.
-  EXPECT_EQ(Node.getWidth(), NodeElement.getWidth());
-  EXPECT_EQ(Token.getWidth(), TokenElement.getWidth());
+  // node has a width of 0, token has a width of 1.
+  EXPECT_EQ(node.getWidth(), nodeElement.getWidth());
+  EXPECT_EQ(token.getWidth(), tokenElement.getWidth());
 }
 
 TEST(GreenElementTest, GetUseCount) {
-  // Node and Token have 1 usage held by the GreenElement, and 1 usage held by
-  // themselves. In a normal scenario, ownership of the Node and Token would be
+  // node and token have 1 usage held by the GreenElement, and 1 usage held by
+  // themselves. In a normal scenario, ownership of the node and token would be
   // moved into the GreenElement, having a useCount of 1.
-  EXPECT_EQ(Node.getUseCount(), NodeElement.getUseCount());
-  EXPECT_EQ(Token.getUseCount(), TokenElement.getUseCount());
+  EXPECT_EQ(node.getUseCount(), nodeElement.getUseCount());
+  EXPECT_EQ(token.getUseCount(), tokenElement.getUseCount());
 }
 
 TEST(GreenElementTest, Equals) {
-  EXPECT_TRUE(GreenElement(Node) == NodeElement);
-  EXPECT_TRUE(GreenElement(Token) == TokenElement);
+  EXPECT_TRUE(GreenElement(node) == nodeElement);
+  EXPECT_TRUE(GreenElement(token) == tokenElement);
 }
 
 TEST(GreenElementTest, NotEquals) {
-  EXPECT_FALSE(GreenElement(Token) == NodeElement);
-  EXPECT_FALSE(GreenElement(Node) == TokenElement);
+  EXPECT_FALSE(GreenElement(token) == nodeElement);
+  EXPECT_FALSE(GreenElement(node) == tokenElement);
 }
 
 TEST(GreenElementTest, GreenElementSizeRequirements) {

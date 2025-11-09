@@ -5,11 +5,11 @@
 
 namespace yuzu::parsing {
 struct Span final {
-  const uint32_t Start;
-  const uint32_t End;
+  const uint32_t start;
+  const uint32_t end;
 
-  bool operator==(const Span &Other) const {
-    return Start == Other.Start && End == Other.End;
+  bool operator==(const Span &other) const {
+    return start == other.start && end == other.end;
   }
 };
 } // namespace yuzu::parsing

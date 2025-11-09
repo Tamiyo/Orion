@@ -20,277 +20,277 @@ GreenNode createTestGreenNode() {
 GreenToken createTestGreenToken() { return GreenToken(1, U"test"); }
 
 TEST(SyntaxDataTest, ConstructorInitializesRefCount) {
-  const auto Green = createTestGreenNode();
-  const auto Data = SyntaxData(Green, nullptr, 0, 0);
+  const auto green = createTestGreenNode();
+  const auto data = SyntaxData(green, nullptr, 0, 0);
 
-  EXPECT_EQ(1, Data.getRc());
+  EXPECT_EQ(1, data.getRc());
 }
 
 TEST(SyntaxDataTest, CopyConstructorSharesRefCount) {
-  const auto Green = createTestGreenNode();
-  const auto Data1 = SyntaxData(Green, nullptr, 0, 0);
+  const auto green = createTestGreenNode();
+  const auto data1 = SyntaxData(green, nullptr, 0, 0);
 
-  const auto Data2 = SyntaxData(Data1);
+  const auto data2 = SyntaxData(data1);
 
-  EXPECT_EQ(2, Data1.getRc());
-  EXPECT_EQ(2, Data2.getRc());
-  EXPECT_EQ(Data1.getRc(), Data2.getRc());
+  EXPECT_EQ(2, data1.getRc());
+  EXPECT_EQ(2, data2.getRc());
+  EXPECT_EQ(data1.getRc(), data2.getRc());
 }
 
 TEST(SyntaxDataTest, CopyAssignmentHandlesRefCount) {
-  const auto Green1 = createTestGreenNode();
-  const auto Green2 = createTestGreenToken();
+  const auto green1 = createTestGreenNode();
+  const auto green2 = createTestGreenToken();
 
-  auto Data1 = SyntaxData(Green1, nullptr, 0, 0);
-  auto Data2 = SyntaxData(Green2, nullptr, 10, 1);
+  auto data1 = SyntaxData(green1, nullptr, 0, 0);
+  auto data2 = SyntaxData(green2, nullptr, 10, 1);
 
-  Data2 = Data1;
+  data2 = data1;
 
-  EXPECT_EQ(Data1.getOffset(), Data2.getOffset());
-  EXPECT_EQ(Data1.getIndex(), Data2.getIndex());
+  EXPECT_EQ(data1.getOffset(), data2.getOffset());
+  EXPECT_EQ(data1.getIndex(), data2.getIndex());
 
-  EXPECT_EQ(2, Data1.getRc());
-  EXPECT_EQ(2, Data2.getRc());
-  EXPECT_EQ(Data1.getRc(), Data2.getRc());
+  EXPECT_EQ(2, data1.getRc());
+  EXPECT_EQ(2, data2.getRc());
+  EXPECT_EQ(data1.getRc(), data2.getRc());
 }
 
 TEST(SyntaxDataTest, SelfAssignmentIsNoop) {
-  const auto Green = createTestGreenNode();
-  auto Data = SyntaxData(Green, nullptr, 42, 7);
+  const auto green = createTestGreenNode();
+  auto data = SyntaxData(green, nullptr, 42, 7);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wself-assign-overloaded"
-  Data = Data;
+  data = data;
 #pragma GCC diagnostic pop
 
-  EXPECT_EQ(42, Data.getOffset());
-  EXPECT_EQ(7, Data.getIndex());
+  EXPECT_EQ(42, data.getOffset());
+  EXPECT_EQ(7, data.getIndex());
 
-  EXPECT_EQ(1, Data.getRc());
+  EXPECT_EQ(1, data.getRc());
 }
 
 TEST(SyntaxDataTest, MoveConstructorTransfersOwnership) {
-  const auto Green = createTestGreenNode();
-  auto Data1 = SyntaxData(Green, nullptr, 0, 0);
+  const auto green = createTestGreenNode();
+  auto data1 = SyntaxData(green, nullptr, 0, 0);
 
-  const auto Data2 = SyntaxData(std::move(Data1));
+  const auto data2 = SyntaxData(std::move(data1));
 
-  EXPECT_EQ(0, Data2.getOffset());
-  EXPECT_EQ(0, Data2.getIndex());
+  EXPECT_EQ(0, data2.getOffset());
+  EXPECT_EQ(0, data2.getIndex());
 
-  EXPECT_EQ(1, Data2.getRc());
+  EXPECT_EQ(1, data2.getRc());
 }
 
 TEST(SyntaxDataTest, MoveAssignmentTransfersOwnership) {
-  const auto Green1 = createTestGreenNode();
-  const auto Green2 = createTestGreenToken();
+  const auto green1 = createTestGreenNode();
+  const auto green2 = createTestGreenToken();
 
-  auto Data1 = SyntaxData(Green1, nullptr, 10, 5);
-  auto Data2 = SyntaxData(Green2, nullptr, 20, 10);
+  auto data1 = SyntaxData(green1, nullptr, 10, 5);
+  auto data2 = SyntaxData(green2, nullptr, 20, 10);
 
-  Data2 = std::move(Data1);
+  data2 = std::move(data1);
 
-  EXPECT_EQ(10, Data2.getOffset());
-  EXPECT_EQ(5, Data2.getIndex());
-  EXPECT_EQ(1, Data2.getRc());
+  EXPECT_EQ(10, data2.getOffset());
+  EXPECT_EQ(5, data2.getIndex());
+  EXPECT_EQ(1, data2.getRc());
 }
 
 TEST(SyntaxDataTest, GettersReturnCorrectValues) {
-  const auto Green = createTestGreenNode();
-  SyntaxData *const Parent = nullptr;
-  const size_t Offset = 42;
-  const size_t Index = 7;
+  const auto green = createTestGreenNode();
+  SyntaxData *const parent = nullptr;
+  const size_t offset = 42;
+  const size_t index = 7;
 
-  const auto Data = SyntaxData(Green, Parent, Offset, Index);
+  const auto data = SyntaxData(green, parent, offset, index);
 
-  EXPECT_EQ(Parent, Data.getParent());
-  EXPECT_EQ(Offset, Data.getOffset());
-  EXPECT_EQ(Index, Data.getIndex());
+  EXPECT_EQ(parent, data.getParent());
+  EXPECT_EQ(offset, data.getOffset());
+  EXPECT_EQ(index, data.getIndex());
 }
 
 TEST(SyntaxDataTest, MultipleReferencesShareData) {
-  const auto Green = createTestGreenNode();
-  const auto Data1 = SyntaxData(Green, nullptr, 0, 0);
+  const auto green = createTestGreenNode();
+  const auto data1 = SyntaxData(green, nullptr, 0, 0);
 
-  const auto Data2 = SyntaxData(Data1);
-  const auto Data3 = SyntaxData(Data2);
-  const auto Data4 = Data3;
+  const auto data2 = SyntaxData(data1);
+  const auto data3 = SyntaxData(data2);
+  const auto data4 = data3;
 
-  EXPECT_EQ(Data1.getOffset(), Data4.getOffset());
+  EXPECT_EQ(data1.getOffset(), data4.getOffset());
 
-  EXPECT_EQ(4, Data1.getRc());
-  EXPECT_EQ(4, Data2.getRc());
-  EXPECT_EQ(4, Data3.getRc());
-  EXPECT_EQ(4, Data4.getRc());
+  EXPECT_EQ(4, data1.getRc());
+  EXPECT_EQ(4, data2.getRc());
+  EXPECT_EQ(4, data3.getRc());
+  EXPECT_EQ(4, data4.getRc());
 
-  EXPECT_EQ(Data1.getRc(), Data2.getRc());
-  EXPECT_EQ(Data2.getRc(), Data3.getRc());
-  EXPECT_EQ(Data3.getRc(), Data4.getRc());
+  EXPECT_EQ(data1.getRc(), data2.getRc());
+  EXPECT_EQ(data2.getRc(), data3.getRc());
+  EXPECT_EQ(data3.getRc(), data4.getRc());
 }
 
 TEST(SyntaxNodeTest, ConstructorCreatesNode) {
-  const auto Green = createTestGreenNode();
-  const auto Node = SyntaxNode(10, 5, nullptr, Green);
+  const auto green = createTestGreenNode();
+  const auto node = SyntaxNode(10, 5, nullptr, green);
 
-  EXPECT_EQ(10, Node.getOffset());
-  EXPECT_EQ(5, Node.getIndex());
-  EXPECT_EQ(nullptr, Node.getParent());
-  EXPECT_EQ(2, Node.getKind());
+  EXPECT_EQ(10, node.getOffset());
+  EXPECT_EQ(5, node.getIndex());
+  EXPECT_EQ(nullptr, node.getParent());
+  EXPECT_EQ(2, node.getKind());
 }
 
 TEST(SyntaxNodeTest, CreateRootCreatesRootNode) {
-  const auto Green = createTestGreenNode();
-  const auto Root = SyntaxNode::createRoot(Green);
+  const auto green = createTestGreenNode();
+  const auto root = SyntaxNode::createRoot(green);
 
-  EXPECT_EQ(0, Root.getOffset());
-  EXPECT_EQ(0, Root.getIndex());
-  EXPECT_EQ(nullptr, Root.getParent());
-  EXPECT_EQ(2, Root.getKind());
+  EXPECT_EQ(0, root.getOffset());
+  EXPECT_EQ(0, root.getIndex());
+  EXPECT_EQ(nullptr, root.getParent());
+  EXPECT_EQ(2, root.getKind());
 }
 
 TEST(SyntaxNodeTest, CopyConstructorSharesData) {
-  const auto Green = createTestGreenNode();
-  const auto Node1 = SyntaxNode(42, 7, nullptr, Green);
+  const auto green = createTestGreenNode();
+  const auto node1 = SyntaxNode(42, 7, nullptr, green);
 
-  const auto Node2 = SyntaxNode(Node1);
+  const auto node2 = SyntaxNode(node1);
 
-  EXPECT_EQ(Node1, Node2);
-  EXPECT_EQ(Node1.getOffset(), Node2.getOffset());
-  EXPECT_EQ(Node1.getIndex(), Node2.getIndex());
-  EXPECT_EQ(Node1.getParent(), Node2.getParent());
-  EXPECT_EQ(Node1.getKind(), Node2.getKind());
+  EXPECT_EQ(node1, node2);
+  EXPECT_EQ(node1.getOffset(), node2.getOffset());
+  EXPECT_EQ(node1.getIndex(), node2.getIndex());
+  EXPECT_EQ(node1.getParent(), node2.getParent());
+  EXPECT_EQ(node1.getKind(), node2.getKind());
 }
 
 TEST(SyntaxNodeTest, MultipleNodesCanShareData) {
-  const auto Green = createTestGreenNode();
-  const auto Node1 = SyntaxNode(100, 50, nullptr, Green);
+  const auto green = createTestGreenNode();
+  const auto node1 = SyntaxNode(100, 50, nullptr, green);
 
-  const auto Node2 = SyntaxNode(Node1);
-  const auto Node3 = SyntaxNode(Node2);
+  const auto node2 = SyntaxNode(node1);
+  const auto Node3 = SyntaxNode(node2);
   const auto Node4 = SyntaxNode(Node3);
 
-  EXPECT_EQ(Node1, Node2);
-  EXPECT_EQ(Node2, Node3);
+  EXPECT_EQ(node1, node2);
+  EXPECT_EQ(node2, Node3);
   EXPECT_EQ(Node3, Node4);
-  EXPECT_EQ(Node1, Node4);
+  EXPECT_EQ(node1, Node4);
 
   EXPECT_EQ(100, Node4.getOffset());
   EXPECT_EQ(50, Node4.getIndex());
 }
 
 TEST(SyntaxTokenTest, ConstructorWithParent) {
-  const auto Green = createTestGreenToken();
-  const auto Token = SyntaxToken(10, 5, nullptr, Green);
+  const auto green = createTestGreenToken();
+  const auto token = SyntaxToken(10, 5, nullptr, green);
 
-  EXPECT_EQ(10, Token.getOffset());
-  EXPECT_EQ(5, Token.getIndex());
-  EXPECT_EQ(nullptr, Token.getParent());
-  EXPECT_EQ(1, Token.getKind());
+  EXPECT_EQ(10, token.getOffset());
+  EXPECT_EQ(5, token.getIndex());
+  EXPECT_EQ(nullptr, token.getParent());
+  EXPECT_EQ(1, token.getKind());
 }
 
 TEST(SyntaxTokenTest, ConstructorWithoutParent) {
-  const auto Green = createTestGreenToken();
-  const auto Token = SyntaxToken(10, 5, Green);
+  const auto green = createTestGreenToken();
+  const auto token = SyntaxToken(10, 5, green);
 
-  EXPECT_EQ(10, Token.getOffset());
-  EXPECT_EQ(5, Token.getIndex());
-  EXPECT_EQ(nullptr, Token.getParent());
-  EXPECT_EQ(1, Token.getKind());
+  EXPECT_EQ(10, token.getOffset());
+  EXPECT_EQ(5, token.getIndex());
+  EXPECT_EQ(nullptr, token.getParent());
+  EXPECT_EQ(1, token.getKind());
 }
 
 TEST(SyntaxTokenTest, CopyConstructorSharesData) {
-  const auto Green = createTestGreenToken();
-  const auto Token1 = SyntaxToken(25, 15, Green);
-  const auto Token2 = SyntaxToken(Token1);
+  const auto green = createTestGreenToken();
+  const auto token1 = SyntaxToken(25, 15, green);
+  const auto token2 = SyntaxToken(token1);
 
-  EXPECT_EQ(Token1, Token2);
-  EXPECT_EQ(Token1.getOffset(), Token2.getOffset());
-  EXPECT_EQ(Token1.getIndex(), Token2.getIndex());
-  EXPECT_EQ(Token1.getParent(), Token2.getParent());
-  EXPECT_EQ(Token1.getKind(), Token2.getKind());
+  EXPECT_EQ(token1, token2);
+  EXPECT_EQ(token1.getOffset(), token2.getOffset());
+  EXPECT_EQ(token1.getIndex(), token2.getIndex());
+  EXPECT_EQ(token1.getParent(), token2.getParent());
+  EXPECT_EQ(token1.getKind(), token2.getKind());
 }
 
 TEST(SyntaxTokenTest, MultipleTokensCanShareData) {
-  const auto Green = createTestGreenToken();
-  const auto Token1 = SyntaxToken(200, 100, Green);
-  const auto Token2 = SyntaxToken(Token1);
-  const auto Token3 = SyntaxToken(Token2);
-  const auto Token4 = SyntaxToken(Token3);
+  const auto green = createTestGreenToken();
+  const auto token1 = SyntaxToken(200, 100, green);
+  const auto token2 = SyntaxToken(token1);
+  const auto token3 = SyntaxToken(token2);
+  const auto token4 = SyntaxToken(token3);
 
-  EXPECT_EQ(Token1, Token2);
-  EXPECT_EQ(Token2, Token3);
-  EXPECT_EQ(Token3, Token4);
-  EXPECT_EQ(Token1, Token4);
+  EXPECT_EQ(token1, token2);
+  EXPECT_EQ(token2, token3);
+  EXPECT_EQ(token3, token4);
+  EXPECT_EQ(token1, token4);
 
-  EXPECT_EQ(200, Token4.getOffset());
-  EXPECT_EQ(100, Token4.getIndex());
-  EXPECT_EQ(1, Token4.getKind());
+  EXPECT_EQ(200, token4.getOffset());
+  EXPECT_EQ(100, token4.getIndex());
+  EXPECT_EQ(1, token4.getKind());
 }
 
 TEST(SyntaxNodeTest, EqualityOperatorWorksCorrectly) {
-  const auto Green1 = createTestGreenNode();
-  const auto Green2 = createTestGreenNode();
+  const auto green1 = createTestGreenNode();
+  const auto green2 = createTestGreenNode();
 
-  const auto Node1 = SyntaxNode(10, 5, nullptr, Green1);
-  const auto Node2 = SyntaxNode(Node1);
-  const auto Node3 = SyntaxNode(10, 5, nullptr, Green2);
+  const auto node1 = SyntaxNode(10, 5, nullptr, green1);
+  const auto node2 = SyntaxNode(node1);
+  const auto Node3 = SyntaxNode(10, 5, nullptr, green2);
 
-  EXPECT_EQ(Node1, Node2);
-  EXPECT_EQ(Node1, Node3);
+  EXPECT_EQ(node1, node2);
+  EXPECT_EQ(node1, Node3);
 }
 
 TEST(SyntaxTokenTest, EqualityOperatorWorksCorrectly) {
-  const auto Green1 = createTestGreenToken();
-  const auto Green2 = createTestGreenToken();
+  const auto green1 = createTestGreenToken();
+  const auto green2 = createTestGreenToken();
 
-  const auto Token1 = SyntaxToken(10, 5, Green1);
-  const auto Token2 = SyntaxToken(Token1);
-  const auto Token3 = SyntaxToken(10, 5, Green2);
+  const auto token1 = SyntaxToken(10, 5, green1);
+  const auto token2 = SyntaxToken(token1);
+  const auto token3 = SyntaxToken(10, 5, green2);
 
-  EXPECT_EQ(Token1, Token2);
-  EXPECT_EQ(Token1, Token3);
+  EXPECT_EQ(token1, token2);
+  EXPECT_EQ(token1, token3);
 }
 
 TEST(SyntaxDataTest, EqualityOperatorWorksCorrectly) {
-  const auto Green1 = createTestGreenNode();
-  const auto Green2 = createTestGreenNode();
+  const auto green1 = createTestGreenNode();
+  const auto green2 = createTestGreenNode();
 
-  const auto Data1 = SyntaxData(Green1, nullptr, 10, 5);
-  const auto Data2 = SyntaxData(Data1);
-  const auto Data3 = SyntaxData(Green2, nullptr, 10, 5);
-  const auto Data4 = SyntaxData(Green1, nullptr, 20, 5);
+  const auto data1 = SyntaxData(green1, nullptr, 10, 5);
+  const auto data2 = SyntaxData(data1);
+  const auto data3 = SyntaxData(green2, nullptr, 10, 5);
+  const auto data4 = SyntaxData(green1, nullptr, 20, 5);
 
-  EXPECT_EQ(Data1, Data2);
-  EXPECT_EQ(Data1, Data3);
-  EXPECT_NE(Data1, Data4);
+  EXPECT_EQ(data1, data2);
+  EXPECT_EQ(data1, data3);
+  EXPECT_NE(data1, data4);
 }
 
 TEST(SyntaxNodeTest, CopyAssignmentWorksCorrectly) {
-  const auto Green1 = createTestGreenNode();
-  const auto Green2 = createTestGreenNode();
+  const auto green1 = createTestGreenNode();
+  const auto green2 = createTestGreenNode();
 
-  auto Node1 = SyntaxNode(10, 5, nullptr, Green1);
-  auto Node2 = SyntaxNode(20, 10, nullptr, Green2);
+  auto node1 = SyntaxNode(10, 5, nullptr, green1);
+  auto node2 = SyntaxNode(20, 10, nullptr, green2);
 
-  Node2 = Node1;
+  node2 = node1;
 
-  EXPECT_EQ(Node1, Node2);
-  EXPECT_EQ(10, Node2.getOffset());
-  EXPECT_EQ(5, Node2.getIndex());
+  EXPECT_EQ(node1, node2);
+  EXPECT_EQ(10, node2.getOffset());
+  EXPECT_EQ(5, node2.getIndex());
 }
 
 TEST(SyntaxTokenTest, CopyAssignmentWorksCorrectly) {
-  const auto Green1 = createTestGreenToken();
-  const auto Green2 = createTestGreenToken();
+  const auto green1 = createTestGreenToken();
+  const auto green2 = createTestGreenToken();
 
-  auto Token1 = SyntaxToken(10, 5, Green1);
-  auto Token2 = SyntaxToken(20, 10, Green2);
+  auto token1 = SyntaxToken(10, 5, green1);
+  auto token2 = SyntaxToken(20, 10, green2);
 
-  Token2 = Token1;
+  token2 = token1;
 
-  EXPECT_EQ(Token1, Token2);
-  EXPECT_EQ(10, Token2.getOffset());
-  EXPECT_EQ(5, Token2.getIndex());
+  EXPECT_EQ(token1, token2);
+  EXPECT_EQ(10, token2.getOffset());
+  EXPECT_EQ(5, token2.getIndex());
 }
 
 } // namespace

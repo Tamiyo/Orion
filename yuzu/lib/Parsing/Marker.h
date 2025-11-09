@@ -5,11 +5,11 @@
 
 namespace yuzu::parsing {
 struct CompletedMarker final {
-  const size_t Position;
+  const size_t position;
 };
 
 struct Marker final {
-  const size_t Position;
+  const size_t position;
 };
 } // namespace yuzu::parsing
 

@@ -8,24 +8,24 @@ namespace {
 using yuzu::syntax::GreenBuilder;
 using yuzu::syntax::SyntaxKind;
 
-constexpr auto kTestSyntaxKind = 0;
+constexpr auto syntaxKind = 0;
 
 TEST(GreenBuilderTest, StartNode) {
-  auto Builder = GreenBuilder();
+  auto builder = GreenBuilder();
 
-  Builder.startNode(kTestSyntaxKind);
+  builder.startNode(syntaxKind);
 
-  EXPECT_EQ(1, Builder.getParentsSize());
-  EXPECT_EQ(0, Builder.getChildrenSize());
+  EXPECT_EQ(1, builder.getParentsSize());
+  EXPECT_EQ(0, builder.getChildrenSize());
 }
 
 TEST(GreenBuilderTest, FinishNode) {
-  auto Builder = GreenBuilder();
+  auto builder = GreenBuilder();
 
-  Builder.startNode(kTestSyntaxKind);
-  Builder.finishNode();
+  builder.startNode(syntaxKind);
+  builder.finishNode();
 
-  EXPECT_EQ(0, Builder.getParentsSize());
-  EXPECT_EQ(1, Builder.getChildrenSize());
+  EXPECT_EQ(0, builder.getParentsSize());
+  EXPECT_EQ(1, builder.getChildrenSize());
 }
 } // namespace

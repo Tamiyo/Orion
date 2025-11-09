@@ -16,85 +16,86 @@ using yuzu::syntax::SyntaxKind;
 using yuzu::syntax::SyntaxNode;
 
 TEST(SyntaxChildrenTest, NoChildren) {
-  const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
-  const auto Root = SyntaxNode::createRoot(NodeEmpty);
+  const auto nodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
+  const auto root = SyntaxNode::createRoot(nodeEmpty);
 
-  int Count = 0;
-  for (const auto &_ : Root.getChildren()) {
-    ++Count;
+  int count = 0;
+  for (const auto &_ : root.getChildren()) {
+    ++count;
   }
-  EXPECT_EQ(0, Count);
+  EXPECT_EQ(0, count);
 }
 
 TEST(SyntaxChildrenTest, TokensOnlyChildren) {
-  const auto Token1 = GreenToken(1, U"t1");
-  const auto Token2 = GreenToken(2, U"t2");
-  const auto NodeWithTokens =
-      GreenNode::create(11, std::vector<GreenElement>{Token1, Token2});
-  const auto Root = SyntaxNode::createRoot(NodeWithTokens);
+  const auto token1 = GreenToken(1, U"t1");
+  const auto token2 = GreenToken(2, U"t2");
+  const auto nodeWithTokens =
+      GreenNode::create(11, std::vector<GreenElement>{token1, token2});
+  const auto root = SyntaxNode::createRoot(nodeWithTokens);
 
-  int Count = 0;
-  for (const auto &_ : Root.getChildren()) {
-    ++Count;
+  int count = 0;
+  for (const auto &_ : root.getChildren()) {
+    ++count;
   }
-  EXPECT_EQ(0, Count);
+
+  EXPECT_EQ(0, count);
 }
 
 TEST(SyntaxChildrenTest, NodesOnlyChildren) {
-  const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
-  const auto NodeWithNodes =
-      GreenNode::create(12, std::vector<GreenElement>{NodeEmpty});
+  const auto nodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
+  const auto nodeWithNodes =
+      GreenNode::create(12, std::vector<GreenElement>{nodeEmpty});
 
-  const auto Root = SyntaxNode::createRoot(NodeWithNodes);
+  const auto root = SyntaxNode::createRoot(nodeWithNodes);
 
-  auto Children = Root.getChildren();
-  auto It = Children.begin();
+  auto children = root.getChildren();
+  auto it = children.begin();
 
-  EXPECT_EQ((*It++).getGreen(), NodeEmpty);
-  EXPECT_EQ(It, Children.end());
+  EXPECT_EQ((*it++).getGreen(), nodeEmpty);
+  EXPECT_EQ(it, children.end());
 }
 
 TEST(SyntaxChildrenTest, NodesAndTokensChildren) {
-  const auto Token1 = GreenToken(1, U"t1");
-  const auto Token2 = GreenToken(2, U"t2");
-  const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
-  const auto NodeWithTokens =
-      GreenNode::create(11, std::vector<GreenElement>{Token1, Token2});
-  const auto NodeMixed = GreenNode::create(
-      13, std::vector<GreenElement>{Token1, NodeEmpty, Token2, NodeWithTokens});
-  const auto Root = SyntaxNode::createRoot(NodeMixed);
+  const auto token1 = GreenToken(1, U"t1");
+  const auto token2 = GreenToken(2, U"t2");
+  const auto nodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
+  const auto nodeWithTokens =
+      GreenNode::create(11, std::vector<GreenElement>{token1, token2});
+  const auto nodeMixed = GreenNode::create(
+      13, std::vector<GreenElement>{token1, nodeEmpty, token2, nodeWithTokens});
+  const auto root = SyntaxNode::createRoot(nodeMixed);
 
-  auto Children = Root.getChildren();
-  auto It = Children.begin();
+  auto children = root.getChildren();
+  auto it = children.begin();
 
-  EXPECT_EQ((*It++).getGreen(), NodeEmpty);
-  EXPECT_EQ((*It++).getGreen(), NodeWithTokens);
-  EXPECT_EQ(It, Children.end());
+  EXPECT_EQ((*it++).getGreen(), nodeEmpty);
+  EXPECT_EQ((*it++).getGreen(), nodeWithTokens);
+  EXPECT_EQ(it, children.end());
 }
 
 TEST(SyntaxChildrenTest, Equals) {
-  const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
-  const auto NodeWithNodes =
-      GreenNode::create(12, std::vector<GreenElement>{NodeEmpty});
-  const auto Root = SyntaxNode::createRoot(NodeWithNodes);
-  auto Children = Root.getChildren();
+  const auto nodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
+  const auto nodeWithNodes =
+      GreenNode::create(12, std::vector<GreenElement>{nodeEmpty});
+  const auto root = SyntaxNode::createRoot(nodeWithNodes);
+  const auto children = root.getChildren();
 
-  EXPECT_EQ(Children.begin(), Children.begin());
+  EXPECT_EQ(children.begin(), children.begin());
 }
 
 TEST(SyntaxChildrenTest, NotEquals) {
-  const auto NodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
-  const auto NodeWithNodes =
-      GreenNode::create(12, std::vector<GreenElement>{NodeEmpty});
-  const auto Root = SyntaxNode::createRoot(NodeWithNodes);
-  auto Children = Root.getChildren();
-  auto It = Children.begin();
+  const auto nodeEmpty = GreenNode::create(10, std::vector<GreenElement>());
+  const auto nodeWithNodes =
+      GreenNode::create(12, std::vector<GreenElement>{nodeEmpty});
+  const auto root = SyntaxNode::createRoot(nodeWithNodes);
+  const auto children = root.getChildren();
+  auto it = children.begin();
 
-  EXPECT_NE(++It, Children.begin());
+  EXPECT_NE(++it, children.begin());
 }
 
 TEST(SyntaxChildrenTest, NodesWithOffsets) {
-  const auto ManyChildren = GreenNode::create(
+  const auto manyChildren = GreenNode::create(
       0,
       std::vector<GreenElement>{
           GreenToken(1, U"("),
@@ -104,13 +105,13 @@ TEST(SyntaxChildrenTest, NodesWithOffsets) {
           GreenToken(1, U")"),
       });
 
-  const auto Root = SyntaxNode::createRoot(ManyChildren);
-  auto Children = Root.getChildren();
-  auto It = Children.begin();
+  const auto root = SyntaxNode::createRoot(manyChildren);
+  const auto children = root.getChildren();
+  auto it = children.begin();
 
-  EXPECT_EQ(1, (*It++).getOffset());
-  EXPECT_EQ(2, (*It++).getOffset());
-  EXPECT_EQ(3, (*It++).getOffset());
-  EXPECT_EQ(It, Children.end());
+  EXPECT_EQ(1, (*it++).getOffset());
+  EXPECT_EQ(2, (*it++).getOffset());
+  EXPECT_EQ(3, (*it++).getOffset());
+  EXPECT_EQ(it, children.end());
 }
 } // namespace

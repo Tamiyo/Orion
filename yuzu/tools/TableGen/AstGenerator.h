@@ -15,71 +15,71 @@
 namespace yuzu_tools {
 class AstGenerator : public Generator {
 public:
-  explicit AstGenerator(const llvm::RecordKeeper &Records,
-                        const std::set<std::string> &ProjectIncludes = {},
-                        const std::set<std::string> &ExternalIncludes = {},
-                        const std::set<std::string> &SystemIncludes = {})
-      : Generator(std::move(Records)),
-        ProjectIncludes_(std::move(ProjectIncludes)),
-        ExternalIncludes_(std::move(ExternalIncludes)),
-        SystemIncludes_(std::move(SystemIncludes)) {}
+  explicit AstGenerator(const llvm::RecordKeeper &records,
+                        const std::set<std::string> &projectIncludes = {},
+                        const std::set<std::string> &externalIncludes = {},
+                        const std::set<std::string> &systemIncludes = {})
+      : Generator(std::move(records)),
+        projectIncludes(std::move(projectIncludes)),
+        externalIncludes(std::move(externalIncludes)),
+        systemIncludes(std::move(systemIncludes)) {}
 
 protected:
   virtual std::string getIncludeGuardName() const noexcept = 0;
 
-  virtual void emitClassDefinitions(llvm::raw_ostream &OS) const noexcept = 0;
+  virtual void emitClassDefinitions(llvm::raw_ostream &os) const noexcept = 0;
 
-  virtual void emitHeader(llvm::raw_ostream &OS) const noexcept = 0;
+  virtual void emitHeader(llvm::raw_ostream &os) const noexcept = 0;
 
-  void emitOpenIncludeGuards(llvm::raw_ostream &OS) const noexcept {
-    const std::string GuardName = getIncludeGuardName();
-    OS << llvm::formatv("#ifndef {0}\n#define {0}\n\n", GuardName);
+  void emitOpenIncludeGuards(llvm::raw_ostream &os) const noexcept {
+    const std::string guardName = getIncludeGuardName();
+    os << llvm::formatv("#ifndef {0}\n#define {0}\n\n", guardName);
   }
 
-  void emitCloseIncludeGuards(llvm::raw_ostream &OS) const noexcept {
-    OS << llvm::formatv("#endif // {0}\n", getIncludeGuardName());
+  void emitCloseIncludeGuards(llvm::raw_ostream &os) const noexcept {
+    os << llvm::formatv("#endif // {0}\n", getIncludeGuardName());
   }
 
-  void emitIncludes(llvm::raw_ostream &OS) const noexcept {
-    const auto EmitIncludes = [&OS](const std::set<std::string> &Includes) {
+  void emitIncludes(llvm::raw_ostream &os) const noexcept {
+    const auto emitIncludes = [&os](const std::set<std::string> &includes) {
       // Don't emit any includes if there are none, this would emit extra
       // whitespace.
-      if (Includes.empty()) {
+      if (includes.empty()) {
         return;
       }
 
-      for (const auto &Include : Includes) {
+      for (const auto &include : includes) {
         // Local and customer headers files should use the #include "header"
         // syntax.
-        if (Include.find(".h") != std::string::npos) {
-          OS << "#include \"" << Include << "\"\n";
+        if (include.find(".h") != std::string::npos) {
+          os << "#include \"" << include << "\"\n";
         }
         // System headers should use the #include <header> syntax.
         else {
-          OS << "#include <" << Include << ">\n";
+          os << "#include <" << include << ">\n";
         }
       }
-      OS << "\n";
+      os << "\n";
     };
 
     /// Emit includes using LLVM style.
-    EmitIncludes(ProjectIncludes_);
-    EmitIncludes(ExternalIncludes_);
-    EmitIncludes(SystemIncludes_);
+    emitIncludes(projectIncludes);
+    emitIncludes(externalIncludes);
+    emitIncludes(systemIncludes);
   }
 
   [[nodiscard]] bool
-  isIgnored(const llvm::Record *const Record) const noexcept {
+  isIgnored(const llvm::Record *const record) const noexcept {
     // Skip anonymous and base classes. These classes serve as abstractions to
     // generate AstNodes, but are not actually AstNodes themselves.
-    if (Record->isAnonymous() ||
-        IgnoredClasses_.count(Record->getName().str())) {
+    if (record->isAnonymous() ||
+        ignoredClasses.count(record->getName().str())) {
       return true;
     }
 
     // Skip if any superclass should be ignored.
-    for (const llvm::Record *SuperClass : Record->getSuperClasses()) {
-      if (IgnoredSuperClasses_.count(SuperClass->getName().str())) {
+    for (const llvm::Record *superClass : record->getSuperClasses()) {
+      if (ignoredSuperClasses.count(superClass->getName().str())) {
         return true;
       }
     }
@@ -87,22 +87,22 @@ protected:
     return false;
   }
 
-  const std::set<std::string> IgnoredClasses_ = {
+  const std::set<std::string> ignoredClasses = {
       "AstNode",
       "AstMethod",
   };
 
-  const std::set<std::string> IgnoredSuperClasses_ = {
+  const std::set<std::string> ignoredSuperClasses = {
       "AstMethod",
   };
 
 private:
-  const std::set<std::string> ProjectIncludes_;
+  const std::set<std::string> projectIncludes;
 
-  const std::set<std::string> ExternalIncludes_;
+  const std::set<std::string> externalIncludes;
 
-  const std::set<std::string> SystemIncludes_ = {"memory", "optional", "string",
-                                                 "variant"};
+  const std::set<std::string> systemIncludes = {"memory", "optional", "string",
+                                                "variant"};
 };
 } // namespace yuzu_tools
 

@@ -7,120 +7,121 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace yuzu::syntax {
 
 namespace {
-constexpr unsigned int kHashConstant = 0x9e3779b9;
+constexpr unsigned int hashConstant = 0x9e3779b9;
 } // namespace
 
 // ---------------------- Tokens -----------------------
 
-GreenCacheEntry GreenCache::getToken(const SyntaxKind Kind,
-                                     const std::u32string &Source) noexcept {
-  const size_t Hash = hashToken(Kind, Source);
+GreenCacheEntry
+GreenCache::getToken(const SyntaxKind kind,
+                     const std::u32string_view &source) noexcept {
+  const size_t hash = hashToken(kind, source);
 
-  const auto It = Tokens_.find(Hash);
-  if (It != Tokens_.end()) {
-    return GreenCacheEntry{.Hash = Hash, .Element = It->second};
+  const auto it = tokens.find(hash);
+  if (it != tokens.end()) {
+    return GreenCacheEntry{.hash = hash, .element = it->second};
   }
 
-  const auto Token = GreenToken(Kind, Source);
+  const auto token = GreenToken(kind, std::move(source));
 
-  Tokens_.emplace(Hash, std::move(Token));
+  tokens.emplace(hash, std::move(token));
 
-  return GreenCacheEntry{.Hash = Hash, .Element = Tokens_.at(Hash)};
+  return GreenCacheEntry{.hash = hash, .element = tokens.at(hash)};
 }
 
-size_t GreenCache::hashToken(const SyntaxKind Kind,
-                             const std::u32string &Source) const noexcept {
-  size_t Hash = std::hash<uint16_t>{}(Kind);
-  Hash ^= std::hash<std::u32string>{}(Source) + kHashConstant + (Hash << 6) +
-          (Hash >> 2);
-  return Hash;
+size_t GreenCache::hashToken(const SyntaxKind kind,
+                             const std::u32string_view &source) const noexcept {
+  size_t hash = std::hash<uint16_t>{}(kind);
+  hash ^= std::hash<std::u32string_view>{}(source) + hashConstant +
+          (hash << 6) + (hash >> 2);
+  return hash;
 }
 
 // ---------------------- Nodes -----------------------
 
-GreenCacheEntry GreenCache::getNode(const SyntaxKind Kind,
-                                    std::vector<GreenCacheEntry> *Children,
-                                    const size_t FirstChild) noexcept {
-  const size_t ChildrenSize = Children->size() - FirstChild;
+GreenCacheEntry GreenCache::getNode(const SyntaxKind kind,
+                                    std::vector<GreenCacheEntry> *children,
+                                    const size_t firstChild) noexcept {
+  const size_t childrenSize = children->size() - firstChild;
 
-  if (ChildrenSize > MaxCachedNodeSize_) {
-    const GreenNode Node = buildNode(Kind, Children, FirstChild);
-    return GreenCacheEntry{.Hash = 0, .Element = Node};
+  if (childrenSize > maxCachedNodeSize) {
+    const GreenNode node = buildNode(kind, children, firstChild);
+    return GreenCacheEntry{.hash = 0, .element = node};
   }
 
-  const size_t Hash = hashNode(Kind, *Children, FirstChild);
+  const size_t hash = hashNode(kind, *children, firstChild);
 
-  const auto It = Nodes_.find(Hash);
-  if (It != Nodes_.end()) {
-    const auto &CachedElement = It->second;
+  const auto it = nodes.find(hash);
+  if (it != nodes.end()) {
+    const auto &cachedElement = it->second;
 
-    std::vector<GreenElement> EntryElements;
-    EntryElements.reserve(ChildrenSize);
+    std::vector<GreenElement> entryElements;
+    entryElements.reserve(childrenSize);
 
-    for (size_t I = FirstChild; I < Children->size(); ++I) {
-      EntryElements.emplace_back(std::move(Children->at(I).Element));
+    for (size_t i = firstChild; i < children->size(); ++i) {
+      entryElements.emplace_back(std::move(children->at(i).element));
     }
 
-    if (const GreenNode *EntryNode = CachedElement.getIfNode()) {
-      const bool IsSameKinds = EntryNode->getKind() == Kind;
+    if (const GreenNode *entryNode = cachedElement.getIfNode()) {
+      const bool isSameKinds = entryNode->getKind() == kind;
 
-      const bool IsSameChildren = std::equal(
-          EntryNode->getChildren().begin(), EntryNode->getChildren().end(),
-          EntryElements.begin(), EntryElements.end(),
-          [](const GreenChild &Child, const GreenElement &Element) {
-            return Child.Element == Element;
+      const bool isSameChildren = std::equal(
+          entryNode->getChildren().begin(), entryNode->getChildren().end(),
+          entryElements.begin(), entryElements.end(),
+          [](const GreenChild &child, const GreenElement &element) {
+            return child.element == element;
           });
 
-      if (IsSameKinds && IsSameChildren) {
-        Children->erase(Children->begin() + FirstChild, Children->end());
-        return GreenCacheEntry{Hash, CachedElement};
+      if (isSameKinds && isSameChildren) {
+        children->erase(children->begin() + firstChild, children->end());
+        return GreenCacheEntry{hash, cachedElement};
       }
     }
   }
 
-  const GreenNode Node = buildNode(Kind, Children, FirstChild);
-  Nodes_.emplace(Hash, std::move(Node));
+  const GreenNode node = buildNode(kind, children, firstChild);
+  nodes.emplace(hash, std::move(node));
 
-  return GreenCacheEntry{Hash, Nodes_.at(Hash)};
+  return GreenCacheEntry{hash, nodes.at(hash)};
 }
 
-size_t GreenCache::hashNode(const SyntaxKind Kind,
-                            const std::vector<GreenCacheEntry> &Children,
-                            const size_t FirstChild) const noexcept {
-  size_t Hash = std::hash<uint16_t>{}(Kind);
+size_t GreenCache::hashNode(const SyntaxKind kind,
+                            const std::vector<GreenCacheEntry> &children,
+                            const size_t firstChild) const noexcept {
+  size_t hash = std::hash<uint16_t>{}(kind);
 
-  for (size_t I = FirstChild; I < Children.size(); ++I) {
-    const size_t ChildHash = Children[I].Hash;
-    if (ChildHash == 0) {
+  for (size_t i = firstChild; i < children.size(); ++i) {
+    const size_t childHash = children[i].hash;
+    if (childHash == 0) {
       return 0;
     }
-    Hash ^= ChildHash + kHashConstant + (Hash << 6) + (Hash >> 2);
+    hash ^= childHash + hashConstant + (hash << 6) + (hash >> 2);
   }
 
-  return Hash;
+  return hash;
 }
 
-GreenNode GreenCache::buildNode(const SyntaxKind Kind,
-                                std::vector<GreenCacheEntry> *Children,
-                                const size_t FirstChild) const noexcept {
-  std::vector<GreenElement> Elements;
-  Elements.reserve(Children->size() - FirstChild);
+GreenNode GreenCache::buildNode(const SyntaxKind kind,
+                                std::vector<GreenCacheEntry> *children,
+                                const size_t firstChild) const noexcept {
+  std::vector<GreenElement> elements;
+  elements.reserve(children->size() - firstChild);
 
-  for (size_t ChildIndex = FirstChild; ChildIndex < Children->size();
-       ++ChildIndex) {
-    Elements.emplace_back(std::move(Children->at(ChildIndex).Element));
+  for (size_t childIndex = firstChild; childIndex < children->size();
+       ++childIndex) {
+    elements.emplace_back(std::move(children->at(childIndex).element));
   }
 
-  Children->erase(Children->begin() + FirstChild, Children->end());
+  children->erase(children->begin() + firstChild, children->end());
 
-  return GreenNode::create(Kind, std::move(Elements));
+  return GreenNode::create(kind, std::move(elements));
 }
 
 } // namespace yuzu::syntax

@@ -5,6 +5,7 @@ cc_library(
     srcs = [],
     hdrs = [
         "Event.h",
+        "Lexing/Lexer.h",
         "Marker.h",
         "Span.h",
         "Token.h",

@@ -5,52 +5,53 @@
 #include "yuzu/Syntax/SyntaxKind.h"
 
 #include <cstddef>
-#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
 namespace yuzu::syntax {
 struct GreenCacheEntry {
-  size_t Hash;
-  GreenElement Element;
+  size_t hash;
+  GreenElement element;
 };
 
 class GreenCache final {
 public:
-  explicit GreenCache(const size_t MaxCachedNodeSize)
-      : MaxCachedNodeSize_(MaxCachedNodeSize) {}
+  explicit GreenCache(const size_t maxCachedNodeSize)
+      : maxCachedNodeSize(maxCachedNodeSize) {}
 
   GreenCache() = delete;
 
-  [[nodiscard]] GreenCacheEntry getNode(const SyntaxKind Kind,
-                              std::vector<GreenCacheEntry> *Children,
-                              const size_t FirstChild) noexcept;
+  [[nodiscard]] GreenCacheEntry getNode(const SyntaxKind kind,
+                                        std::vector<GreenCacheEntry> *children,
+                                        const size_t firstChild) noexcept;
 
-  [[nodiscard]] GreenCacheEntry getToken(const SyntaxKind Kind,
-                               const std::u32string &Source) noexcept;
+  [[nodiscard]] GreenCacheEntry
+  getToken(const SyntaxKind kind, const std::u32string_view &source) noexcept;
 
-  [[nodiscard]] size_t getNodeSize() const noexcept { return Nodes_.size(); }
+  [[nodiscard]] size_t getNodeSize() const noexcept { return nodes.size(); }
 
-  [[nodiscard]] size_t getTokenSize() const noexcept { return Tokens_.size(); }
+  [[nodiscard]] size_t getTokenSize() const noexcept { return tokens.size(); }
 
 private:
-  [[nodiscard]] size_t hashNode(const SyntaxKind Kind,
-                                const std::vector<GreenCacheEntry> &Children,
-                                const size_t FirstChild) const noexcept;
+  [[nodiscard]] size_t hashNode(const SyntaxKind kind,
+                                const std::vector<GreenCacheEntry> &children,
+                                const size_t firstChild) const noexcept;
 
-  [[nodiscard]] size_t hashToken(const SyntaxKind Kind,
-                                 const std::u32string &Source) const noexcept;
+  [[nodiscard]] size_t
+  hashToken(const SyntaxKind kind,
+            const std::u32string_view &source) const noexcept;
 
-  [[nodiscard]] GreenNode buildNode(const SyntaxKind Kind,
-                                    std::vector<GreenCacheEntry> *Children,
-                                    const size_t FirstChild) const noexcept;
+  [[nodiscard]] GreenNode buildNode(const SyntaxKind kind,
+                                    std::vector<GreenCacheEntry> *children,
+                                    const size_t firstChild) const noexcept;
 
-  const size_t MaxCachedNodeSize_;
+  const size_t maxCachedNodeSize;
 
   // TODO(tamiyo): These should probably be a form of set with a custom
   // hashing function for performance.
-  std::unordered_map<size_t, GreenElement> Nodes_;
-  std::unordered_map<size_t, GreenElement> Tokens_;
+  std::unordered_map<size_t, GreenElement> nodes;
+  std::unordered_map<size_t, GreenElement> tokens;
 };
 
 } // namespace yuzu::syntax

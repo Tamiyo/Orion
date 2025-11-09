@@ -13,63 +13,62 @@ namespace yuzu::syntax {
 /// =============
 /// = GreenNode =
 /// =============
-GreenNode::GreenNode(SyntaxKind Kind, GreenChild *Children, size_t NumChildren,
-                     size_t Width) {
+GreenNode::GreenNode(SyntaxKind kind, GreenChild *children, size_t numChildren,
+                     size_t width) {
 
-  const auto deleter = [Children, NumChildren](GreenNodeData *data) {
-    if (Children) {
-      for (size_t i = 0; i < NumChildren; ++i) {
-        Children[i].~GreenChild();
+  const auto deleter = [children, numChildren](GreenNodeData *data) {
+    if (children) {
+      for (size_t i = 0; i < numChildren; ++i) {
+        children[i].~GreenChild();
       }
-      std::free(Children);
+      std::free(children);
     }
     delete data;
   };
 
-  Data_ = std::shared_ptr<const GreenNodeData>(
-      new GreenNodeData{.NumChildren = NumChildren,
-                        .Kind = Kind,
-                        .Width = Width,
-                        .Children = Children},
+  data = std::shared_ptr<const GreenNodeData>(
+      new GreenNodeData{.numChildren = numChildren,
+                        .kind = kind,
+                        .width = width,
+                        .children = children},
       deleter);
 }
 
-GreenNode GreenNode::create(SyntaxKind Kind,
-                            std::vector<GreenElement> Children) {
-  const size_t NumChildren = Children.size();
-  // const size_t Width = computeWidth(Children);
+GreenNode GreenNode::create(SyntaxKind kind,
+                            std::vector<GreenElement> children) {
+  const size_t numChildren = children.size();
 
-  GreenChild *ChildrenArray = nullptr;
-  size_t Width = 0;
+  GreenChild *childrenArray = nullptr;
+  size_t width = 0;
 
-  if (NumChildren > 0) {
-    ChildrenArray = static_cast<GreenChild *>(
-        std::malloc(sizeof(GreenChild) * NumChildren));
+  if (numChildren > 0) {
+    childrenArray = static_cast<GreenChild *>(
+        std::malloc(sizeof(GreenChild) * numChildren));
 
-    for (size_t i = 0; i < NumChildren; ++i) {
-      const size_t RelativeOffset = Width;
-      Width += Children[i].getWidth();
+    for (size_t i = 0; i < numChildren; ++i) {
+      const size_t relativeOffset = width;
+      width += children[i].getWidth();
 
-      new (&ChildrenArray[i]) GreenChild{.Element = std::move(Children[i]),
-                                         .RelativeOffset = RelativeOffset};
+      new (&childrenArray[i]) GreenChild{.element = std::move(children[i]),
+                                         .relativeOffset = relativeOffset};
     }
   }
 
-  return GreenNode(Kind, ChildrenArray, NumChildren, Width);
+  return GreenNode(kind, childrenArray, numChildren, width);
 }
 
 GreenChildren GreenNode::getChildren() const noexcept {
   return GreenChildren(this);
 }
 
-bool GreenNode::operator==(const GreenNode &Other) const noexcept {
-  if (Data_->Kind != Other.Data_->Kind || Data_->Width != Other.Data_->Width ||
-      Data_->NumChildren != Other.Data_->NumChildren) {
+bool GreenNode::operator==(const GreenNode &other) const noexcept {
+  if (data->kind != other.data->kind || data->width != other.data->width ||
+      data->numChildren != other.data->numChildren) {
     return false;
   }
 
-  for (size_t i = 0; i < Data_->NumChildren; ++i) {
-    if (!(Data_->Children[i] == Other.Data_->Children[i])) {
+  for (size_t i = 0; i < data->numChildren; ++i) {
+    if (!(data->children[i] == other.data->children[i])) {
       return false;
     }
   }

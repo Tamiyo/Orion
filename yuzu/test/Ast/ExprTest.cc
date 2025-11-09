@@ -25,11 +25,11 @@ using yuzu::syntax::GreenToken;
 using yuzu::syntax::SyntaxNode;
 
 TEST(ExprTest, CastNoChildren) {
-  SyntaxNode Syntax = SyntaxNode::createRoot(
+  SyntaxNode syntax = SyntaxNode::createRoot(
       GreenNode::create(static_cast<uint16_t>(SyntaxKind::InfixExpr),
                         std::vector<GreenElement>()));
 
-  const std::optional<BinaryExpr> CastedNode = BinaryExpr::cast(Syntax);
+  const std::optional<BinaryExpr> CastedNode = BinaryExpr::cast(syntax);
   EXPECT_TRUE(CastedNode.has_value());
 }
 } // namespace

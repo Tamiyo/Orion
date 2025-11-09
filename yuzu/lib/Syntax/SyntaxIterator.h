@@ -17,53 +17,53 @@ public:
   using pointer = value_type *;
   using reference = value_type &;
 
-  explicit SyntaxIterator(std::optional<SyntaxNode> Current)
-      : Current_(Current) {}
+  explicit SyntaxIterator(std::optional<SyntaxNode> current)
+      : current(current) {}
 
   SyntaxIterator() = delete;
 
-  reference operator*() const { return Current_.value(); }
+  reference operator*() const { return current.value(); }
 
-  pointer operator->() const { return &Current_.value(); }
+  pointer operator->() const { return &current.value(); }
 
   SyntaxIterator &operator++() {
-    if (Current_.has_value()) {
-      Current_ = Current_->getNextSibling();
+    if (current.has_value()) {
+      current = current->getNextSibling();
     }
 
     return *this;
   }
 
   SyntaxIterator operator++(int) {
-    SyntaxIterator Tmp = *this;
+    SyntaxIterator tmp = *this;
     ++(*this);
-    return Tmp;
+    return tmp;
   }
 
   SyntaxIterator &operator--() {
-    if (Current_.has_value()) {
-      Current_ = Current_->getPrevSibling();
+    if (current.has_value()) {
+      current = current->getPrevSibling();
     }
 
     return *this;
   }
 
   SyntaxIterator operator--(int) {
-    SyntaxIterator Tmp = *this;
+    SyntaxIterator tmp = *this;
     --(*this);
-    return Tmp;
+    return tmp;
   }
 
-  friend bool operator==(const SyntaxIterator &A, const SyntaxIterator &B) {
-    return A.Current_ == B.Current_;
+  friend bool operator==(const SyntaxIterator &a, const SyntaxIterator &b) {
+    return a.current == b.current;
   }
 
-  friend bool operator!=(const SyntaxIterator &A, const SyntaxIterator &B) {
-    return !(A == B);
+  friend bool operator!=(const SyntaxIterator &a, const SyntaxIterator &b) {
+    return !(a == b);
   }
 
 private:
-  std::optional<SyntaxNode> Current_;
+  std::optional<SyntaxNode> current;
 };
 
 class SyntaxIteratorWithTokens final {
@@ -74,55 +74,55 @@ public:
   using pointer = value_type *;
   using reference = value_type &;
 
-  explicit SyntaxIteratorWithTokens(std::optional<SyntaxElement> Current)
-      : Current_(Current) {}
+  explicit SyntaxIteratorWithTokens(std::optional<SyntaxElement> current)
+      : current(current) {}
 
   SyntaxIteratorWithTokens() = delete;
 
-  reference operator*() const { return Current_.value(); }
+  reference operator*() const { return current.value(); }
 
-  pointer operator->() const { return &Current_.value(); }
+  pointer operator->() const { return &current.value(); }
 
   SyntaxIteratorWithTokens &operator++() {
-    if (Current_.has_value()) {
-      Current_ = Current_->getNextSiblingOrToken();
+    if (current.has_value()) {
+      current = current->getNextSiblingOrToken();
     }
 
     return *this;
   }
 
   SyntaxIteratorWithTokens operator++(int) {
-    SyntaxIteratorWithTokens Tmp = std::move(*this);
+    SyntaxIteratorWithTokens tmp = std::move(*this);
     ++(*this);
-    return Tmp;
+    return tmp;
   }
 
   SyntaxIteratorWithTokens &operator--() {
-    if (Current_.has_value()) {
-      Current_ = Current_->getPrevSiblingOrToken();
+    if (current.has_value()) {
+      current = current->getPrevSiblingOrToken();
     }
 
     return *this;
   }
 
   SyntaxIteratorWithTokens operator--(int) {
-    SyntaxIteratorWithTokens Tmp = std::move(*this);
+    SyntaxIteratorWithTokens tmp = std::move(*this);
     --(*this);
-    return Tmp;
+    return tmp;
   }
 
-  friend bool operator==(const SyntaxIteratorWithTokens &A,
-                         const SyntaxIteratorWithTokens &B) {
-    return A.Current_ == B.Current_;
+  friend bool operator==(const SyntaxIteratorWithTokens &a,
+                         const SyntaxIteratorWithTokens &b) {
+    return a.current == b.current;
   }
 
-  friend bool operator!=(const SyntaxIteratorWithTokens &A,
-                         const SyntaxIteratorWithTokens &B) {
-    return !(A == B);
+  friend bool operator!=(const SyntaxIteratorWithTokens &a,
+                         const SyntaxIteratorWithTokens &b) {
+    return !(a == b);
   }
 
 private:
-  std::optional<SyntaxElement> Current_;
+  std::optional<SyntaxElement> current;
 };
 
 class SyntaxChildren final {
@@ -131,17 +131,17 @@ public:
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using value_type = typename const_iterator::value_type;
 
-  explicit SyntaxChildren(const SyntaxNode *Node) : Node_(Node) {}
+  explicit SyntaxChildren(const SyntaxNode *node) : node(node) {}
   SyntaxChildren() = delete;
 
   const_iterator begin() const noexcept {
-    return const_iterator(Node_->getFirstChild());
+    return const_iterator(node->getFirstChild());
   }
 
   const_iterator end() const noexcept { return const_iterator(std::nullopt); }
 
   const_reverse_iterator rbegin() const noexcept {
-    return const_reverse_iterator(const_iterator(Node_->getLastChild()));
+    return const_reverse_iterator(const_iterator(node->getLastChild()));
   }
 
   const_reverse_iterator rend() const noexcept {
@@ -149,7 +149,7 @@ public:
   }
 
 private:
-  const SyntaxNode *const Node_;
+  const SyntaxNode *const node;
 };
 
 class SyntaxChildrenWithTokens final {
@@ -158,17 +158,17 @@ public:
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using value_type = const_iterator::value_type;
 
-  explicit SyntaxChildrenWithTokens(const SyntaxNode *Node) : Node_(Node) {}
+  explicit SyntaxChildrenWithTokens(const SyntaxNode *node) : node(node) {}
   SyntaxChildrenWithTokens() = delete;
 
   const_iterator begin() const noexcept {
-    return const_iterator(Node_->getFirstChildOrToken());
+    return const_iterator(node->getFirstChildOrToken());
   }
 
   const_iterator end() const noexcept { return const_iterator(std::nullopt); }
 
   const_reverse_iterator rbegin() const noexcept {
-    return const_reverse_iterator(const_iterator(Node_->getLastChildOrToken()));
+    return const_reverse_iterator(const_iterator(node->getLastChildOrToken()));
   }
 
   const_reverse_iterator rend() const noexcept {
@@ -176,7 +176,7 @@ public:
   }
 
 private:
-  const SyntaxNode *const Node_;
+  const SyntaxNode *const node;
 };
 } // namespace yuzu::syntax
 

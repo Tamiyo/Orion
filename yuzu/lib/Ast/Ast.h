@@ -10,7 +10,6 @@
 #include <utility>
 
 namespace yuzu::ast {
-
 /// \brief Base class for AST nodes using the Curiously Recurring Template
 /// Pattern (CRTP).
 ///
@@ -38,30 +37,30 @@ public:
   /// \brief Check if a syntax node of the given kind can be cast to this AST
   /// node type.
   ///
-  /// \param Kind The syntax kind to check.
+  /// \param kind The syntax kind to check.
   /// \return True if a node of the given kind can be cast to Self.
-  [[nodiscard]] static bool canCast(SyntaxKind Kind) noexcept {
-    return Self::canCast(Kind);
+  [[nodiscard]] static bool canCast(SyntaxKind kind) noexcept {
+    return Self::canCast(kind);
   }
 
   /// \brief Attempt to cast a syntax node to this AST node type.
   ///
-  /// \param Node The syntax node to cast.
+  /// \param node The syntax node to cast.
   /// \return An optional containing the AST node if the cast succeeds, or
   ///         std::nullopt if the cast fails.
   [[nodiscard]] static std::optional<Self>
-  cast(syntax::SyntaxNode Node) noexcept {
-    return Self::cast(Node);
+  cast(syntax::SyntaxNode node) noexcept {
+    return Self::cast(node);
   }
 
 protected:
   /// \brief Construct an AST node from a syntax node.
   ///
-  /// \param Node The underlying syntax node.
-  explicit AstNode(syntax::SyntaxNode Node) : Node_(std::move(Node)) {}
+  /// \param node The underlying syntax node.
+  explicit AstNode(syntax::SyntaxNode node) : node(std::move(node)) {}
 
   /// The underlying syntax node that this AST node wraps.
-  const syntax::SyntaxNode Node_;
+  const syntax::SyntaxNode node;
 };
 
 /// \brief Type trait to check if a type is derived from any instantiation of
@@ -118,23 +117,23 @@ struct HasStaticCastMethod<
 ///
 /// \tparam T The AST node type to search for. Must have a valid static cast
 ///           method.
-/// \param Node The syntax node whose children to search.
-/// \param N The zero-based index of the child to retrieve (default: 0).
+/// \param node The syntax node whose children to search.
+/// \param n The zero-based index of the child to retrieve (default: 0).
 /// \return A unique_ptr to the found child, or nullptr if not found.
 template <typename T>
-[[nodiscard]] inline std::unique_ptr<T> child(syntax::SyntaxNode Node,
-                                              size_t N = 0) noexcept {
+[[nodiscard]] inline std::unique_ptr<T> child(syntax::SyntaxNode node,
+                                              size_t n = 0) noexcept {
   static_assert(HasStaticCastMethod<T>::value,
                 "T must be a subclass of AstNode<T> for some type T");
 
-  size_t Count = 0;
-  const syntax::SyntaxChildren Children = Node.getChildren();
-  for (const auto &Child : Children) {
-    std::optional<T> CastNode = T::cast(Child);
-    if (CastNode.has_value() && Count == N) {
-      return std::make_unique<T>(std::move(CastNode.value()));
-    } else if (CastNode.has_value() && Count != N) {
-      Count += 1;
+  size_t count = 0;
+  const syntax::SyntaxChildren children = node.getChildren();
+  for (const auto &child : children) {
+    std::optional<T> castNode = T::cast(child);
+    if (castNode.has_value() && count == n) {
+      return std::make_unique<T>(std::move(castNode.value()));
+    } else if (castNode.has_value() && count != n) {
+      count += 1;
     }
   }
 
@@ -147,23 +146,23 @@ template <typename T>
 /// syntax node and returns the Nth occurrence of a token matching the specified
 /// kind.
 ///
-/// \param Node The syntax node whose children to search.
-/// \param Kind The syntax kind of the token to find.
-/// \param N The zero-based index of the token to retrieve.
+/// \param node The syntax node whose children to search.
+/// \param kind The syntax kind of the token to find.
+/// \param n The zero-based index of the token to retrieve.
 /// \return An optional containing the token if found, or std::nullopt if not
 ///         found.
 [[nodiscard]] inline std::optional<syntax::SyntaxToken>
-token(syntax::SyntaxNode Node, SyntaxKind Kind, size_t N) noexcept {
-  size_t Count = 0;
-  const syntax::SyntaxChildrenWithTokens Children =
-      Node.getChildrenWithTokens();
-  for (const auto &Child : Children) {
-    const bool IsSameKind = static_cast<SyntaxKind>(Child.getKind()) == Kind;
+token(syntax::SyntaxNode node, SyntaxKind kind, size_t n) noexcept {
+  size_t count = 0;
+  const syntax::SyntaxChildrenWithTokens children =
+      node.getChildrenWithTokens();
+  for (const auto &child : children) {
+    const bool isSameKind = static_cast<SyntaxKind>(child.getKind()) == kind;
 
-    if (IsSameKind && Count == N) {
-      return Child.getToken();
-    } else if (IsSameKind && Count != N) {
-      Count += 1;
+    if (isSameKind && count == n) {
+      return child.getToken();
+    } else if (isSameKind && count != n) {
+      count += 1;
     }
   }
 

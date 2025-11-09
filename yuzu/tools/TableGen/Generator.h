@@ -14,32 +14,32 @@
 namespace yuzu_tools {
 class Generator {
 public:
-  explicit Generator(const llvm::RecordKeeper &Records) : Records_(Records) {}
+  explicit Generator(const llvm::RecordKeeper &records) : records(records) {}
   Generator() = delete;
 
-  void run(llvm::raw_ostream &OS) {
-    std::string Buffer;
-    llvm::raw_string_ostream SS(Buffer);
+  void run(llvm::raw_ostream &os) {
+    std::string buffer;
+    llvm::raw_string_ostream ss(buffer);
 
-    runImpl(SS);
+    runImpl(ss);
 
-    OS << formatCode(Buffer);
+    os << formatCode(buffer);
   }
 
 protected:
-  virtual void runImpl(llvm::raw_ostream &OS) const noexcept = 0;
+  virtual void runImpl(llvm::raw_ostream &os) const noexcept = 0;
 
   // Format a string using clang-format, using a temp file to avoid shell
   // escaping issues.
-  static std::string formatCode(const std::string &Code) noexcept {
+  static std::string formatCode(const std::string &code) noexcept {
     // Create a temporary file
     char tempFile[] = "/tmp/clang_format_XXXXXX";
     int fd = mkstemp(tempFile);
     if (fd == -1)
-      return Code;
+      return code;
 
     // Write code to temp file
-    write(fd, Code.c_str(), Code.size());
+    write(fd, code.c_str(), code.size());
     close(fd);
 
     // Format the file in-place
@@ -51,7 +51,7 @@ protected:
     FILE *file = fopen(tempFile, "r");
     if (!file) {
       unlink(tempFile);
-      return Code;
+      return code;
     }
 
     std::string result;
@@ -62,10 +62,10 @@ protected:
     fclose(file);
     unlink(tempFile); // Delete temp file
 
-    return result.empty() ? Code : result;
+    return result.empty() ? code : result;
   }
 
-  const llvm::RecordKeeper &Records_;
+  const llvm::RecordKeeper &records;
 };
 } // namespace yuzu_tools
 

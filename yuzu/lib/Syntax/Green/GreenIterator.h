@@ -15,43 +15,43 @@ public:
   using pointer = value_type *;
   using reference = value_type &;
 
-  explicit GreenIterator(const GreenNode *Node, size_t Index)
-      : Node_(Node), Index_(Index) {}
+  explicit GreenIterator(const GreenNode *node, size_t index)
+      : node(node), index(index) {}
 
   GreenIterator() = delete;
 
   [[nodiscard]] reference operator*() const {
-    return Node_->Data_->Children[Index_];
+    return node->data->children[index];
   }
 
   [[nodiscard]] pointer operator->() const {
-    return &(Node_->Data_->Children[Index_]);
+    return &(node->data->children[index]);
   }
 
   GreenIterator &operator++() {
-    ++Index_;
+    ++index;
     return *this;
   }
 
   GreenIterator &operator--() {
-    --Index_;
+    --index;
     return *this;
   }
 
   GreenIterator operator++(int) {
     GreenIterator tmp = *this;
-    ++Index_;
+    ++index;
     return tmp;
   }
 
   GreenIterator operator--(int) {
     GreenIterator tmp = *this;
-    --Index_;
+    --index;
     return tmp;
   }
 
   bool operator==(const GreenIterator &other) const {
-    return Node_ == other.Node_ && Index_ == other.Index_;
+    return node == other.node && index == other.index;
   }
 
   bool operator!=(const GreenIterator &other) const {
@@ -59,8 +59,8 @@ public:
   }
 
 private:
-  const GreenNode *Node_;
-  size_t Index_;
+  const GreenNode *node;
+  size_t index;
 };
 
 class GreenChildren final {
@@ -69,16 +69,14 @@ public:
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using value_type = const_iterator::value_type;
 
-  explicit GreenChildren(const GreenNode *Node) : Node_(Node) {}
+  explicit GreenChildren(const GreenNode *node) : node(node) {}
 
-  [[nodiscard]] size_t size() const { return Node_->getNumChildren(); };
+  [[nodiscard]] size_t size() const { return node->getNumChildren(); };
 
-  [[nodiscard]] const_iterator begin() const {
-    return const_iterator(Node_, 0);
-  }
+  [[nodiscard]] const_iterator begin() const { return const_iterator(node, 0); }
 
   [[nodiscard]] const_iterator end() const {
-    return const_iterator(Node_, Node_->getNumChildren());
+    return const_iterator(node, node->getNumChildren());
   }
 
   [[nodiscard]] const_reverse_iterator rbegin() const {
@@ -90,7 +88,7 @@ public:
   }
 
 private:
-  const GreenNode *Node_;
+  const GreenNode *node;
 };
 } // namespace yuzu::syntax
 

@@ -14,86 +14,86 @@
 namespace yuzu_tools {
 
 namespace node {
-void emitCanCast(llvm::raw_ostream &OS, const llvm::Record *Record) noexcept {
-  const llvm::StringRef SyntaxKind = Record->getValueAsString("SyntaxKind");
-  OS << llvm::formatv(
+void emitCanCast(llvm::raw_ostream &os, const llvm::Record *record) noexcept {
+  const llvm::StringRef syntaxKind = record->getValueAsString("SyntaxKind");
+  os << llvm::formatv(
       R"(
-      [[nodiscard]] static bool canCast(SyntaxKind Kind) noexcept {
-        return Kind == SyntaxKind::{0};
+      [[nodiscard]] static bool canCast(SyntaxKind kind) noexcept {
+        return kind == SyntaxKind::{0};
       }
       )",
-      SyntaxKind);
+      syntaxKind);
 }
 
-void emitCast(llvm::raw_ostream &OS, const llvm::Record *Record) noexcept {
-  OS << llvm::formatv(
+void emitCast(llvm::raw_ostream &os, const llvm::Record *record) noexcept {
+  os << llvm::formatv(
       R"(
       [[nodiscard]] static std::optional<{0}>
-      cast(syntax::SyntaxNode Node) noexcept {
-        const SyntaxKind Kind = static_cast<SyntaxKind>(Node.getKind());
+      cast(syntax::SyntaxNode node) noexcept {
+        const SyntaxKind kind = static_cast<SyntaxKind>(node.getKind());
         
-        if ({0}::canCast(Kind)) {
-          return std::make_optional<{0}>(std::move(Node));
+        if ({0}::canCast(kind)) {
+          return std::make_optional<{0}>(std::move(node));
         }
 
         return std::nullopt;
       }
       )",
-      Record->getName());
+      record->getName());
 }
 
-void emitChildAstMethod(llvm::raw_ostream &OS,
-                        const llvm::Record *Method) noexcept {
-  const llvm::StringRef Name = Method->getValueAsString("Name");
-  const int64_t N = Method->getValueAsInt("N");
-  const llvm::StringRef Subclass = Method->getValueAsString("AstNodeSubclass");
+void emitChildAstMethod(llvm::raw_ostream &os,
+                        const llvm::Record *method) noexcept {
+  const llvm::StringRef name = method->getValueAsString("Name");
+  const int64_t n = method->getValueAsInt("N");
+  const llvm::StringRef subclass = method->getValueAsString("AstNodeSubclass");
 
-  OS << llvm::formatv(
+  os << llvm::formatv(
       R"(
         [[nodiscard]] std::unique_ptr<{2}>
         get{0}() const noexcept {
-          return child<{2}>(Node_, {1});
+          return child<{2}>(node, {1});
         }
         )",
-      Name, N, Subclass);
+      name, n, subclass);
 }
 
-void emitTokenAstMethod(llvm::raw_ostream &OS,
-                        const llvm::Record *Method) noexcept {
-  const llvm::StringRef Name = Method->getValueAsString("Name");
-  const llvm::StringRef Kind = Method->getValueAsString("Kind");
-  const int64_t N = Method->getValueAsInt("N");
+void emitTokenAstMethod(llvm::raw_ostream &os,
+                        const llvm::Record *method) noexcept {
+  const llvm::StringRef name = method->getValueAsString("Name");
+  const llvm::StringRef kind = method->getValueAsString("Kind");
+  const int64_t n = method->getValueAsInt("N");
 
   // When kind is empty, then defer the implementation to a source file. Most
   // nodes will be represented by a single SyntaxKind.
-  if (Kind == "") {
-    OS << llvm::formatv(
+  if (kind == "") {
+    os << llvm::formatv(
         R"(
         [[nodiscard]] std::optional<syntax::SyntaxToken>
         get{0}() const noexcept;
         )",
-        Name, Kind, N);
+        name, kind, n);
   }
   // When kind is not empty, inline the implementation.
   else {
-    OS << llvm::formatv(
+    os << llvm::formatv(
         R"(
         [[nodiscard]] std::optional<syntax::SyntaxToken>
         get{0}() const noexcept {
-          return token(Node_, SyntaxKind::{1}, {2});
+          return token(node, SyntaxKind::{1}, {2});
         }
         )",
-        Name, Kind, N);
+        name, kind, n);
   }
 }
 
-void emitAstMethods(llvm::raw_ostream &OS,
-                    const llvm::Record *Record) noexcept {
-  for (const auto &Method : Record->getValueAsListOfDefs("Methods")) {
-    if (Method->isSubClassOf("ChildAstMethod")) {
-      emitChildAstMethod(OS, Method);
-    } else if (Method->isSubClassOf("TokenAstMethod")) {
-      emitTokenAstMethod(OS, Method);
+void emitAstMethods(llvm::raw_ostream &os,
+                    const llvm::Record *record) noexcept {
+  for (const auto &method : record->getValueAsListOfDefs("Methods")) {
+    if (method->isSubClassOf("ChildAstMethod")) {
+      emitChildAstMethod(os, method);
+    } else if (method->isSubClassOf("TokenAstMethod")) {
+      emitTokenAstMethod(os, method);
     }
   }
 }
@@ -101,119 +101,119 @@ void emitAstMethods(llvm::raw_ostream &OS,
 
 namespace variant {
 void emitCanCast(
-    llvm::raw_ostream &OS, const llvm::Record *Record,
-    const llvm::ArrayRef<const llvm::Record *> DerivedDefinitions) noexcept {
-  const auto IfStatements = llvm::map_range(
-      DerivedDefinitions, [](const llvm::Record *Record) -> std::string {
-        llvm::StringRef Name = Record->getName();
+    llvm::raw_ostream &os, const llvm::Record *record,
+    const llvm::ArrayRef<const llvm::Record *> derivedDefinitions) noexcept {
+  const auto ifStatements = llvm::map_range(
+      derivedDefinitions, [](const llvm::Record *record) -> std::string {
+        llvm::StringRef Name = record->getName();
         return llvm::formatv(
-            R"(if (std::holds_alternative<{0}>(Value)) {{
+            R"(if (std::holds_alternative<{0}>(value)) {{
                   return true;
                 }
             )",
             Name);
       });
 
-  OS << llvm::formatv(
+  os << llvm::formatv(
       R"(
-      [[nodiscard]] static bool canCast({0} Value) noexcept {{
+      [[nodiscard]] static bool canCast({0} value) noexcept {{
         {1}
 
         return false;
       }
       )",
-      Record->getName(), llvm::join(IfStatements, "\n"));
+      record->getName(), llvm::join(ifStatements, "\n"));
 }
 
 void emitCast(
-    llvm::raw_ostream &OS, const llvm::Record *Record,
-    const llvm::ArrayRef<const llvm::Record *> DerivedDefinitions) noexcept {
-  const auto IfStatements = llvm::map_range(
-      DerivedDefinitions,
-      [Record](const llvm::Record *DerivedRecord) -> std::string {
+    llvm::raw_ostream &os, const llvm::Record *record,
+    const llvm::ArrayRef<const llvm::Record *> derivedDefinitions) noexcept {
+  const auto ifStatements = llvm::map_range(
+      derivedDefinitions,
+      [record](const llvm::Record *DerivedRecord) -> std::string {
         llvm::StringRef Derivedname = DerivedRecord->getName();
         return llvm::formatv(
             R"(
-              if ({1}::canCast(Kind)) {{
-                return std::make_optional<{0}>({1}(std::move(Node)));
+              if ({1}::canCast(kind)) {{
+                return std::make_optional<{0}>({1}(std::move(node)));
               }
               )",
-            Record->getName(), Derivedname);
+            record->getName(), Derivedname);
       });
 
-  OS << llvm::formatv(
+  os << llvm::formatv(
       R"(
       [[nodiscard]] static std::optional<{0}>
-      cast(syntax::SyntaxNode Node) noexcept {
-        const SyntaxKind Kind = static_cast<SyntaxKind>(Node.getKind());
+      cast(syntax::SyntaxNode node) noexcept {
+        const SyntaxKind kind = static_cast<SyntaxKind>(node.getKind());
         
         {1}
         
         return std::nullopt;
       }
       )",
-      Record->getName(), llvm::join(IfStatements, "\n"));
+      record->getName(), llvm::join(ifStatements, "\n"));
 }
 } // namespace variant
 
 std::string AstNodeGenerator::getIncludeGuardName() const noexcept {
   const llvm::StringRef Basename =
-      llvm::sys::path::stem(Records_.getInputFilename());
+      llvm::sys::path::stem(records.getInputFilename());
   return "YUZU_AST_" + Basename.upper() + "_INC_H";
 }
 
 void AstNodeGenerator::emitClassDefinitions(
-    llvm::raw_ostream &OS) const noexcept {
-  (void)OS;
+    llvm::raw_ostream &os) const noexcept {
+  (void)os;
 
-  for (const auto &[Name, Record] : Records_.getClasses()) {
-    if (isIgnored(Record.get())) {
+  for (const auto &[Name, record] : records.getClasses()) {
+    if (isIgnored(record.get())) {
       continue;
     }
 
-    OS << "class " << Name << ";\n";
+    os << "class " << Name << ";\n";
   }
 
-  for (const auto &[Name, Record] : Records_.getDefs()) {
-    if (isIgnored(Record.get())) {
+  for (const auto &[Name, record] : records.getDefs()) {
+    if (isIgnored(record.get())) {
       continue;
     }
 
-    OS << llvm::formatv(
+    os << llvm::formatv(
         R"(
         class {0} final : public AstNode<{0}> {{
         public:
-          explicit {0}(syntax::SyntaxNode Node) : AstNode(std::move(Node)) {{}
+          explicit {0}(syntax::SyntaxNode node) : AstNode(std::move(node)) {{}
 
           {0}() = delete;
 
         )",
         Name);
 
-    node::emitCanCast(OS, Record.get());
-    node::emitCast(OS, Record.get());
+    node::emitCanCast(os, record.get());
+    node::emitCast(os, record.get());
 
-    node::emitAstMethods(OS, Record.get());
+    node::emitAstMethods(os, record.get());
 
-    OS << "\n};\n\n";
+    os << "\n};\n\n";
   }
 
-  for (const auto &[Name, Record] : Records_.getClasses()) {
-    if (isIgnored(Record.get())) {
+  for (const auto &[name, record] : records.getClasses()) {
+    if (isIgnored(record.get())) {
       continue;
     }
 
-    const auto DerivedDefinitions =
-        Records_.getAllDerivedDefinitionsIfDefined(Name);
+    const auto derivedDefinitions =
+        records.getAllDerivedDefinitionsIfDefined(name);
 
     const std::string VariantClasses =
-        llvm::join(llvm::map_range(DerivedDefinitions,
+        llvm::join(llvm::map_range(derivedDefinitions,
                                    [](const auto &Subclass) {
                                      return Subclass->getName();
                                    }),
                    ", ");
 
-    OS << llvm::formatv(
+    os << llvm::formatv(
         R"(
         class {0} : public std::variant<{1}> {{
         public:
@@ -222,31 +222,31 @@ void AstNodeGenerator::emitClassDefinitions(
           {0}() = delete;
 
         )",
-        Name, VariantClasses);
+        name, VariantClasses);
 
-    variant::emitCanCast(OS, Record.get(), DerivedDefinitions);
-    variant::emitCast(OS, Record.get(), DerivedDefinitions);
+    variant::emitCanCast(os, record.get(), derivedDefinitions);
+    variant::emitCast(os, record.get(), derivedDefinitions);
 
-    OS << "\n};\n\n";
+    os << "\n};\n\n";
   }
 }
 
-void AstNodeGenerator::emitHeader(llvm::raw_ostream &OS) const noexcept {
-  emitSourceFileHeader("Yuzu AST Node Declarations", OS);
+void AstNodeGenerator::emitHeader(llvm::raw_ostream &os) const noexcept {
+  emitSourceFileHeader("Yuzu AST Node Declarations", os);
 
-  emitOpenIncludeGuards(OS);
-  emitIncludes(OS);
+  emitOpenIncludeGuards(os);
+  emitIncludes(os);
 
-  OS << "namespace yuzu::ast {\n";
+  os << "namespace yuzu::ast {\n";
 
-  emitClassDefinitions(OS);
+  emitClassDefinitions(os);
 
-  OS << "} // namespace yuzu::ast\n\n";
+  os << "} // namespace yuzu::ast\n\n";
 
-  emitCloseIncludeGuards(OS);
+  emitCloseIncludeGuards(os);
 }
 
-void AstNodeGenerator::runImpl(llvm::raw_ostream &OS) const noexcept {
-  emitHeader(OS);
+void AstNodeGenerator::runImpl(llvm::raw_ostream &os) const noexcept {
+  emitHeader(os);
 }
 } // namespace yuzu_tools

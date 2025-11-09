@@ -22,20 +22,20 @@ public:
   using pointer = value_type *;
   using reference = value_type &;
 
-  explicit AstIterator(syntax::SyntaxChildren::const_iterator It)
-      : It_(std::move(It)) {}
+  explicit AstIterator(syntax::SyntaxChildren::const_iterator it)
+      : it(std::move(it)) {}
 
   AstIterator() = delete;
 
-  reference operator*() const { return *It_; }
+  reference operator*() const { return *it; }
 
-  pointer operator->() const { return &It_; }
+  pointer operator->() const { return &it; }
 
   AstIterator &operator++() {
-    const auto End = syntax::SyntaxIterator(std::nullopt);
-    while (++It_ != End) {
-      const auto CastNode = T::cast(It_->getKind());
-      if (CastNode.has_value()) {
+    const auto end = syntax::SyntaxIterator(std::nullopt);
+    while (++it != end) {
+      const auto castNode = T::cast(it->getKind());
+      if (castNode.has_value()) {
         break;
       }
     }
@@ -44,16 +44,16 @@ public:
   }
 
   AstIterator operator++(int) {
-    AstIterator Tmp = *this;
+    AstIterator tmp = *this;
     ++(*this);
-    return Tmp;
+    return tmp;
   }
 
   AstIterator &operator--() {
-    const auto End = syntax::SyntaxIterator(std::nullopt);
-    while (--It_ != End) {
-      const auto CastNode = AstNode<T>::cast(It_->getKind());
-      if (CastNode.has_value()) {
+    const auto end = syntax::SyntaxIterator(std::nullopt);
+    while (--it != end) {
+      const auto castNode = AstNode<T>::cast(it->getKind());
+      if (castNode.has_value()) {
         break;
       }
     }
@@ -62,21 +62,21 @@ public:
   }
 
   AstIterator operator--(int) {
-    AstIterator Tmp = *this;
+    AstIterator tmp = *this;
     --(*this);
-    return Tmp;
+    return tmp;
   }
 
-  friend bool operator==(const AstIterator &A, const AstIterator &B) {
-    return A.It_ == B.It_;
+  friend bool operator==(const AstIterator &a, const AstIterator &b) {
+    return a.it == b.it;
   }
 
-  friend bool operator!=(const AstIterator &A, const AstIterator &B) {
-    return !(A == B);
+  friend bool operator!=(const AstIterator &a, const AstIterator &b) {
+    return !(a == b);
   }
 
 private:
-  syntax::SyntaxChildren::const_iterator It_;
+  syntax::SyntaxChildren::const_iterator it;
 };
 
 template <typename N> class AstChildren final {
@@ -85,17 +85,17 @@ public:
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using value_type = typename const_iterator::value_type;
 
-  explicit AstChildren(syntax::SyntaxChildren Children) : Children_(Children) {}
+  explicit AstChildren(syntax::SyntaxChildren children) : children(children) {}
   AstChildren() = delete;
 
   const_iterator begin() const noexcept {
-    return const_iterator(Children_.begin());
+    return const_iterator(children.begin());
   }
 
   const_iterator end() const noexcept { return const_iterator(std::nullopt); }
 
   const_reverse_iterator rbegin() const noexcept {
-    return const_reverse_iterator(Children_.rbegin());
+    return const_reverse_iterator(children.rbegin());
   }
 
   const_reverse_iterator rend() const noexcept {
@@ -103,7 +103,7 @@ public:
   }
 
 private:
-  const syntax::SyntaxChildren Children_;
+  const syntax::SyntaxChildren children;
 };
 } // namespace yuzu::ast
 

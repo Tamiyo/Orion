@@ -6,80 +6,80 @@
 #include "yuzu/Util/ErrorHandling.h"
 
 #include <cstddef>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace yuzu::syntax {
 namespace {
-constexpr size_t kMaxNodeSize = 3;
+constexpr size_t maxCachedNodeSize = 3;
 } // namespace
 
-GreenBuilder::GreenBuilder() : Cache_(GreenCache(kMaxNodeSize)) {}
+GreenBuilder::GreenBuilder() : cache(GreenCache(maxCachedNodeSize)) {}
 
-GreenBuilder::GreenBuilder(const size_t MaxNodeSize)
-    : Cache_(GreenCache(MaxNodeSize)) {}
+GreenBuilder::GreenBuilder(const size_t maxCachedNodeSize)
+    : cache(GreenCache(maxCachedNodeSize)) {}
 
-void GreenBuilder::startNode(const SyntaxKind Kind) noexcept {
-  Parents_.emplace_back(
-      GreenBuilder::Parent{.Kind = Kind, .FirstChild = Children_.size()});
+void GreenBuilder::startNode(const SyntaxKind kind) noexcept {
+  parents.emplace_back(
+      GreenBuilder::Parent{.kind = kind, .firstChild = children.size()});
 }
 
 void GreenBuilder::finishNode() noexcept {
   // Finishing a node requires a parent.
-  if (Parents_.empty()) {
+  if (parents.empty()) {
     util::yuzu_unreachable();
   }
 
-  const auto [Kind, FirstChild] = Parents_.back();
-  Parents_.pop_back();
+  const auto [kind, firstChild] = parents.back();
+  parents.pop_back();
 
-  const auto Entry = Cache_.getNode(Kind, &Children_, FirstChild);
-  Children_.emplace_back(Entry);
+  const auto entry = cache.getNode(kind, &children, firstChild);
+  children.emplace_back(entry);
 }
 
-void GreenBuilder::startNodeAt(const GreenBuilderCheckpoint &Checkpoint,
-                               const SyntaxKind Kind) noexcept {
+void GreenBuilder::startNodeAt(const GreenBuilderCheckpoint &checkpoint,
+                               const SyntaxKind kind) noexcept {
   // Checkpoints should never reference elements outside of Children.
-  if (Checkpoint.Index >= Children_.size()) {
+  if (checkpoint.index >= children.size()) {
     util::yuzu_unreachable();
   }
 
-  if (!Parents_.empty()) {
+  if (!parents.empty()) {
     // Checkpoints should never reference elements prior to the current Parent.
-    if (const GreenBuilder::Parent Parent = Parents_.back();
-        Checkpoint.Index < Parent.FirstChild) {
+    if (const GreenBuilder::Parent parent = parents.back();
+        checkpoint.index < parent.firstChild) {
       util::yuzu_unreachable();
     }
   }
 
-  Parents_.emplace_back(
-      GreenBuilder::Parent{.Kind = Kind, .FirstChild = Checkpoint.Index});
+  parents.emplace_back(
+      GreenBuilder::Parent{.kind = kind, .firstChild = checkpoint.index});
 }
 
 GreenBuilderCheckpoint GreenBuilder::checkpoint() const noexcept {
-  return GreenBuilderCheckpoint{.Index = Children_.size()};
+  return GreenBuilderCheckpoint{.index = children.size()};
 }
 
-void GreenBuilder::token(const SyntaxKind Kind,
-                         const std::u32string &Source) noexcept {
-  const auto Token = Cache_.getToken(Kind, Source);
-  Children_.emplace_back(Token);
+void GreenBuilder::token(const SyntaxKind kind,
+                         const std::u32string_view &source) noexcept {
+  const auto token = cache.getToken(kind, source);
+  children.emplace_back(token);
 }
 
 GreenNode GreenBuilder::finish() noexcept {
   // Finishing building requires a parent.
-  if (!Parents_.empty()) {
+  if (!parents.empty()) {
     util::yuzu_unreachable();
   }
 
-  const GreenCacheEntry Entry = Children_.back();
-  Children_.pop_back();
+  const GreenCacheEntry entry = children.back();
+  children.pop_back();
 
   // The last entry should be a Node, Tokens cannot represent finished Green
   // trees.
-  if (const GreenNode *Node = Entry.Element.getIfNode()) {
-    return std::move(*Node);
+  if (const GreenNode *node = entry.element.getIfNode()) {
+    return std::move(*node);
   } else {
     util::yuzu_unreachable();
   }

@@ -10,40 +10,40 @@ using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenNodeData;
 using yuzu::syntax::GreenToken;
 
-const auto Node = GreenNode::create(
+const auto node = GreenNode::create(
     12, std::vector<GreenElement>{GreenToken(2, U"3"), GreenToken(3, U"-"),
                                   GreenToken(2, U"2")});
 
 TEST(GreenNodeTest, GetKind) {
-  // Node has a kind of 12.
-  EXPECT_EQ(12, Node.getKind());
+  // node has a kind of 12.
+  EXPECT_EQ(12, node.getKind());
 }
 
 TEST(GreenNodeTest, GetWidth) {
-  // Node has a width of 3.
-  EXPECT_EQ(3, Node.getWidth());
+  // node has a width of 3.
+  EXPECT_EQ(3, node.getWidth());
 }
 
 TEST(GreenNodeTest, GetNumChildren) {
-  // Node has 3 children.
-  EXPECT_EQ(3, Node.getNumChildren());
+  // node has 3 children.
+  EXPECT_EQ(3, node.getNumChildren());
 }
 
 TEST(GreenNodeTest, GetUseCount) {
-  // Node has 1 usage (this test).
-  EXPECT_EQ(1, Node.getUseCount());
+  // node has 1 usage (this test).
+  EXPECT_EQ(1, node.getUseCount());
 }
 
 TEST(GreenNodeTest, Equals) {
-  const auto NodeCopy = GreenNode::create(
+  const auto nodeCopy = GreenNode::create(
       12, std::vector<GreenElement>{GreenToken(2, U"3"), GreenToken(3, U"-"),
                                     GreenToken(2, U"2")});
-  EXPECT_TRUE(Node == NodeCopy);
+  EXPECT_TRUE(node == nodeCopy);
 }
 
 TEST(GreenNodeTest, NotEquals) {
-  const auto DifferentNode = GreenNode::create(12, std::vector<GreenElement>{});
-  EXPECT_TRUE(Node != DifferentNode);
+  const auto differentNode = GreenNode::create(12, std::vector<GreenElement>{});
+  EXPECT_TRUE(node != differentNode);
 }
 
 TEST(GreenNodeTest, GreenNodeSizeRequirements) {
@@ -63,31 +63,31 @@ TEST(GreenNodeTest, GreenNodeDataSizeRequirements) {
 }
 
 TEST(GreenChildTest, GetRelativeOffset) {
-  const auto It = Node.getChildren().begin();
-  EXPECT_EQ(0, It->RelativeOffset);
+  const auto it = node.getChildren().begin();
+  EXPECT_EQ(0, it->relativeOffset);
 }
 
 TEST(GreenChildTest, GetElement) {
-  const auto Element = GreenElement(GreenToken(2, U"3"));
-  const auto It = Node.getChildren().begin();
+  const auto element = GreenElement(GreenToken(2, U"3"));
+  const auto it = node.getChildren().begin();
 
-  EXPECT_EQ(Element, It->Element);
+  EXPECT_EQ(element, it->element);
 }
 
 TEST(GreenChildTest, Equals) {
-  const auto Element = GreenElement(GreenToken(2, U"3"));
-  const auto Child = GreenChild{.Element = Element, .RelativeOffset = 0};
-  const auto It = Node.getChildren().begin();
+  const auto element = GreenElement(GreenToken(2, U"3"));
+  const auto child = GreenChild{.element = element, .relativeOffset = 0};
+  const auto it = node.getChildren().begin();
 
-  EXPECT_EQ(Child, *It);
+  EXPECT_EQ(child, *it);
 }
 
 TEST(GreenChildTest, NotEquals) {
-  const auto Element = GreenElement(GreenToken(2, U"3"));
-  const auto Child = GreenChild{.Element = Element, .RelativeOffset = 1};
-  const auto It = Node.getChildren().begin();
+  const auto elemenet = GreenElement(GreenToken(2, U"3"));
+  const auto child = GreenChild{.element = elemenet, .relativeOffset = 1};
+  const auto it = node.getChildren().begin();
 
-  EXPECT_NE(Child, *It);
+  EXPECT_NE(child, *it);
 }
 
 TEST(GreenChildTest, GreenChildSizeRequirements) {

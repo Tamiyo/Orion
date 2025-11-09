@@ -9,8 +9,8 @@
 
 namespace yuzu::parsing {
 struct StartEvent final {
-  std::optional<size_t> ForwardParent;
-  const ast::SyntaxKind Kind;
+  std::optional<size_t> forwardParent;
+  const ast::SyntaxKind kind;
 };
 
 struct FinishEvent final {};

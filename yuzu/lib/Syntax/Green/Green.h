@@ -6,7 +6,7 @@
 
 #include <cstddef>
 #include <memory>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -33,10 +33,10 @@ struct GreenTokenData {
   /// The source code that this 'GreenToken' references. The source code is
   /// encoded directly in 'GreenTokenData' for use/reference outside of the
   /// source file it was defined in.
-  const std::u32string Source;
+  const std::u32string_view source;
 
   /// The kind of data this 'GreenToken' references.
-  const SyntaxKind Kind;
+  const SyntaxKind kind;
 };
 
 /// \brief Data structure for immutable green nodes.
@@ -46,16 +46,16 @@ struct GreenTokenData {
 /// tokens.
 struct GreenNodeData {
   /// The number of children that this 'GreenNode' has.
-  const size_t NumChildren;
+  const size_t numChildren;
 
   /// The kind of data this 'GreenNode' references.
-  const SyntaxKind Kind;
+  const SyntaxKind kind;
 
   /// The relative size of this 'GreenNode' and its children. To illustrate
   /// this, consider a 'GreenNode' with 3 'GreenToken's that span 2
   /// characters. The 'Width' of the 'GreenNode' is 6, which is the sum of the
   /// widths of all of its children.
-  const size_t Width;
+  const size_t width;
 
   /// A pointer to the start of the children of 'GreenNodeData', stored
   /// contiguously. Storing a raw pointer here is OK, and preferred over using
@@ -72,7 +72,7 @@ struct GreenNodeData {
   ///
   /// 3. Children drop with their parents, removing the risk of dangling
   /// pointers.
-  const GreenChild *const Children;
+  const GreenChild *const children;
 };
 
 /// \brief An immutable token in the green tree.
@@ -85,11 +85,11 @@ class GreenToken final {
 public:
   /// \brief Construct a GreenToken.
   ///
-  /// \param Kind The syntax kind of this token.
-  /// \param Source The source text content of this token.
-  explicit GreenToken(const SyntaxKind Kind, const std::u32string &Source)
-      : Data_(std::make_shared<const GreenTokenData>(
-            GreenTokenData{.Source = std::move(Source), .Kind = Kind})) {}
+  /// \param kind The syntax kind of this token.
+  /// \param source The source text content of this token.
+  explicit GreenToken(const SyntaxKind kind, const std::u32string_view &source)
+      : data(std::make_shared<const GreenTokenData>(
+            GreenTokenData{.source = std::move(source), .kind = kind})) {}
 
   /// Deleted default constructor to enforce proper initialization.
   GreenToken() = delete;
@@ -97,49 +97,43 @@ public:
   /// \brief Get the syntax kind of this token.
   ///
   /// \return The SyntaxKind of this token.
-  [[nodiscard]] SyntaxKind getKind() const noexcept { return Data_->Kind; }
+  [[nodiscard]] SyntaxKind getKind() const noexcept { return data->kind; }
 
   /// \brief Get the source text of this token.
   ///
   /// \return A view of the source text content.
   [[nodiscard]] std::u32string_view getSource() const noexcept {
-    return Data_->Source;
+    return data->source;
   }
 
   /// \brief Get the width of this token.
   ///
   /// \return The number of characters in the source text.
-  [[nodiscard]] size_t getWidth() const noexcept {
-    return Data_->Source.size();
-  }
+  [[nodiscard]] size_t getWidth() const noexcept { return data->source.size(); }
 
   /// \brief Get the reference count for this token's data.
   ///
   /// \return The number of references to the underlying data.
-  [[nodiscard]] size_t getUseCount() const noexcept {
-    return Data_.use_count();
-  }
+  [[nodiscard]] size_t getUseCount() const noexcept { return data.use_count(); }
 
   /// \brief Equality comparison operator.
   ///
-  /// \param Other The GreenToken to compare with.
+  /// \param other The GreenToken to compare with.
   /// \return True if both tokens have the same kind and source text.
-  bool operator==(const GreenToken &Other) const noexcept {
-    return Data_->Kind == Other.Data_->Kind &&
-           Data_->Source == Other.Data_->Source;
+  bool operator==(const GreenToken &other) const noexcept {
+    return data->kind == other.data->kind && data->source == other.data->source;
   }
 
   /// \brief Inequality comparison operator.
   ///
-  /// \param Other The GreenToken to compare with.
+  /// \param other The GreenToken to compare with.
   /// \return True if the tokens differ in kind or source text.
-  bool operator!=(const GreenToken &Other) const noexcept {
-    return Data_->Kind != Other.Data_->Kind ||
-           Data_->Source != Other.Data_->Source;
+  bool operator!=(const GreenToken &other) const noexcept {
+    return data->kind != other.data->kind || data->source != other.data->source;
   }
 
 private:
-  std::shared_ptr<const GreenTokenData> Data_;
+  std::shared_ptr<const GreenTokenData> data;
 };
 
 /// \brief An immutable node in the green tree.
@@ -159,20 +153,20 @@ public:
   /// default constructor. This method performs additional work computing
   /// "GreenChild"ren, such as pre-computing the size of each GreenChild.
   ///
-  /// \param Kind The syntax kind of this node.
-  /// \param Children The child elements (nodes and/or tokens) of this node.
+  /// \param kind The syntax kind of this node.
+  /// \param children The child elements (nodes and/or tokens) of this node.
   /// \return A new GreenNode containing the specified children.
-  [[nodiscard]] static GreenNode create(SyntaxKind Kind,
-                                        std::vector<GreenElement> Children);
+  [[nodiscard]] static GreenNode create(SyntaxKind kind,
+                                        std::vector<GreenElement> children);
 
   /// \brief Construct a GreenNode.
   ///
-  /// \param Kind The syntax kind of this node.
-  /// \param Children Pointer to the array of child elements.
-  /// \param NumChildren The number of children in the array.
-  /// \param Width The total width of this node and all its children.
-  explicit GreenNode(SyntaxKind Kind, GreenChild *Children, size_t NumChildren,
-                     size_t Width);
+  /// \param kind The syntax kind of this node.
+  /// \param children Pointer to the array of child elements.
+  /// \param numChildren The number of children in the array.
+  /// \param width The total width of this node and all its children.
+  explicit GreenNode(SyntaxKind kind, GreenChild *children, size_t numChildren,
+                     size_t width);
 
   /// Deleted default constructor to enforce proper initialization.
   GreenNode() = delete;
@@ -180,13 +174,13 @@ public:
   /// \brief Get the syntax kind of this node.
   ///
   /// \return The SyntaxKind of this node.
-  [[nodiscard]] SyntaxKind getKind() const noexcept { return Data_->Kind; }
+  [[nodiscard]] SyntaxKind getKind() const noexcept { return data->kind; }
 
   /// \brief Get the width of this node.
   ///
   /// \return The total number of characters spanned by this node and its
   /// children.
-  [[nodiscard]] size_t getWidth() const noexcept { return Data_->Width; }
+  [[nodiscard]] size_t getWidth() const noexcept { return data->width; }
 
   /// \brief Get an iterator over this node's children.
   ///
@@ -197,32 +191,30 @@ public:
   ///
   /// \return The count of child elements in this node.
   [[nodiscard]] size_t getNumChildren() const noexcept {
-    return Data_->NumChildren;
+    return data->numChildren;
   }
 
   /// \brief Get the reference count for this node's data.
   ///
   /// \return The number of references to the underlying data.
-  [[nodiscard]] size_t getUseCount() const noexcept {
-    return Data_.use_count();
-  }
+  [[nodiscard]] size_t getUseCount() const noexcept { return data.use_count(); }
 
   /// \brief Equality comparison operator.
   ///
-  /// \param Other The GreenNode to compare with.
+  /// \param other The GreenNode to compare with.
   /// \return True if both nodes are structurally equal.
-  bool operator==(const GreenNode &Other) const noexcept;
+  bool operator==(const GreenNode &other) const noexcept;
 
   /// \brief Inequality comparison operator.
   ///
-  /// \param Other The GreenNode to compare with.
+  /// \param other The GreenNode to compare with.
   /// \return True if the nodes are not structurally equal.
-  bool operator!=(const GreenNode &Other) const noexcept {
-    return !(this == &Other);
+  bool operator!=(const GreenNode &other) const noexcept {
+    return !(this == &other);
   }
 
 private:
-  std::shared_ptr<const GreenNodeData> Data_;
+  std::shared_ptr<const GreenNodeData> data;
 };
 
 /// \brief A child element in a green node with its relative offset.
@@ -234,17 +226,17 @@ private:
 struct GreenChild final {
   /// The variant (node or token) for this child. GreenElement is specifically
   /// not used to avoid
-  const std::variant<GreenNode, GreenToken> Element;
+  const std::variant<GreenNode, GreenToken> element;
 
   /// The offset of this child relative to its parent's start position.
-  const size_t RelativeOffset;
+  const size_t relativeOffset;
 
   /// \brief Equality comparison operator.
   ///
   /// \param other The GreenChild to compare with.
   /// \return True if both children have the same element and offset.
   bool operator==(const GreenChild &other) const {
-    return Element == other.Element && RelativeOffset == other.RelativeOffset;
+    return element == other.element && relativeOffset == other.relativeOffset;
   }
 
   /// \brief Inequality comparison operator.
@@ -252,7 +244,7 @@ struct GreenChild final {
   /// \param other The GreenChild to compare with.
   /// \return True if the children differ in element or offset.
   bool operator!=(const GreenChild &other) const {
-    return Element != other.Element || RelativeOffset != other.RelativeOffset;
+    return element != other.element || relativeOffset != other.relativeOffset;
   }
 };
 
@@ -316,12 +308,12 @@ public:
   ///
   /// \return The SyntaxKind of the underlying node or token.
   [[nodiscard]] SyntaxKind getKind() const noexcept {
-    if (const GreenNode *Node = getIfNode()) {
-      return Node->getKind();
+    if (const GreenNode *node = getIfNode()) {
+      return node->getKind();
     }
 
-    if (const GreenToken *Token = getIfToken()) {
-      return Token->getKind();
+    if (const GreenToken *token = getIfToken()) {
+      return token->getKind();
     }
 
     util::yuzu_unreachable();
@@ -331,12 +323,12 @@ public:
   ///
   /// \return The number of characters spanned by this element.
   [[nodiscard]] size_t getWidth() const noexcept {
-    if (const GreenNode *Node = getIfNode()) {
-      return Node->getWidth();
+    if (const GreenNode *node = getIfNode()) {
+      return node->getWidth();
     }
 
-    if (const GreenToken *Token = getIfToken()) {
-      return Token->getWidth();
+    if (const GreenToken *token = getIfToken()) {
+      return token->getWidth();
     }
 
     util::yuzu_unreachable();
@@ -346,12 +338,12 @@ public:
   ///
   /// \return The number of references to the underlying data.
   [[nodiscard]] size_t getUseCount() const noexcept {
-    if (const GreenNode *Node = getIfNode()) {
-      return Node->getUseCount();
+    if (const GreenNode *node = getIfNode()) {
+      return node->getUseCount();
     }
 
-    if (const GreenToken *Token = getIfToken()) {
-      return Token->getUseCount();
+    if (const GreenToken *token = getIfToken()) {
+      return token->getUseCount();
     }
 
     util::yuzu_unreachable();

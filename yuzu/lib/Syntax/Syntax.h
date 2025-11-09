@@ -35,14 +35,14 @@ public:
 
   /// \brief Construct a new SyntaxData instance.
   ///
-  /// \param Green The green element (node or token) backing this syntax data.
-  /// \param Parent Pointer to the parent SyntaxData, nullptr for root nodes.
-  /// \param Offset The absolute offset of this element in the source text.
-  /// \param Index The index of this element in its parent's children.
-  explicit SyntaxData(const GreenElement &Green, SyntaxData *const Parent,
-                      const size_t Offset, const size_t Index)
-      : Green_(std::move(Green)), Parent_(Parent), Offset_(Offset),
-        Index_(Index), Rc_(new std::atomic<int64_t>(1)) {}
+  /// \param green The green element (node or token) backing this syntax data.
+  /// \param parent Pointer to the parent SyntaxData, nullptr for root nodes.
+  /// \param offset The absolute offset of this element in the source text.
+  /// \param index The index of this element in its parent's children.
+  explicit SyntaxData(const GreenElement &green, SyntaxData *const parent,
+                      const size_t offset, const size_t index)
+      : green(std::move(green)), parent(parent), offset(offset), index(index),
+        rc(new std::atomic<int64_t>(1)) {}
 
   /// Deleted default constructor to enforce non-null invariant.
   ///
@@ -56,11 +56,11 @@ public:
   /// Creates a new reference to the same SyntaxData and increments the
   /// reference count.
   ///
-  /// \param Other The SyntaxData to copy from.
-  SyntaxData(const SyntaxData &Other) noexcept
-      : Green_(Other.Green_), Parent_(Other.Parent_), Offset_(Other.Offset_),
-        Index_(Other.Index_), Rc_(Other.Rc_) {
-    Rc_->fetch_add(1);
+  /// \param other The SyntaxData to copy from.
+  SyntaxData(const SyntaxData &other) noexcept
+      : green(other.green), parent(other.parent), offset(other.offset),
+        index(other.index), rc(other.rc) {
+    rc->fetch_add(1);
   }
 
   /// \brief Copy assignment operator.
@@ -68,30 +68,30 @@ public:
   /// Assigns from another SyntaxData, properly managing reference counts.
   /// Decrements the current reference count and increments the new one.
   ///
-  /// \param Other The SyntaxData to assign from.
+  /// \param other The SyntaxData to assign from.
   /// \return Reference to this object.
-  SyntaxData &operator=(const SyntaxData &Other) noexcept {
-    if (this == &Other) {
+  SyntaxData &operator=(const SyntaxData &other) noexcept {
+    if (this == &other) {
       return *this;
     }
 
     // Delete the current reference count if there are no references, since it
     // will be thrown away in favor of the new reference count. Failing to
     // delete this here will leak memory.
-    if (Rc_ && Rc_->fetch_sub(1) == 0) {
-      delete Rc_;
+    if (rc && rc->fetch_sub(1) == 0) {
+      delete rc;
     }
 
     // Copy the other members.
-    Green_ = Other.Green_;
-    Parent_ = Other.Parent_;
-    Offset_ = Other.Offset_;
-    Index_ = Other.Index_;
-    Rc_ = Other.Rc_;
+    green = other.green;
+    parent = other.parent;
+    offset = other.offset;
+    index = other.index;
+    rc = other.rc;
 
     // Increment
-    if (Rc_) {
-      Rc_->fetch_add(1);
+    if (rc) {
+      rc->fetch_add(1);
     }
 
     return *this;
@@ -102,11 +102,11 @@ public:
   /// Moves data from another SyntaxData instance, transferring ownership
   /// without modifying reference counts.
   ///
-  /// \param Other The SyntaxData to move from.
-  SyntaxData(SyntaxData &&Other) noexcept
-      : Green_(std::move(Other.Green_)), Parent_(Other.Parent_),
-        Offset_(Other.Offset_), Index_(Other.Index_), Rc_(Other.Rc_) {
-    Other.Rc_ = nullptr;
+  /// \param other The SyntaxData to move from.
+  SyntaxData(SyntaxData &&other) noexcept
+      : green(std::move(other.green)), parent(other.parent),
+        offset(other.offset), index(other.index), rc(other.rc) {
+    other.rc = nullptr;
   }
 
   /// \brief Move assignment operator.
@@ -114,27 +114,27 @@ public:
   /// Moves from another SyntaxData, properly managing reference counts.
   /// Decrements the current reference count before taking ownership.
   ///
-  /// \param Other The SyntaxData to move from.
+  /// \param other The SyntaxData to move from.
   /// \return Reference to this object.
-  SyntaxData &operator=(SyntaxData &&Other) noexcept {
-    if (this == &Other) {
+  SyntaxData &operator=(SyntaxData &&other) noexcept {
+    if (this == &other) {
       return *this;
     }
 
     // Delete the current reference count if there are no references, since it
     // will be thrown away in favor of the new reference count. Failing to
     // delete this here will leak memory.
-    if (Rc_ && Rc_->fetch_sub(1) == 0) {
-      delete Rc_;
+    if (rc && rc->fetch_sub(1) == 0) {
+      delete rc;
     }
 
-    Green_ = std::move(Other.Green_);
-    Parent_ = Other.Parent_;
-    Offset_ = Other.Offset_;
-    Index_ = Other.Index_;
-    Rc_ = Other.Rc_;
+    green = std::move(other.green);
+    parent = other.parent;
+    offset = other.offset;
+    index = other.index;
+    rc = other.rc;
 
-    Other.Rc_ = nullptr;
+    other.rc = nullptr;
 
     return *this;
   }
@@ -153,35 +153,35 @@ public:
   /// \brief Get the reference count of this SyntaxNode.
   ///
   /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const noexcept { return Rc_->load(); }
+  [[nodiscard]] int64_t getRc() const noexcept { return rc->load(); }
 
   /// \brief Increment the reference count.
-  void incRc() noexcept { Rc_->fetch_add(1); }
+  void incRc() noexcept { rc->fetch_add(1); }
 
   /// \brief Decrement the reference count.
   ///
   /// \return True if this was the last reference (count reached 0).
-  [[nodiscard]] bool decRc() noexcept { return Rc_->fetch_sub(1) == 1; }
+  [[nodiscard]] bool decRc() noexcept { return rc->fetch_sub(1) == 1; }
 
   /// \brief Get the green element backing this syntax data.
   ///
   /// \return The GreenElement (either GreenNode or GreenToken).
-  [[nodiscard]] const GreenElement &getGreen() const noexcept { return Green_; }
+  [[nodiscard]] const GreenElement &getGreen() const noexcept { return green; }
 
   /// \brief Get the parent of this syntax data.
   ///
   /// \return Pointer to parent SyntaxData, or nullptr if this is a root.
-  [[nodiscard]] const SyntaxData *getParent() const noexcept { return Parent_; }
+  [[nodiscard]] const SyntaxData *getParent() const noexcept { return parent; }
 
   /// \brief Get the absolute offset in the source text.
   ///
   /// \return The offset in bytes from the start of the source.
-  [[nodiscard]] size_t getOffset() const noexcept { return Offset_; }
+  [[nodiscard]] size_t getOffset() const noexcept { return offset; }
 
   /// \brief Get the index of this element in its parent's children.
   ///
   /// \return The zero-based index.
-  [[nodiscard]] size_t getIndex() const noexcept { return Index_; }
+  [[nodiscard]] size_t getIndex() const noexcept { return index; }
 
   /// \brief Get the next sibling node.
   ///
@@ -207,18 +207,18 @@ public:
 
   /// \brief Equality comparison operator.
   ///
-  /// \param Other The SyntaxData to compare with.
+  /// \param other The SyntaxData to compare with.
   /// \return True if both objects refer to the same data.
-  bool operator==(const SyntaxData &Other) const noexcept {
-    return Green_ == Other.Green_ && Offset_ == Other.Offset_;
+  bool operator==(const SyntaxData &other) const noexcept {
+    return green == other.green && offset == other.offset;
   }
 
   /// \brief Inequality comparison operator.
   ///
-  /// \param Other The SyntaxData to compare with.
+  /// \param other The SyntaxData to compare with.
   /// \return True if the objects refer to different data.
-  bool operator!=(const SyntaxData &Other) const noexcept {
-    return !(*this == Other);
+  bool operator!=(const SyntaxData &other) const noexcept {
+    return !(*this == other);
   }
 
 private:
@@ -228,26 +228,26 @@ private:
   /// is released. Deletes the reference counter and decrements parent's
   /// reference count if applicable.
   void free() {
-    assert(Rc_->load() == 0);
+    assert(rc->load() == 0);
 
     // Delete the reference counter since we're at 0
-    delete Rc_;
-    Rc_ = nullptr;
+    delete rc;
+    rc = nullptr;
 
     // If the parent exists, decrement its reference count
     // but don't free it - let the parent's destructor handle that
-    if (Parent_ != nullptr) {
-      [[maybe_unused]] bool parentShouldFree = Parent_->decRc();
+    if (parent != nullptr) {
+      [[maybe_unused]] bool parentShouldFree = parent->decRc();
     }
   }
 
   /// The 'GreenElement' associated with this 'SyntaxData'. When parented to a
   /// 'SyntaxNode', this is a 'GreenNode'. When parented to a 'SyntaxToken',
   /// this is a 'GreenToken'.
-  GreenElement Green_;
+  GreenElement green;
 
   /// The parent that this 'SyntaxNode' belongs to.
-  SyntaxData *Parent_;
+  SyntaxData *parent;
 
   /// The absolute offset of this 'SyntaxNode' in the source code.
   ///
@@ -256,13 +256,13 @@ private:
   /// \code
   ///   print("hello world")
   /// \endcode
-  size_t Offset_;
+  size_t offset;
 
   /// The index of this 'SyntaxData' in the children of 'Parent'.
-  size_t Index_;
+  size_t index;
 
   /// Reference count for the smart pointer to manage.
-  std::atomic<int64_t> *Rc_;
+  std::atomic<int64_t> *rc;
 };
 
 /// \brief A node in the concrete syntax tree.
@@ -278,21 +278,21 @@ public:
   /// Root nodes reference a GreenNode, have no parent, and are at the
   /// "start" of the syntax tree.
   ///
-  /// \param Node The GreenNode to build the root from.
+  /// \param node The GreenNode to build the root from.
   /// \return A root SyntaxNode.
-  static SyntaxNode createRoot(GreenNode Node) {
-    return SyntaxNode(0, 0, nullptr, Node);
+  static SyntaxNode createRoot(GreenNode node) {
+    return SyntaxNode(0, 0, nullptr, node);
   }
 
   /// \brief Construct a SyntaxNode.
   ///
-  /// \param Offset The absolute offset in the source text.
-  /// \param Idx The index in the parent's children.
-  /// \param Parent Pointer to the parent SyntaxData, or nullptr for root.
-  /// \param Green The GreenNode backing this syntax node.
-  explicit SyntaxNode(size_t Offset, size_t Idx, SyntaxData *const Parent,
-                      GreenNode Green)
-      : Data_(new SyntaxData(Green, Parent, Offset, Idx)) {}
+  /// \param offset The absolute offset in the source text.
+  /// \param idx The index in the parent's children.
+  /// \param parent Pointer to the parent SyntaxData, or nullptr for root.
+  /// \param green The GreenNode backing this syntax node.
+  explicit SyntaxNode(size_t offset, size_t idx, SyntaxData *const parent,
+                      GreenNode green)
+      : data(new SyntaxData(green, parent, offset, idx)) {}
 
   /// Deleted default constructor to enforce proper initialization.
   SyntaxNode() = delete;
@@ -302,9 +302,9 @@ public:
   /// Creates a new reference to the same SyntaxNode and increments the
   /// reference count.
   ///
-  /// \param Other The SyntaxNode to copy from.
-  SyntaxNode(const SyntaxNode &Other) noexcept : Data_(Other.Data_) {
-    Data_->incRc();
+  /// \param other The SyntaxNode to copy from.
+  SyntaxNode(const SyntaxNode &other) noexcept : data(other.data) {
+    data->incRc();
   }
 
   /// \brief Copy assignment operator.
@@ -312,22 +312,22 @@ public:
   /// Assigns from another SyntaxNode, properly managing reference counts.
   /// Decrements the current reference count and increments the new one.
   ///
-  /// \param Other The SyntaxNode to assign from.
+  /// \param other The SyntaxNode to assign from.
   /// \return Reference to this object.
-  SyntaxNode &operator=(const SyntaxNode &Other) noexcept {
-    if (this == &Other) {
+  SyntaxNode &operator=(const SyntaxNode &other) noexcept {
+    if (this == &other) {
       return *this;
     }
 
     // Delete the current pointer to Data if there are no references, since it
     // will be thrown away in favor of the new point. Failing to
     // delete this here will leak memory.
-    if (Data_->decRc()) {
-      delete Data_;
+    if (data->decRc()) {
+      delete data;
     }
 
-    Data_ = Other.Data_;
-    Data_->incRc();
+    data = other.data;
+    data->incRc();
 
     return *this;
   }
@@ -337,21 +337,21 @@ public:
   /// Manages the destruction of the underlying SyntaxData, freeing it when
   /// there are no more references (similar to std::shared_ptr).
   ~SyntaxNode() {
-    if (Data_->decRc()) {
-      Data_->free();
-      delete Data_;
+    if (data->decRc()) {
+      data->free();
+      delete data;
     }
   }
 
   /// \brief Get the offset of this SyntaxNode.
   ///
   /// \return The absolute offset in bytes from the start of the source.
-  [[nodiscard]] size_t getOffset() const noexcept { return Data_->getOffset(); }
+  [[nodiscard]] size_t getOffset() const noexcept { return data->getOffset(); }
 
   /// \brief Get the index of this SyntaxNode.
   ///
   /// \return The zero-based index in the parent's children.
-  [[nodiscard]] size_t getIndex() const noexcept { return Data_->getIndex(); }
+  [[nodiscard]] size_t getIndex() const noexcept { return data->getIndex(); }
 
   /// \brief Get the parent of this SyntaxNode.
   ///
@@ -360,7 +360,7 @@ public:
   ///
   /// \return Pointer to parent SyntaxData, or nullptr if this is a root.
   [[nodiscard]] const SyntaxData *getParent() const noexcept {
-    return Data_->getParent();
+    return data->getParent();
   }
 
   /// \brief Get the GreenNode of this SyntaxNode.
@@ -369,20 +369,20 @@ public:
   ///
   /// \return Constant reference to the GreenNode.
   [[nodiscard]] const GreenNode &getGreen() const noexcept {
-    return Data_->getGreen().getNode();
+    return data->getGreen().getNode();
   }
 
   /// \brief Get the kind of this SyntaxNode.
   ///
   /// \return The SyntaxKind of this node.
   [[nodiscard]] SyntaxKind getKind() const noexcept {
-    return Data_->getGreen().getKind();
+    return data->getGreen().getKind();
   }
 
   /// \brief Get the reference count of this SyntaxNode.
   ///
   /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const noexcept { return Data_->Rc_->load(); }
+  [[nodiscard]] int64_t getRc() const noexcept { return data->rc->load(); }
 
   /// \brief Get the children of this SyntaxNode.
   ///
@@ -464,22 +464,22 @@ public:
 
   /// \brief Equality comparison operator.
   ///
-  /// \param Other The SyntaxNode to compare with.
+  /// \param other The SyntaxNode to compare with.
   /// \return True if both nodes refer to the same underlying data.
-  bool operator==(const SyntaxNode &Other) const noexcept {
-    return *Data_ == *Other.Data_;
+  bool operator==(const SyntaxNode &other) const noexcept {
+    return *data == *other.data;
   }
 
   /// \brief Inequality comparison operator.
   ///
-  /// \param Other The SyntaxNode to compare with.
+  /// \param other The SyntaxNode to compare with.
   /// \return True if the nodes refer to different underlying data.
-  bool operator!=(const SyntaxNode &Other) const noexcept {
-    return !(*this == Other);
+  bool operator!=(const SyntaxNode &other) const noexcept {
+    return !(*this == other);
   }
 
 private:
-  SyntaxData *Data_;
+  SyntaxData *data;
 };
 
 /// \brief A token in the concrete syntax tree.
@@ -492,21 +492,21 @@ class SyntaxToken final {
 public:
   /// \brief Construct a SyntaxToken with a parent.
   ///
-  /// \param Offset The absolute offset in the source text.
-  /// \param Idx The index in the parent's children.
-  /// \param Parent Pointer to the parent SyntaxData.
-  /// \param Green The GreenToken backing this syntax token.
-  explicit SyntaxToken(size_t Offset, size_t Idx, SyntaxData *const Parent,
-                       GreenToken Green)
-      : Data_(new SyntaxData(Green, Parent, Offset, Idx)) {}
+  /// \param offset The absolute offset in the source text.
+  /// \param idx The index in the parent's children.
+  /// \param parent Pointer to the parent SyntaxData.
+  /// \param green The GreenToken backing this syntax token.
+  explicit SyntaxToken(size_t offset, size_t idx, SyntaxData *const parent,
+                       GreenToken green)
+      : data(new SyntaxData(green, parent, offset, idx)) {}
 
   /// \brief Construct a SyntaxToken without a parent.
   ///
-  /// \param Offset The absolute offset in the source text.
-  /// \param Idx The index (typically 0 for parentless tokens).
-  /// \param Green The GreenToken backing this syntax token.
-  explicit SyntaxToken(size_t Offset, size_t Idx, GreenToken Green)
-      : Data_(new SyntaxData(Green, nullptr, Offset, Idx)) {}
+  /// \param offset The absolute offset in the source text.
+  /// \param idx The index (typically 0 for parentless tokens).
+  /// \param green The GreenToken backing this syntax token.
+  explicit SyntaxToken(size_t offset, size_t idx, GreenToken green)
+      : data(new SyntaxData(green, nullptr, offset, idx)) {}
 
   /// Deleted default constructor to enforce proper initialization.
   SyntaxToken() = delete;
@@ -516,9 +516,9 @@ public:
   /// Creates a new reference to the same SyntaxToken and increments the
   /// reference count.
   ///
-  /// \param Other The SyntaxToken to copy from.
-  SyntaxToken(const SyntaxToken &Other) noexcept : Data_(Other.Data_) {
-    Data_->incRc();
+  /// \param other The SyntaxToken to copy from.
+  SyntaxToken(const SyntaxToken &other) noexcept : data(other.data) {
+    data->incRc();
   }
 
   /// \brief Copy assignment operator.
@@ -526,22 +526,22 @@ public:
   /// Assigns from another SyntaxToken, properly managing reference counts.
   /// Decrements the current reference count and increments the new one.
   ///
-  /// \param Other The SyntaxToken to assign from.
+  /// \param other The SyntaxToken to assign from.
   /// \return Reference to this object.
-  SyntaxToken &operator=(const SyntaxToken &Other) noexcept {
-    if (this == &Other) {
+  SyntaxToken &operator=(const SyntaxToken &other) noexcept {
+    if (this == &other) {
       return *this;
     }
 
     // Delete the current pointer to Data if there are no references, since it
     // will be thrown away in favor of the new point. Failing to
     // delete this here will leak memory.
-    if (Data_->decRc()) {
-      delete Data_;
+    if (data->decRc()) {
+      delete data;
     }
 
-    Data_ = Other.Data_;
-    Data_->incRc();
+    data = other.data;
+    data->incRc();
 
     return *this;
   }
@@ -551,28 +551,28 @@ public:
   /// Manages the destruction of the underlying SyntaxData, freeing it when
   /// there are no more references (similar to std::shared_ptr).
   ~SyntaxToken() {
-    if (Data_->decRc()) {
-      Data_->free();
-      delete Data_;
+    if (data->decRc()) {
+      data->free();
+      delete data;
     }
   }
 
   /// \brief Get the offset of this SyntaxToken.
   ///
   /// \return The absolute offset in bytes from the start of the source.
-  [[nodiscard]] size_t getOffset() const noexcept { return Data_->getOffset(); }
+  [[nodiscard]] size_t getOffset() const noexcept { return data->getOffset(); }
 
   /// \brief Get the index of this SyntaxToken.
   ///
   /// \return The zero-based index in the parent's children.
-  [[nodiscard]] size_t getIndex() const noexcept { return Data_->getIndex(); }
+  [[nodiscard]] size_t getIndex() const noexcept { return data->getIndex(); }
 
   /// \brief Get the parent of this SyntaxToken.
   ///
   /// \return Pointer to parent SyntaxData, or nullptr if this token has no
   /// parent.
   [[nodiscard]] const SyntaxData *getParent() const noexcept {
-    return Data_->getParent();
+    return data->getParent();
   }
 
   /// \brief Get the GreenToken of this SyntaxToken.
@@ -581,20 +581,20 @@ public:
   ///
   /// \return Constant reference to the GreenToken.
   [[nodiscard]] const GreenToken &getGreen() const noexcept {
-    return Data_->getGreen().getToken();
+    return data->getGreen().getToken();
   }
 
   /// \brief Get the kind of this SyntaxToken.
   ///
   /// \return The SyntaxKind of this token.
   [[nodiscard]] SyntaxKind getKind() const noexcept {
-    return Data_->getGreen().getKind();
+    return data->getGreen().getKind();
   }
 
   /// \brief Get the reference count of this SyntaxNode.
   ///
   /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const noexcept { return Data_->Rc_->load(); }
+  [[nodiscard]] int64_t getRc() const noexcept { return data->rc->load(); }
 
   /// \brief Get the next sibling node.
   ///
@@ -620,22 +620,22 @@ public:
 
   /// \brief Equality comparison operator.
   ///
-  /// \param Other The SyntaxToken to compare with.
+  /// \param other The SyntaxToken to compare with.
   /// \return True if both tokens refer to the same underlying data.
-  bool operator==(const SyntaxToken &Other) const noexcept {
-    return *Data_ == *Other.Data_;
+  bool operator==(const SyntaxToken &other) const noexcept {
+    return *data == *other.data;
   }
 
   /// \brief Inequality comparison operator.
   ///
-  /// \param Other The SyntaxToken to compare with.
+  /// \param other The SyntaxToken to compare with.
   /// \return True if the tokens refer to different underlying data.
-  bool operator!=(const SyntaxToken &Other) const noexcept {
-    return !(*this == Other);
+  bool operator!=(const SyntaxToken &other) const noexcept {
+    return !(*this == other);
   }
 
 private:
-  SyntaxData *Data_;
+  SyntaxData *data;
 };
 
 /// \brief A variant type representing either a SyntaxNode or SyntaxToken.
@@ -684,12 +684,12 @@ public:
   ///
   /// \return The SyntaxKind of the underlying node or token.
   [[nodiscard]] SyntaxKind getKind() const noexcept {
-    if (const SyntaxNode *Node = getIfNode()) {
-      return Node->getKind();
+    if (const SyntaxNode *node = getIfNode()) {
+      return node->getKind();
     }
 
-    if (const SyntaxToken *Token = getIfToken()) {
-      return Token->getKind();
+    if (const SyntaxToken *token = getIfToken()) {
+      return token->getKind();
     }
 
     util::yuzu_unreachable();
@@ -713,12 +713,12 @@ public:
   ///
   /// \return The next SyntaxNode sibling, or nullopt if none exists.
   [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept {
-    if (const SyntaxNode *Node = getIfNode()) {
-      return Node->getNextSibling();
+    if (const SyntaxNode *node = getIfNode()) {
+      return node->getNextSibling();
     }
 
-    if (const SyntaxToken *Token = getIfToken()) {
-      return Token->getNextSibling();
+    if (const SyntaxToken *token = getIfToken()) {
+      return token->getNextSibling();
     }
 
     util::yuzu_unreachable();
@@ -729,12 +729,12 @@ public:
   /// \return The next SyntaxElement sibling, or nullopt if none exists.
   [[nodiscard]] std::optional<SyntaxElement>
   getNextSiblingOrToken() const noexcept {
-    if (const SyntaxNode *Node = getIfNode()) {
-      return Node->getNextSiblingOrToken();
+    if (const SyntaxNode *node = getIfNode()) {
+      return node->getNextSiblingOrToken();
     }
 
-    if (const SyntaxToken *Token = getIfToken()) {
-      return Token->getNextSiblingOrToken();
+    if (const SyntaxToken *token = getIfToken()) {
+      return token->getNextSiblingOrToken();
     }
 
     util::yuzu_unreachable();
@@ -744,12 +744,12 @@ public:
   ///
   /// \return The previous SyntaxNode sibling, or nullopt if none exists.
   [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept {
-    if (const SyntaxNode *Node = getIfNode()) {
-      return Node->getPrevSibling();
+    if (const SyntaxNode *node = getIfNode()) {
+      return node->getPrevSibling();
     }
 
-    if (const SyntaxToken *Token = getIfToken()) {
-      return Token->getPrevSibling();
+    if (const SyntaxToken *token = getIfToken()) {
+      return token->getPrevSibling();
     }
 
     util::yuzu_unreachable();
@@ -760,12 +760,12 @@ public:
   /// \return The previous SyntaxElement sibling, or nullopt if none exists.
   [[nodiscard]] std::optional<SyntaxElement>
   getPrevSiblingOrToken() const noexcept {
-    if (const SyntaxNode *Node = getIfNode()) {
-      return Node->getPrevSiblingOrToken();
+    if (const SyntaxNode *node = getIfNode()) {
+      return node->getPrevSiblingOrToken();
     }
 
-    if (const SyntaxToken *Token = getIfToken()) {
-      return Token->getPrevSiblingOrToken();
+    if (const SyntaxToken *token = getIfToken()) {
+      return token->getPrevSiblingOrToken();
     }
 
     util::yuzu_unreachable();

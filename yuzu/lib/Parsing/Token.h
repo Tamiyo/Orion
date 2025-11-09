@@ -3,7 +3,6 @@
 
 #include "yuzu/Parsing/Span.h"
 
-#include <cstddef>
 #include <cstdint>
 #include <string_view>
 #include <utility>
@@ -59,7 +58,7 @@ enum class TokenKind : uint16_t {
   Eof, /// End-of-file marker.
 };
 
-constexpr bool IsTrivia(const TokenKind kind) noexcept {
+constexpr bool isTrivia(const TokenKind kind) noexcept {
   switch (kind) {
   case TokenKind::Whitespace:
   case TokenKind::Newline:
@@ -72,33 +71,32 @@ constexpr bool IsTrivia(const TokenKind kind) noexcept {
 
 class Token final {
 public:
-  explicit Token(TokenKind Kind, const std::u32string_view &Source,
-                 const Span &Span)
-      : Source_(std::move(Source)), Span_(std::move(Span)), Kind_(Kind) {}
+  explicit Token(TokenKind kind, const std::u32string_view &source,
+                 const Span &span)
+      : source(std::move(source)), span(std::move(span)), kind(kind) {}
 
   Token() = delete;
 
-  [[nodiscard]] TokenKind getKind() const noexcept { return Kind_; }
+  [[nodiscard]] TokenKind getKind() const noexcept { return kind; }
 
-  [[nodiscard]] const Span &getSpan() const noexcept { return Span_; }
+  [[nodiscard]] const Span &getSpan() const noexcept { return span; }
 
   [[nodiscard]] std::u32string_view getSource() const noexcept {
-    return Source_;
+    return source;
   }
 
-  [[nodiscard]] size_t getLength() const noexcept {
-    return Span_.End - Span_.Start;
+  [[nodiscard]] uint32_t getLength() const noexcept {
+    return span.end - span.start;
   }
 
-  bool operator==(const Token &Other) const noexcept {
-    return Kind_ == Other.Kind_ && Source_ == Other.Source_ &&
-           Span_ == Other.Span_;
+  bool operator==(const Token &other) const noexcept {
+    return kind == other.kind && source == other.source && span == other.span;
   }
 
 private:
-  const std::u32string_view Source_;
-  const Span Span_;
-  const TokenKind Kind_;
+  const std::u32string_view source;
+  const Span span;
+  const TokenKind kind;
 };
 } // namespace yuzu::parsing
 

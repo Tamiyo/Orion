@@ -5,49 +5,49 @@
 #include "yuzu/Syntax/SyntaxKind.h"
 
 #include <cstddef>
-#include <string>
+#include <string_view>
 #include <vector>
 
 namespace yuzu::syntax {
 struct GreenBuilderCheckpoint {
-  const size_t Index;
+  const size_t index;
 };
 
 class GreenBuilder final {
 public:
   explicit GreenBuilder();
-  explicit GreenBuilder(const size_t MaxNodeSize);
+  explicit GreenBuilder(const size_t maxCachedNodeSize);
 
-  void startNode(const SyntaxKind Kind) noexcept;
+  void startNode(const SyntaxKind kind) noexcept;
 
   void finishNode() noexcept;
 
-  void startNodeAt(const GreenBuilderCheckpoint &Checkpoint,
-                   const SyntaxKind Kind) noexcept;
+  void startNodeAt(const GreenBuilderCheckpoint &checkpoint,
+                   const SyntaxKind kind) noexcept;
 
   [[nodiscard]] GreenBuilderCheckpoint checkpoint() const noexcept;
 
-  void token(const SyntaxKind Kind, const std::u32string &Source) noexcept;
+  void token(const SyntaxKind kind, const std::u32string_view &source) noexcept;
 
   [[nodiscard]] GreenNode finish() noexcept;
 
   [[nodiscard]] size_t getParentsSize() const noexcept {
-    return Parents_.size();
+    return parents.size();
   }
 
   [[nodiscard]] size_t getChildrenSize() const noexcept {
-    return Children_.size();
+    return children.size();
   }
 
 private:
   struct Parent {
-    const SyntaxKind Kind;
-    const size_t FirstChild;
+    const SyntaxKind kind;
+    const size_t firstChild;
   };
 
-  GreenCache Cache_;
-  std::vector<GreenBuilder::Parent> Parents_;
-  std::vector<GreenCacheEntry> Children_;
+  GreenCache cache;
+  std::vector<GreenBuilder::Parent> parents;
+  std::vector<GreenCacheEntry> children;
 };
 
 } // namespace yuzu::syntax

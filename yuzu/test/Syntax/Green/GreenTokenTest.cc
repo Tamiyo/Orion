@@ -7,36 +7,36 @@ namespace {
 using yuzu::syntax::GreenToken;
 using yuzu::syntax::GreenTokenData;
 
-const auto Token = GreenToken(2, U"3");
+const auto token = GreenToken(2, U"3");
 
 TEST(GreenTokenTest, GetKind) {
-  // Token has a kind of 2.
-  EXPECT_EQ(2, Token.getKind());
+  // token has a kind of 2.
+  EXPECT_EQ(2, token.getKind());
 }
 
 TEST(GreenTokenTest, GetSource) {
-  // Token has a source of "3".
-  EXPECT_EQ(U"3", Token.getSource());
+  // token has a source of "3".
+  EXPECT_EQ(U"3", token.getSource());
 }
 
 TEST(GreenTokenTest, GetWidth) {
-  // Token has a width of 1.
-  EXPECT_EQ(1, Token.getWidth());
+  // token has a width of 1.
+  EXPECT_EQ(1, token.getWidth());
 }
 
 TEST(GreenTokenTest, GetUseCount) {
-  // Token has 1 usage (this test).
-  EXPECT_EQ(1, Token.getUseCount());
+  // token has 1 usage (this test).
+  EXPECT_EQ(1, token.getUseCount());
 }
 
 TEST(GreenNodeTest, Equals) {
-  const auto TokenCopy = GreenToken(2, U"3");
-  EXPECT_TRUE(Token == TokenCopy);
+  const auto tokenCopy = GreenToken(2, U"3");
+  EXPECT_TRUE(token == tokenCopy);
 }
 
 TEST(GreenNodeTest, NotEquals) {
-  const auto DifferentToken = GreenToken(2, U"4");
-  EXPECT_TRUE(Token != DifferentToken);
+  const auto differentToken = GreenToken(2, U"4");
+  EXPECT_TRUE(token != differentToken);
 }
 
 TEST(GreenTokenTest, GreenTokenSizeRequirements) {
@@ -49,7 +49,7 @@ TEST(GreenTokenTest, GreenTokenSizeRequirements) {
 TEST(GreenTokenTest, GreenTokenDataSizeRequirements) {
   // kind                 = 2
   // alignment            = 6
-  // std::u32string_view  = 32
-  EXPECT_EQ(40, sizeof(GreenTokenData));
+  // std::u32string_view  = 16
+  EXPECT_EQ(24, sizeof(GreenTokenData));
 }
 } // namespace

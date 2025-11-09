@@ -18,26 +18,26 @@ enum ActionType {
 } // namespace
 
 static llvm::cl::opt<ActionType>
-    Action(llvm::cl::desc("Action to perform:"),
+    action(llvm::cl::desc("Action to perform:"),
            llvm::cl::values(clEnumValN(GenAstNodeDecls, "gen-ast-decls",
                                        "Generate AST node declarations")));
 
-static bool YuzuTableGenMain(llvm::raw_ostream &OS,
+static bool YuzuTableGenMain(llvm::raw_ostream &os,
                              const llvm::RecordKeeper &Records) {
-  switch (Action) {
+  switch (action) {
   case GenAstNodeDecls: {
-    const auto ProjectIncludes = std::set<std::string>{
+    const auto projectIncludes = std::set<std::string>{
         "yuzu/Ast/Ast.h", "yuzu/Ast/Syntax.h", "yuzu/Syntax/Syntax.h",
         "yuzu/Util/ErrorHandling.h"};
 
-    const auto ExternalIncludes = std::set<std::string>{};
+    const auto externalIncludes = std::set<std::string>{};
 
-    const auto SystemIncludes =
+    const auto systemIncludes =
         std::set<std::string>{"memory", "optional", "variant", "utility"};
 
-    yuzu_tools::AstNodeGenerator(Records, ProjectIncludes, ExternalIncludes,
-                                 SystemIncludes)
-        .run(OS);
+    yuzu_tools::AstNodeGenerator(Records, projectIncludes, externalIncludes,
+                                 systemIncludes)
+        .run(os);
     break;
   }
   }
