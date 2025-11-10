@@ -19,11 +19,6 @@ class GreenIterator;
 class GreenNode;
 class GreenToken;
 
-// https://github.com/rust-analyzer/rowan/blob/master/src/green.rs#L20
-// struct SyntaxKind {
-//   const uint16_t Data;
-// }
-
 /// \brief Data structure for immutable green tokens.
 ///
 /// GreenTokenData stores the actual content and metadata for a token in the

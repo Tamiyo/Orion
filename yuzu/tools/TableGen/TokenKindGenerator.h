@@ -1,5 +1,5 @@
-#ifndef YUZU_TOOLS_AST_NODE_GENERATOR_H
-#define YUZU_TOOLS_AST_NODE_GENERATOR_H
+#ifndef YUZU_TOOLS_TOKEN_KIND_GENERATOR_H
+#define YUZU_TOOLS_TOKEN_KIND_GENERATOR_H
 
 #include "yuzu/tools/TableGen/CppGenerator.h"
 
@@ -12,13 +12,13 @@
 #include <string>
 
 namespace yuzu_tools {
-class AstNodeGenerator final : public CppGenerator {
+class TokenKindGenerator final : public CppGenerator {
 public:
-  explicit AstNodeGenerator(const std::string &basename,
-                            const llvm::RecordKeeper &records,
-                            const std::set<std::string> &projectIncludes = {},
-                            const std::set<std::string> &externalIncludes = {},
-                            const std::set<std::string> &systemIncludes = {})
+  explicit TokenKindGenerator(
+      const std::string &basename, const llvm::RecordKeeper &records,
+      const std::set<std::string> &projectIncludes = {},
+      const std::set<std::string> &externalIncludes = {},
+      const std::set<std::string> &systemIncludes = {})
       : CppGenerator(basename, records, std::move(projectIncludes),
                      std::move(externalIncludes), std::move(systemIncludes)) {}
 

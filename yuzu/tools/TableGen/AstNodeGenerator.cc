@@ -1,31 +1,31 @@
 #include "yuzu/tools/TableGen/AstNodeGenerator.h"
 
 #include "llvm/Support/FormatVariadic.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
-#include <utility>
 
 namespace yuzu_tools {
 
 namespace node {
 void emitCanCast(llvm::raw_ostream &os, const llvm::Record *record) noexcept {
-  const llvm::StringRef syntaxKind = record->getValueAsString("SyntaxKind");
+  const llvm::StringRef name = record->getValueAsString("Name");
   os << llvm::formatv(
       R"(
       [[nodiscard]] static bool canCast(SyntaxKind kind) noexcept {
         return kind == SyntaxKind::{0};
       }
       )",
-      syntaxKind);
+      name);
 }
 
 void emitCast(llvm::raw_ostream &os, const llvm::Record *record) noexcept {
+  const llvm::StringRef name = record->getValueAsString("Name");
   os << llvm::formatv(
       R"(
       [[nodiscard]] static std::optional<{0}>
@@ -39,7 +39,7 @@ void emitCast(llvm::raw_ostream &os, const llvm::Record *record) noexcept {
         return std::nullopt;
       }
       )",
-      record->getName());
+      name);
 }
 
 void emitChildAstMethod(llvm::raw_ostream &os,
@@ -105,7 +105,7 @@ void emitCanCast(
     const llvm::ArrayRef<const llvm::Record *> derivedDefinitions) noexcept {
   const auto ifStatements = llvm::map_range(
       derivedDefinitions, [](const llvm::Record *record) -> std::string {
-        llvm::StringRef Name = record->getName();
+        const llvm::StringRef Name = record->getValueAsString("Name");
         return llvm::formatv(
             R"(if (std::holds_alternative<{0}>(value)) {{
                   return true;
@@ -114,6 +114,7 @@ void emitCanCast(
             Name);
       });
 
+  const llvm::StringRef name = record->getValueAsString("Name");
   os << llvm::formatv(
       R"(
       [[nodiscard]] static bool canCast({0} value) noexcept {{
@@ -122,24 +123,27 @@ void emitCanCast(
         return false;
       }
       )",
-      record->getName(), llvm::join(ifStatements, "\n"));
+      name, llvm::join(ifStatements, "\n"));
 }
 
 void emitCast(
     llvm::raw_ostream &os, const llvm::Record *record,
     const llvm::ArrayRef<const llvm::Record *> derivedDefinitions) noexcept {
-  const auto ifStatements = llvm::map_range(
-      derivedDefinitions,
-      [record](const llvm::Record *DerivedRecord) -> std::string {
-        llvm::StringRef Derivedname = DerivedRecord->getName();
-        return llvm::formatv(
-            R"(
-              if ({1}::canCast(kind)) {{
-                return std::make_optional<{0}>({1}(std::move(node)));
-              }
-              )",
-            record->getName(), Derivedname);
-      });
+  const llvm::StringRef name = record->getValueAsString("Name");
+
+  const auto ifStatements =
+      llvm::map_range(derivedDefinitions,
+                      [name](const llvm::Record *derivedRecord) -> std::string {
+                        const llvm::StringRef derivedName =
+                            derivedRecord->getValueAsString("Name");
+                        return llvm::formatv(
+                            R"(
+                            if ({1}::canCast(kind)) {{
+                              return std::make_optional<{0}>({1}(std::move(node)));
+                            }
+                            )",
+                            name, derivedName);
+                      });
 
   os << llvm::formatv(
       R"(
@@ -152,33 +156,36 @@ void emitCast(
         return std::nullopt;
       }
       )",
-      record->getName(), llvm::join(ifStatements, "\n"));
+      name, llvm::join(ifStatements, "\n"));
 }
 } // namespace variant
 
-std::string AstNodeGenerator::getIncludeGuardName() const noexcept {
-  const llvm::StringRef Basename =
-      llvm::sys::path::stem(records.getInputFilename());
-  return "YUZU_AST_" + Basename.upper() + "_INC_H";
-}
-
 void AstNodeGenerator::emitClassDefinitions(
     llvm::raw_ostream &os) const noexcept {
-  (void)os;
+  const llvm::Record *grammar = records.getDef("YuzuGrammar");
 
-  for (const auto &[Name, record] : records.getClasses()) {
-    if (isIgnored(record.get())) {
-      continue;
-    }
+  const std::vector<const llvm::Record *> nodes =
+      grammar->getValueAsListOfDefs("Nodes");
 
-    os << "class " << Name << ";\n";
+  // Generate abstract node forward declarations.
+  std::vector<const llvm::Record *> abstractNodes;
+  std::copy_if(nodes.begin(), nodes.end(), std::back_inserter(abstractNodes),
+               [](const llvm::Record *record) {
+                 return record->isSubClassOf("AbstractAstNode");
+               });
+
+  for (const llvm::Record *abstractNode : abstractNodes) {
+    os << "class " << abstractNode->getValueAsString("Name") << ";\n";
   }
 
-  for (const auto &[Name, record] : records.getDefs()) {
-    if (isIgnored(record.get())) {
-      continue;
-    }
+  // Generate concrete node defs.
+  std::vector<const llvm::Record *> concreteNodes;
+  std::copy_if(nodes.begin(), nodes.end(), std::back_inserter(concreteNodes),
+               [](const llvm::Record *record) {
+                 return record->isSubClassOf("ConcreteAstNode");
+               });
 
+  for (const llvm::Record *concreteNode : concreteNodes) {
     os << llvm::formatv(
         R"(
         class {0} final : public AstNode<{0}> {{
@@ -188,28 +195,29 @@ void AstNodeGenerator::emitClassDefinitions(
           {0}() = delete;
 
         )",
-        Name);
+        concreteNode->getValueAsString("Name"));
 
-    node::emitCanCast(os, record.get());
-    node::emitCast(os, record.get());
-
-    node::emitAstMethods(os, record.get());
+    node::emitCanCast(os, concreteNode);
+    node::emitCast(os, concreteNode);
+    node::emitAstMethods(os, concreteNode);
 
     os << "\n};\n\n";
   }
 
-  for (const auto &[name, record] : records.getClasses()) {
-    if (isIgnored(record.get())) {
-      continue;
-    }
-
-    const auto derivedDefinitions =
-        records.getAllDerivedDefinitionsIfDefined(name);
+  // Generate abstract node defs.
+  for (const llvm::Record *abstractNode : abstractNodes) {
+    // Collect the derived defs.
+    std::vector<const llvm::Record *> derivedDefs;
+    std::copy_if(nodes.begin(), nodes.end(), std::back_inserter(derivedDefs),
+                 [abstractNode](const llvm::Record *record) {
+                   return record->getValueAsString("Parent") ==
+                          abstractNode->getValueAsString("Name");
+                 });
 
     const std::string VariantClasses =
-        llvm::join(llvm::map_range(derivedDefinitions,
+        llvm::join(llvm::map_range(derivedDefs,
                                    [](const auto &Subclass) {
-                                     return Subclass->getName();
+                                     return Subclass->getValueAsString("Name");
                                    }),
                    ", ");
 
@@ -222,10 +230,10 @@ void AstNodeGenerator::emitClassDefinitions(
           {0}() = delete;
 
         )",
-        name, VariantClasses);
+        abstractNode->getValueAsString("Name"), VariantClasses);
 
-    variant::emitCanCast(os, record.get(), derivedDefinitions);
-    variant::emitCast(os, record.get(), derivedDefinitions);
+    variant::emitCanCast(os, abstractNode, derivedDefs);
+    variant::emitCast(os, abstractNode, derivedDefs);
 
     os << "\n};\n\n";
   }

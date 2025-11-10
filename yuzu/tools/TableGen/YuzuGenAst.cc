@@ -1,4 +1,6 @@
 #include "yuzu/tools/TableGen/AstNodeGenerator.h"
+#include "yuzu/tools/TableGen/SyntaxKindGenerator.h"
+#include "yuzu/tools/TableGen/TokenKindGenerator.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/CommandLine.h"
@@ -13,30 +15,66 @@
 
 namespace {
 enum ActionType {
-  GenAstNodeDecls,
+  GenExprNodeDecls,
+  GenSyntaxKindDecls,
+  GenTokenKindDecls,
 };
 } // namespace
 
-static llvm::cl::opt<ActionType>
-    action(llvm::cl::desc("Action to perform:"),
-           llvm::cl::values(clEnumValN(GenAstNodeDecls, "gen-ast-decls",
-                                       "Generate AST node declarations")));
+static llvm::cl::opt<ActionType> action(
+    llvm::cl::desc("Action to perform:"),
+    llvm::cl::values(clEnumValN(GenExprNodeDecls, "gen-expr-node-decls",
+                                "Generate Expression AstNode declarations")),
+    llvm::cl::values(clEnumValN(GenSyntaxKindDecls, "gen-syntax-kind-decls",
+                                "Generate SyntaxKind declarations")),
+    llvm::cl::values(clEnumValN(GenTokenKindDecls, "gen-token-kind-decls",
+                                "Generate TokenKind declarations")));
 
 static bool YuzuTableGenMain(llvm::raw_ostream &os,
-                             const llvm::RecordKeeper &Records) {
+                             const llvm::RecordKeeper &records) {
   switch (action) {
-  case GenAstNodeDecls: {
-    const auto projectIncludes = std::set<std::string>{
-        "yuzu/Ast/Ast.h", "yuzu/Ast/Syntax.h", "yuzu/Syntax/Syntax.h",
-        "yuzu/Util/ErrorHandling.h"};
+  case GenExprNodeDecls: {
+    const std::string basename = "Expr";
 
-    const auto externalIncludes = std::set<std::string>{};
+    const std::set<std::string> projectIncludes = {
+        "yuzu/Ast/Ast.h",
+        "yuzu/Ast/SyntaxKind.h",
+        "yuzu/Syntax/Syntax.h",
+    };
 
-    const auto systemIncludes =
-        std::set<std::string>{"memory", "optional", "variant", "utility"};
+    const std::set<std::string> externalIncludes = {};
 
-    yuzu_tools::AstNodeGenerator(Records, projectIncludes, externalIncludes,
-                                 systemIncludes)
+    const std::set<std::string> systemIncludes = {
+        "memory",
+        "optional",
+        "variant",
+        "utility",
+    };
+
+    yuzu_tools::AstNodeGenerator(basename, records, projectIncludes,
+                                 externalIncludes, systemIncludes)
+        .run(os);
+    break;
+  }
+
+  case GenSyntaxKindDecls: {
+    const std::string basename = "SyntaxKind";
+    const std::set<std::string> projectIncludes = {};
+    const std::set<std::string> externalIncludes = {};
+    const std::set<std::string> systemIncludes = {"cstdint"};
+    yuzu_tools::SyntaxKindGenerator(basename, records, projectIncludes,
+                                    externalIncludes, systemIncludes)
+        .run(os);
+    break;
+  }
+
+  case GenTokenKindDecls: {
+    const std::string basename = "TokenKind";
+    const std::set<std::string> projectIncludes = {};
+    const std::set<std::string> externalIncludes = {};
+    const std::set<std::string> systemIncludes = {"cstdint"};
+    yuzu_tools::TokenKindGenerator(basename, records, projectIncludes,
+                                   externalIncludes, systemIncludes)
         .run(os);
     break;
   }

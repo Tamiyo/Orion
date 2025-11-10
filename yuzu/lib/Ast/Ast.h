@@ -1,7 +1,7 @@
 #ifndef YUZU_AST_AST_H
 #define YUZU_AST_AST_H
 
-#include "yuzu/Ast/Syntax.h"
+#include "yuzu/Ast/SyntaxKind.h"
 #include "yuzu/Syntax/Syntax.h"
 #include "yuzu/Syntax/SyntaxIterator.h"
 
