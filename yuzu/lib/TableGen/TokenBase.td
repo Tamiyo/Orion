@@ -10,11 +10,17 @@ class SymbolToken<
 }
 
 class KeywordToken<
+    string symbol,
     string name
 > : Token<name> {
 }
 
 class LiteralToken<
+    string name
+> : Token<name> {
+}
+
+class WhitespaceToken<
     string name
 > : Token<name> {
 }

@@ -32,6 +32,7 @@ private:
   }
 
   void emitClassDefinitions(llvm::raw_ostream &os) const noexcept override;
+  void emitInlineMethods(llvm::raw_ostream &os) const noexcept;
 
   void emitHeader(llvm::raw_ostream &os) const noexcept override;
 };

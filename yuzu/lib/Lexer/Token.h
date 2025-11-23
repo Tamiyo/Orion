@@ -25,6 +25,17 @@ public:
                  const Range &range)
       : source(std::move(source)), range(std::move(range)), kind(kind) {}
 
+  /// \brief Construct a token.
+  ///
+  /// \param kind The kind of token (keyword, identifier, operator, etc.).
+  /// \param source A view of the entire source text.
+  /// \param start The start of the token in source text the token occupies.
+  /// \param end The end of the token in source text the token occupies.
+  explicit Token(TokenKind kind, const std::u32string_view &source,
+                 const uint32_t start, const uint32_t end)
+      : source(std::move(source)), range(Range{.start = start, .end = end}),
+        kind(kind) {}
+
   /// Deleted default constructor to enforce proper initialization.
   Token() = delete;
 

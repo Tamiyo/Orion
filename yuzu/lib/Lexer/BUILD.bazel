@@ -24,7 +24,9 @@ gentbl_cc_library(
 
 cc_library(
     name = "yuzu_lexer",
-    srcs = [],
+    srcs = [
+        "Lexer.cc",
+    ],
     hdrs = [
         "Lexer.h",
         "Range.h",

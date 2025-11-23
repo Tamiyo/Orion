@@ -1,6 +1,7 @@
 include "GrammarBase.td"
 
 def YuzuGrammar : Grammar {
+    // The grammar does not (yet) generate rules in the lexer, the symbols are for show for now.
     let Tokens = [
         // Symbols
         SymbolToken<"=", "Equals">,
@@ -11,13 +12,26 @@ def YuzuGrammar : Grammar {
 
         // Literals
         LiteralToken<"Number">,
+
+        // Whitespace
+        WhitespaceToken<"Space">,
+        WhitespaceToken<"Newline">,
+        WhitespaceToken<"Comment">,
+
+        // Keyword
+        KeywordToken<"let", "Let">,
+
+        // Basic Tokens
+        BasicToken<"Ident">
     ];
 
     let Nodes = [
-        AbstractAstNode<"Expr">, // EXPRESSIONS11
+        // Expressions
+        AbstractAstNode<"Expr">,
         ConcreteAstNode<
             "BinaryExpr", 
-            "Expr", [
+            "Expr", 
+            [
                 ChildAstMethod<"Lhs", "Expr">,
                 TokenAstMethod<"Op">,
                 ChildAstMethod<"Rhs", "Expr", 1>
@@ -25,13 +39,15 @@ def YuzuGrammar : Grammar {
         >,
         ConcreteAstNode<
             "ParenExpr", 
-            "Expr", [
+            "Expr",
+            [
                 ChildAstMethod<"Expr", "Expr">
             ]
         >,
         ConcreteAstNode<
             "LiteralExpr", 
-            "Expr", [
+            "Expr", 
+            [
                 TokenAstMethod<"Value", "Number">
             ]
         >
