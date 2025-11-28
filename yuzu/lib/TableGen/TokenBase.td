@@ -13,6 +13,7 @@ class KeywordToken<
     string symbol,
     string name
 > : Token<name> {
+    string Symbol = symbol;
 }
 
 class LiteralToken<
@@ -20,7 +21,7 @@ class LiteralToken<
 > : Token<name> {
 }
 
-class WhitespaceToken<
+class TriviaToken<
     string name
 > : Token<name> {
 }

@@ -70,7 +70,7 @@ void GreenBuilder::token(const SyntaxKind kind,
 GreenNode GreenBuilder::finish() noexcept {
   // Finishing building requires a parent.
   if (!parents.empty()) {
-    util::yuzu_unreachable();
+    util::yuzu_unreachable("GreenBuilder parents empty");
   }
 
   const GreenCacheEntry entry = children.back();

@@ -4,7 +4,7 @@
 #include "yuzu/Syntax/Syntax.h"
 #include "yuzu/Syntax/SyntaxKind.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include <vector>
 

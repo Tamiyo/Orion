@@ -2,7 +2,7 @@
 
 #include "yuzu/Syntax/SyntaxKind.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 namespace {
 using yuzu::syntax::GreenBuilder;

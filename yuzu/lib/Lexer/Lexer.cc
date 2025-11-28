@@ -1,37 +1,18 @@
 #include "yuzu/Lexer/Lexer.h"
 
-#include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/Token.h"
 #include "yuzu/Lexer/TokenKind.h"
 
 #include <cassert>
-#include <cstdint>
-#include <limits>
 #include <optional>
+#include <string>
 #include <string_view>
 
 namespace yuzu::lexer {
-
-Token Lexer::createToken(const char32_t *start, TokenKind kind) const noexcept {
-  const ptrdiff_t startIndex = (start - source.begin());
-  const ptrdiff_t endIndex = (current - source.begin());
-
-  assert(startIndex >= 0 && "Token start cannot be negative");
-  assert(endIndex >= 0 && "Token end cannot be negative");
-
-  assert(startIndex <= std::numeric_limits<uint32_t>::max() &&
-         "Token start exceeds uint32_t range");
-  assert(endIndex <= std::numeric_limits<uint32_t>::max() &&
-         "Token end exceeds uint32_t range");
-
-  const auto source = std::u32string_view(start, current - start);
-  const auto range = Range{
-      .start = static_cast<uint32_t>(startIndex),
-      .end = static_cast<uint32_t>(endIndex),
-  };
-
-  return Token(kind, source, range);
-}
+namespace {
+const std::u32string letKeyword = U"let";
+const std::u32string mutKeyword = U"mut";
+}; // namespace
 
 std::optional<Token> Lexer::getNextToken() noexcept {
   if (current >= source.end()) {
@@ -82,8 +63,19 @@ std::optional<Token> Lexer::getNextToken() noexcept {
     return createToken(start, TokenKind::Number);
   }
 
-  if (atAlpha(current)) {
+  if (atIdentStart(current)) {
     bumpWhile([](const char32_t *ch) { return atIdent(ch); });
+
+    const auto ident = std::u32string_view(start, current - start);
+
+    if (ident == letKeyword) {
+      return createToken(start, TokenKind::LetKw);
+    }
+
+    if (ident == mutKeyword) {
+      return createToken(start, TokenKind::MutKw);
+    }
+
     return createToken(start, TokenKind::Ident);
   }
 

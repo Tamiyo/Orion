@@ -14,12 +14,13 @@ def YuzuGrammar : Grammar {
         LiteralToken<"Number">,
 
         // Whitespace
-        WhitespaceToken<"Space">,
-        WhitespaceToken<"Newline">,
-        WhitespaceToken<"Comment">,
+        TriviaToken<"Space">,
+        TriviaToken<"Newline">,
+        TriviaToken<"Comment">,
 
         // Keyword
-        KeywordToken<"let", "Let">,
+        KeywordToken<"let", "LetKw">,
+        KeywordToken<"mut", "MutKw">,
 
         // Basic Tokens
         BasicToken<"Ident">

@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <variant>
 
 namespace yuzu::parser {
@@ -15,7 +16,7 @@ namespace yuzu::parser {
 /// parent relationship for handling precedence and associativity.
 struct StartEvent final {
   /// Optional index of a forward parent event for precedence handling.
-  std::optional<size_t> forwardParent;
+  const std::optional<size_t> forwardParent;
 
   /// The kind of syntax node being started.
   const ast::SyntaxKind kind;
@@ -31,13 +32,17 @@ struct FinishEvent final {};
 ///
 /// TokenEvent is emitted when the parser consumes a token from the lexer
 /// and adds it to the current syntax node.
-struct TokenEvent final {};
+struct TokenEvent final {
+  const ast::SyntaxKind kind;
+};
 
 /// \brief Event representing a parse error.
 ///
 /// ErrorEvent is emitted when the parser encounters a syntax error and
 /// needs to record it in the event stream.
-struct ErrorEvent final {};
+struct ErrorEvent final {
+  const std::string message;
+};
 
 /// \brief Event serving as a placeholder in the event stream.
 ///
@@ -52,11 +57,27 @@ struct PlaceholderEvent final {};
 /// The parser uses these events to build the syntax tree incrementally.
 class Event final : public std::variant<StartEvent, FinishEvent, TokenEvent,
                                         ErrorEvent, PlaceholderEvent> {
+public:
   using std::variant<StartEvent, FinishEvent, TokenEvent, ErrorEvent,
                      PlaceholderEvent>::variant;
 
-  /// Deleted default constructor to enforce proper initialization.
   Event() = delete;
+
+  /// \brief Exchanges this event with a replacement and returns the old value.
+  ///
+  /// This method replaces the current event with the given replacement event
+  /// and returns the original event. It uses move construction and placement
+  /// new to avoid assignment, allowing Event to contain types with const
+  /// members.
+  ///
+  /// \param replacement The event to store in place of the current event.
+  /// \return The event that was previously stored.
+  Event exchange(Event &&replacement) noexcept {
+    Event old = std::move(*this);
+    this->~Event();
+    new (this) Event(std::move(replacement));
+    return old;
+  }
 };
 } // namespace yuzu::parser
 

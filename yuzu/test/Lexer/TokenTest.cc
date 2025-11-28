@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/Token.h"

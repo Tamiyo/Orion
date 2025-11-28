@@ -4,7 +4,7 @@
 #include "yuzu/Syntax/Green/GreenIterator.h"
 #include "yuzu/lib/Syntax/Green/GreenCache.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include <cstddef>
 #include <string>

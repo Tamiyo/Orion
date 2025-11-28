@@ -1,6 +1,6 @@
 #include "yuzu/Syntax/Syntax.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 namespace {
 using yuzu::syntax::SyntaxData;

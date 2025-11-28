@@ -58,7 +58,8 @@ void SyntaxKindGenerator::emitClassDefinitions(
 
   // Genereate system kinds
   os << "  // System\n";
-  os << "  Error";
+  os << "  Error,";
+  os << "  Tombstone";
 
   os << "};\n";
 }

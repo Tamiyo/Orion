@@ -1,14 +1,17 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 # Generate Parser code from Grammar.td
-# gentbl_cc_library(
-#  1
 cc_library(
     name = "yuzu_parser",
-    srcs = [],
+    srcs = [
+    ],
     hdrs = [
         "Event.h",
+        "Grammar/Expr.h",
+        "Grammar/Stmt.h",
         "Marker.h",
+        "TokenSink.h",
+        "TokenSource.h",
     ],
     include_prefix = "yuzu/Parser",
     strip_include_prefix = "/yuzu/lib/Parser",
@@ -18,5 +21,7 @@ cc_library(
     ],
     deps = [
         "//yuzu/lib/Ast:yuzu_ast",
+        "//yuzu/lib/Lexer:yuzu_lexer",
+        "//yuzu/lib/Syntax:yuzu_syntax",
     ],
 )
