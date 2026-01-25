@@ -20,7 +20,7 @@ public:
   ///
   /// \param lexer The lexer to use as the underlying token stream.
   explicit TokenSource(const std::vector<lexer::Token> &tokens)
-      : tokens(std::move(tokens)), cursor(0){};
+      : tokens(std::move(tokens)), cursor(0) {};
 
   TokenSource() = delete;
 
@@ -40,6 +40,13 @@ public:
     const auto token = tokens.at(cursor);
     cursor += 1;
     return token;
+  }
+
+  [[nodiscard]] std::optional<lexer::Token> peekLastToken() noexcept {
+    if (tokens.empty()) {
+      return std::nullopt;
+    }
+    return *tokens.end();
   }
 
   /// \brief Peek at the next non-trivia token without consuming it.

@@ -86,6 +86,7 @@ public:
   using value_type = typename const_iterator::value_type;
 
   explicit AstChildren(syntax::SyntaxChildren children) : children(children) {}
+  
   AstChildren() = delete;
 
   const_iterator begin() const noexcept {

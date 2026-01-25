@@ -41,7 +41,7 @@ public:
       } else if (std::get_if<TokenEvent>(&event)) {
         addToken();
       } else if (const auto *errorEvent = std::get_if<ErrorEvent>(&event)) {
-        addError(errorEvent->message);
+        addError(errorEvent->error.asString());
       } else if (std::get_if<PlaceholderEvent>(&event)) {
         // Skip - already processed via forward parent
       } else {

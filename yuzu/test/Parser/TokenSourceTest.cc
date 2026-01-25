@@ -3,7 +3,6 @@
 #include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/Token.h"
 #include "yuzu/Lexer/TokenKind.h"
-#include "yuzu/lib/Parser/TokenSource.h"
 
 #include "gtest/gtest.h"
 
@@ -54,5 +53,16 @@ TEST(TokenSourceTest, TriviaAndIdentPeekNextKindReturnsToken) {
   const auto identToken = Token(TokenKind::Ident, U"a", Range{1, 2});
   auto source = createTokenSource(U" a");
   EXPECT_EQ(identToken.getKind(), source.peekNextKind());
+}
+
+TEST(TokenSourceTest, PeekLastTokenOnEmptyReturnsNullopt) {
+  auto source = createTokenSource(U"");
+  EXPECT_EQ(std::nullopt, source.peekLastToken());
+}
+
+TEST(TokenSourceTest, PeekLastTokenReturnsLastToken) {
+  const auto identToken = Token(TokenKind::Ident, U"b", Range{2, 3});
+  auto source = createTokenSource(U"a b");
+  EXPECT_EQ(identToken, source.peekLastToken());
 }
 } // namespace

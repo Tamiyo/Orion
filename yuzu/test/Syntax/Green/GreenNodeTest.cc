@@ -1,7 +1,7 @@
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Green/GreenIterator.h"
 
-#include <gmock/gmock.h>
+#include "gmock/gmock.h"
 
 namespace {
 using yuzu::syntax::GreenChild;

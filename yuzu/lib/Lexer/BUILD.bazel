@@ -41,5 +41,6 @@ cc_library(
     ],
     deps = [
         ":yuzu_lexer_gen",
+        "//yuzu/lib/Util:yuzu_util",
     ],
 )

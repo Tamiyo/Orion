@@ -1,0 +1,58 @@
+#include "yuzu/Parser/Parser.h"
+
+#include "yuzu/Ast/SyntaxKind.h"
+#include "yuzu/Lexer/Range.h"
+#include "yuzu/Lexer/Token.h"
+#include "yuzu/Lexer/TokenKind.h"
+#include "yuzu/Parser/Event.h"
+#include "yuzu/Parser/ParseError.h"
+
+#include <algorithm>
+#include <bitset>
+#include <iterator>
+#include <optional>
+#include <vector>
+
+namespace yuzu::parser {
+void Parser::error(
+    const std::bitset<sizeof(lexer::TokenKind)> &recoverySet) noexcept {
+  std::optional<lexer::TokenKind> found;
+  std::optional<lexer::Range> range;
+
+  // Try to figure out the ranges of the next (or last) token to form an error
+  // message.
+  if (const std::optional<lexer::Token> nextToken = source.peekNextToken()) {
+    found = nextToken->getKind();
+    range.emplace(nextToken->getRange());
+  } else {
+    const std::optional<lexer::Token> lastToken = source.peekLastToken();
+    if (!lastToken.has_value()) {
+      range.emplace(lexer::Range{.start = 0, .end = 0});
+    }
+
+    found = std::nullopt;
+    range.emplace(lastToken->getRange());
+  }
+
+  // Copy all expected kinds into a new vector, and clear the previous one.
+  std::vector<lexer::TokenKind> expected;
+  std::move(expectedKinds.begin(), expectedKinds.end(),
+            std::back_inserter(expected));
+
+  expectedKinds.clear();
+
+  const auto error = ExpectedKindError{
+      .expected = expected, .found = found, .range = range.value()};
+
+  events.emplace_back(ErrorEvent{.error = error});
+
+  // If not at a recovery set and not at the end, inject an ERROR node into
+  // the syntax tree marking this branch as corrupted.
+  if (!atRecoverySet(recoverySet) && !atEnd()) {
+    const Marker marker = start();
+    bump();
+    complete(marker, ast::SyntaxKind::Error);
+  }
+}
+
+} // namespace yuzu::parser

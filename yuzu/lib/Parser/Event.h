@@ -2,11 +2,10 @@
 #define YUZU_PARSER_EVENT_H
 
 #include "yuzu/Ast/SyntaxKind.h"
+#include "yuzu/Parser/ParseError.h"
 
 #include <cstddef>
 #include <optional>
-#include <string>
-#include <variant>
 
 namespace yuzu::parser {
 /// \brief Event marking the start of a syntax node.
@@ -41,7 +40,7 @@ struct TokenEvent final {
 /// ErrorEvent is emitted when the parser encounters a syntax error and
 /// needs to record it in the event stream.
 struct ErrorEvent final {
-  const std::string message;
+  const ParseError error;
 };
 
 /// \brief Event serving as a placeholder in the event stream.

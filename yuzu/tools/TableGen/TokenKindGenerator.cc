@@ -63,22 +63,14 @@ void TokenKindGenerator::emitInlineMethods(
     llvm::raw_ostream &os) const noexcept {
   const llvm::Record *grammar = records.getDef("YuzuGrammar");
 
-  auto sortAndEmitInlineMethods =
+  auto emitIsTypeFunction =
       [&os](const std::string &subclass, const std::string &methodName,
-            std::vector<const llvm::Record *> &tokens) {
+            const std::vector<const llvm::Record *> &tokens) {
         std::vector<const llvm::Record *> records;
         std::copy_if(tokens.begin(), tokens.end(), std::back_inserter(records),
                      [&subclass](const llvm::Record *record) {
                        return record->isSubClassOf(subclass);
                      });
-
-        std::sort(records.begin(), records.end(),
-                  [](const llvm::Record *a, const llvm::Record *b) {
-                    const llvm::StringRef aName = a->getValueAsString("Name");
-                    const llvm::StringRef bName = b->getValueAsString("Name");
-                    return std::lexicographical_compare(
-                        aName.begin(), aName.end(), bName.begin(), bName.end());
-                  });
 
         os << "\ninline bool is" << methodName << "(TokenKind kind) {"
            << "\n";
@@ -94,16 +86,48 @@ void TokenKindGenerator::emitInlineMethods(
         os << "}\n";
       };
 
+  auto emitAsStringFunction =
+      [&os](const std::vector<const llvm::Record *> &tokens) {
+        os << "\ninline std::string asString(std::optional<TokenKind> kind) {"
+           << "\n";
+
+        os << "  if(!kind.has_value()) {\n";
+        os << "    return \"None\";\n";
+        os << "  }\n";
+
+        os << "  switch(kind.value()) {";
+        for (const auto &token : tokens) {
+          const llvm::StringRef name = token->getValueAsString("Name");
+          os << "    case TokenKind::" << name << ":\n";
+          os << "      return \"" << name << "\";\n";
+        }
+        os << "    case TokenKind::Error:\n";
+        os << "      return \"Error\";\n";
+        os << "  }\n";
+        os << "  util::yuzu_unreachable();\n";
+        os << "}\n";
+      };
+
   // Generate token kinds.
   std::vector<const llvm::Record *> tokens =
       grammar->getValueAsListOfDefs("Tokens");
 
+  std::sort(tokens.begin(), tokens.end(),
+            [](const llvm::Record *a, const llvm::Record *b) {
+              const llvm::StringRef aName = a->getValueAsString("Name");
+              const llvm::StringRef bName = b->getValueAsString("Name");
+              return std::lexicographical_compare(aName.begin(), aName.end(),
+                                                  bName.begin(), bName.end());
+            });
+
   assert(tokens.size() < sizeof(uint16_t));
 
-  sortAndEmitInlineMethods("SymbolToken", "Symbol", tokens);
-  sortAndEmitInlineMethods("LiteralToken", "Literal", tokens);
-  sortAndEmitInlineMethods("TriviaToken", "Trivia", tokens);
-  sortAndEmitInlineMethods("KeywordToken", "Keyword", tokens);
+  emitIsTypeFunction("SymbolToken", "Symbol", tokens);
+  emitIsTypeFunction("LiteralToken", "Literal", tokens);
+  emitIsTypeFunction("TriviaToken", "Trivia", tokens);
+  emitIsTypeFunction("KeywordToken", "Keyword", tokens);
+
+  emitAsStringFunction(tokens);
 }
 
 void TokenKindGenerator::emitHeader(llvm::raw_ostream &os) const noexcept {

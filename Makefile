@@ -2,7 +2,7 @@
 
 # Define common Bazel command
 BAZEL := bazel
-CC := clang++-18
+CC := clang++
 
 .PHONY: all build test test_single compdb clean
 
