@@ -1,20 +1,12 @@
 # Build Directories
 .vscode/
 .idea/
-.clwb/
 build/
 cmake-build-debug/
-external/
 
 # Approval Tests
 *.received.*
 .approval_tests*
 
-
-# CMake 
+# CMake
 compile_commands.json
-
-# Bazel
-bazel-*/
-.bazel/
-MODULE.bazel.lock

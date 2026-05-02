@@ -1,29 +1,29 @@
-# Makefile for Yuzu Bazel Project
+# Makefile wrapping CMake for the Yuzu project.
 
-# Define common Bazel command
-BAZEL := bazel
-CC := clang++
+BUILD_DIR := build
+GENERATOR := Ninja
+CC        := clang
+CXX       := clang++
 
-.PHONY: all build test test_single compdb clean
+.PHONY: all configure build test clean
 
-all:
-	$(MAKE) build
-	$(MAKE) compdb
+all: build
 
-build:
-	CC=$(CC) $(BAZEL) build //yuzu/...
+configure:
+	cmake -S . -B $(BUILD_DIR) -G $(GENERATOR) \
+		-DCMAKE_C_COMPILER=$(CC) \
+		-DCMAKE_CXX_COMPILER=$(CXX) \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-test:
+build: configure
+	cmake --build $(BUILD_DIR)
+
+test: build
 ifdef TEST
-	CC=$(CC) $(BAZEL) test //yuzu/... --test_arg=--gtest_filter=$(TEST)
+	ctest --test-dir $(BUILD_DIR) --output-on-failure -R $(TEST)
 else
-	CC=$(CC) $(BAZEL) test //yuzu/...
+	ctest --test-dir $(BUILD_DIR) --output-on-failure
 endif
 
-compdb:
-	CC=$(CC) $(BAZEL) run @hedron_compile_commands//:refresh_all
-
 clean:
-	CC=$(CC) $(BAZEL) clean --expunge
-	rm compile_commands.json
-
+	rm -rf $(BUILD_DIR)
