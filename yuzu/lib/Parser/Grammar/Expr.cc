@@ -10,7 +10,7 @@
 
 namespace yuzu::parser {
 namespace {
-constexpr std::bitset<sizeof(lexer::TokenKind)> exprRecoverySet{};
+constexpr std::bitset<1 << (8 * sizeof(lexer::TokenKind))> exprRecoverySet{};
 };
 
 std::optional<CompletedMarker> parseLiteral(Parser &parser) {
@@ -31,7 +31,7 @@ std::optional<CompletedMarker> parseIdent(Parser &parser) {
   return parser.complete(marker, ast::SyntaxKind::Ident);
 }
 
-std::optional<CompletedMarker> lhs(Parser &parser) noexcept {
+std::optional<CompletedMarker> lhs(Parser &parser) {
   const std::optional<lexer::TokenKind> kind = parser.peekKind();
   if (!kind.has_value()) {
     parser.error(exprRecoverySet);
@@ -50,10 +50,10 @@ std::optional<CompletedMarker> lhs(Parser &parser) noexcept {
 }
 
 std::optional<CompletedMarker>
-parseExprBindingPower(Parser &parser,
-                      const size_t minimumBindingPower) noexcept {
+parseExprBindingPower(Parser &parser, const size_t minimumBindingPower) {
   const std::optional<CompletedMarker> completedMarker = lhs(parser);
-  assert(minimumBindingPower > 0);
+  assert(minimumBindingPower > 0 &&
+         "Pratt parser requires positive minimum binding power.");
 
   // TODO(tamiyo) Continue with Pratt Parsing implementation.
 

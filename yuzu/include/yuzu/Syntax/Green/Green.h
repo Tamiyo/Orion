@@ -92,30 +92,28 @@ public:
   /// \brief Get the syntax kind of this token.
   ///
   /// \return The SyntaxKind of this token.
-  [[nodiscard]] SyntaxKind getKind() const noexcept { return data->kind; }
+  [[nodiscard]] SyntaxKind getKind() const { return data->kind; }
 
   /// \brief Get the source text of this token.
   ///
   /// \return A view of the source text content.
-  [[nodiscard]] std::u32string_view getSource() const noexcept {
-    return data->source;
-  }
+  [[nodiscard]] std::u32string_view getSource() const { return data->source; }
 
   /// \brief Get the width of this token.
   ///
   /// \return The number of characters in the source text.
-  [[nodiscard]] size_t getWidth() const noexcept { return data->source.size(); }
+  [[nodiscard]] size_t getWidth() const { return data->source.size(); }
 
   /// \brief Get the reference count for this token's data.
   ///
   /// \return The number of references to the underlying data.
-  [[nodiscard]] size_t getUseCount() const noexcept { return data.use_count(); }
+  [[nodiscard]] size_t getUseCount() const { return data.use_count(); }
 
   /// \brief Equality comparison operator.
   ///
   /// \param other The GreenToken to compare with.
   /// \return True if both tokens have the same kind and source text.
-  bool operator==(const GreenToken &other) const noexcept {
+  bool operator==(const GreenToken &other) const {
     return data->kind == other.data->kind && data->source == other.data->source;
   }
 
@@ -123,7 +121,7 @@ public:
   ///
   /// \param other The GreenToken to compare with.
   /// \return True if the tokens differ in kind or source text.
-  bool operator!=(const GreenToken &other) const noexcept {
+  bool operator!=(const GreenToken &other) const {
     return data->kind != other.data->kind || data->source != other.data->source;
   }
 
@@ -168,44 +166,40 @@ public:
   /// \brief Get the syntax kind of this node.
   ///
   /// \return The SyntaxKind of this node.
-  [[nodiscard]] SyntaxKind getKind() const noexcept { return data->kind; }
+  [[nodiscard]] SyntaxKind getKind() const { return data->kind; }
 
   /// \brief Get the width of this node.
   ///
   /// \return The total number of characters spanned by this node and its
   /// children.
-  [[nodiscard]] size_t getWidth() const noexcept { return data->width; }
+  [[nodiscard]] size_t getWidth() const { return data->width; }
 
   /// \brief Get an iterator over this node's children.
   ///
   /// \return A GreenChildren iterator for traversing child elements.
-  GreenChildren getChildren() const noexcept;
+  GreenChildren getChildren() const;
 
   /// \brief Get the number of children.
   ///
   /// \return The count of child elements in this node.
-  [[nodiscard]] size_t getNumChildren() const noexcept {
-    return data->numChildren;
-  }
+  [[nodiscard]] size_t getNumChildren() const { return data->numChildren; }
 
   /// \brief Get the reference count for this node's data.
   ///
   /// \return The number of references to the underlying data.
-  [[nodiscard]] size_t getUseCount() const noexcept { return data.use_count(); }
+  [[nodiscard]] size_t getUseCount() const { return data.use_count(); }
 
   /// \brief Equality comparison operator.
   ///
   /// \param other The GreenNode to compare with.
   /// \return True if both nodes are structurally equal.
-  bool operator==(const GreenNode &other) const noexcept;
+  bool operator==(const GreenNode &other) const;
 
   /// \brief Inequality comparison operator.
   ///
   /// \param other The GreenNode to compare with.
   /// \return True if the nodes are not structurally equal.
-  bool operator!=(const GreenNode &other) const noexcept {
-    return !(this == &other);
-  }
+  bool operator!=(const GreenNode &other) const { return !(this == &other); }
 
 private:
   std::shared_ptr<const GreenNodeData> data;
@@ -247,7 +241,8 @@ struct [[nodiscard]] GreenChild final {
 /// GreenElement is used when an element in the green tree could be either
 /// a node or a token. It provides a unified interface for accessing common
 /// properties and type-safe access to the underlying value.
-class [[nodiscard]] GreenElement final : public std::variant<GreenNode, GreenToken> {
+class [[nodiscard]] GreenElement final
+    : public std::variant<GreenNode, GreenToken> {
 public:
   using std::variant<GreenNode, GreenToken>::variant;
 
@@ -258,14 +253,14 @@ public:
   ///
   /// \return Reference to the GreenNode.
   /// \pre The element must be a GreenNode (check with isNode()).
-  [[nodiscard]] const GreenNode &getNode() const noexcept {
+  [[nodiscard]] const GreenNode &getNode() const {
     return std::get<GreenNode>(*this);
   }
 
   /// \brief Get the element as a GreenNode pointer if it is one.
   ///
   /// \return Pointer to the GreenNode, or nullptr if this is a token.
-  [[nodiscard]] const GreenNode *getIfNode() const noexcept {
+  [[nodiscard]] const GreenNode *getIfNode() const {
     return std::get_if<GreenNode>(this);
   }
 
@@ -273,35 +268,35 @@ public:
   ///
   /// \return Reference to the GreenToken.
   /// \pre The element must be a GreenToken (check with isToken()).
-  [[nodiscard]] const GreenToken &getToken() const noexcept {
+  [[nodiscard]] const GreenToken &getToken() const {
     return std::get<GreenToken>(*this);
   }
 
   /// \brief Get the element as a GreenToken pointer if it is one.
   ///
   /// \return Pointer to the GreenToken, or nullptr if this is a node.
-  [[nodiscard]] const GreenToken *getIfToken() const noexcept {
+  [[nodiscard]] const GreenToken *getIfToken() const {
     return std::get_if<GreenToken>(this);
   }
 
   /// \brief Check if this element is a GreenNode.
   ///
   /// \return True if this element contains a GreenNode.
-  [[nodiscard]] bool isNode() const noexcept {
+  [[nodiscard]] bool isNode() const {
     return std::holds_alternative<GreenNode>(*this);
   }
 
   /// \brief Check if this element is a GreenToken.
   ///
   /// \return True if this element contains a GreenToken.
-  [[nodiscard]] bool isToken() const noexcept {
+  [[nodiscard]] bool isToken() const {
     return std::holds_alternative<GreenToken>(*this);
   }
 
   /// \brief Get the syntax kind of this element.
   ///
   /// \return The SyntaxKind of the underlying node or token.
-  [[nodiscard]] SyntaxKind getKind() const noexcept {
+  [[nodiscard]] SyntaxKind getKind() const {
     if (const GreenNode *node = getIfNode()) {
       return node->getKind();
     }
@@ -316,7 +311,7 @@ public:
   /// \brief Get the width of this element.
   ///
   /// \return The number of characters spanned by this element.
-  [[nodiscard]] size_t getWidth() const noexcept {
+  [[nodiscard]] size_t getWidth() const {
     if (const GreenNode *node = getIfNode()) {
       return node->getWidth();
     }
@@ -331,7 +326,7 @@ public:
   /// \brief Get the reference count for this element's data.
   ///
   /// \return The number of references to the underlying data.
-  [[nodiscard]] size_t getUseCount() const noexcept {
+  [[nodiscard]] size_t getUseCount() const {
     if (const GreenNode *node = getIfNode()) {
       return node->getUseCount();
     }

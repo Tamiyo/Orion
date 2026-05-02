@@ -15,7 +15,7 @@
 
 namespace yuzu::parser {
 void Parser::error(
-    const std::bitset<sizeof(lexer::TokenKind)> &recoverySet) noexcept {
+    const std::bitset<1 << (8 * sizeof(lexer::TokenKind))> &recoverySet) {
   std::optional<lexer::TokenKind> found;
   std::optional<lexer::Range> range;
 
@@ -51,7 +51,7 @@ void Parser::error(
   if (!atRecoverySet(recoverySet) && !atEnd()) {
     const Marker marker = start();
     bump();
-    complete(marker, ast::SyntaxKind::Error);
+    auto _ = complete(marker, ast::SyntaxKind::Error);
   }
 }
 

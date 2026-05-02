@@ -29,7 +29,7 @@ public:
         events(std::move(events)), errors(std::vector<std::string>{}),
         cursor(0) {}
 
-  Result finish() noexcept {
+  Result finish() {
     for (size_t eventIdx = 0, size = events.size(); eventIdx < size;
          eventIdx++) {
       const auto event = events[eventIdx].exchange(PlaceholderEvent{});
@@ -56,7 +56,7 @@ public:
 
 private:
   void startNode(const size_t startEventIdx, const ast::SyntaxKind startKind,
-                 const std::optional<size_t> startForwardParent) noexcept {
+                 const std::optional<size_t> startForwardParent) {
     size_t eventIdx = startEventIdx;
     std::optional<size_t> forwardParent = startForwardParent;
 
@@ -78,9 +78,9 @@ private:
     }
   }
 
-  void finishNode() noexcept { builder.finishNode(); }
+  void finishNode() { builder.finishNode(); }
 
-  void addToken() noexcept {
+  void addToken() {
     const auto &token = tokens.at(cursor);
     builder.token(static_cast<syntax::SyntaxKind>(token.getKind()),
                   token.getSource());
@@ -88,11 +88,9 @@ private:
     cursor += 1;
   }
 
-  void addError(const std::string &error) noexcept {
-    errors.emplace_back(error);
-  }
+  void addError(const std::string &error) { errors.emplace_back(error); }
 
-  void bumpTrivia() noexcept {
+  void bumpTrivia() {
     while (cursor < tokens.size()) {
       if (!lexer::isTrivia(tokens.at(cursor).getKind())) {
         break;

@@ -57,7 +57,7 @@ public:
   /// reference count.
   ///
   /// \param other The SyntaxData to copy from.
-  SyntaxData(const SyntaxData &other) noexcept
+  SyntaxData(const SyntaxData &other)
       : green(other.green), parent(other.parent), offset(other.offset),
         index(other.index), rc(other.rc) {
     rc->fetch_add(1);
@@ -70,7 +70,7 @@ public:
   ///
   /// \param other The SyntaxData to assign from.
   /// \return Reference to this object.
-  SyntaxData &operator=(const SyntaxData &other) noexcept {
+  SyntaxData &operator=(const SyntaxData &other) {
     if (this == &other) {
       return *this;
     }
@@ -103,7 +103,7 @@ public:
   /// without modifying reference counts.
   ///
   /// \param other The SyntaxData to move from.
-  SyntaxData(SyntaxData &&other) noexcept
+  SyntaxData(SyntaxData &&other)
       : green(std::move(other.green)), parent(other.parent),
         offset(other.offset), index(other.index), rc(other.rc) {
     other.rc = nullptr;
@@ -116,7 +116,7 @@ public:
   ///
   /// \param other The SyntaxData to move from.
   /// \return Reference to this object.
-  SyntaxData &operator=(SyntaxData &&other) noexcept {
+  SyntaxData &operator=(SyntaxData &&other) {
     if (this == &other) {
       return *this;
     }
@@ -144,7 +144,7 @@ public:
   /// The reference count is managed by SyntaxNode/SyntaxToken.
   /// This destructor should only be called when ref count is already 0
   /// and the Rc_ has already been deleted by free().
-  ~SyntaxData() noexcept {
+  ~SyntaxData() {
     // The reference count is managed by SyntaxNode/SyntaxToken
     // This destructor should only be called when ref count is already 0
     // and the Rc_ has already been deleted by free()
@@ -153,63 +153,61 @@ public:
   /// \brief Get the reference count of this SyntaxNode.
   ///
   /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const noexcept { return rc->load(); }
+  [[nodiscard]] int64_t getRc() const { return rc->load(); }
 
   /// \brief Increment the reference count.
-  void incRc() noexcept { rc->fetch_add(1); }
+  void incRc() { rc->fetch_add(1); }
 
   /// \brief Decrement the reference count.
   ///
   /// \return True if this was the last reference (count reached 0).
-  [[nodiscard]] bool decRc() noexcept { return rc->fetch_sub(1) == 1; }
+  [[nodiscard]] bool decRc() { return rc->fetch_sub(1) == 1; }
 
   /// \brief Get the green element backing this syntax data.
   ///
   /// \return The GreenElement (either GreenNode or GreenToken).
-  [[nodiscard]] const GreenElement &getGreen() const noexcept { return green; }
+  [[nodiscard]] const GreenElement &getGreen() const { return green; }
 
   /// \brief Get the parent of this syntax data.
   ///
   /// \return Pointer to parent SyntaxData, or nullptr if this is a root.
-  [[nodiscard]] const SyntaxData *getParent() const noexcept { return parent; }
+  [[nodiscard]] const SyntaxData *getParent() const { return parent; }
 
   /// \brief Get the absolute offset in the source text.
   ///
   /// \return The offset in bytes from the start of the source.
-  [[nodiscard]] size_t getOffset() const noexcept { return offset; }
+  [[nodiscard]] size_t getOffset() const { return offset; }
 
   /// \brief Get the index of this element in its parent's children.
   ///
   /// \return The zero-based index.
-  [[nodiscard]] size_t getIndex() const noexcept { return index; }
+  [[nodiscard]] size_t getIndex() const { return index; }
 
   /// \brief Get the next sibling node.
   ///
   /// \return The next SyntaxNode sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const;
 
   /// \brief Get the next sibling element (node or token).
   ///
   /// \return The next SyntaxElement sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getNextSiblingOrToken() const noexcept;
+  [[nodiscard]] std::optional<SyntaxElement> getNextSiblingOrToken() const;
 
   /// \brief Get the previous sibling node.
   ///
   /// \return The previous SyntaxNode sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const;
 
   /// \brief Get the previous sibling element (node or token).
   ///
   /// \return The previous SyntaxElement sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getPrevSiblingOrToken() const noexcept;
+  [[nodiscard]] std::optional<SyntaxElement> getPrevSiblingOrToken() const;
 
   /// \brief Equality comparison operator.
   ///
   /// \param other The SyntaxData to compare with.
   /// \return True if both objects refer to the same data.
-  bool operator==(const SyntaxData &other) const noexcept {
+  bool operator==(const SyntaxData &other) const {
     return green == other.green && offset == other.offset;
   }
 
@@ -217,9 +215,7 @@ public:
   ///
   /// \param other The SyntaxData to compare with.
   /// \return True if the objects refer to different data.
-  bool operator!=(const SyntaxData &other) const noexcept {
-    return !(*this == other);
-  }
+  bool operator!=(const SyntaxData &other) const { return !(*this == other); }
 
 private:
   /// \brief Free resources when reference count reaches zero.
@@ -228,7 +224,8 @@ private:
   /// is released. Deletes the reference counter and decrements parent's
   /// reference count if applicable.
   void free() {
-    assert(rc->load() == 0);
+    assert(rc->load() == 0 &&
+           "free() called while references still outstanding.");
 
     // Delete the reference counter since we're at 0
     delete rc;
@@ -303,9 +300,7 @@ public:
   /// reference count.
   ///
   /// \param other The SyntaxNode to copy from.
-  SyntaxNode(const SyntaxNode &other) noexcept : data(other.data) {
-    data->incRc();
-  }
+  SyntaxNode(const SyntaxNode &other) : data(other.data) { data->incRc(); }
 
   /// \brief Copy assignment operator.
   ///
@@ -314,7 +309,7 @@ public:
   ///
   /// \param other The SyntaxNode to assign from.
   /// \return Reference to this object.
-  SyntaxNode &operator=(const SyntaxNode &other) noexcept {
+  SyntaxNode &operator=(const SyntaxNode &other) {
     if (this == &other) {
       return *this;
     }
@@ -346,12 +341,12 @@ public:
   /// \brief Get the offset of this SyntaxNode.
   ///
   /// \return The absolute offset in bytes from the start of the source.
-  [[nodiscard]] size_t getOffset() const noexcept { return data->getOffset(); }
+  [[nodiscard]] size_t getOffset() const { return data->getOffset(); }
 
   /// \brief Get the index of this SyntaxNode.
   ///
   /// \return The zero-based index in the parent's children.
-  [[nodiscard]] size_t getIndex() const noexcept { return data->getIndex(); }
+  [[nodiscard]] size_t getIndex() const { return data->getIndex(); }
 
   /// \brief Get the parent of this SyntaxNode.
   ///
@@ -359,7 +354,7 @@ public:
   /// maintains references.
   ///
   /// \return Pointer to parent SyntaxData, or nullptr if this is a root.
-  [[nodiscard]] const SyntaxData *getParent() const noexcept {
+  [[nodiscard]] const SyntaxData *getParent() const {
     return data->getParent();
   }
 
@@ -368,31 +363,31 @@ public:
   /// For SyntaxNodes, the GreenElement backing it is always a GreenNode.
   ///
   /// \return Constant reference to the GreenNode.
-  [[nodiscard]] const GreenNode &getGreen() const noexcept {
+  [[nodiscard]] const GreenNode &getGreen() const {
     return data->getGreen().getNode();
   }
 
   /// \brief Get the kind of this SyntaxNode.
   ///
   /// \return The SyntaxKind of this node.
-  [[nodiscard]] SyntaxKind getKind() const noexcept {
+  [[nodiscard]] SyntaxKind getKind() const {
     return data->getGreen().getKind();
   }
 
   /// \brief Get the reference count of this SyntaxNode.
   ///
   /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const noexcept { return data->rc->load(); }
+  [[nodiscard]] int64_t getRc() const { return data->rc->load(); }
 
   /// \brief Get the children of this SyntaxNode.
   ///
   /// \return An iterator over child SyntaxNodes only (excludes tokens).
-  SyntaxChildren getChildren() const noexcept;
+  SyntaxChildren getChildren() const;
 
   /// \brief Get the children of this SyntaxNode including tokens.
   ///
   /// \return An iterator over all child elements (nodes and tokens).
-  SyntaxChildrenWithTokens getChildrenWithTokens() const noexcept;
+  SyntaxChildrenWithTokens getChildrenWithTokens() const;
 
   /// \brief Get the first child node.
   ///
@@ -400,7 +395,7 @@ public:
   /// is a SyntaxNode (not a token).
   ///
   /// \return The first child SyntaxNode, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getFirstChild() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getFirstChild() const;
 
   /// \brief Get the first child element (node or token).
   ///
@@ -408,8 +403,7 @@ public:
   /// SyntaxNode that is either a SyntaxNode or a SyntaxToken.
   ///
   /// \return The first child SyntaxElement, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getFirstChildOrToken() const noexcept;
+  [[nodiscard]] std::optional<SyntaxElement> getFirstChildOrToken() const;
 
   /// \brief Get the last child node.
   ///
@@ -417,7 +411,7 @@ public:
   /// is a SyntaxNode (not a token).
   ///
   /// \return The last child SyntaxNode, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getLastChild() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getLastChild() const;
 
   /// \brief Get the last child element (node or token).
   ///
@@ -425,8 +419,7 @@ public:
   /// that is either a SyntaxNode or a SyntaxToken.
   ///
   /// \return The last child SyntaxElement, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getLastChildOrToken() const noexcept;
+  [[nodiscard]] std::optional<SyntaxElement> getLastChildOrToken() const;
 
   /// \brief Get the next sibling node.
   ///
@@ -434,7 +427,7 @@ public:
   /// its parent's children.
   ///
   /// \return The next SyntaxNode sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const;
 
   /// \brief Get the next sibling element (node or token).
   ///
@@ -442,8 +435,7 @@ public:
   /// its parent's children, which can be either a node or token.
   ///
   /// \return The next SyntaxElement sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getNextSiblingOrToken() const noexcept;
+  [[nodiscard]] std::optional<SyntaxElement> getNextSiblingOrToken() const;
 
   /// \brief Get the previous sibling node.
   ///
@@ -451,7 +443,7 @@ public:
   /// SyntaxNode in its parent's children.
   ///
   /// \return The previous SyntaxNode sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const;
 
   /// \brief Get the previous sibling element (node or token).
   ///
@@ -459,14 +451,13 @@ public:
   /// SyntaxNode in its parent's children, which can be either a node or token.
   ///
   /// \return The previous SyntaxElement sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getPrevSiblingOrToken() const noexcept;
+  [[nodiscard]] std::optional<SyntaxElement> getPrevSiblingOrToken() const;
 
   /// \brief Equality comparison operator.
   ///
   /// \param other The SyntaxNode to compare with.
   /// \return True if both nodes refer to the same underlying data.
-  bool operator==(const SyntaxNode &other) const noexcept {
+  bool operator==(const SyntaxNode &other) const {
     return *data == *other.data;
   }
 
@@ -474,9 +465,7 @@ public:
   ///
   /// \param other The SyntaxNode to compare with.
   /// \return True if the nodes refer to different underlying data.
-  bool operator!=(const SyntaxNode &other) const noexcept {
-    return !(*this == other);
-  }
+  bool operator!=(const SyntaxNode &other) const { return !(*this == other); }
 
 private:
   SyntaxData *data;
@@ -517,9 +506,7 @@ public:
   /// reference count.
   ///
   /// \param other The SyntaxToken to copy from.
-  SyntaxToken(const SyntaxToken &other) noexcept : data(other.data) {
-    data->incRc();
-  }
+  SyntaxToken(const SyntaxToken &other) : data(other.data) { data->incRc(); }
 
   /// \brief Copy assignment operator.
   ///
@@ -528,7 +515,7 @@ public:
   ///
   /// \param other The SyntaxToken to assign from.
   /// \return Reference to this object.
-  SyntaxToken &operator=(const SyntaxToken &other) noexcept {
+  SyntaxToken &operator=(const SyntaxToken &other) {
     if (this == &other) {
       return *this;
     }
@@ -560,18 +547,18 @@ public:
   /// \brief Get the offset of this SyntaxToken.
   ///
   /// \return The absolute offset in bytes from the start of the source.
-  [[nodiscard]] size_t getOffset() const noexcept { return data->getOffset(); }
+  [[nodiscard]] size_t getOffset() const { return data->getOffset(); }
 
   /// \brief Get the index of this SyntaxToken.
   ///
   /// \return The zero-based index in the parent's children.
-  [[nodiscard]] size_t getIndex() const noexcept { return data->getIndex(); }
+  [[nodiscard]] size_t getIndex() const { return data->getIndex(); }
 
   /// \brief Get the parent of this SyntaxToken.
   ///
   /// \return Pointer to parent SyntaxData, or nullptr if this token has no
   /// parent.
-  [[nodiscard]] const SyntaxData *getParent() const noexcept {
+  [[nodiscard]] const SyntaxData *getParent() const {
     return data->getParent();
   }
 
@@ -580,49 +567,47 @@ public:
   /// For SyntaxTokens, the GreenElement backing it is always a GreenToken.
   ///
   /// \return Constant reference to the GreenToken.
-  [[nodiscard]] const GreenToken &getGreen() const noexcept {
+  [[nodiscard]] const GreenToken &getGreen() const {
     return data->getGreen().getToken();
   }
 
   /// \brief Get the kind of this SyntaxToken.
   ///
   /// \return The SyntaxKind of this token.
-  [[nodiscard]] SyntaxKind getKind() const noexcept {
+  [[nodiscard]] SyntaxKind getKind() const {
     return data->getGreen().getKind();
   }
 
   /// \brief Get the reference count of this SyntaxNode.
   ///
   /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const noexcept { return data->rc->load(); }
+  [[nodiscard]] int64_t getRc() const { return data->rc->load(); }
 
   /// \brief Get the next sibling node.
   ///
   /// \return The next SyntaxNode sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const;
 
   /// \brief Get the next sibling element (node or token).
   ///
   /// \return The next SyntaxElement sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getNextSiblingOrToken() const noexcept;
+  [[nodiscard]] std::optional<SyntaxElement> getNextSiblingOrToken() const;
 
   /// \brief Get the previous sibling node.
   ///
   /// \return The previous SyntaxNode sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept;
+  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const;
 
   /// \brief Get the previous sibling element (node or token).
   ///
   /// \return The previous SyntaxElement sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getPrevSiblingOrToken() const noexcept;
+  [[nodiscard]] std::optional<SyntaxElement> getPrevSiblingOrToken() const;
 
   /// \brief Equality comparison operator.
   ///
   /// \param other The SyntaxToken to compare with.
   /// \return True if both tokens refer to the same underlying data.
-  bool operator==(const SyntaxToken &other) const noexcept {
+  bool operator==(const SyntaxToken &other) const {
     return *data == *other.data;
   }
 
@@ -630,9 +615,7 @@ public:
   ///
   /// \param other The SyntaxToken to compare with.
   /// \return True if the tokens refer to different underlying data.
-  bool operator!=(const SyntaxToken &other) const noexcept {
-    return !(*this == other);
-  }
+  bool operator!=(const SyntaxToken &other) const { return !(*this == other); }
 
 private:
   SyntaxData *data;
@@ -643,7 +626,8 @@ private:
 /// SyntaxElement is used when traversing the syntax tree and an element
 /// could be either a node or a token. It provides methods to check the
 /// type and access the underlying value safely.
-class [[nodiscard]] SyntaxElement final : public std::variant<SyntaxNode, SyntaxToken> {
+class [[nodiscard]] SyntaxElement final
+    : public std::variant<SyntaxNode, SyntaxToken> {
 public:
   using std::variant<SyntaxNode, SyntaxToken>::variant;
 
@@ -654,14 +638,14 @@ public:
   ///
   /// \return Reference to the SyntaxNode.
   /// \pre The element must be a SyntaxNode (check with isNode()).
-  [[nodiscard]] const SyntaxNode &getNode() const noexcept {
+  [[nodiscard]] const SyntaxNode &getNode() const {
     return std::get<SyntaxNode>(*this);
   }
 
   /// \brief Get the element as a SyntaxNode pointer if it is one.
   ///
   /// \return Pointer to the SyntaxNode, or nullptr if this is a token.
-  [[nodiscard]] const SyntaxNode *getIfNode() const noexcept {
+  [[nodiscard]] const SyntaxNode *getIfNode() const {
     return std::get_if<SyntaxNode>(this);
   }
 
@@ -669,21 +653,21 @@ public:
   ///
   /// \return Reference to the SyntaxToken.
   /// \pre The element must be a SyntaxToken (check with isToken()).
-  [[nodiscard]] const SyntaxToken &getToken() const noexcept {
+  [[nodiscard]] const SyntaxToken &getToken() const {
     return std::get<SyntaxToken>(*this);
   }
 
   /// \brief Get the element as a SyntaxToken pointer if it is one.
   ///
   /// \return Pointer to the SyntaxToken, or nullptr if this is a node.
-  [[nodiscard]] const SyntaxToken *getIfToken() const noexcept {
+  [[nodiscard]] const SyntaxToken *getIfToken() const {
     return std::get_if<SyntaxToken>(this);
   }
 
   /// \brief Get the kind of this element.
   ///
   /// \return The SyntaxKind of the underlying node or token.
-  [[nodiscard]] SyntaxKind getKind() const noexcept {
+  [[nodiscard]] SyntaxKind getKind() const {
     if (const SyntaxNode *node = getIfNode()) {
       return node->getKind();
     }
@@ -698,21 +682,21 @@ public:
   /// \brief Check if this element is a SyntaxNode.
   ///
   /// \return True if this element contains a SyntaxNode.
-  [[nodiscard]] bool isNode() const noexcept {
+  [[nodiscard]] bool isNode() const {
     return std::holds_alternative<SyntaxNode>(*this);
   }
 
   /// \brief Check if this element is a SyntaxToken.
   ///
   /// \return True if this element contains a SyntaxToken.
-  [[nodiscard]] bool isToken() const noexcept {
+  [[nodiscard]] bool isToken() const {
     return std::holds_alternative<SyntaxToken>(*this);
   }
 
   /// \brief Get the next sibling node.
   ///
   /// \return The next SyntaxNode sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const noexcept {
+  [[nodiscard]] std::optional<SyntaxNode> getNextSibling() const {
     if (const SyntaxNode *node = getIfNode()) {
       return node->getNextSibling();
     }
@@ -727,8 +711,7 @@ public:
   /// \brief Get the next sibling element (node or token).
   ///
   /// \return The next SyntaxElement sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getNextSiblingOrToken() const noexcept {
+  [[nodiscard]] std::optional<SyntaxElement> getNextSiblingOrToken() const {
     if (const SyntaxNode *node = getIfNode()) {
       return node->getNextSiblingOrToken();
     }
@@ -743,7 +726,7 @@ public:
   /// \brief Get the previous sibling node.
   ///
   /// \return The previous SyntaxNode sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const noexcept {
+  [[nodiscard]] std::optional<SyntaxNode> getPrevSibling() const {
     if (const SyntaxNode *node = getIfNode()) {
       return node->getPrevSibling();
     }
@@ -758,8 +741,7 @@ public:
   /// \brief Get the previous sibling element (node or token).
   ///
   /// \return The previous SyntaxElement sibling, or nullopt if none exists.
-  [[nodiscard]] std::optional<SyntaxElement>
-  getPrevSiblingOrToken() const noexcept {
+  [[nodiscard]] std::optional<SyntaxElement> getPrevSiblingOrToken() const {
     if (const SyntaxNode *node = getIfNode()) {
       return node->getPrevSiblingOrToken();
     }

@@ -6,11 +6,12 @@
 #include "llvm/TableGen/TableGenBackend.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace yuzu_tools {
-void SyntaxKindGenerator::emitClassDefinitions(
-    llvm::raw_ostream &os) const noexcept {
+void SyntaxKindGenerator::emitClassDefinitions(llvm::raw_ostream &os) const {
   const llvm::Record *grammar = records.getDef("YuzuGrammar");
 
   // Generate token kinds.
@@ -25,7 +26,8 @@ void SyntaxKindGenerator::emitClassDefinitions(
                                                   bName.begin(), bName.end());
             });
 
-  assert(tokens.size() < sizeof(uint16_t));
+  assert(tokens.size() <= std::numeric_limits<uint16_t>::max() &&
+         "Token count exceeds the range of SyntaxKind's uint16_t backing.");
 
   os << "enum class SyntaxKind : uint16_t {\n";
   os << "  // Tokens\n";
@@ -47,7 +49,8 @@ void SyntaxKindGenerator::emitClassDefinitions(
                                                   bName.begin(), bName.end());
             });
 
-  assert(nodes.size() < sizeof(uint16_t));
+  assert(nodes.size() <= std::numeric_limits<uint16_t>::max() &&
+         "Node count exceeds the range of SyntaxKind's uint16_t backing.");
 
   os << "  // Nodes\n";
   for (const auto &node : nodes) {
@@ -64,7 +67,7 @@ void SyntaxKindGenerator::emitClassDefinitions(
   os << "};\n";
 }
 
-void SyntaxKindGenerator::emitHeader(llvm::raw_ostream &os) const noexcept {
+void SyntaxKindGenerator::emitHeader(llvm::raw_ostream &os) const {
   emitSourceFileHeader("Yuzu SyntaxKind Declarations", os);
 
   emitOpenIncludeGuards(os);
@@ -79,7 +82,7 @@ void SyntaxKindGenerator::emitHeader(llvm::raw_ostream &os) const noexcept {
   emitCloseIncludeGuards(os);
 }
 
-void SyntaxKindGenerator::runImpl(llvm::raw_ostream &os) const noexcept {
+void SyntaxKindGenerator::runImpl(llvm::raw_ostream &os) const {
   emitHeader(os);
 }
 

@@ -9,8 +9,8 @@
 #include <functional>
 #include <optional>
 #include <string_view>
-#include <vector>
 #include <utility>
+#include <vector>
 
 namespace yuzu::lexer {
 /// \brief Lexical analyzer for tokenizing source code.
@@ -33,7 +33,7 @@ public:
   /// all tokens into a vector. This consumes the entire input.
   ///
   /// \return A vector containing all tokens from the source text.
-  [[nodiscard]] std::vector<Token> getTokens() noexcept {
+  [[nodiscard]] std::vector<Token> getTokens() {
     auto tokens = std::vector<Token>();
     while (true) {
       const auto token = getNextToken();
@@ -51,36 +51,34 @@ public:
   ///
   /// Resets the current position to the beginning and clears any cached
   /// peeked token.
-  void reset() noexcept {
-    current = source.begin();
-  }
+  void reset() { current = source.begin(); }
 
 private:
   /// \brief Check if the current character is a digit.
   ///
   /// \return true if current is within bounds and is a digit ('0'-'9').
-  [[nodiscard]] static bool atDigit(const char32_t *ch) noexcept {
+  [[nodiscard]] static bool atDigit(const char32_t *ch) {
     return *ch >= U'0' && *ch <= U'9';
   }
 
   /// \brief Check if the current character is whitespace.
   ///
   /// \return true if current is within bounds and is whitespace.
-  [[nodiscard]] static bool atWhitespace(const char32_t *ch) noexcept {
+  [[nodiscard]] static bool atWhitespace(const char32_t *ch) {
     return (*ch == U' ' || *ch == U'\t' || *ch == U'\n' || *ch == U'\r');
   }
 
   /// \brief Check if the current character is alphabetic.
   ///
   /// \return true if current is within bounds and is a letter (a-z or A-Z).
-  [[nodiscard]] static bool atAlpha(const char32_t *ch) noexcept {
+  [[nodiscard]] static bool atAlpha(const char32_t *ch) {
     return ((*ch >= U'a' && *ch <= U'z') || (*ch >= U'A' && *ch <= U'Z'));
   }
 
   /// \brief Check if the current character is a valid identifier character.
   ///
   /// \return true if current is a letter, digit, or underscore.
-  [[nodiscard]] static bool atIdent(const char32_t *ch) noexcept {
+  [[nodiscard]] static bool atIdent(const char32_t *ch) {
     return ((*ch >= U'a' && *ch <= U'z') || (*ch >= U'A' && *ch <= U'Z') ||
             (*ch >= U'0' && *ch <= U'9') || (*ch == U'_'));
   }
@@ -89,7 +87,7 @@ private:
   /// character.
   ///
   /// \return true if current is a letter, digit, or underscore.
-  [[nodiscard]] static bool atIdentStart(const char32_t *ch) noexcept {
+  [[nodiscard]] static bool atIdentStart(const char32_t *ch) {
     return ((*ch >= U'a' && *ch <= U'z') || (*ch >= U'A' && *ch <= U'Z') ||
             (*ch == U'_'));
   }
@@ -97,12 +95,12 @@ private:
   /// \brief Get the next token from the source text.
   ///
   /// \return The next Token in the source text.
-  [[nodiscard]] std::optional<Token> getNextToken() noexcept;
+  [[nodiscard]] std::optional<Token> getNextToken();
 
   /// \brief Advance the current position by n characters.
   ///
   /// \param n The number of characters to advance (default 1).
-  void bump(const size_t n = 1) noexcept {
+  void bump(const size_t n = 1) {
     if (current >= source.end()) {
       return;
     }
@@ -128,7 +126,7 @@ private:
   /// \param start Pointer to the beginning of the token.
   /// \param kind The kind of token to create.
   /// \return A Token spanning from start to current position.
-  Token createToken(const char32_t *start, TokenKind kind) const noexcept {
+  Token createToken(const char32_t *start, TokenKind kind) const {
     const ptrdiff_t startIndex = (start - source.begin());
     const ptrdiff_t endIndex = (current - source.begin());
 
@@ -152,8 +150,7 @@ private:
   /// \brief Peek at the current character without consuming it.
   ///
   /// \return The current character, or nullopt if at end of input.
-  [[nodiscard]] std::optional<char32_t>
-  peek(const size_t n = 0) const noexcept {
+  [[nodiscard]] std::optional<char32_t> peek(const size_t n = 0) const {
     if ((current + n) >= source.end()) {
       return std::nullopt;
     }

@@ -18,7 +18,7 @@ namespace yuzu::ast {
 /// the static canCast() and cast() methods.
 ///
 /// \tparam Self The derived class type that inherits from this base class.
-template <typename Self> class[[nodiscard]]  AstNode {
+template <typename Self> class [[nodiscard]] AstNode {
 public:
   virtual ~AstNode() = default;
 
@@ -39,7 +39,7 @@ public:
   ///
   /// \param kind The syntax kind to check.
   /// \return True if a node of the given kind can be cast to Self.
-  [[nodiscard]] static bool canCast(SyntaxKind kind) noexcept {
+  [[nodiscard]] static bool canCast(SyntaxKind kind) {
     return Self::canCast(kind);
   }
 
@@ -48,8 +48,7 @@ public:
   /// \param node The syntax node to cast.
   /// \return An optional containing the AST node if the cast succeeds, or
   ///         std::nullopt if the cast fails.
-  [[nodiscard]] static std::optional<Self>
-  cast(syntax::SyntaxNode node) noexcept {
+  [[nodiscard]] static std::optional<Self> cast(syntax::SyntaxNode node) {
     return Self::cast(node);
   }
 
@@ -122,7 +121,7 @@ struct HasStaticCastMethod<
 /// \return A unique_ptr to the found child, or nullptr if not found.
 template <typename T>
 [[nodiscard]] inline std::unique_ptr<T> child(syntax::SyntaxNode node,
-                                              size_t n = 0) noexcept {
+                                              size_t n = 0) {
   static_assert(HasStaticCastMethod<T>::value,
                 "T must be a subclass of AstNode<T> for some type T");
 
@@ -152,7 +151,7 @@ template <typename T>
 /// \return An optional containing the token if found, or std::nullopt if not
 ///         found.
 [[nodiscard]] inline std::optional<syntax::SyntaxToken>
-token(syntax::SyntaxNode node, SyntaxKind kind, size_t n) noexcept {
+token(syntax::SyntaxNode node, SyntaxKind kind, size_t n) {
   size_t count = 0;
   const syntax::SyntaxChildrenWithTokens children =
       node.getChildrenWithTokens();

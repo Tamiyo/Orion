@@ -39,24 +39,24 @@ public:
   }
 
 protected:
-  virtual void runImpl(llvm::raw_ostream &os) const noexcept = 0;
+  virtual void runImpl(llvm::raw_ostream &os) const = 0;
 
-  [[nodiscard]] virtual std::string getIncludeGuardName() const noexcept = 0;
+  [[nodiscard]] virtual std::string getIncludeGuardName() const = 0;
 
-  virtual void emitClassDefinitions(llvm::raw_ostream &os) const noexcept = 0;
+  virtual void emitClassDefinitions(llvm::raw_ostream &os) const = 0;
 
-  virtual void emitHeader(llvm::raw_ostream &os) const noexcept = 0;
+  virtual void emitHeader(llvm::raw_ostream &os) const = 0;
 
-  void emitOpenIncludeGuards(llvm::raw_ostream &os) const noexcept {
+  void emitOpenIncludeGuards(llvm::raw_ostream &os) const {
     const std::string guardName = getIncludeGuardName();
     os << llvm::formatv("#ifndef {0}\n#define {0}\n\n", guardName);
   }
 
-  void emitCloseIncludeGuards(llvm::raw_ostream &os) const noexcept {
+  void emitCloseIncludeGuards(llvm::raw_ostream &os) const {
     os << llvm::formatv("#endif // {0}\n", getIncludeGuardName());
   }
 
-  void emitIncludes(llvm::raw_ostream &os) const noexcept {
+  void emitIncludes(llvm::raw_ostream &os) const {
     const auto emitIncludes = [&os](const std::set<std::string> &includes) {
       // Don't emit any includes if there are none, this would emit extra
       // whitespace.
@@ -86,7 +86,7 @@ protected:
 
   // Format a string using clang-format, using a temp file to avoid shell
   // escaping issues.
-  static std::string formatCode(const std::string &code) noexcept {
+  static std::string formatCode(const std::string &code) {
     // Create a temporary file
     char tempFile[] = "/tmp/clang_format_XXXXXX";
     int fd = mkstemp(tempFile);

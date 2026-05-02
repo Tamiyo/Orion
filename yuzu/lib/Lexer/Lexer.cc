@@ -14,7 +14,7 @@ const std::u32string letKeyword = U"let";
 const std::u32string mutKeyword = U"mut";
 }; // namespace
 
-std::optional<Token> Lexer::getNextToken() noexcept {
+std::optional<Token> Lexer::getNextToken() {
   if (current >= source.end()) {
     return std::nullopt;
   }

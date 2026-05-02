@@ -3,7 +3,6 @@
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Green/GreenIterator.h"
 #include "yuzu/Syntax/SyntaxKind.h"
-#include "yuzu/lib/Syntax/Green/GreenCache.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -19,9 +18,8 @@ constexpr unsigned int hashConstant = 0x9e3779b9;
 
 // ---------------------- Tokens -----------------------
 
-GreenCacheEntry
-GreenCache::getToken(const SyntaxKind kind,
-                     const std::u32string_view &source) noexcept {
+GreenCacheEntry GreenCache::getToken(const SyntaxKind kind,
+                                     const std::u32string_view &source) {
   const size_t hash = hashToken(kind, source);
 
   const auto it = tokens.find(hash);
@@ -37,7 +35,7 @@ GreenCache::getToken(const SyntaxKind kind,
 }
 
 size_t GreenCache::hashToken(const SyntaxKind kind,
-                             const std::u32string_view &source) const noexcept {
+                             const std::u32string_view &source) const {
   size_t hash = std::hash<uint16_t>{}(kind);
   hash ^= std::hash<std::u32string_view>{}(source) + hashConstant +
           (hash << 6) + (hash >> 2);
@@ -48,7 +46,7 @@ size_t GreenCache::hashToken(const SyntaxKind kind,
 
 GreenCacheEntry GreenCache::getNode(const SyntaxKind kind,
                                     std::vector<GreenCacheEntry> *children,
-                                    const size_t firstChild) noexcept {
+                                    const size_t firstChild) {
   const size_t childrenSize = children->size() - firstChild;
 
   if (childrenSize > maxCachedNodeSize) {
@@ -94,7 +92,7 @@ GreenCacheEntry GreenCache::getNode(const SyntaxKind kind,
 
 size_t GreenCache::hashNode(const SyntaxKind kind,
                             const std::vector<GreenCacheEntry> &children,
-                            const size_t firstChild) const noexcept {
+                            const size_t firstChild) const {
   size_t hash = std::hash<uint16_t>{}(kind);
 
   for (size_t i = firstChild; i < children.size(); ++i) {
@@ -110,7 +108,7 @@ size_t GreenCache::hashNode(const SyntaxKind kind,
 
 GreenNode GreenCache::buildNode(const SyntaxKind kind,
                                 std::vector<GreenCacheEntry> *children,
-                                const size_t firstChild) const noexcept {
+                                const size_t firstChild) const {
   std::vector<GreenElement> elements;
   elements.reserve(children->size() - firstChild);
 

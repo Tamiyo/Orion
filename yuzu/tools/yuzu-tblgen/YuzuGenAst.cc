@@ -72,7 +72,8 @@ static bool YuzuTableGenMain(llvm::raw_ostream &os,
     const std::string basename = "TokenKind";
     const std::set<std::string> projectIncludes = {"yuzu/Util/ErrorHandling.h"};
     const std::set<std::string> externalIncludes = {};
-    const std::set<std::string> systemIncludes = {"cstdint", "optional", "string"};
+    const std::set<std::string> systemIncludes = {"cstdint", "optional",
+                                                  "string"};
     yuzu_tools::TokenKindGenerator(basename, records, projectIncludes,
                                    externalIncludes, systemIncludes)
         .run(os);

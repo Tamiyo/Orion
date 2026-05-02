@@ -1,5 +1,5 @@
-#ifndef YUZU_LEXER_SPAN_H
-#define YUZU_LEXER_SPAN_H
+#ifndef YUZU_LEXER_RANGE_H
+#define YUZU_LEXER_RANGE_H
 
 #include <cstdint>
 
@@ -26,4 +26,4 @@ struct [[nodiscard]] Range final {
 };
 } // namespace yuzu::lexer
 
-#endif // YUZU_LEXER_SPAN_H
+#endif // YUZU_LEXER_RANGE_H

@@ -6,12 +6,13 @@
 #include "llvm/TableGen/TableGenBackend.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
 namespace yuzu_tools {
-void TokenKindGenerator::emitClassDefinitions(
-    llvm::raw_ostream &os) const noexcept {
+void TokenKindGenerator::emitClassDefinitions(llvm::raw_ostream &os) const {
   const llvm::Record *grammar = records.getDef("YuzuGrammar");
 
   auto sortAndEmitRecords = [&os](const std::string &subclass,
@@ -43,7 +44,8 @@ void TokenKindGenerator::emitClassDefinitions(
   std::vector<const llvm::Record *> tokens =
       grammar->getValueAsListOfDefs("Tokens");
 
-  assert(tokens.size() < sizeof(uint16_t));
+  assert(tokens.size() <= std::numeric_limits<uint16_t>::max() &&
+         "Token count exceeds the range of TokenKind's uint16_t backing.");
 
   os << "enum class TokenKind : uint16_t {\n";
   sortAndEmitRecords("SymbolToken", "Symbols", tokens);
@@ -59,8 +61,7 @@ void TokenKindGenerator::emitClassDefinitions(
   os << "};\n";
 }
 
-void TokenKindGenerator::emitInlineMethods(
-    llvm::raw_ostream &os) const noexcept {
+void TokenKindGenerator::emitInlineMethods(llvm::raw_ostream &os) const {
   const llvm::Record *grammar = records.getDef("YuzuGrammar");
 
   auto emitIsTypeFunction =
@@ -120,7 +121,8 @@ void TokenKindGenerator::emitInlineMethods(
                                                   bName.begin(), bName.end());
             });
 
-  assert(tokens.size() < sizeof(uint16_t));
+  assert(tokens.size() <= std::numeric_limits<uint16_t>::max() &&
+         "Token count exceeds the range of TokenKind's uint16_t backing.");
 
   emitIsTypeFunction("SymbolToken", "Symbol", tokens);
   emitIsTypeFunction("LiteralToken", "Literal", tokens);
@@ -130,7 +132,7 @@ void TokenKindGenerator::emitInlineMethods(
   emitAsStringFunction(tokens);
 }
 
-void TokenKindGenerator::emitHeader(llvm::raw_ostream &os) const noexcept {
+void TokenKindGenerator::emitHeader(llvm::raw_ostream &os) const {
   emitSourceFileHeader("Yuzu TokenKind Declarations", os);
 
   emitOpenIncludeGuards(os);
@@ -147,7 +149,7 @@ void TokenKindGenerator::emitHeader(llvm::raw_ostream &os) const noexcept {
   emitCloseIncludeGuards(os);
 }
 
-void TokenKindGenerator::runImpl(llvm::raw_ostream &os) const noexcept {
+void TokenKindGenerator::runImpl(llvm::raw_ostream &os) const {
   emitHeader(os);
 }
 

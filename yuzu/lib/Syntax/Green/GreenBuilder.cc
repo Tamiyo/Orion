@@ -20,12 +20,12 @@ GreenBuilder::GreenBuilder() : cache(GreenCache(maxCachedNodeSize)) {}
 GreenBuilder::GreenBuilder(const size_t maxCachedNodeSize)
     : cache(GreenCache(maxCachedNodeSize)) {}
 
-void GreenBuilder::startNode(const SyntaxKind kind) noexcept {
+void GreenBuilder::startNode(const SyntaxKind kind) {
   parents.emplace_back(
       GreenBuilder::Parent{.kind = kind, .firstChild = children.size()});
 }
 
-void GreenBuilder::finishNode() noexcept {
+void GreenBuilder::finishNode() {
   // Finishing a node requires a parent.
   if (parents.empty()) {
     util::yuzu_unreachable();
@@ -39,7 +39,7 @@ void GreenBuilder::finishNode() noexcept {
 }
 
 void GreenBuilder::startNodeAt(const GreenBuilderCheckpoint &checkpoint,
-                               const SyntaxKind kind) noexcept {
+                               const SyntaxKind kind) {
   // Checkpoints should never reference elements outside of Children.
   if (checkpoint.index >= children.size()) {
     util::yuzu_unreachable();
@@ -57,17 +57,17 @@ void GreenBuilder::startNodeAt(const GreenBuilderCheckpoint &checkpoint,
       GreenBuilder::Parent{.kind = kind, .firstChild = checkpoint.index});
 }
 
-GreenBuilderCheckpoint GreenBuilder::checkpoint() const noexcept {
+GreenBuilderCheckpoint GreenBuilder::checkpoint() const {
   return GreenBuilderCheckpoint{.index = children.size()};
 }
 
 void GreenBuilder::token(const SyntaxKind kind,
-                         const std::u32string_view &source) noexcept {
+                         const std::u32string_view &source) {
   const auto token = cache.getToken(kind, source);
   children.emplace_back(token);
 }
 
-GreenNode GreenBuilder::finish() noexcept {
+GreenNode GreenBuilder::finish() {
   // Finishing building requires a parent.
   if (!parents.empty()) {
     util::yuzu_unreachable("GreenBuilder parents empty");

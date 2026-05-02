@@ -86,20 +86,18 @@ public:
   using value_type = typename const_iterator::value_type;
 
   explicit AstChildren(syntax::SyntaxChildren children) : children(children) {}
-  
+
   AstChildren() = delete;
 
-  const_iterator begin() const noexcept {
-    return const_iterator(children.begin());
-  }
+  const_iterator begin() const { return const_iterator(children.begin()); }
 
-  const_iterator end() const noexcept { return const_iterator(std::nullopt); }
+  const_iterator end() const { return const_iterator(std::nullopt); }
 
-  const_reverse_iterator rbegin() const noexcept {
+  const_reverse_iterator rbegin() const {
     return const_reverse_iterator(children.rbegin());
   }
 
-  const_reverse_iterator rend() const noexcept {
+  const_reverse_iterator rend() const {
     return const_reverse_iterator(const_iterator(std::nullopt));
   }
 

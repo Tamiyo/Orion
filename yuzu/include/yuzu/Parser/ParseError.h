@@ -25,7 +25,7 @@ public:
 
   ParseError() = delete;
 
-  std::string asString() const noexcept {
+  std::string asString() const {
     if (const ExpectedKindError *error = std::get_if<ExpectedKindError>(this)) {
       const std::string found = lexer::asString(error->found);
 

@@ -23,17 +23,17 @@ public:
                      std::move(externalIncludes), std::move(systemIncludes)) {}
 
 protected:
-  void runImpl(llvm::raw_ostream &os) const noexcept override;
+  void runImpl(llvm::raw_ostream &os) const override;
 
 private:
-  [[nodiscard]] std::string getIncludeGuardName() const noexcept override {
+  [[nodiscard]] std::string getIncludeGuardName() const override {
     const llvm::StringRef basenameRef(basename);
     return "YUZU_AST_" + basenameRef.upper() + "_INC_H";
   }
 
-  void emitClassDefinitions(llvm::raw_ostream &os) const noexcept override;
+  void emitClassDefinitions(llvm::raw_ostream &os) const override;
 
-  void emitHeader(llvm::raw_ostream &os) const noexcept override;
+  void emitHeader(llvm::raw_ostream &os) const override;
 };
 } // namespace yuzu_tools
 

@@ -2,7 +2,6 @@
 
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Green/GreenIterator.h"
-#include "yuzu/lib/Syntax/Green/GreenCache.h"
 
 #include "gtest/gtest.h"
 

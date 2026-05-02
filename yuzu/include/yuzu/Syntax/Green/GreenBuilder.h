@@ -50,14 +50,14 @@ public:
   /// nodes will become children of this node until finishNode() is called.
   ///
   /// \param kind The syntax kind of the node being started.
-  void startNode(const SyntaxKind kind) noexcept;
+  void startNode(const SyntaxKind kind);
 
   /// \brief Finish constructing the current node.
   ///
   /// Pops the most recent parent from the stack, collects all children added
   /// since startNode() was called, creates a GreenNode (potentially from
   /// cache), and adds it as a child element.
-  void finishNode() noexcept;
+  void finishNode();
 
   /// \brief Start constructing a node at a previous checkpoint.
   ///
@@ -68,12 +68,12 @@ public:
   /// \param checkpoint The checkpoint marking where the node should start.
   /// \param kind The syntax kind of the node being started.
   void startNodeAt(const GreenBuilderCheckpoint &checkpoint,
-                   const SyntaxKind kind) noexcept;
+                   const SyntaxKind kind);
 
   /// \brief Create a checkpoint at the current position.
   ///
   /// \return A checkpoint that can be used with startNodeAt().
-  GreenBuilderCheckpoint checkpoint() const noexcept;
+  GreenBuilderCheckpoint checkpoint() const;
 
   /// \brief Add a token as a child element.
   ///
@@ -82,7 +82,7 @@ public:
   ///
   /// \param kind The syntax kind of the token.
   /// \param source The source text content of the token.
-  void token(const SyntaxKind kind, const std::u32string_view &source) noexcept;
+  void token(const SyntaxKind kind, const std::u32string_view &source);
 
   /// \brief Finish building and return the final GreenNode.
   ///
@@ -90,21 +90,17 @@ public:
   /// this is called, and the last child must be a node (not a token).
   ///
   /// \return The constructed GreenNode.
-  GreenNode finish() noexcept;
+  GreenNode finish();
 
   /// \brief Get the current size of the parents stack.
   ///
   /// \return The number of unfinished parent nodes.
-  [[nodiscard]] size_t getParentsSize() const noexcept {
-    return parents.size();
-  }
+  [[nodiscard]] size_t getParentsSize() const { return parents.size(); }
 
   /// \brief Get the current size of the children vector.
   ///
   /// \return The number of child elements currently stored.
-  [[nodiscard]] size_t getChildrenSize() const noexcept {
-    return children.size();
-  }
+  [[nodiscard]] size_t getChildrenSize() const { return children.size(); }
 
 private:
   /// \brief Represents a parent node being constructed.

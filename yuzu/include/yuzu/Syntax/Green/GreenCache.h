@@ -58,7 +58,7 @@ public:
   /// \return A GreenCacheEntry containing the node and its hash.
   GreenCacheEntry getNode(const SyntaxKind kind,
                           std::vector<GreenCacheEntry> *children,
-                          const size_t firstChild) noexcept;
+                          const size_t firstChild);
 
   /// \brief Get or create a cached GreenToken.
   ///
@@ -70,17 +70,17 @@ public:
   /// \param source The source text content of the token.
   /// \return A GreenCacheEntry containing the token and its hash.
   GreenCacheEntry getToken(const SyntaxKind kind,
-                           const std::u32string_view &source) noexcept;
+                           const std::u32string_view &source);
 
   /// \brief Get the number of cached nodes.
   ///
   /// \return The size of the nodes cache.
-  [[nodiscard]] size_t getNodeSize() const noexcept { return nodes.size(); }
+  [[nodiscard]] size_t getNodeSize() const { return nodes.size(); }
 
   /// \brief Get the number of cached tokens.
   ///
   /// \return The size of the tokens cache.
-  [[nodiscard]] size_t getTokenSize() const noexcept { return tokens.size(); }
+  [[nodiscard]] size_t getTokenSize() const { return tokens.size(); }
 
 private:
   /// \brief Compute hash for a node based on its structure.
@@ -94,16 +94,15 @@ private:
   /// \return The computed hash value, or 0 if the node is not cacheable.
   [[nodiscard]] size_t hashNode(const SyntaxKind kind,
                                 const std::vector<GreenCacheEntry> &children,
-                                const size_t firstChild) const noexcept;
+                                const size_t firstChild) const;
 
   /// \brief Compute hash for a token based on its kind and source.
   ///
   /// \param kind The syntax kind of the token.
   /// \param source The source text content of the token.
   /// \return The computed hash value.
-  [[nodiscard]] size_t
-  hashToken(const SyntaxKind kind,
-            const std::u32string_view &source) const noexcept;
+  [[nodiscard]] size_t hashToken(const SyntaxKind kind,
+                                 const std::u32string_view &source) const;
 
   /// \brief Build a new GreenNode from child entries.
   ///
@@ -116,7 +115,7 @@ private:
   /// \return The newly constructed GreenNode.
   GreenNode buildNode(const SyntaxKind kind,
                       std::vector<GreenCacheEntry> *children,
-                      const size_t firstChild) const noexcept;
+                      const size_t firstChild) const;
 
   /// Maximum number of children a node can have to be cached.
   const size_t maxCachedNodeSize;

@@ -8,10 +8,9 @@
 
 namespace yuzu::parser {
 std::optional<CompletedMarker>
-parseExprBindingPower(Parser &parser,
-                      const size_t minimumBindingPower) noexcept;
+parseExprBindingPower(Parser &parser, const size_t minimumBindingPower);
 
-inline std::optional<CompletedMarker> parseExpr(Parser &parser) noexcept {
+inline std::optional<CompletedMarker> parseExpr(Parser &parser) {
   return parseExprBindingPower(parser, 0);
 }
 } // namespace yuzu::parser

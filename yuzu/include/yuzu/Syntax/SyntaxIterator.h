@@ -241,26 +241,24 @@ public:
   /// \brief Get an iterator to the first child node.
   ///
   /// \return Iterator pointing to the first child node.
-  const_iterator begin() const noexcept {
-    return const_iterator(node->getFirstChild());
-  }
+  const_iterator begin() const { return const_iterator(node->getFirstChild()); }
 
   /// \brief Get an iterator to past-the-end.
   ///
   /// \return Iterator pointing past the last child node.
-  const_iterator end() const noexcept { return const_iterator(std::nullopt); }
+  const_iterator end() const { return const_iterator(std::nullopt); }
 
   /// \brief Get a reverse iterator to the last child node.
   ///
   /// \return Reverse iterator pointing to the last child node.
-  const_reverse_iterator rbegin() const noexcept {
+  const_reverse_iterator rbegin() const {
     return const_reverse_iterator(const_iterator(node->getLastChild()));
   }
 
   /// \brief Get a reverse iterator to before-the-first.
   ///
   /// \return Reverse iterator pointing before the first child node.
-  const_reverse_iterator rend() const noexcept {
+  const_reverse_iterator rend() const {
     return const_reverse_iterator(const_iterator(std::nullopt));
   }
 
@@ -292,26 +290,26 @@ public:
   /// \brief Get an iterator to the first child element.
   ///
   /// \return Iterator pointing to the first child element (node or token).
-  const_iterator begin() const noexcept {
+  const_iterator begin() const {
     return const_iterator(node->getFirstChildOrToken());
   }
 
   /// \brief Get an iterator to past-the-end.
   ///
   /// \return Iterator pointing past the last child element.
-  const_iterator end() const noexcept { return const_iterator(std::nullopt); }
+  const_iterator end() const { return const_iterator(std::nullopt); }
 
   /// \brief Get a reverse iterator to the last child element.
   ///
   /// \return Reverse iterator pointing to the last child element.
-  const_reverse_iterator rbegin() const noexcept {
+  const_reverse_iterator rbegin() const {
     return const_reverse_iterator(const_iterator(node->getLastChildOrToken()));
   }
 
   /// \brief Get a reverse iterator to before-the-first.
   ///
   /// \return Reverse iterator pointing before the first child element.
-  const_reverse_iterator rend() const noexcept {
+  const_reverse_iterator rend() const {
     return const_reverse_iterator(const_iterator(std::nullopt));
   }
 

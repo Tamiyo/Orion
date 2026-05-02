@@ -25,7 +25,7 @@ struct [[nodiscard]] StartEvent final {
 ///
 /// FinishEvent is emitted when the parser completes parsing a syntax node
 /// that was previously started with a StartEvent.
-struct [[nodiscard]] FinishEvent final{};
+struct [[nodiscard]] FinishEvent final {};
 
 /// \brief Event representing a consumed token.
 ///
@@ -47,7 +47,7 @@ struct [[nodiscard]] ErrorEvent final {
 ///
 /// PlaceholderEvent is used internally by the parser to reserve positions
 /// in the event stream that will be replaced with actual events later.
-struct [[nodiscard]] PlaceholderEvent final{};
+struct [[nodiscard]] PlaceholderEvent final {};
 
 /// \brief A variant type representing any parser event.
 ///
@@ -72,7 +72,7 @@ public:
   ///
   /// \param replacement The event to store in place of the current event.
   /// \return The event that was previously stored.
-  Event exchange(Event && replacement) noexcept {
+  Event exchange(Event &&replacement) {
     Event old = std::move(*this);
     this->~Event();
     new (this) Event(std::move(replacement));

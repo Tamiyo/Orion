@@ -14,7 +14,7 @@ namespace yuzu::syntax {
 /// ===============
 /// = SyntaxData =
 /// ===============
-std::optional<SyntaxNode> SyntaxData::getNextSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxData::getNextSibling() const {
   // Root nodes have no siblings.
   if (!parent) {
     return std::nullopt;
@@ -53,8 +53,7 @@ std::optional<SyntaxNode> SyntaxData::getNextSibling() const noexcept {
                     std::get<GreenNode>(element));
 }
 
-std::optional<SyntaxElement>
-SyntaxData::getNextSiblingOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxData::getNextSiblingOrToken() const {
   // Root nodes have no siblings.
   if (!parent) {
     return std::nullopt;
@@ -93,7 +92,7 @@ SyntaxData::getNextSiblingOrToken() const noexcept {
   util::yuzu_unreachable();
 }
 
-std::optional<SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxData::getPrevSibling() const {
   // Root nodes have no siblings.
   if (!parent) {
     return std::nullopt;
@@ -135,8 +134,7 @@ std::optional<SyntaxNode> SyntaxData::getPrevSibling() const noexcept {
                     std::get<GreenNode>(element));
 }
 
-std::optional<SyntaxElement>
-SyntaxData::getPrevSiblingOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxData::getPrevSiblingOrToken() const {
   // Root nodes have no siblings.
   if (!parent) {
     return std::nullopt;
@@ -177,15 +175,13 @@ SyntaxData::getPrevSiblingOrToken() const noexcept {
 /// ==============
 /// = SyntaxNode =
 /// ==============
-SyntaxChildren SyntaxNode::getChildren() const noexcept {
-  return SyntaxChildren(this);
-}
+SyntaxChildren SyntaxNode::getChildren() const { return SyntaxChildren(this); }
 
-SyntaxChildrenWithTokens SyntaxNode::getChildrenWithTokens() const noexcept {
+SyntaxChildrenWithTokens SyntaxNode::getChildrenWithTokens() const {
   return SyntaxChildrenWithTokens(this);
 }
 
-std::optional<SyntaxNode> SyntaxNode::getFirstChild() const noexcept {
+std::optional<SyntaxNode> SyntaxNode::getFirstChild() const {
   const GreenNode &green = getGreen();
 
   // Empty nodes have no children.
@@ -210,7 +206,7 @@ std::optional<SyntaxNode> SyntaxNode::getFirstChild() const noexcept {
   return std::nullopt;
 }
 
-std::optional<SyntaxElement> SyntaxNode::getFirstChildOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxNode::getFirstChildOrToken() const {
   const GreenNode &green = getGreen();
 
   // Empty nodes have no children.
@@ -239,7 +235,7 @@ std::optional<SyntaxElement> SyntaxNode::getFirstChildOrToken() const noexcept {
   return std::nullopt;
 }
 
-std::optional<SyntaxNode> SyntaxNode::getLastChild() const noexcept {
+std::optional<SyntaxNode> SyntaxNode::getLastChild() const {
   const GreenNode &green = getGreen();
 
   // Empty nodes have no children.
@@ -264,7 +260,7 @@ std::optional<SyntaxNode> SyntaxNode::getLastChild() const noexcept {
   return std::nullopt;
 }
 
-std::optional<SyntaxElement> SyntaxNode::getLastChildOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxNode::getLastChildOrToken() const {
   const GreenNode &green = getGreen();
 
   // Empty nodes have no children.
@@ -294,42 +290,38 @@ std::optional<SyntaxElement> SyntaxNode::getLastChildOrToken() const noexcept {
   util::yuzu_unreachable();
 }
 
-std::optional<SyntaxNode> SyntaxNode::getNextSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxNode::getNextSibling() const {
   return data->getNextSibling();
 }
 
-std::optional<SyntaxElement>
-SyntaxNode::getNextSiblingOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxNode::getNextSiblingOrToken() const {
   return data->getNextSiblingOrToken();
 }
 
-std::optional<SyntaxNode> SyntaxNode::getPrevSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxNode::getPrevSibling() const {
   return data->getPrevSibling();
 }
 
-std::optional<SyntaxElement>
-SyntaxNode::getPrevSiblingOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxNode::getPrevSiblingOrToken() const {
   return data->getPrevSiblingOrToken();
 }
 
 /// ===============
 /// = SyntaxToken =
 /// ===============
-std::optional<SyntaxNode> SyntaxToken::getNextSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxToken::getNextSibling() const {
   return data->getNextSibling();
 }
 
-std::optional<SyntaxElement>
-SyntaxToken::getNextSiblingOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxToken::getNextSiblingOrToken() const {
   return data->getNextSiblingOrToken();
 }
 
-std::optional<SyntaxNode> SyntaxToken::getPrevSibling() const noexcept {
+std::optional<SyntaxNode> SyntaxToken::getPrevSibling() const {
   return data->getPrevSibling();
 }
 
-std::optional<SyntaxElement>
-SyntaxToken::getPrevSiblingOrToken() const noexcept {
+std::optional<SyntaxElement> SyntaxToken::getPrevSiblingOrToken() const {
   return data->getPrevSiblingOrToken();
 }
 } // namespace yuzu::syntax

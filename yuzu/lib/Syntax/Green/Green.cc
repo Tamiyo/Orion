@@ -57,11 +57,9 @@ GreenNode GreenNode::create(SyntaxKind kind,
   return GreenNode(kind, childrenArray, numChildren, width);
 }
 
-GreenChildren GreenNode::getChildren() const noexcept {
-  return GreenChildren(this);
-}
+GreenChildren GreenNode::getChildren() const { return GreenChildren(this); }
 
-bool GreenNode::operator==(const GreenNode &other) const noexcept {
+bool GreenNode::operator==(const GreenNode &other) const {
   if (data->kind != other.data->kind || data->width != other.data->width ||
       data->numChildren != other.data->numChildren) {
     return false;

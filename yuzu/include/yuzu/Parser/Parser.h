@@ -23,19 +23,18 @@ public:
 
   Parser() = delete;
 
-  [[nodiscard("Markers should not be discarded.")]] Marker start() noexcept {
+  [[nodiscard("Markers should not be discarded.")]] Marker start() {
     const size_t position = events.size();
     events.emplace_back(PlaceholderEvent{});
     return Marker{.position = position};
   }
 
-  CompletedMarker complete(const Marker &marker,
-                           ast::SyntaxKind kind) noexcept {
-    Event& eventAtPosition = events[marker.position];
+  CompletedMarker complete(const Marker &marker, ast::SyntaxKind kind) {
+    Event &eventAtPosition = events[marker.position];
     assert(std::holds_alternative<PlaceholderEvent>(eventAtPosition) &&
            "Cannot complete a marker that points to non-placeholder events.");
 
-    eventAtPosition.exchange(
+    auto _ = eventAtPosition.exchange(
         StartEvent{.forwardParent = std::nullopt, .kind = kind});
 
     events.emplace_back(FinishEvent{});
@@ -45,10 +44,10 @@ public:
 
   [[nodiscard("Preceded markers should not be discarded.")]] std::pair<
       Marker, ast::SyntaxKind>
-  precede(const CompletedMarker &complatedMarker) noexcept {
+  precede(const CompletedMarker &complatedMarker) {
     const Marker newMarker = start();
 
-    Event& eventAtPosition = events[complatedMarker.position];
+    Event &eventAtPosition = events[complatedMarker.position];
     if (const StartEvent *startEvent =
             std::get_if<StartEvent>(&eventAtPosition)) {
 
@@ -56,7 +55,7 @@ public:
       const size_t newForwardParent =
           newMarker.position - complatedMarker.position;
 
-      eventAtPosition.exchange(
+      auto _ = eventAtPosition.exchange(
           StartEvent{.forwardParent = newForwardParent, .kind = newKind});
 
       return std::make_pair(newMarker, newKind);
@@ -65,19 +64,19 @@ public:
     util::yuzu_unreachable();
   }
 
-  [[nodiscard]] std::optional<lexer::TokenKind> peekKind() noexcept {
+  [[nodiscard]] std::optional<lexer::TokenKind> peekKind() {
     return source.peekNextKind();
   }
 
-  [[nodiscard]] bool at(lexer::TokenKind kind) noexcept {
+  [[nodiscard]] bool at(lexer::TokenKind kind) {
     expectedKinds.emplace_back(kind);
     return peekKind() == kind;
   }
 
-  [[nodiscard]] bool atEnd() noexcept { return !peekKind().has_value(); }
+  [[nodiscard]] bool atEnd() { return !peekKind().has_value(); }
 
   [[nodiscard]] bool atRecoverySet(
-      const std::bitset<sizeof(const lexer::TokenKind)> &recoverySet) noexcept {
+      const std::bitset<1 << (8 * sizeof(lexer::TokenKind))> &recoverySet) {
     if (const std::optional<lexer::TokenKind> kind = peekKind()) {
       const size_t pos = static_cast<size_t>(kind.value());
       return recoverySet.test(pos);
@@ -87,15 +86,15 @@ public:
   }
 
   void error(
-      const std::bitset<sizeof(lexer::TokenKind)> &recoverySet = {}) noexcept;
+      const std::bitset<1 << (8 * sizeof(lexer::TokenKind))> &recoverySet = {});
 
-  void bump() noexcept {
+  void bump() {
     expectedKinds.clear();
     const std::optional<lexer::Token> _ = source.getNextToken();
     events.emplace_back(TokenEvent{});
   }
 
-  void expect(lexer::TokenKind kind) noexcept {
+  void expect(lexer::TokenKind kind) {
     if (at(kind)) {
       bump();
     } else {

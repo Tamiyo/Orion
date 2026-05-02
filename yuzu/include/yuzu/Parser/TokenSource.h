@@ -30,7 +30,7 @@ public:
   /// meaningful token.
   ///
   /// \return The next non-trivia Token, or nullopt if at end of input.
-  [[nodiscard]] std::optional<lexer::Token> getNextToken() noexcept {
+  [[nodiscard]] std::optional<lexer::Token> getNextToken() {
     bumpTrivia();
 
     if (cursor >= tokens.size()) {
@@ -42,11 +42,17 @@ public:
     return token;
   }
 
-  [[nodiscard]] std::optional<lexer::Token> peekLastToken() noexcept {
+  /// \brief Peek at the final token in the source without consuming it.
+  ///
+  /// Returns the last token regardless of trivia status; does not advance
+  /// the cursor.
+  ///
+  /// \return The last Token in the input, or nullopt if the source is empty.
+  [[nodiscard]] std::optional<lexer::Token> peekLastToken() {
     if (tokens.empty()) {
       return std::nullopt;
     }
-    return *tokens.end();
+    return tokens.back();
   }
 
   /// \brief Peek at the next non-trivia token without consuming it.
@@ -55,7 +61,7 @@ public:
   /// meaningful token.
   ///
   /// \return The next non-trivia Token, or nullopt if at end of input.
-  [[nodiscard]] std::optional<lexer::Token> peekNextToken() noexcept {
+  [[nodiscard]] std::optional<lexer::Token> peekNextToken() {
     bumpTrivia();
 
     if (cursor >= tokens.size()) {
@@ -72,7 +78,7 @@ public:
   /// meaningful token kind.
   ///
   /// \return The TokenKind of the next non-trivia token, or nullopt if at end.
-  [[nodiscard]] std::optional<lexer::TokenKind> peekNextKind() noexcept {
+  [[nodiscard]] std::optional<lexer::TokenKind> peekNextKind() {
     bumpTrivia();
 
     if (cursor >= tokens.size()) {
@@ -85,7 +91,7 @@ public:
 
 private:
   /// \brief Skip over the next token if it is trivia.
-  void bumpTrivia() noexcept {
+  void bumpTrivia() {
     while (cursor < tokens.size() && atTrivia()) {
       cursor += 1;
     }
@@ -94,7 +100,7 @@ private:
   /// \brief Check if the next token is trivia.
   ///
   /// \return true if the next token is trivia, false otherwise.
-  bool atTrivia() noexcept {
+  bool atTrivia() {
     if (cursor >= tokens.size()) {
       return false;
     }

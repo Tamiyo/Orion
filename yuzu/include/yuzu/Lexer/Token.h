@@ -42,32 +42,28 @@ public:
   /// \brief Get the kind of this token.
   ///
   /// \return The TokenKind of this token.
-  [[nodiscard]] TokenKind getKind() const noexcept { return kind; }
+  [[nodiscard]] TokenKind getKind() const { return kind; }
 
   /// \brief Get the range of this token in the source text.
   ///
   /// \return Constant reference to the Range.
-  [[nodiscard]] const Range &getRange() const noexcept { return range; }
+  [[nodiscard]] const Range &getRange() const { return range; }
 
   /// \brief Get the source text view.
   ///
   /// \return A view of the entire source text.
-  [[nodiscard]] std::u32string_view getSource() const noexcept {
-    return source;
-  }
+  [[nodiscard]] std::u32string_view getSource() const { return source; }
 
   /// \brief Get the length of this token.
   ///
   /// \return The length in characters (end - start).
-  [[nodiscard]] uint32_t getLength() const noexcept {
-    return range.end - range.start;
-  }
+  [[nodiscard]] uint32_t getLength() const { return range.end - range.start; }
 
   /// \brief Equality comparison operator.
   ///
   /// \param other The Token to compare with.
   /// \return True if both tokens have the same kind, source, and range.
-  bool operator==(const Token &other) const noexcept {
+  bool operator==(const Token &other) const {
     return kind == other.kind && source == other.source && range == other.range;
   }
 
