@@ -10,4 +10,5 @@ add_executable(yuzu-tblgen
   YuzuGenAst.cc
 )
 
+target_include_directories(yuzu-tblgen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(yuzu-tblgen PRIVATE ${yuzu_tblgen_llvm_libs})

@@ -32,7 +32,9 @@ include_directories(
 
 enable_testing()
 find_package(GTest REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-add_subdirectory(yuzu/tools/yuzu-tblgen)
+add_subdirectory(yuzu/tools/tblgen)
 add_subdirectory(yuzu/lib)
 add_subdirectory(yuzu/unittests)
+add_subdirectory(yuzu/test)

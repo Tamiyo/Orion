@@ -1,0 +1,7 @@
+import lit.llvm
+
+config.yuzu_source_dir = "@CMAKE_SOURCE_DIR@"
+config.yuzu_build_dir = "@CMAKE_BINARY_DIR@"
+config.file_check = "@FILECHECK_BIN@"
+
+lit_config.load_config(config, "@CMAKE_CURRENT_SOURCE_DIR@/lit.cfg.py")

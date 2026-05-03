@@ -1,4 +1,4 @@
-yuzu_tablegen(YuzuLexerTokenKindInc "yuzu/Lexer/TokenKind.h.inc" -gen-token-kind-decls)
+yuzu_tablegen(YuzuLexerTokenKindInc "yuzu/Lexer/TokenKind.h.inc" -gen-token-kind-decls "yuzu/Lexer/TokenKind.td")
 
 add_library(YuzuLexer Lexer.cc)
 add_dependencies(YuzuLexer YuzuLexerTokenKindInc)
