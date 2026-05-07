@@ -58,7 +58,7 @@ class Native<string name> : Field {
 
 /// A single case inside an `Enum`: the C++ enumerator `name` plus the
 /// literal `value` it maps to.
-class EnumCase<string name, string value> {
+class EnumCase<string name, string value = ""> {
     string Name = name;
     string Value = value;
 }
@@ -82,5 +82,10 @@ class Child<Def type> : Field {
 /// A child "value" of a tree — typically a concrete type like an enum or
 /// primitive, as opposed to a structural child node.
 class Val<Def type> : Field {
+    Def Type = type;
+}
+
+/// A custom field of a tree, requring manual implementation.
+class Custom<Def type> : Field {
     Def Type = type;
 }

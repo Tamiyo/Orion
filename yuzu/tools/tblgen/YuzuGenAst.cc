@@ -1,5 +1,4 @@
 #include "AstNodeGenerator.h"
-#include "CodeFormatter.h"
 #include "SyntaxKindGenerator.h"
 #include "TokenKindGenerator.h"
 
@@ -8,8 +7,6 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/TableGen/Main.h>
 #include <llvm/TableGen/Record.h>
-
-#include <utility>
 
 namespace {
 enum ActionType {
@@ -30,16 +27,15 @@ static llvm::cl::opt<ActionType> action(
 
 static bool YuzuTableGenMain(llvm::raw_ostream &os,
                              const llvm::RecordKeeper &records) {
-  yuzu::tools::CodeFormatter fmt(os, /*indent=*/2);
   switch (action) {
   case GenAstNodeDecls:
-    yuzu::tools::AstNodeGenerator(std::move(fmt)).generate(records);
+    yuzu::tools::AstNodeGenerator(os).run(records);
     break;
   case GenSyntaxKindDecls:
-    yuzu::tools::SyntaxKindGenerator(std::move(fmt)).generate(records);
+    yuzu::tools::SyntaxKindGenerator(os).run(records);
     break;
   case GenTokenKindDecls:
-    yuzu::tools::TokenKindGenerator(std::move(fmt)).generate(records);
+    yuzu::tools::TokenKindGenerator(os).run(records);
     break;
   }
 

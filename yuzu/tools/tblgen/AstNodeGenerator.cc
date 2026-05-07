@@ -18,6 +18,77 @@ namespace yuzu::tools {
 
 namespace {
 
+//===----------------------------------------------------------------------===//
+// Class definitions
+//===----------------------------------------------------------------------===//
+//
+// Each AST type is a POD-shaped view over `syntax::SyntaxNode`:
+//
+//   class Foo {
+//   public:
+//     explicit Foo(syntax::SyntaxNode n);
+//     [[nodiscard]] static bool canCast(SyntaxKind);
+//     [[nodiscard]] static std::optional<Foo> cast(syntax::SyntaxNode);
+//     ... accessor declarations ...
+//   private:
+//     syntax::SyntaxNode node;
+//   };
+//
+// SyntaxNode is itself a refcounted handle, so passing it by value is cheap
+// (one atomic refcount op, no heap allocation). `cast` returns the view by
+// value via `std::optional<T>` — no `unique_ptr`, no allocation.
+
+/// Variant `canCast` does a SyntaxKind range check using the
+/// `<V>_FIRST`/`<V>_LAST` sentinels emitted by `SyntaxKindGenerator`. No
+/// `std::variant` — discriminating between concrete subtypes is a separate
+/// `cast()` call to the concrete type.
+void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
+  const std::string name = variant->getName().str();
+  const llvm::StringRef summary = variant->getValueAsString("Summary");
+  const std::string sentinel = llvm::StringRef(name).upper();
+
+  if (!summary.empty()) {
+    fmt.linef("/// {0}", summary);
+  }
+  fmt.linef("class [[nodiscard]] {0} {{", name);
+  fmt.line("public:");
+  {
+    auto body = fmt.block();
+    fmt.linef("explicit {0}(syntax::SyntaxNode n) : node(std::move(n)) {{}}",
+              name);
+    fmt.line("");
+
+    fmt.line("[[nodiscard]] static bool canCast(SyntaxKind kind) {");
+    {
+      auto inner = fmt.block();
+      fmt.linef("return kind > SyntaxKind::{0}_FIRST "
+                "&& kind < SyntaxKind::{0}_LAST;",
+                sentinel);
+    }
+    fmt.line("}");
+    fmt.line("");
+
+    fmt.linef("[[nodiscard]] static std::optional<{0}> "
+              "cast(syntax::SyntaxNode n) {{",
+              name);
+    {
+      auto inner = fmt.block();
+      fmt.line("if (!canCast(static_cast<SyntaxKind>(n.getKind())))");
+      fmt.line("  return std::nullopt;");
+      fmt.linef("return {0}(std::move(n));", name);
+    }
+    fmt.line("}");
+  }
+  fmt.line("");
+  fmt.line("private:");
+  {
+    auto body = fmt.block();
+    fmt.line("syntax::SyntaxNode node;");
+  }
+  fmt.line("};");
+  fmt.line("");
+}
+
 void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   const std::string name = node->getName().str();
   const llvm::StringRef summary = node->getValueAsString("Summary");
@@ -25,62 +96,49 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   if (!summary.empty()) {
     fmt.linef("/// {0}", summary);
   }
-  
-  fmt.linef("class {0} final : public AstNode<{0}> {{", name);
+  fmt.linef("class [[nodiscard]] {0} {{", name);
+  fmt.line("public:");
   {
     auto body = fmt.block();
-    fmt.line("public:");
-    fmt.linef(
-        "explicit {0}(syntax::SyntaxNode node) : AstNode(std::move(node)) {{}",
-        name);
-    fmt.linef("{0}() = delete;", name);
+    fmt.linef("explicit {0}(syntax::SyntaxNode n) : node(std::move(n)) {{}}",
+              name);
     fmt.line("");
 
     fmt.linef("[[nodiscard]] static bool canCast(SyntaxKind kind) "
-              "{{ return kind == SyntaxKind::{0}; }",
+              "{{ return kind == SyntaxKind::{0}; }}",
               name);
+    fmt.line("");
     fmt.linef("[[nodiscard]] static std::optional<{0}> "
-              "cast(syntax::SyntaxNode node) {{",
+              "cast(syntax::SyntaxNode n) {{",
               name);
     {
-      auto cast = fmt.block();
-      fmt.line("if (canCast(static_cast<SyntaxKind>(node.getKind()))) {");
-      {
-        auto branch = fmt.block();
-        fmt.linef("return std::make_optional<{0}>(std::move(node));", name);
-      }
-      fmt.line("}");
-      fmt.line("return std::nullopt;");
+      auto inner = fmt.block();
+      fmt.line("if (!canCast(static_cast<SyntaxKind>(n.getKind())))");
+      fmt.line("  return std::nullopt;");
+      fmt.linef("return {0}(std::move(n));", name);
     }
     fmt.line("}");
 
-    const std::vector<NamedField> fields = parseFields(node);
-    if (!fields.empty()) {
-      fmt.line("");
-    }
-
-    // For each Child<T>, runtime `child<T>(node, n)` counts by type — so two
-    // `Child<Expr>:$lhs/$rhs` need n=0 and n=1 respectively. Track per-type
-    // counts here to pick the right `n`.
-    std::map<std::string, int> childCounts;
-    for (const NamedField &f : fields) {
+    // Accessor *declarations* only — definitions land at file scope after
+    // every class is complete (see emitAccessorDefs). This lets accessor
+    // signatures reference variant types declared anywhere above.
+    for (const NamedField &f : parseFields(node)) {
       const std::string accessor = "get" + capitalize(f.name);
       std::visit(
           [&](const auto &kind) {
             using T = std::decay_t<decltype(kind)>;
             if constexpr (std::is_same_v<T, Child>) {
-              const int n = childCounts[kind.typeName]++;
-              fmt.linef("[[nodiscard]] std::unique_ptr<{0}> {1}() const {{",
+              fmt.line("");
+              fmt.linef("[[nodiscard]] std::optional<{0}> {1}() const;",
                         kind.typeName, accessor);
-              {
-                auto inner = fmt.block();
-                fmt.linef("return child<{0}>(this->node, {1});",
-                          kind.typeName, n);
-              }
-              fmt.line("}");
+            } else if constexpr (std::is_same_v<T, Custom>) {
+              // `Custom<T>:$f` is a declaration-only accessor returning `T`.
+              // The implementation is hand-written elsewhere — generator
+              // doesn't know how to derive the value.
+              fmt.line("");
+              fmt.linef("[[nodiscard]] std::optional<{0}> {1}() const;",
+                        kind.typeName, accessor);
             } else {
-              // Native / Enum / Val don't have an accessor shape yet —
-              // adding one is a separate design conversation.
               llvm::PrintFatalError(
                   "yuzu-tblgen: AstNodeGenerator has no accessor emitter for "
                   "this Field kind yet");
@@ -89,79 +147,60 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
           f.kind);
     }
   }
+  fmt.line("");
+  fmt.line("private:");
+  {
+    auto body = fmt.block();
+    fmt.line("syntax::SyntaxNode node;");
+  }
   fmt.line("};");
   fmt.line("");
 }
 
-void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant,
-                      const std::vector<const llvm::Record *> &children) {
-  const std::string name = variant->getName().str();
-  const llvm::StringRef summary = variant->getValueAsString("Summary");
+void emitAccessorDefs(CodeFormatter &fmt, const llvm::Record *node) {
+  const std::string name = node->getName().str();
 
-  if (children.empty()) {
-    // `std::variant<>` is ill-formed. Emit a placeholder so a forward
-    // declaration backed by no concrete subtypes still resolves to a real
-    // type.
-    if (!summary.empty()) {
-      fmt.linef("/// {0}", summary);
-    }
-    fmt.line("/// (no concrete subtypes yet)");
-    fmt.linef("class {0} {{};", name);
-    fmt.line("");
-    return;
+  // Per-type counter for `childOfType<T>(node, n)` indexing — two
+  // `Child<Expr>:$lhs/$rhs` pick up n=0 and n=1 respectively.
+  std::map<std::string, int> childCounts;
+  for (const NamedField &f : parseFields(node)) {
+    const std::string accessor = "get" + capitalize(f.name);
+    std::visit(
+        [&](const auto &kind) {
+          using T = std::decay_t<decltype(kind)>;
+          if constexpr (std::is_same_v<T, Child>) {
+            const int n = childCounts[kind.typeName]++;
+            fmt.linef(
+                "inline std::optional<{0}> {1}::{2}() const {{",
+                kind.typeName, name, accessor);
+            {
+              auto body = fmt.block();
+              fmt.linef("return child<{0}>(node, {1});", kind.typeName, n);
+            }
+            fmt.line("}");
+            fmt.line("");
+          }
+        },
+        f.kind);
   }
+}
 
-  std::string list;
-  for (size_t i = 0; i < children.size(); ++i) {
-    if (i > 0)
-      list += ", ";
-    list += children[i]->getName().str();
-  }
-
-  if (!summary.empty()) {
-    fmt.linef("/// {0}", summary);
-  }
-  fmt.linef("class {0} : public std::variant<{1}> {{", name, list);
-  {
-    auto body = fmt.block();
-    fmt.line("public:");
-    fmt.linef("using std::variant<{0}>::variant;", list);
-    fmt.linef("{0}() = delete;", name);
-    fmt.line("");
-
-    std::string conds;
-    for (size_t i = 0; i < children.size(); ++i) {
-      if (i > 0)
-        conds += " || ";
-      conds += children[i]->getName().str() + "::canCast(kind)";
-    }
-    fmt.linef("[[nodiscard]] static bool canCast(SyntaxKind kind) "
-              "{{ return {0}; }",
-              conds);
-
-    fmt.linef("[[nodiscard]] static std::optional<{0}> "
-              "cast(syntax::SyntaxNode node) {{",
-              name);
+/// Emit each `Enum` def as a C++ `enum class`. Ordered before the struct
+/// definitions so `Custom<EnumDef>:$f` accessors can name the type.
+void emitEnums(CodeFormatter &fmt, const llvm::RecordKeeper &records) {
+  for (const llvm::Record *r : records.getAllDerivedDefinitions("Enum")) {
+    const Enum e = parseEnum(r);
+    const std::string name = r->getName().str();
+    fmt.linef("enum class [[nodiscard]] {0} : {1} {{", name, e.type);
     {
-      auto cast = fmt.block();
-      fmt.line(
-          "const SyntaxKind kind = static_cast<SyntaxKind>(node.getKind());");
-      for (const llvm::Record *c : children) {
-        const std::string cname = c->getName().str();
-        fmt.linef("if ({0}::canCast(kind)) {{", cname);
-        {
-          auto branch = fmt.block();
-          fmt.linef("return std::make_optional<{0}>({1}(std::move(node)));",
-                    name, cname);
-        }
-        fmt.line("}");
+      auto body = fmt.block();
+      for (const EnumCase &c : e.cases) {
+        fmt.linef("{0},", c.name);
       }
-      fmt.line("return std::nullopt;");
     }
-    fmt.line("}");
+    fmt.line("};");
+    fmt.line("");
   }
-  fmt.line("};");
-  fmt.line("");
 }
 
 } // namespace
@@ -177,28 +216,37 @@ void AstNodeGenerator::generate(const llvm::RecordKeeper &records) {
   fmt.linef("namespace {0} {{", ns);
   fmt.line("");
 
-  // Forward-declare every Variant so concrete Node accessor return types
-  // (`std::unique_ptr<Variant>`) compile before the Variant is fully defined.
-  for (const llvm::Record *v : variants) {
-    fmt.linef("class {0};", v->getName().str());
-  }
-  if (!variants.empty())
-    fmt.line("");
+  // Enums first — `Custom<EnumDef>:$f` accessors need them to be a complete
+  // type when the struct that owns them is parsed.
+  emitEnums(fmt, records);
 
-  // Concrete Nodes first — Variants below need them as complete types.
+  // Forward-declare every struct so accessor signatures can name them in
+  // either order.
+  for (const llvm::Record *v : variants) {
+    fmt.linef("struct {0};", v->getName().str());
+  }
+  for (const llvm::Record *n : nodes) {
+    fmt.linef("struct {0};", n->getName().str());
+  }
+  if (!variants.empty() || !nodes.empty()) {
+    fmt.line("");
+  }
+
+  // Variants first: their definitions don't reference any other AST type.
+  for (const llvm::Record *v : variants) {
+    emitVariantClass(fmt, v);
+  }
+
+  // Concrete nodes: accessor *declarations* may reference variant types,
+  // which are now complete.
   for (const llvm::Record *n : nodes) {
     emitNodeClass(fmt, n);
   }
 
-  // Variants aggregate their concrete children.
-  for (const llvm::Record *v : variants) {
-    std::vector<const llvm::Record *> children;
-    for (const llvm::Record *n : nodes) {
-      if (n->getValueAsDef("Parent") == v) {
-        children.push_back(n);
-      }
-    }
-    emitVariantClass(fmt, v, children);
+  // Out-of-line accessor definitions: every struct is complete by now, so
+  // `childOfType<Variant>(...)` instantiations have everything they need.
+  for (const llvm::Record *n : nodes) {
+    emitAccessorDefs(fmt, n);
   }
 
   fmt.linef("} // namespace {0}", ns);

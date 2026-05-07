@@ -1,12 +1,10 @@
 #ifndef YUZU_TOOLS_TBLGEN_TOKEN_KIND_GENERATOR_H
 #define YUZU_TOOLS_TBLGEN_TOKEN_KIND_GENERATOR_H
 
-#include "CodeFormatter.h"
 #include "CodeGenerator.h"
 
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/TableGen/Record.h>
-
-#include <utility>
 
 namespace yuzu::tools {
 
@@ -17,9 +15,9 @@ namespace yuzu::tools {
 /// `LexGrammar` def in scope.
 class TokenKindGenerator final : public CodeGenerator {
 public:
-  explicit TokenKindGenerator(CodeFormatter fmt)
-      : CodeGenerator(std::move(fmt)) {}
+  explicit TokenKindGenerator(llvm::raw_ostream &os) : CodeGenerator(os) {}
 
+protected:
   void generate(const llvm::RecordKeeper &records) override;
 };
 

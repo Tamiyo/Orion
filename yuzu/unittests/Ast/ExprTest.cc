@@ -1,4 +1,4 @@
-#include "yuzu/Ast/Expr.h"
+#include "yuzu/Ast/Ast.h"
 
 #include "yuzu/Ast/SyntaxKind.h"
 #include "yuzu/Syntax/Green/Green.h"

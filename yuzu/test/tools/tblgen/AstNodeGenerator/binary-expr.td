@@ -1,6 +1,6 @@
 // Two Child<T>:$ slots in the same Node should get sequential `n` values
-// when accessed via the same-typed indexing rule (lhs=0, rhs=1). Accessors
-// reach the inherited `node` member via `this->` for two-phase lookup.
+// when accessed via the same-typed indexing rule (lhs=0, rhs=1). Accessor
+// definitions land at file scope so they can see the variant type complete.
 //
 // RUN: %yuzu-tblgen -gen-ast-node-decls -I %td-include %s | %FileCheck %s
 
@@ -16,14 +16,24 @@ def TestBinary : Node<TestExpr> {
   let Fields = (ins Child<TestExpr>:$lhs, Child<TestExpr>:$rhs);
 }
 
-// CHECK: namespace test::ast
-// CHECK-LABEL: class TestBinary final : public AstNode<TestBinary>
-// CHECK:       explicit TestBinary(syntax::SyntaxNode node)
-// CHECK:       TestBinary() = delete;
+// Forward decls and class shape.
+// CHECK:       class TestExpr;
+// CHECK:       class TestBinary;
+
+// CHECK-LABEL: class {{.*}}TestBinary {
+// CHECK:       public:
+// CHECK:       explicit TestBinary(syntax::SyntaxNode n)
 // CHECK:       static bool canCast(SyntaxKind kind)
 // CHECK:       return kind == SyntaxKind::TestBinary;
-// CHECK:       static std::optional<TestBinary> cast(syntax::SyntaxNode node)
-// CHECK:       std::unique_ptr<TestExpr> getLhs() const
-// CHECK:       return child<TestExpr>(this->node, 0);
-// CHECK:       std::unique_ptr<TestExpr> getRhs() const
-// CHECK:       return child<TestExpr>(this->node, 1);
+// CHECK:       static std::optional<TestBinary> cast(syntax::SyntaxNode n)
+// CHECK:       std::optional<TestExpr> getLhs() const;
+// CHECK:       std::optional<TestExpr> getRhs() const;
+// CHECK:       private:
+// CHECK:       syntax::SyntaxNode node;
+// CHECK:       };
+
+// Out-of-line accessor definitions follow.
+// CHECK:       inline std::optional<TestExpr> TestBinary::getLhs() const
+// CHECK:       return child<TestExpr>(node, 0);
+// CHECK:       inline std::optional<TestExpr> TestBinary::getRhs() const
+// CHECK:       return child<TestExpr>(node, 1);

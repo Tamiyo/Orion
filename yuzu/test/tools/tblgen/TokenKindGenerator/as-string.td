@@ -13,6 +13,9 @@ def TestLex : LexGrammar {
 def TestPlus : Token<["+"]>;
 
 // CHECK-LABEL: inline std::string asString(std::optional<TokenKind> kind)
-// CHECK:       if (!kind.has_value()) return "None";
-// CHECK:       case TokenKind::TestPlus: return "TestPlus";
-// CHECK:       case TokenKind::Error: return "Error";
+// CHECK:       if (!kind.has_value())
+// CHECK-NEXT:    return "None";
+// CHECK:       case TokenKind::TestPlus:
+// CHECK-NEXT:    return "TestPlus";
+// CHECK:       case TokenKind::Error:
+// CHECK-NEXT:    return "Error";

@@ -50,10 +50,15 @@ struct Val {
   std::string typeName;
 };
 
+/// Mirror of `class Custom<Def type> : Field`.
+struct Custom {
+  std::string typeName;
+};
+
 /// Tagged union over every `Field` subclass the codegen knows how to emit.
 /// Adding a new `Field` subclass means: declare a struct, plumb it through
 /// `FieldKind`, and extend `parseFieldKind`.
-using FieldKind = std::variant<Native, Enum, Child, Val>;
+using FieldKind = std::variant<Native, Enum, Child, Val, Custom>;
 
 /// A `Field` paired with the `$name` it was bound to inside a `Node`'s
 /// `Fields` dag. The name (capitalized) becomes the accessor suffix.
@@ -106,16 +111,34 @@ inline Val parseVal(const llvm::Record *record) {
   };
 }
 
+inline Custom parseCustom(const llvm::Record *record) {
+  return Custom{
+      .typeName = record->getValueAsDef("Type")->getName().str(),
+  };
+}
+
 /// Dispatch a generic `Field`-derived record to the matching parser.
 inline FieldKind parseFieldKind(const llvm::Record *record) {
-  if (record->isSubClassOf("Native"))
+  if (record->isSubClassOf("Native")) {
     return parseNative(record);
-  if (record->isSubClassOf("Enum"))
+  }
+
+  if (record->isSubClassOf("Enum")) {
     return parseEnum(record);
-  if (record->isSubClassOf("Child"))
+  }
+
+  if (record->isSubClassOf("Child")) {
     return parseChild(record);
-  if (record->isSubClassOf("Val"))
+  }
+
+  if (record->isSubClassOf("Val")) {
     return parseVal(record);
+  }
+
+  if (record->isSubClassOf("Custom")) {
+    return parseCustom(record);
+  }
+
   llvm::PrintFatalError(record->getLoc(),
                         "yuzu-tblgen: unknown Field subclass: " +
                             record->getName().str());

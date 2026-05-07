@@ -1,6 +1,4 @@
-// The C++ namespace comes from the unique Base def's `Namespace` field —
-// not hardcoded by the generator. Setting a different value here should
-// flow through to the namespace block.
+// The C++ namespace comes from the unique Base def's `Namespace` field.
 //
 // RUN: %yuzu-tblgen -gen-ast-node-decls -I %td-include %s | %FileCheck %s
 
@@ -15,5 +13,5 @@ def TestNode : Node<TestExpr>;
 
 // CHECK:      namespace custom::pkg {
 // CHECK:      class TestExpr;
-// CHECK:      class TestNode final : public AstNode<TestNode>
+// CHECK:      class TestNode;
 // CHECK:      } // namespace custom::pkg

@@ -1,6 +1,6 @@
-// A Variant with no concrete children would be `std::variant<>` which is
-// ill-formed. The generator instead emits a placeholder empty class so the
-// forward declaration still resolves to a real type.
+// A Variant with no concrete children is no longer a special case under the
+// view-struct shape — it's just a normal struct whose canCast range covers
+// only the variant's own SyntaxKind (between FIRST/LAST sentinels).
 //
 // RUN: %yuzu-tblgen -gen-ast-node-decls -I %td-include %s | %FileCheck %s
 
@@ -13,8 +13,15 @@ def TestRoot : Base {
 def TestEmpty : Variant<TestRoot>;
 
 // CHECK:       class TestEmpty;
-// CHECK:       (no concrete subtypes yet)
-// CHECK:       class TestEmpty {};
 
-// And no `std::variant` should appear for TestEmpty.
-// CHECK-NOT:   std::variant<>
+// CHECK-LABEL: class {{.*}}TestEmpty {
+// CHECK:       public:
+// CHECK:       explicit TestEmpty(syntax::SyntaxNode n)
+// CHECK:       static bool canCast(SyntaxKind kind)
+// CHECK:       return kind > SyntaxKind::TESTEMPTY_FIRST &&
+// CHECK-NEXT:  kind < SyntaxKind::TESTEMPTY_LAST;
+// CHECK:       private:
+// CHECK:       syntax::SyntaxNode node;
+// CHECK:       };
+
+// CHECK-NOT:   no concrete subtypes

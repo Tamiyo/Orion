@@ -1,12 +1,10 @@
 #ifndef YUZU_TOOLS_TBLGEN_AST_NODE_GENERATOR_H
 #define YUZU_TOOLS_TBLGEN_AST_NODE_GENERATOR_H
 
-#include "CodeFormatter.h"
 #include "CodeGenerator.h"
 
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/TableGen/Record.h>
-
-#include <utility>
 
 namespace yuzu::tools {
 
@@ -16,9 +14,9 @@ namespace yuzu::tools {
 /// aggregates over their concrete children.
 class AstNodeGenerator final : public CodeGenerator {
 public:
-  explicit AstNodeGenerator(CodeFormatter fmt)
-      : CodeGenerator(std::move(fmt)) {}
+  explicit AstNodeGenerator(llvm::raw_ostream &os) : CodeGenerator(os) {}
 
+protected:
   void generate(const llvm::RecordKeeper &records) override;
 };
 

@@ -1,12 +1,10 @@
 #ifndef YUZU_TOOLS_TBLGEN_SYNTAX_KIND_GENERATOR_H
 #define YUZU_TOOLS_TBLGEN_SYNTAX_KIND_GENERATOR_H
 
-#include "CodeFormatter.h"
 #include "CodeGenerator.h"
 
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/TableGen/Record.h>
-
-#include <utility>
 
 namespace yuzu::tools {
 
@@ -18,9 +16,9 @@ namespace yuzu::tools {
 /// the namespace declared on the AST root `Base` def in scope.
 class SyntaxKindGenerator final : public CodeGenerator {
 public:
-  explicit SyntaxKindGenerator(CodeFormatter fmt)
-      : CodeGenerator(std::move(fmt)) {}
+  explicit SyntaxKindGenerator(llvm::raw_ostream &os) : CodeGenerator(os) {}
 
+protected:
   void generate(const llvm::RecordKeeper &records) override;
 };
 
