@@ -11,14 +11,14 @@
 namespace yuzu::ast {
 
 /// \brief Find the n-th child of the given syntax node whose kind passes
-/// `T::canCast`, and return a typed view of it.
+/// `T::isA`, and return a typed view of it.
 ///
 /// AST types are POD-shaped views over `syntax::SyntaxNode` (which is itself
 /// a refcounted handle, cheap to copy). We return `std::optional<T>` by
 /// value rather than `std::unique_ptr<T>` — no heap allocation per call.
 ///
 /// \tparam T The AST view type to search for (must expose
-///           `static bool canCast(SyntaxKind)` and be aggregate-initializable
+///           `static bool isA(SyntaxKind)` and be aggregate-initializable
 ///           from a `syntax::SyntaxNode`).
 /// \param parent The syntax node whose children to search.
 /// \param n The zero-based index among matching children (default: 0).
@@ -28,7 +28,7 @@ template <typename T>
 child(const syntax::SyntaxNode &parent, std::size_t n = 0) {
   std::size_t count = 0;
   for (const auto &c : parent.getChildren()) {
-    if (!T::canCast(static_cast<SyntaxKind>(c.getKind()))) {
+    if (!T::isA(static_cast<SyntaxKind>(c.getKind()))) {
       continue;
     }
     if (count == n) {

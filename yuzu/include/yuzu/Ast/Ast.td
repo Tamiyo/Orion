@@ -29,9 +29,10 @@ def BinOp : Enum<"uint8_t"> {
 // Root
 //===----------------------------------------------------------------------===//
 
-/// Root of the AST hierarchy. Carries the C++ namespace every emitted class
-/// is wrapped in. Not emitted as C++ — the codegen reads `Namespace` off it
-/// and ignores the def itself.
+/// Root of the AST hierarchy. Emitted as a base class with a `protected`
+/// constructor (so the root can't be constructed directly) — every concrete
+/// AST class transitively inherits from it. `Namespace` is the C++
+/// namespace the codegen wraps emitted types in.
 def AstNode : Base {
     let Namespace = "yuzu::ast";
 }
