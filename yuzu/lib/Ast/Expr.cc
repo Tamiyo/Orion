@@ -1,7 +1,5 @@
 #include "yuzu/Ast/Ast.h"
 
-#include "yuzu/Ast/SyntaxKind.h"
-
 #include <optional>
 
 namespace yuzu::ast {

@@ -22,21 +22,21 @@ namespace {
 // Class definitions
 //===----------------------------------------------------------------------===//
 //
-// Every emitted AST type is a POD-shaped view over `syntax::SyntaxNode`,
+// Every emitted AST type is a POD-shaped view over `SyntaxNode`,
 // rooted at the grammar's `Base` def (e.g. `AstNode`):
 //
 //   class AstNode {
 //   public:
-//     explicit AstNode(syntax::SyntaxNode n);
+//     explicit AstNode(SyntaxNode node);
 //   protected:
-//     syntax::SyntaxNode node;
+//     SyntaxNode node;
 //   };
 //
 //   class Foo : public AstNode {
 //   public:
 //     using AstNode::AstNode;
 //     [[nodiscard]] static bool isA(SyntaxKind);
-//     [[nodiscard]] static std::optional<Foo> cast(syntax::SyntaxNode);
+//     [[nodiscard]] static std::optional<Foo> cast(SyntaxNode);
 //     ... accessor declarations ...
 //   };
 //
@@ -88,10 +88,10 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   fmt.line("protected:");
   {
     auto body = fmt.block();
-    fmt.linef("explicit {0}(syntax::SyntaxNode n) : node(std::move(n)) {{}",
+    fmt.linef("explicit {0}(SyntaxNode node) : node(std::move(node)) {{}",
               name);
     fmt.line("");
-    fmt.line("syntax::SyntaxNode node;");
+    fmt.line("SyntaxNode node;");
   }
   fmt.line("};");
   fmt.line("");
@@ -116,7 +116,7 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
   fmt.line("public:");
   {
     auto body = fmt.block();
-    fmt.linef("explicit {0}(syntax::SyntaxNode n) : {1}(std::move(n)) {{}",
+    fmt.linef("explicit {0}(SyntaxNode node) : {1}(std::move(node)) {{}",
               name, parentName);
     fmt.line("");
 
@@ -131,14 +131,14 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
     fmt.line("");
 
     fmt.linef("[[nodiscard]] static std::optional<{0}> "
-              "cast(syntax::SyntaxNode n) {{",
+              "cast(SyntaxNode node) {{",
               name);
     {
       auto inner = fmt.block();
-      fmt.line("if (!isA(static_cast<SyntaxKind>(n.getKind()))) {");
+      fmt.line("if (!isA(static_cast<SyntaxKind>(node.getKind()))) {");
       fmt.line("  return std::nullopt;");
       fmt.line("}");
-      fmt.linef("return {0}(std::move(n));", name);
+      fmt.linef("return {0}(std::move(node));", name);
     }
     fmt.line("}");
   }
@@ -159,7 +159,7 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   fmt.line("public:");
   {
     auto body = fmt.block();
-    fmt.linef("explicit {0}(syntax::SyntaxNode n) : {1}(std::move(n)) {{}",
+    fmt.linef("explicit {0}(SyntaxNode node) : {1}(std::move(node)) {{}",
               name, parentName);
     fmt.line("");
 
@@ -168,14 +168,14 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
               name);
     fmt.line("");
     fmt.linef("[[nodiscard]] static std::optional<{0}> "
-              "cast(syntax::SyntaxNode n) {{",
+              "cast(SyntaxNode node) {{",
               name);
     {
       auto inner = fmt.block();
-      fmt.line("if (!isA(static_cast<SyntaxKind>(n.getKind()))) {");
+      fmt.line("if (!isA(static_cast<SyntaxKind>(node.getKind()))) {");
       fmt.line("  return std::nullopt;");
       fmt.line("}");
-      fmt.linef("return {0}(std::move(n));", name);
+      fmt.linef("return {0}(std::move(node));", name);
     }
     fmt.line("}");
 

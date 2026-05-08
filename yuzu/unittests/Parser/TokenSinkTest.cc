@@ -1,6 +1,6 @@
 #include "yuzu/Parser/TokenSink.h"
 
-#include "yuzu/Ast/SyntaxKind.h"
+#include "yuzu/Ast/Ast.h"
 #include "yuzu/Lexer/Lexer.h"
 #include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/Token.h"
@@ -8,7 +8,7 @@
 #include "yuzu/Parser/Event.h"
 #include "yuzu/Parser/ParseError.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <optional>
 #include <string>

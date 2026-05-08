@@ -2,107 +2,121 @@
 #define YUZU_AST_AST_ITERATOR_H
 
 #include "yuzu/Ast/Ast.h"
-#include "yuzu/Syntax/SyntaxIterator.h"
-#include "yuzu/lib/Ast/Ast.h"
+#include "yuzu/Syntax/Api.h"
 
 #include <cstddef>
 #include <iterator>
-#include <optional>
+#include <type_traits>
 #include <utility>
 
 namespace yuzu::ast {
-template <typename T> class [[nodiscard]] AstIterator final {
-  static_assert(IsAstSubclass<T>::value,
-                "T must be a subclass of AstNode<T> for some type T");
+// Required aliases for TableGen.
+using SyntaxIterator = yuzu::syntax::api::SyntaxIterator<SyntaxKind>;
+
+using SyntaxIteratorWithTokens =
+    yuzu::syntax::api::SyntaxIteratorWithTokens<SyntaxKind>;
+
+using SyntaxChildren = yuzu::syntax::api::SyntaxChildren<SyntaxKind>;
+
+using SyntaxChildrenWithTokens =
+    yuzu::syntax::api::SyntaxChildrenWithTokens<SyntaxKind>;
+
+/// \brief Forward-only iterator over a SyntaxNode's child nodes, yielding
+/// only those whose kind passes `Kind::isA`.
+///
+/// Wraps SyntaxChildren::const_iterator and skips children whose syntax
+/// kind does not pass `Kind::isA`. Forward-only and by-value because the
+/// underlying api iterator is forward-only (see syntax::api::SyntaxIterator).
+template <typename Kind> class [[nodiscard]] AstIterator final {
+  static_assert(std::is_base_of_v<AstNode, Kind>,
+                "Kind must derive from yuzu::ast::AstNode");
 
 public:
-  using iterator_category = std::bidirectional_iterator_tag;
+  using iterator_category = std::input_iterator_tag;
   using difference_type = std::ptrdiff_t;
-  using value_type = const T;
-  using pointer = value_type *;
-  using reference = value_type &;
+  using value_type = Kind;
+  using pointer = void;
+  using reference = Kind;
 
-  explicit AstIterator(syntax::SyntaxChildren::const_iterator it)
-      : it(std::move(it)) {}
+  /// \brief Construct an iterator at `it`, bounded by `end`.
+  ///
+  /// Both endpoints are required because the iterator advances past
+  /// non-matching children on construction (and on each ++); knowing the
+  /// end sentinel lets it stop without dereferencing past it.
+  ///
+  /// \param it Starting child position.
+  /// \param end End sentinel from the same SyntaxChildren range.
+  explicit AstIterator(SyntaxChildren::const_iterator it,
+                       SyntaxChildren::const_iterator end)
+      : it(std::move(it)), end(std::move(end)) {
+    skipUntilIsA();
+  }
 
   AstIterator() = delete;
 
-  reference operator*() const { return *it; }
+  /// \brief Materialize the current child as Kind.
+  /// \pre This iterator is not at end.
+  Kind operator*() const { return Kind(*it); }
 
-  pointer operator->() const { return &it; }
-
+  /// \brief Pre-increment: advance past the current child and skip ahead
+  /// to the next one whose kind passes Kind::isA.
   AstIterator &operator++() {
-    const auto end = syntax::SyntaxIterator(std::nullopt);
-    while (++it != end) {
-      const auto castNode = T::cast(it->getKind());
-      if (castNode.has_value()) {
-        break;
-      }
-    }
-
+    ++it;
+    skipUntilIsA();
     return *this;
   }
 
+  /// \brief Post-increment.
   AstIterator operator++(int) {
     AstIterator tmp = *this;
     ++(*this);
     return tmp;
   }
 
-  AstIterator &operator--() {
-    const auto end = syntax::SyntaxIterator(std::nullopt);
-    while (--it != end) {
-      const auto castNode = AstNode<T>::cast(it->getKind());
-      if (castNode.has_value()) {
-        break;
-      }
-    }
-
-    return *this;
-  }
-
-  AstIterator operator--(int) {
-    AstIterator tmp = *this;
-    --(*this);
-    return tmp;
-  }
-
+  /// \brief Equality comparison.
   friend bool operator==(const AstIterator &a, const AstIterator &b) {
     return a.it == b.it;
   }
 
+  /// \brief Inequality comparison.
   friend bool operator!=(const AstIterator &a, const AstIterator &b) {
     return !(a == b);
   }
 
 private:
-  syntax::SyntaxChildren::const_iterator it;
+  /// Advance `it` until either it reaches `end` or the current child's
+  /// kind matches Kind::isA.
+  void skipUntilIsA() {
+    while (it != end && !Kind::isA((*it).getKind())) {
+      ++it;
+    }
+  }
+
+  SyntaxChildren::const_iterator it;
+  SyntaxChildren::const_iterator end;
 };
 
-template <typename N> class [[nodiscard]] AstChildren final {
+/// \brief Range over a SyntaxNode's children that cast to Kind.
+template <typename Kind> class [[nodiscard]] AstChildren final {
 public:
-  using const_iterator = AstIterator<N>;
-  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using const_iterator = AstIterator<Kind>;
   using value_type = typename const_iterator::value_type;
 
-  explicit AstChildren(syntax::SyntaxChildren children) : children(children) {}
+  explicit AstChildren(SyntaxChildren children)
+      : children(std::move(children)) {}
 
   AstChildren() = delete;
 
-  const_iterator begin() const { return const_iterator(children.begin()); }
-
-  const_iterator end() const { return const_iterator(std::nullopt); }
-
-  const_reverse_iterator rbegin() const {
-    return const_reverse_iterator(children.rbegin());
+  const_iterator begin() const {
+    return const_iterator(children.begin(), children.end());
   }
 
-  const_reverse_iterator rend() const {
-    return const_reverse_iterator(const_iterator(std::nullopt));
+  const_iterator end() const {
+    return const_iterator(children.end(), children.end());
   }
 
 private:
-  const syntax::SyntaxChildren children;
+  SyntaxChildren children;
 };
 } // namespace yuzu::ast
 

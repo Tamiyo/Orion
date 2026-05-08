@@ -17,8 +17,8 @@ def TestBeta  : Node<TestExpr>;
 
 // CHECK-LABEL: class {{.*}}TestRoot {
 // CHECK:       protected:
-// CHECK:       explicit TestRoot(syntax::SyntaxNode n) : node(std::move(n)) {}
-// CHECK:       syntax::SyntaxNode node;
+// CHECK:       explicit TestRoot(SyntaxNode node) : node(std::move(node)) {}
+// CHECK:       SyntaxNode node;
 
 // CHECK:       class TestExpr;
 // CHECK:       class TestAlpha;
@@ -26,12 +26,12 @@ def TestBeta  : Node<TestExpr>;
 
 // CHECK-LABEL: class {{.*}}TestExpr : public TestRoot {
 // CHECK:       public:
-// CHECK:       explicit TestExpr(syntax::SyntaxNode n) : TestRoot(std::move(n)) {}
+// CHECK:       explicit TestExpr(SyntaxNode node) : TestRoot(std::move(node)) {}
 // CHECK:       static bool isA(SyntaxKind kind)
 // CHECK:       return kind > SyntaxKind::TESTEXPR_FIRST &&
 // CHECK-NEXT:  kind < SyntaxKind::TESTEXPR_LAST;
-// CHECK:       static std::optional<TestExpr> cast(syntax::SyntaxNode n)
-// CHECK:       return TestExpr(std::move(n));
+// CHECK:       static std::optional<TestExpr> cast(SyntaxNode node)
+// CHECK:       return TestExpr(std::move(node));
 
 // CHECK-LABEL: class {{.*}}TestAlpha : public TestExpr {
 // CHECK-LABEL: class {{.*}}TestBeta : public TestExpr {

@@ -3,7 +3,7 @@
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Green/GreenIterator.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <cstddef>
 #include <string>

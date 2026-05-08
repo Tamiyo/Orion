@@ -1,10 +1,11 @@
 #include "yuzu/Parser/TokenSource.h"
+
 #include "yuzu/Lexer/Lexer.h"
 #include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/Token.h"
 #include "yuzu/Lexer/TokenKind.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <optional>
 #include <string>

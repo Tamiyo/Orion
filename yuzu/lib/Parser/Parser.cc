@@ -1,6 +1,6 @@
 #include "yuzu/Parser/Parser.h"
 
-#include "yuzu/Ast/SyntaxKind.h"
+#include "yuzu/Ast/Ast.h"
 #include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/Token.h"
 #include "yuzu/Lexer/TokenKind.h"

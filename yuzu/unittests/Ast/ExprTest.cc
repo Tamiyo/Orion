@@ -1,10 +1,8 @@
 #include "yuzu/Ast/Ast.h"
 
-#include "yuzu/Ast/SyntaxKind.h"
 #include "yuzu/Syntax/Green/Green.h"
-#include "yuzu/Syntax/Syntax.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <cstdint>
 #include <optional>
@@ -13,9 +11,9 @@
 namespace {
 using yuzu::ast::BinaryExpr;
 using yuzu::ast::SyntaxKind;
+using yuzu::ast::SyntaxNode;
 using yuzu::syntax::GreenElement;
 using yuzu::syntax::GreenNode;
-using yuzu::syntax::SyntaxNode;
 
 TEST(ExprTest, CastNoChildren) {
   SyntaxNode syntax = SyntaxNode::createRoot(

@@ -1,10 +1,13 @@
-add_yuzu_unittest(SyntaxTest                   SyntaxTest.cc)
-add_yuzu_unittest(SyntaxChildrenTest           SyntaxChildrenTest.cc)
-add_yuzu_unittest(SyntaxChildrenWithTokensTest SyntaxChildrenWithTokensTest.cc)
-add_yuzu_unittest(SyntaxMemoryTest             SyntaxMemoryTest.cc)
-add_yuzu_unittest(GreenBuilderTest             Green/GreenBuilderTest.cc)
-add_yuzu_unittest(GreenCacheTest               Green/GreenCacheTest.cc)
-add_yuzu_unittest(GreenChildrenTest            Green/GreenChildrenTest.cc)
-add_yuzu_unittest(GreenElementTest             Green/GreenElementTest.cc)
-add_yuzu_unittest(GreenNodeTest                Green/GreenNodeTest.cc)
-add_yuzu_unittest(GreenTokenTest               Green/GreenTokenTest.cc)
+add_yuzu_unittest(SyntaxTests
+  ApiTest.cc
+  SyntaxChildrenTest.cc
+  SyntaxChildrenWithTokensTest.cc
+  SyntaxMemoryTest.cc
+  SyntaxTest.cc
+  Green/GreenBuilderTest.cc
+  Green/GreenCacheTest.cc
+  Green/GreenChildrenTest.cc
+  Green/GreenElementTest.cc
+  Green/GreenNodeTest.cc
+  Green/GreenTokenTest.cc
+)

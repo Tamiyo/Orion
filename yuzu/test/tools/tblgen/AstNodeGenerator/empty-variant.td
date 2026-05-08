@@ -14,14 +14,14 @@ def TestEmpty : Variant<TestRoot>;
 
 // CHECK-LABEL: class {{.*}}TestRoot {
 // CHECK:       protected:
-// CHECK:       explicit TestRoot(syntax::SyntaxNode n) : node(std::move(n)) {}
-// CHECK:       syntax::SyntaxNode node;
+// CHECK:       explicit TestRoot(SyntaxNode node) : node(std::move(node)) {}
+// CHECK:       SyntaxNode node;
 
 // CHECK:       class TestEmpty;
 
 // CHECK-LABEL: class {{.*}}TestEmpty : public TestRoot {
 // CHECK:       public:
-// CHECK:       explicit TestEmpty(syntax::SyntaxNode n) : TestRoot(std::move(n)) {}
+// CHECK:       explicit TestEmpty(SyntaxNode node) : TestRoot(std::move(node)) {}
 // CHECK:       static bool isA(SyntaxKind kind)
 // CHECK:       return kind > SyntaxKind::TESTEMPTY_FIRST &&
 // CHECK-NEXT:  kind < SyntaxKind::TESTEMPTY_LAST;

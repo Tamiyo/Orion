@@ -23,10 +23,10 @@ def TestBinary : Node<TestExpr> {
 
 // CHECK-LABEL: class {{.*}}TestBinary : public TestExpr {
 // CHECK:       public:
-// CHECK:       explicit TestBinary(syntax::SyntaxNode n) : TestExpr(std::move(n)) {}
+// CHECK:       explicit TestBinary(SyntaxNode node) : TestExpr(std::move(node)) {}
 // CHECK:       static bool isA(SyntaxKind kind)
 // CHECK:       return kind == SyntaxKind::TestBinary;
-// CHECK:       static std::optional<TestBinary> cast(syntax::SyntaxNode n)
+// CHECK:       static std::optional<TestBinary> cast(SyntaxNode node)
 // CHECK:       std::optional<TestExpr> getLhs() const {
 // CHECK-NEXT:  return child<TestExpr>(node, 0);
 // CHECK:       std::optional<TestExpr> getRhs() const {

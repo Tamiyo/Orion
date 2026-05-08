@@ -1,7 +1,7 @@
 #ifndef YUZU_PARSER_PARSER_H
 #define YUZU_PARSER_PARSER_H
 
-#include "yuzu/Ast/SyntaxKind.h"
+#include "yuzu/Ast/Ast.h"
 #include "yuzu/Lexer/Token.h"
 #include "yuzu/Lexer/TokenKind.h"
 #include "yuzu/Parser/Event.h"

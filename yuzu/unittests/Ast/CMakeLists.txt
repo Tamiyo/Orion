@@ -1,1 +1,4 @@
-add_yuzu_unittest(ExprTest ExprTest.cc)
+add_yuzu_unittest(AstTests
+  AstIteratorTest.cc
+  ExprTest.cc
+)

@@ -1,7 +1,7 @@
 #ifndef YUZU_PARSER_EVENT_H
 #define YUZU_PARSER_EVENT_H
 
-#include "yuzu/Ast/SyntaxKind.h"
+#include "yuzu/Ast/Ast.h"
 #include "yuzu/Parser/ParseError.h"
 
 #include <cstddef>
