@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -19,23 +20,29 @@ constexpr unsigned int hashConstant = 0x9e3779b9;
 // ---------------------- Tokens -----------------------
 
 GreenCacheEntry GreenCache::getToken(const SyntaxKind kind,
-                                     const std::u32string_view &source) {
+                                     std::u32string_view source) {
   const size_t hash = hashToken(kind, source);
 
-  const auto it = tokens.find(hash);
-  if (it != tokens.end()) {
-    return GreenCacheEntry{.hash = hash, .element = it->second};
+  // Walk every entry in the bucket and verify structural equality. Without
+  // this check a hash collision would return the wrong cached token, and
+  // because we use a multimap rather than unordered_map a collision never
+  // causes a fresh token to be silently dropped.
+  const auto range = tokens.equal_range(hash);
+  for (auto it = range.first; it != range.second; ++it) {
+    const GreenToken *cached = it->second.getIfToken();
+    if (cached != nullptr && cached->getKind() == kind &&
+        cached->getSource() == source) {
+      return GreenCacheEntry{.hash = hash, .element = it->second};
+    }
   }
 
-  const auto token = GreenToken(kind, std::move(source));
-
-  tokens.emplace(hash, std::move(token));
-
-  return GreenCacheEntry{.hash = hash, .element = tokens.at(hash)};
+  const auto inserted =
+      tokens.emplace(hash, GreenToken(kind, std::u32string(source)));
+  return GreenCacheEntry{.hash = hash, .element = inserted->second};
 }
 
 size_t GreenCache::hashToken(const SyntaxKind kind,
-                             const std::u32string_view &source) const {
+                             std::u32string_view source) const {
   size_t hash = std::hash<uint16_t>{}(kind);
   hash ^= std::hash<std::u32string_view>{}(source) + hashConstant +
           (hash << 6) + (hash >> 2);
@@ -56,38 +63,39 @@ GreenCacheEntry GreenCache::getNode(const SyntaxKind kind,
 
   const size_t hash = hashNode(kind, *children, firstChild);
 
-  const auto it = nodes.find(hash);
-  if (it != nodes.end()) {
-    const auto &cachedElement = it->second;
-
-    std::vector<GreenElement> entryElements;
-    entryElements.reserve(childrenSize);
-
-    for (size_t i = firstChild; i < children->size(); ++i) {
-      entryElements.emplace_back(std::move(children->at(i).element));
+  // Look for a structurally-equal node in the bucket. We deliberately do NOT
+  // move elements out of `children` during comparison: if the bucket walk
+  // ends without a hit we need the children intact to hand off to
+  // buildNode(). Comparing by reference against `children->at(i).element`
+  // keeps them valid.
+  const auto range = nodes.equal_range(hash);
+  for (auto it = range.first; it != range.second; ++it) {
+    const GreenNode *entryNode = it->second.getIfNode();
+    if (entryNode == nullptr || entryNode->getKind() != kind ||
+        entryNode->getNumChildren() != childrenSize) {
+      continue;
     }
 
-    if (const GreenNode *entryNode = cachedElement.getIfNode()) {
-      const bool isSameKinds = entryNode->getKind() == kind;
+    const GreenChildren cachedChildren = entryNode->getChildren();
+    const bool sameChildren = std::equal(
+        cachedChildren.begin(), cachedChildren.end(),
+        children->begin() + firstChild, children->end(),
+        [](const GreenChild &cached, const GreenCacheEntry &entry) {
+          return cached.element == entry.element;
+        });
 
-      const bool isSameChildren = std::equal(
-          entryNode->getChildren().begin(), entryNode->getChildren().end(),
-          entryElements.begin(), entryElements.end(),
-          [](const GreenChild &child, const GreenElement &element) {
-            return child.element == element;
-          });
-
-      if (isSameKinds && isSameChildren) {
-        children->erase(children->begin() + firstChild, children->end());
-        return GreenCacheEntry{hash, cachedElement};
-      }
+    if (sameChildren) {
+      // Release the now-consumed children and return the cached node.
+      children->erase(children->begin() + firstChild, children->end());
+      return GreenCacheEntry{hash, it->second};
     }
   }
 
+  // No cached match. buildNode moves the children out and erases them from
+  // the builder's vector.
   const GreenNode node = buildNode(kind, children, firstChild);
-  nodes.emplace(hash, std::move(node));
-
-  return GreenCacheEntry{hash, nodes.at(hash)};
+  const auto inserted = nodes.emplace(hash, GreenElement(node));
+  return GreenCacheEntry{hash, inserted->second};
 }
 
 size_t GreenCache::hashNode(const SyntaxKind kind,

@@ -155,7 +155,7 @@ std::optional<SyntaxElement> SyntaxData::getPrevSiblingOrToken() const {
 
   const auto &element = it->element;
   const size_t siblingOffset = parent->getOffset() + it->relativeOffset;
-  const size_t siblingIndex = index + 1;
+  const size_t siblingIndex = index - 1;
 
   if (std::holds_alternative<GreenNode>(element)) {
     auto node = SyntaxNode(siblingOffset, siblingIndex, parent,

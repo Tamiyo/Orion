@@ -24,7 +24,7 @@ public:
   /// \brief Construct a lexer for the given source text.
   ///
   /// \param source A view of the UTF-32 encoded source text to tokenize.
-  explicit Lexer(const std::u32string_view &source)
+  explicit Lexer(std::u32string_view source)
       : source(std::move(source)), current(source.data()) {}
 
   /// \brief Tokenize the entire source text.

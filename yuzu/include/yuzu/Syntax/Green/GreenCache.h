@@ -33,6 +33,11 @@ struct [[nodiscard]] GreenCacheEntry {
 /// The cache uses size limits to control which nodes are cached. Nodes with
 /// more children than the configured maximum are created but not cached,
 /// trading some memory savings for construction speed.
+///
+/// Both caches are keyed on the element's hash. Because two structurally
+/// distinct elements may hash to the same value, we use multimaps and verify
+/// structural equality on lookup so collisions do not cause silent misses or
+/// return the wrong cached element.
 class [[nodiscard]] GreenCache final {
 public:
   /// \brief Construct a GreenCache with specified size limit.
@@ -70,7 +75,7 @@ public:
   /// \param source The source text content of the token.
   /// \return A GreenCacheEntry containing the token and its hash.
   GreenCacheEntry getToken(const SyntaxKind kind,
-                           const std::u32string_view &source);
+                           std::u32string_view source);
 
   /// \brief Get the number of cached nodes.
   ///
@@ -102,7 +107,7 @@ private:
   /// \param source The source text content of the token.
   /// \return The computed hash value.
   [[nodiscard]] size_t hashToken(const SyntaxKind kind,
-                                 const std::u32string_view &source) const;
+                                 std::u32string_view source) const;
 
   /// \brief Build a new GreenNode from child entries.
   ///
@@ -120,13 +125,14 @@ private:
   /// Maximum number of children a node can have to be cached.
   const size_t maxCachedNodeSize;
 
-  /// Cache of deduplicated nodes, keyed by structural hash.
-  /// TODO(tamiyo): These should probably be a form of set with a custom
-  /// hashing function for performance.
-  std::unordered_map<size_t, GreenElement> nodes;
+  /// Cache of deduplicated nodes, keyed by structural hash. A multimap is
+  /// used so two structurally distinct nodes that hash to the same value can
+  /// coexist; lookups walk the bucket and verify structural equality.
+  std::unordered_multimap<size_t, GreenElement> nodes;
 
-  /// Cache of deduplicated tokens, keyed by content hash.
-  std::unordered_map<size_t, GreenElement> tokens;
+  /// Cache of deduplicated tokens, keyed by content hash. See `nodes` for the
+  /// rationale behind using a multimap.
+  std::unordered_multimap<size_t, GreenElement> tokens;
 };
 
 } // namespace yuzu::syntax

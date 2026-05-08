@@ -26,75 +26,6 @@ TEST(SyntaxDataTest, ConstructorInitializesRefCount) {
   EXPECT_EQ(1, data.getRc());
 }
 
-TEST(SyntaxDataTest, CopyConstructorSharesRefCount) {
-  const auto green = createTestGreenNode();
-  const auto data1 = SyntaxData(green, nullptr, 0, 0);
-
-  const auto data2 = SyntaxData(data1);
-
-  EXPECT_EQ(2, data1.getRc());
-  EXPECT_EQ(2, data2.getRc());
-  EXPECT_EQ(data1.getRc(), data2.getRc());
-}
-
-TEST(SyntaxDataTest, CopyAssignmentHandlesRefCount) {
-  const auto green1 = createTestGreenNode();
-  const auto green2 = createTestGreenToken();
-
-  auto data1 = SyntaxData(green1, nullptr, 0, 0);
-  auto data2 = SyntaxData(green2, nullptr, 10, 1);
-
-  data2 = data1;
-
-  EXPECT_EQ(data1.getOffset(), data2.getOffset());
-  EXPECT_EQ(data1.getIndex(), data2.getIndex());
-
-  EXPECT_EQ(2, data1.getRc());
-  EXPECT_EQ(2, data2.getRc());
-  EXPECT_EQ(data1.getRc(), data2.getRc());
-}
-
-TEST(SyntaxDataTest, SelfAssignmentIsNoop) {
-  const auto green = createTestGreenNode();
-  auto data = SyntaxData(green, nullptr, 42, 7);
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wself-assign-overloaded"
-  data = data;
-#pragma GCC diagnostic pop
-
-  EXPECT_EQ(42, data.getOffset());
-  EXPECT_EQ(7, data.getIndex());
-
-  EXPECT_EQ(1, data.getRc());
-}
-
-TEST(SyntaxDataTest, MoveConstructorTransfersOwnership) {
-  const auto green = createTestGreenNode();
-  auto data1 = SyntaxData(green, nullptr, 0, 0);
-
-  const auto data2 = SyntaxData(std::move(data1));
-
-  EXPECT_EQ(0, data2.getOffset());
-  EXPECT_EQ(0, data2.getIndex());
-
-  EXPECT_EQ(1, data2.getRc());
-}
-
-TEST(SyntaxDataTest, MoveAssignmentTransfersOwnership) {
-  const auto green1 = createTestGreenNode();
-  const auto green2 = createTestGreenToken();
-
-  auto data1 = SyntaxData(green1, nullptr, 10, 5);
-  auto data2 = SyntaxData(green2, nullptr, 20, 10);
-
-  data2 = std::move(data1);
-
-  EXPECT_EQ(10, data2.getOffset());
-  EXPECT_EQ(5, data2.getIndex());
-  EXPECT_EQ(1, data2.getRc());
-}
-
 TEST(SyntaxDataTest, GettersReturnCorrectValues) {
   const auto green = createTestGreenNode();
   SyntaxData *const parent = nullptr;
@@ -106,26 +37,6 @@ TEST(SyntaxDataTest, GettersReturnCorrectValues) {
   EXPECT_EQ(parent, data.getParent());
   EXPECT_EQ(offset, data.getOffset());
   EXPECT_EQ(index, data.getIndex());
-}
-
-TEST(SyntaxDataTest, MultipleReferencesShareData) {
-  const auto green = createTestGreenNode();
-  const auto data1 = SyntaxData(green, nullptr, 0, 0);
-
-  const auto data2 = SyntaxData(data1);
-  const auto data3 = SyntaxData(data2);
-  const auto data4 = data3;
-
-  EXPECT_EQ(data1.getOffset(), data4.getOffset());
-
-  EXPECT_EQ(4, data1.getRc());
-  EXPECT_EQ(4, data2.getRc());
-  EXPECT_EQ(4, data3.getRc());
-  EXPECT_EQ(4, data4.getRc());
-
-  EXPECT_EQ(data1.getRc(), data2.getRc());
-  EXPECT_EQ(data2.getRc(), data3.getRc());
-  EXPECT_EQ(data3.getRc(), data4.getRc());
 }
 
 TEST(SyntaxNodeTest, ConstructorCreatesNode) {
@@ -256,11 +167,11 @@ TEST(SyntaxDataTest, EqualityOperatorWorksCorrectly) {
   const auto green2 = createTestGreenNode();
 
   const auto data1 = SyntaxData(green1, nullptr, 10, 5);
-  const auto data2 = SyntaxData(data1);
   const auto data3 = SyntaxData(green2, nullptr, 10, 5);
   const auto data4 = SyntaxData(green1, nullptr, 20, 5);
 
-  EXPECT_EQ(data1, data2);
+  // Two SyntaxData instances are equal when their green elements are equal
+  // and their offsets match. green1 and green2 are structurally equal.
   EXPECT_EQ(data1, data3);
   EXPECT_NE(data1, data4);
 }

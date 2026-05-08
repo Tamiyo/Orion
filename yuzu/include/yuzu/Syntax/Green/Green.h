@@ -28,7 +28,7 @@ struct [[nodiscard]] GreenTokenData {
   /// The source code that this 'GreenToken' references. The source code is
   /// encoded directly in 'GreenTokenData' for use/reference outside of the
   /// source file it was defined in.
-  const std::u32string_view source;
+  const std::u32string source;
 
   /// The kind of data this 'GreenToken' references.
   const SyntaxKind kind;
@@ -43,14 +43,14 @@ struct [[nodiscard]] GreenNodeData {
   /// The number of children that this 'GreenNode' has.
   const size_t numChildren;
 
-  /// The kind of data this 'GreenNode' references.
-  const SyntaxKind kind;
-
   /// The relative size of this 'GreenNode' and its children. To illustrate
   /// this, consider a 'GreenNode' with 3 'GreenToken's that span 2
   /// characters. The 'Width' of the 'GreenNode' is 6, which is the sum of the
   /// widths of all of its children.
   const size_t width;
+
+  /// The kind of data this 'GreenNode' references.
+  const SyntaxKind kind;
 
   /// A pointer to the start of the children of 'GreenNodeData', stored
   /// contiguously. Storing a raw pointer here is OK, and preferred over using
@@ -82,9 +82,9 @@ public:
   ///
   /// \param kind The syntax kind of this token.
   /// \param source The source text content of this token.
-  explicit GreenToken(const SyntaxKind kind, const std::u32string_view &source)
+  explicit GreenToken(const SyntaxKind kind, const std::u32string &source)
       : data(std::make_shared<const GreenTokenData>(
-            GreenTokenData{.source = std::move(source), .kind = kind})) {}
+            GreenTokenData{.source = source, .kind = kind})) {}
 
   /// Deleted default constructor to enforce proper initialization.
   GreenToken() = delete;
@@ -199,7 +199,7 @@ public:
   ///
   /// \param other The GreenNode to compare with.
   /// \return True if the nodes are not structurally equal.
-  bool operator!=(const GreenNode &other) const { return !(this == &other); }
+  bool operator!=(const GreenNode &other) const { return !(*this == other); }
 
 private:
   std::shared_ptr<const GreenNodeData> data;

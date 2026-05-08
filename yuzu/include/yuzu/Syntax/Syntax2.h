@@ -1,4 +1,0 @@
-#ifndef YUZU_SYNTAX_SYNTAX2_H
-#define YUZU_SYNTAX_SYNTAX2_H
-
-#endif

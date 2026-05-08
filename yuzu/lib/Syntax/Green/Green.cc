@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
-#include <new>
 #include <utility>
 #include <vector>
 
@@ -28,8 +27,8 @@ GreenNode::GreenNode(SyntaxKind kind, GreenChild *children, size_t numChildren,
 
   data = std::shared_ptr<const GreenNodeData>(
       new GreenNodeData{.numChildren = numChildren,
-                        .kind = kind,
                         .width = width,
+                        .kind = kind,
                         .children = children},
       deleter);
 }

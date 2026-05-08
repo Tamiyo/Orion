@@ -82,7 +82,7 @@ public:
   ///
   /// \param kind The syntax kind of the token.
   /// \param source The source text content of the token.
-  void token(const SyntaxKind kind, const std::u32string_view &source);
+  void token(const SyntaxKind kind, std::u32string_view source);
 
   /// \brief Finish building and return the final GreenNode.
   ///

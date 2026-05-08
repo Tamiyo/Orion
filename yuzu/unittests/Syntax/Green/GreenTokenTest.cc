@@ -1,6 +1,5 @@
 #include "yuzu/Syntax/Green/Green.h"
 
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -49,7 +48,7 @@ TEST(GreenTokenTest, GreenTokenSizeRequirements) {
 TEST(GreenTokenTest, GreenTokenDataSizeRequirements) {
   // kind                 = 2
   // alignment            = 6
-  // std::u32string_view  = 16
-  EXPECT_EQ(24, sizeof(GreenTokenData));
+  // std::u32string       = 24
+  EXPECT_EQ(40, sizeof(GreenTokenData));
 }
 } // namespace

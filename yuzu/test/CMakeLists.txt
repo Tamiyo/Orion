@@ -5,13 +5,13 @@
 
 find_program(FILECHECK_BIN
   NAMES FileCheck FileCheck-20
-  HINTS /usr/lib/llvm-20/bin
+  HINTS ${LLVM_TOOLS_BINARY_DIR} /usr/lib/llvm-20/bin
   REQUIRED
 )
 
-find_file(LIT_PY
-  NAMES lit.py
-  HINTS /usr/lib/llvm-20/build/utils/lit
+find_program(LIT_PY
+  NAMES lit lit.py
+  HINTS ${LLVM_TOOLS_BINARY_DIR} /usr/lib/llvm-20/build/utils/lit
   REQUIRED
 )
 

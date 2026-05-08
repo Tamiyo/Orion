@@ -1,5 +1,5 @@
-#ifndef YUZU_SYNTAX_SYNTAX_H
-#define YUZU_SYNTAX_SYNTAX_H
+#ifndef YUZU_SYNTAX_CURSOR_H
+#define YUZU_SYNTAX_CURSOR_H
 
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/SyntaxKind.h"
@@ -35,6 +35,9 @@ public:
 
   /// \brief Construct a new SyntaxData instance.
   ///
+  /// The reference count is initialized to 1, representing the single
+  /// SyntaxNode or SyntaxToken that owns this instance.
+  ///
   /// \param green The green element (node or token) backing this syntax data.
   /// \param parent Pointer to the parent SyntaxData, nullptr for root nodes.
   /// \param offset The absolute offset of this element in the source text.
@@ -42,126 +45,48 @@ public:
   explicit SyntaxData(const GreenElement &green, SyntaxData *const parent,
                       const size_t offset, const size_t index)
       : green(std::move(green)), parent(parent), offset(offset), index(index),
-        rc(new std::atomic<int64_t>(1)) {}
+        rc(1) {}
 
   /// Deleted default constructor to enforce non-null invariant.
-  ///
-  /// Invariant: SyntaxData can never be in a nullptr state. Though SyntaxData
-  /// is a smart pointer mimicing std::shared_ptr, we intentionally choose to
-  /// not allow a nullptr state to exist.
   SyntaxData() = delete;
 
-  /// \brief Copy constructor.
-  ///
-  /// Creates a new reference to the same SyntaxData and increments the
-  /// reference count.
-  ///
-  /// \param other The SyntaxData to copy from.
-  SyntaxData(const SyntaxData &other)
-      : green(other.green), parent(other.parent), offset(other.offset),
-        index(other.index), rc(other.rc) {
-    rc->fetch_add(1);
-  }
+  /// SyntaxData is not copyable. It is an internal reference-counted payload
+  /// owned by exactly one SyntaxNode or SyntaxToken at a time and accessed
+  /// elsewhere through raw pointers. Sharing is expressed by incrementing the
+  /// reference count, not by duplicating the object.
+  SyntaxData(const SyntaxData &) = delete;
+  SyntaxData &operator=(const SyntaxData &) = delete;
 
-  /// \brief Copy assignment operator.
-  ///
-  /// Assigns from another SyntaxData, properly managing reference counts.
-  /// Decrements the current reference count and increments the new one.
-  ///
-  /// \param other The SyntaxData to assign from.
-  /// \return Reference to this object.
-  SyntaxData &operator=(const SyntaxData &other) {
-    if (this == &other) {
-      return *this;
-    }
-
-    // Delete the current reference count if there are no references, since it
-    // will be thrown away in favor of the new reference count. Failing to
-    // delete this here will leak memory.
-    if (rc && rc->fetch_sub(1) == 0) {
-      delete rc;
-    }
-
-    // Copy the other members.
-    green = other.green;
-    parent = other.parent;
-    offset = other.offset;
-    index = other.index;
-    rc = other.rc;
-
-    // Increment
-    if (rc) {
-      rc->fetch_add(1);
-    }
-
-    return *this;
-  }
-
-  /// \brief Move constructor.
-  ///
-  /// Moves data from another SyntaxData instance, transferring ownership
-  /// without modifying reference counts.
-  ///
-  /// \param other The SyntaxData to move from.
-  SyntaxData(SyntaxData &&other)
-      : green(std::move(other.green)), parent(other.parent),
-        offset(other.offset), index(other.index), rc(other.rc) {
-    other.rc = nullptr;
-  }
-
-  /// \brief Move assignment operator.
-  ///
-  /// Moves from another SyntaxData, properly managing reference counts.
-  /// Decrements the current reference count before taking ownership.
-  ///
-  /// \param other The SyntaxData to move from.
-  /// \return Reference to this object.
-  SyntaxData &operator=(SyntaxData &&other) {
-    if (this == &other) {
-      return *this;
-    }
-
-    // Delete the current reference count if there are no references, since it
-    // will be thrown away in favor of the new reference count. Failing to
-    // delete this here will leak memory.
-    if (rc && rc->fetch_sub(1) == 0) {
-      delete rc;
-    }
-
-    green = std::move(other.green);
-    parent = other.parent;
-    offset = other.offset;
-    index = other.index;
-    rc = other.rc;
-
-    other.rc = nullptr;
-
-    return *this;
-  }
+  /// SyntaxData is not movable. Its address is stable and is stored as the
+  /// parent pointer of child SyntaxData instances; moving it would invalidate
+  /// those pointers.
+  SyntaxData(SyntaxData &&) = delete;
+  SyntaxData &operator=(SyntaxData &&) = delete;
 
   /// \brief Destructor.
   ///
-  /// The reference count is managed by SyntaxNode/SyntaxToken.
-  /// This destructor should only be called when ref count is already 0
-  /// and the Rc_ has already been deleted by free().
-  ~SyntaxData() {
-    // The reference count is managed by SyntaxNode/SyntaxToken
-    // This destructor should only be called when ref count is already 0
-    // and the Rc_ has already been deleted by free()
-  }
-
-  /// \brief Get the reference count of this SyntaxNode.
+  /// Trivially destroys this SyntaxData. Deletion only happens when the
+  /// reference count has reached zero, which SyntaxNode and SyntaxToken
+  /// check via decRc() before calling delete.
   ///
-  /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const { return rc->load(); }
+  /// The parent pointer is non-owning: children never outlive their parent
+  /// (this is guaranteed by the tree's ownership invariant, since the root
+  /// SyntaxNode keeps the entire red tree alive), so there is nothing to
+  /// decrement or release here.
+  ~SyntaxData() = default;
+
+  /// \brief Get the reference count of this SyntaxData.
+  ///
+  /// \return The current atomic reference count.
+  [[nodiscard]] int64_t getRc() const { return rc.load(); }
 
   /// \brief Increment the reference count.
-  void incRc() { rc->fetch_add(1); }
+  void incRc() { rc.fetch_add(1); }
 
   /// \brief Decrement the reference count.
   ///
   /// \return True if this was the last reference (count reached 0).
-  [[nodiscard]] bool decRc() { return rc->fetch_sub(1) == 1; }
+  [[nodiscard]] bool decRc() { return rc.fetch_sub(1) == 1; }
 
   /// \brief Get the green element backing this syntax data.
   ///
@@ -205,45 +130,41 @@ public:
 
   /// \brief Equality comparison operator.
   ///
+  /// Compares two SyntaxData instances by their green element and absolute
+  /// offset. This is *positional* equality: two SyntaxData from different
+  /// parse trees that occupy the same offset and are backed by structurally
+  /// equal green elements compare equal, even though they have distinct
+  /// parent chains and distinct SyntaxData addresses.
+  ///
+  /// This is intentional. Callers that want identity semantics should
+  /// compare the underlying pointers directly, not use this operator.
+  ///
   /// \param other The SyntaxData to compare with.
-  /// \return True if both objects refer to the same data.
+  /// \return True if both objects occupy the same position in structurally
+  /// equal trees.
   bool operator==(const SyntaxData &other) const {
     return green == other.green && offset == other.offset;
   }
 
   /// \brief Inequality comparison operator.
   ///
+  /// See `operator==` for the positional-equality semantics.
+  ///
   /// \param other The SyntaxData to compare with.
-  /// \return True if the objects refer to different data.
+  /// \return True if the objects differ in green element or offset.
   bool operator!=(const SyntaxData &other) const { return !(*this == other); }
 
 private:
-  /// \brief Free resources when reference count reaches zero.
-  ///
-  /// Called by SyntaxNode/SyntaxToken destructors when the last reference
-  /// is released. Deletes the reference counter and decrements parent's
-  /// reference count if applicable.
-  void free() {
-    assert(rc->load() == 0 &&
-           "free() called while references still outstanding.");
-
-    // Delete the reference counter since we're at 0
-    delete rc;
-    rc = nullptr;
-
-    // If the parent exists, decrement its reference count
-    // but don't free it - let the parent's destructor handle that
-    if (parent != nullptr) {
-      [[maybe_unused]] bool parentShouldFree = parent->decRc();
-    }
-  }
-
   /// The 'GreenElement' associated with this 'SyntaxData'. When parented to a
   /// 'SyntaxNode', this is a 'GreenNode'. When parented to a 'SyntaxToken',
   /// this is a 'GreenToken'.
   GreenElement green;
 
   /// The parent that this 'SyntaxNode' belongs to.
+  ///
+  /// This pointer is non-owning. Children never outlive their parent because
+  /// the root SyntaxNode keeps the entire red tree alive, so it is safe to
+  /// dereference without reference-count bookkeeping.
   SyntaxData *parent;
 
   /// The absolute offset of this 'SyntaxNode' in the source code.
@@ -258,8 +179,9 @@ private:
   /// The index of this 'SyntaxData' in the children of 'Parent'.
   size_t index;
 
-  /// Reference count for the smart pointer to manage.
-  std::atomic<int64_t> *rc;
+  /// Reference count for the smart pointer to manage. Stored inline to avoid
+  /// a second heap allocation per SyntaxData.
+  std::atomic<int64_t> rc;
 };
 
 /// \brief A node in the concrete syntax tree.
@@ -333,7 +255,6 @@ public:
   /// there are no more references (similar to std::shared_ptr).
   ~SyntaxNode() {
     if (data->decRc()) {
-      data->free();
       delete data;
     }
   }
@@ -376,8 +297,8 @@ public:
 
   /// \brief Get the reference count of this SyntaxNode.
   ///
-  /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const { return data->rc->load(); }
+  /// \return The current atomic reference count.
+  [[nodiscard]] int64_t getRc() const { return data->getRc(); }
 
   /// \brief Get the children of this SyntaxNode.
   ///
@@ -539,7 +460,6 @@ public:
   /// there are no more references (similar to std::shared_ptr).
   ~SyntaxToken() {
     if (data->decRc()) {
-      data->free();
       delete data;
     }
   }
@@ -578,10 +498,10 @@ public:
     return data->getGreen().getKind();
   }
 
-  /// \brief Get the reference count of this SyntaxNode.
+  /// \brief Get the reference count of this SyntaxToken.
   ///
-  /// \return Pointer to the atomic reference count.
-  [[nodiscard]] int64_t getRc() const { return data->rc->load(); }
+  /// \return The current atomic reference count.
+  [[nodiscard]] int64_t getRc() const { return data->getRc(); }
 
   /// \brief Get the next sibling node.
   ///
