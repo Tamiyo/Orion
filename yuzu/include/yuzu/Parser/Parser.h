@@ -23,7 +23,7 @@ public:
 
   Parser() = delete;
 
-  [[nodiscard("Markers should not be discarded.")]] Marker start() {
+  Marker start() {
     const size_t position = events.size();
     events.emplace_back(PlaceholderEvent{});
     return Marker{.position = position};
@@ -34,7 +34,7 @@ public:
     assert(std::holds_alternative<PlaceholderEvent>(eventAtPosition) &&
            "Cannot complete a marker that points to non-placeholder events.");
 
-    auto _ = eventAtPosition.exchange(
+    const auto _ = eventAtPosition.exchange(
         StartEvent{.forwardParent = std::nullopt, .kind = kind});
 
     events.emplace_back(FinishEvent{});
@@ -42,20 +42,20 @@ public:
     return CompletedMarker{.position = marker.position};
   }
 
-  [[nodiscard("Preceded markers should not be discarded.")]] std::pair<
-      Marker, ast::SyntaxKind>
-  precede(const CompletedMarker &complatedMarker) {
+  [[nodiscard("Preceded markers should not be discarded.")]]
+  std::pair<Marker, ast::SyntaxKind>
+  precede(const CompletedMarker &completedMarker) {
     const Marker newMarker = start();
 
-    Event &eventAtPosition = events[complatedMarker.position];
+    Event &eventAtPosition = events[completedMarker.position];
     if (const StartEvent *startEvent =
             std::get_if<StartEvent>(&eventAtPosition)) {
 
       const ast::SyntaxKind newKind = startEvent->kind;
       const size_t newForwardParent =
-          newMarker.position - complatedMarker.position;
+          newMarker.position - completedMarker.position;
 
-      auto _ = eventAtPosition.exchange(
+      const auto _ = eventAtPosition.exchange(
           StartEvent{.forwardParent = newForwardParent, .kind = newKind});
 
       return std::make_pair(newMarker, newKind);
@@ -101,6 +101,10 @@ public:
       error();
     }
   }
+
+  /// Consume the parser and return its accumulated event stream so it can be
+  /// fed to a TokenSink. Intended for end-of-parse use only.
+  [[nodiscard]] std::vector<Event> finish() && { return std::move(events); }
 
 private:
   std::vector<Event> events;

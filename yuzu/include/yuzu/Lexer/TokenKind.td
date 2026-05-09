@@ -13,6 +13,12 @@ let IsSymbol = 1 in {
   def Star   : Token<["*"]>;
 }
 
+// Punctuation
+let IsPunctuation = 1 in {
+  def LeftParen : Token<["("]>;
+  def RightParen : Token<[")"]>;
+}
+
 // Literals
 let IsLiteral = 1 in {
   def Number : Regex<[""]>;

@@ -1,7 +1,6 @@
 #include "yuzu/Syntax/Green/GreenCache.h"
 
 #include "yuzu/Syntax/Green/Green.h"
-#include "yuzu/Syntax/Green/GreenIterator.h"
 #include "yuzu/Syntax/SyntaxKind.h"
 
 #include <algorithm>

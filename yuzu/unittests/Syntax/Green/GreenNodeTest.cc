@@ -1,5 +1,4 @@
 #include "yuzu/Syntax/Green/Green.h"
-#include "yuzu/Syntax/Green/GreenIterator.h"
 
 #include <gmock/gmock.h>
 

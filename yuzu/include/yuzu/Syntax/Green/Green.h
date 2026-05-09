@@ -5,9 +5,9 @@
 #include "yuzu/Util/ErrorHandling.h"
 
 #include <cstddef>
+#include <iterator>
 #include <memory>
 #include <string_view>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -337,6 +337,115 @@ public:
 
     util::yuzu_unreachable();
   }
+};
+
+/// \brief Bidirectional iterator for traversing GreenNode children.
+///
+/// GreenIterator provides a standard C++ iterator interface for iterating
+/// over the children of a GreenNode. It supports both forward and backward
+/// iteration through the node's child elements.
+class [[nodiscard]] GreenIterator final {
+public:
+  using iterator_category = std::bidirectional_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = const GreenChild;
+  using pointer = value_type *;
+  using reference = value_type &;
+
+  /// \brief Construct an iterator for a GreenNode.
+  ///
+  /// \param node The GreenNode to iterate over.
+  /// \param index The starting index position in the node's children.
+  explicit GreenIterator(const GreenNode *node, size_t index)
+      : node(node), index(index) {}
+
+  /// Deleted default constructor to enforce proper initialization.
+  GreenIterator() = delete;
+
+  /// \brief Dereference operator.
+  ///
+  /// \return Reference to the current child element.
+  [[nodiscard]] reference operator*() const {
+    return node->data->children[index];
+  }
+
+  /// \brief Member access operator.
+  ///
+  /// \return Pointer to the current child element.
+  [[nodiscard]] pointer operator->() const {
+    return &(node->data->children[index]);
+  }
+
+  /// \brief Pre-increment operator.
+  GreenIterator &operator++() {
+    ++index;
+    return *this;
+  }
+
+  /// \brief Pre-decrement operator.
+  GreenIterator &operator--() {
+    --index;
+    return *this;
+  }
+
+  /// \brief Post-increment operator.
+  GreenIterator operator++(int) {
+    GreenIterator tmp = *this;
+    ++index;
+    return tmp;
+  }
+
+  /// \brief Post-decrement operator.
+  GreenIterator operator--(int) {
+    GreenIterator tmp = *this;
+    --index;
+    return tmp;
+  }
+
+  bool operator==(const GreenIterator &other) const {
+    return node == other.node && index == other.index;
+  }
+
+  bool operator!=(const GreenIterator &other) const {
+    return !(*this == other);
+  }
+
+private:
+  const GreenNode *node;
+  size_t index;
+};
+
+/// \brief Range wrapper for iterating over GreenNode children.
+///
+/// GreenChildren provides a standard C++ range interface for accessing
+/// the children of a GreenNode. It supports both forward and reverse
+/// iteration using the GreenIterator bidirectional iterator.
+class [[nodiscard]] GreenChildren final {
+public:
+  using const_iterator = GreenIterator;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using value_type = const_iterator::value_type;
+
+  explicit GreenChildren(const GreenNode *node) : node(node) {}
+
+  [[nodiscard]] size_t size() const { return node->getNumChildren(); }
+
+  const_iterator begin() const { return const_iterator(node, 0); }
+
+  const_iterator end() const {
+    return const_iterator(node, node->getNumChildren());
+  }
+
+  [[nodiscard]] const_reverse_iterator rbegin() const {
+    return const_reverse_iterator(end());
+  }
+
+  [[nodiscard]] const_reverse_iterator rend() const {
+    return const_reverse_iterator(begin());
+  }
+
+private:
+  const GreenNode *node;
 };
 } // namespace yuzu::syntax
 

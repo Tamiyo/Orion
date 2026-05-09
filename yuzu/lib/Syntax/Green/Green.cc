@@ -1,7 +1,5 @@
 #include "yuzu/Syntax/Green/Green.h"
 
-#include "yuzu/Syntax/Green/GreenIterator.h"
-
 #include <cstddef>
 #include <cstdlib>
 #include <memory>

@@ -1,62 +1,137 @@
 #include "yuzu/Parser/Grammar/Expr.h"
 
+#include "yuzu/Ast/Ast.h"
 #include "yuzu/Lexer/TokenKind.h"
 #include "yuzu/Parser/Marker.h"
 #include "yuzu/Parser/Parser.h"
 
 #include <bitset>
 #include <cassert>
+#include <cstdint>
 #include <optional>
+#include <utility>
 
 namespace yuzu::parser {
 namespace {
 constexpr std::bitset<1 << (8 * sizeof(lexer::TokenKind))> exprRecoverySet{};
-};
 
-std::optional<CompletedMarker> parseLiteral(Parser &parser) {
-  assert(parser.peekKind() == lexer::TokenKind::Number &&
+enum class BinaryOp : uint8_t { Add, Sub, Mul, Div };
+
+std::pair<uint8_t, uint8_t> bindingPowerOf(BinaryOp op) {
+  switch (op) {
+  case BinaryOp::Add:
+  case BinaryOp::Sub:
+    return std::make_pair(1, 2);
+  case BinaryOp::Mul:
+  case BinaryOp::Div:
+    return std::make_pair(3, 4);
+  }
+}
+}; // namespace
+
+std::optional<BinaryOp> parseBinaryOp(Parser &p) {
+  const auto kind = p.peekKind();
+  if (!kind.has_value()) {
+    return std::nullopt;
+  }
+
+  switch (kind.value()) {
+  case lexer::TokenKind::Plus:
+    return BinaryOp::Add;
+  case lexer::TokenKind::Minus:
+    return BinaryOp::Sub;
+  case lexer::TokenKind::Star:
+    return BinaryOp::Mul;
+  case lexer::TokenKind::Slash:
+    return BinaryOp::Div;
+  default:
+    return std::nullopt;
+  }
+}
+
+std::optional<CompletedMarker> parseLiteralExpr(Parser &p) {
+  assert(p.peekKind() == lexer::TokenKind::Number &&
          "Literals must be numbers.");
 
-  const Marker marker = parser.start();
-  parser.bump();
-  return parser.complete(marker, ast::SyntaxKind::LiteralExpr);
+  const Marker marker = p.start();
+  p.bump();
+  return p.complete(marker, ast::SyntaxKind::LiteralExpr);
 }
 
-std::optional<CompletedMarker> parseIdent(Parser &parser) {
-  assert(parser.peekKind() == lexer::TokenKind::Ident &&
+std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
+  assert(p.peekKind() == lexer::TokenKind::Ident &&
          "Variable references must be identifiers.");
 
-  const Marker marker = parser.start();
-  parser.bump();
-  return parser.complete(marker, ast::SyntaxKind::Ident);
+  const Marker marker = p.start();
+  p.bump();
+  return p.complete(marker, ast::SyntaxKind::Ident);
 }
 
-std::optional<CompletedMarker> lhs(Parser &parser) {
-  const std::optional<lexer::TokenKind> kind = parser.peekKind();
+std::optional<CompletedMarker> parseParenExpr(Parser &p) {
+  assert(p.peekKind() == lexer::TokenKind::LeftParen &&
+         "Expected a LeftParen.");
+
+  const auto expr = parseExprBindingPower(p, 0);
+  p.expect(lexer::TokenKind::RightParen);
+
+  return expr;
+}
+
+std::optional<CompletedMarker> parseLhs(Parser &p) {
+  const std::optional<lexer::TokenKind> kind = p.peekKind();
   if (!kind.has_value()) {
-    parser.error(exprRecoverySet);
+    p.error(exprRecoverySet);
     return std::nullopt;
   }
 
   switch (kind.value()) {
   case lexer::TokenKind::Number:
-    return parseLiteral(parser);
+    return parseLiteralExpr(p);
   case lexer::TokenKind::Ident:
-    return parseIdent(parser);
+    return parseIdentExpr(p);
+  case lexer::TokenKind::LeftParen:
+    return parseParenExpr(p);
   default:
-    parser.error(exprRecoverySet);
+    p.error(exprRecoverySet);
     return std::nullopt;
   }
 }
 
 std::optional<CompletedMarker>
-parseExprBindingPower(Parser &parser, const size_t minimumBindingPower) {
-  const std::optional<CompletedMarker> completedMarker = lhs(parser);
-  assert(minimumBindingPower > 0 &&
-         "Pratt parser requires positive minimum binding power.");
+parseExprBindingPower(Parser &p, const size_t minimumBindingPower) {
+  std::optional<CompletedMarker> parsedLhs = parseLhs(p);
+  if (!parsedLhs.has_value()) {
+    return std::nullopt;
+  }
 
-  // TODO(tamiyo) Continue with Pratt Parsing implementation.
+  while (true) {
+    // Stop if we are not at a binary operator.
+    const auto op = parseBinaryOp(p);
+    if (!op.has_value()) {
+      break;
+    }
 
-  return completedMarker;
+    // Stop if the operator binds less tightly than the caller requires.
+    const auto [leftBindingPower, rightBindingPower] = bindingPowerOf(*op);
+    if (leftBindingPower < minimumBindingPower) {
+      break;
+    }
+
+    // Consume the operator.
+    p.bump();
+
+    // Parse the Rhs of the operation, if any.
+    const auto [marker, _] = p.precede(*parsedLhs);
+    const auto parsedRhs = parseExprBindingPower(p, rightBindingPower);
+
+    // Wrap the LHS, operator, and (possibly missing) RHS in a BinaryExpr
+    // before bailing — the recursive call has already reported the error.
+    parsedLhs.emplace(p.complete(marker, ast::SyntaxKind::BinaryExpr));
+    if (!parsedRhs.has_value()) {
+      break;
+    }
+  }
+
+  return parsedLhs;
 }
 } // namespace yuzu::parser

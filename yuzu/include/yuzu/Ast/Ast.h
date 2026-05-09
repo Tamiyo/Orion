@@ -2,7 +2,6 @@
 #define YUZU_AST_AST_H
 
 #include "yuzu/Syntax/Api.h"
-#include "yuzu/Syntax/SyntaxIterator.h" // IWYU pragma: keep — iterator types
 
 #include <cstddef>
 #include <optional>

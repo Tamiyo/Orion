@@ -1,4 +1,3 @@
-#include "yuzu/Syntax/Green/GreenIterator.h"
 
 #include "yuzu/Syntax/Green/Green.h"
 

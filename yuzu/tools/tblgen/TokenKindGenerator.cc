@@ -22,11 +22,14 @@ namespace {
 /// population.
 llvm::StringRef getUnderlyingType(std::size_t count) {
   if (count <= std::numeric_limits<std::uint8_t>::max())
-    return "uint8_t";
+   { return "uint8_t";}
+
   if (count <= std::numeric_limits<std::uint16_t>::max())
-    return "uint16_t";
+   { return "uint16_t";}
+
   if (count <= std::numeric_limits<std::uint32_t>::max())
-    return "uint32_t";
+    {return "uint32_t";}
+
   return "uint64_t";
 }
 
@@ -66,6 +69,7 @@ void emitPredicates(CodeFormatter &fmt, const std::vector<TokenInfo> &tokens) {
   };
 
   emit("Symbol", [](const TokenInfo &t) { return t.isSymbol; });
+  emit("Punctuation", [](const TokenInfo &t) { return t.isPunctuation; });
   emit("Keyword", [](const TokenInfo &t) { return t.isKeyword; });
   emit("Literal", [](const TokenInfo &t) { return t.isLiteral; });
   emit("Trivia", [](const TokenInfo &t) { return t.isTrivia; });

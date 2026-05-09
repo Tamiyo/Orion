@@ -2,7 +2,6 @@
 #define YUZU_SYNTAX_API_H
 
 #include "yuzu/Syntax/Syntax.h"
-#include "yuzu/Syntax/SyntaxIterator.h"
 #include "yuzu/Util/ErrorHandling.h"
 
 #include <cstddef>

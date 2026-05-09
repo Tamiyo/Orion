@@ -37,6 +37,7 @@ struct TokenInfo {
   std::string callback;
   int priority;
   bool isSymbol;
+  bool isPunctuation;
   bool isKeyword;
   bool isLiteral;
   bool isTrivia;
@@ -61,6 +62,7 @@ inline TokenInfo parseTokenInfo(const llvm::Record *record) {
       .callback = record->getValueAsString("Callback").str(),
       .priority = static_cast<int>(record->getValueAsInt("Priority")),
       .isSymbol = record->getValueAsBit("IsSymbol"),
+      .isPunctuation = record->getValueAsBit("IsPunctuation"),
       .isKeyword = record->getValueAsBit("IsKeyword"),
       .isLiteral = record->getValueAsBit("IsLiteral"),
       .isTrivia = record->getValueAsBit("IsTrivia"),

@@ -21,6 +21,7 @@ class LexGrammar {
 /// downstream codegen reads them to emit per-category predicates.
 class Metadata {
     bit IsSymbol = 0;
+    bit IsPunctuation = 0;
     bit IsKeyword = 0;
     bit IsLiteral = 0;
     bit IsTrivia = 0;
