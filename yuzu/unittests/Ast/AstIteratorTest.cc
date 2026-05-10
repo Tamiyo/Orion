@@ -12,8 +12,6 @@ namespace {
 using yuzu::ast::AstChildren;
 using yuzu::ast::BinaryExpr;
 using yuzu::ast::Expr;
-using yuzu::ast::LiteralExpr;
-using yuzu::ast::ParenExpr;
 using yuzu::ast::SyntaxKind;
 using yuzu::ast::SyntaxNode;
 using yuzu::syntax::GreenElement;
