@@ -47,19 +47,22 @@ TEST(GrammarTest, ParsesSingleBinaryExpression) {
             result.tree);
 }
 
-// Malformed input still yields a tree with a `Root` wrapper — the inner
-// failure shows up as an `Error` node, mirroring how `parseExpr` surfaces
-// missing-LHS errors.
+// Malformed input still yields a tree with a `Root` wrapper. The leading
+// `+` triggers a missing-LHS error and is wrapped in an `Error` node;
+// `parseRoot` then recovers and parses the trailing `1` as a separate
+// top-level statement.
 TEST(GrammarTest, ReportsErrorOnMissingLhs) {
   const auto result = parseRoot(U"+ 1");
 
   EXPECT_EQ((std::vector<std::string>{
-                "parser error at 0, 1 - found Plus but expected one of []"}),
+                "parser error at 0, 1 - found Plus but expected one of [Number, Ident, LeftParen]"}),
             result.errors);
-  EXPECT_EQ(R"(Root@0..2
+  EXPECT_EQ(R"(Root@0..3
   Error@0..2
     Plus@0..1 "+"
-    Space@1..2 " ")",
+    Space@1..2 " "
+  LiteralExpr@2..3
+    Number@2..3 "1")",
             result.tree);
 }
 

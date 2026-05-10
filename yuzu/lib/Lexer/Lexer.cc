@@ -79,6 +79,11 @@ std::optional<Token> Lexer::getNextToken() {
     return createToken(start, TokenKind::Ident);
   }
 
-  return std::nullopt;
+  // Unknown character: emit a single-character `Error` token and advance
+  // past it so the lexer keeps making progress. Returning nullopt here
+  // would let `getTokens` mistake the bad byte for end-of-input and drop
+  // every following token.
+  bump();
+  return createToken(start, TokenKind::Error);
 }
 } // namespace yuzu::lexer

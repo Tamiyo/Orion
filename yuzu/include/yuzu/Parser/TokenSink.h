@@ -85,9 +85,18 @@ private:
 
   void addToken() {
     const auto &token = tokens.at(cursor);
-    builder.token(static_cast<syntax::SyntaxKind>(token.getKind()),
-                  token.getSource());
+    // The lexer's `TokenKind::Error` lives just past `TOKENS_LAST` and so
+    // doesn't share its numeric value with any `ast::SyntaxKind` token —
+    // remap it explicitly to `ast::SyntaxKind::Error` so the green tree
+    // stores a meaningful kind. Real tokens go through the value-preserving
+    // cast, which works because the token blocks of `TokenKind` and
+    // `ast::SyntaxKind` are kept numerically aligned.
+    const syntax::SyntaxKind kind =
+        token.getKind() == lexer::TokenKind::Error
+            ? static_cast<syntax::SyntaxKind>(ast::SyntaxKind::Error)
+            : static_cast<syntax::SyntaxKind>(token.getKind());
 
+    builder.token(kind, token.getSource());
     cursor += 1;
   }
 

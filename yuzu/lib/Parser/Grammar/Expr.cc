@@ -81,23 +81,20 @@ std::optional<CompletedMarker> parseParenExpr(Parser &p) {
 }
 
 std::optional<CompletedMarker> parseLhs(Parser &p) {
-  const std::optional<lexer::TokenKind> kind = p.peekKind();
-  if (!kind.has_value()) {
-    p.error(exprRecoverySet);
-    return std::nullopt;
+  if (p.at(lexer::TokenKind::Number)) {
+    return parseLiteralExpr(p);
+  }
+  
+  if (p.at(lexer::TokenKind::Ident)) {
+    return parseIdentExpr(p);
+  }
+  
+  if (p.at(lexer::TokenKind::LeftParen)) {
+    return parseParenExpr(p);
   }
 
-  switch (kind.value()) {
-  case lexer::TokenKind::Number:
-    return parseLiteralExpr(p);
-  case lexer::TokenKind::Ident:
-    return parseIdentExpr(p);
-  case lexer::TokenKind::LeftParen:
-    return parseParenExpr(p);
-  default:
-    p.error(exprRecoverySet);
-    return std::nullopt;
-  }
+  p.error(exprRecoverySet);
+  return std::nullopt;
 }
 
 std::optional<CompletedMarker>

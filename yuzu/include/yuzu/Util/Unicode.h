@@ -4,6 +4,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace yuzu::util {
@@ -42,6 +43,53 @@ inline void writeUtf8(llvm::raw_ostream &os, std::u32string_view text) {
   for (char32_t c : text) {
     writeUtf8(os, c);
   }
+}
+
+/// \brief Decode a UTF-8 byte sequence into a UTF-32 string.
+///
+/// Inverse of `writeUtf8`. Walks `bytes` left-to-right, emitting one
+/// `char32_t` per Unicode code point. Malformed sequences (truncated
+/// continuation bytes, stray continuation bytes, oversized leaders) are
+/// replaced with U+FFFD (replacement character) one byte at a time so the
+/// output length stays bounded by the input length and decoding never
+/// raises. Use a strict frontend if you need round-trip fidelity.
+///
+/// \param bytes The UTF-8 input.
+/// \return The decoded UTF-32 string.
+inline std::u32string decodeUtf8(std::string_view bytes) {
+  std::u32string out;
+  out.reserve(bytes.size());
+
+  const auto *p = reinterpret_cast<const unsigned char *>(bytes.data());
+  const auto *end = p + bytes.size();
+
+  while (p != end) {
+    char32_t c = 0xFFFD;
+    if (*p < 0x80) {
+      c = *p;
+      p += 1;
+    } else if ((*p & 0xE0) == 0xC0 && end - p >= 2) {
+      c = (static_cast<char32_t>(*p & 0x1F) << 6) |
+          static_cast<char32_t>(p[1] & 0x3F);
+      p += 2;
+    } else if ((*p & 0xF0) == 0xE0 && end - p >= 3) {
+      c = (static_cast<char32_t>(*p & 0x0F) << 12) |
+          (static_cast<char32_t>(p[1] & 0x3F) << 6) |
+          static_cast<char32_t>(p[2] & 0x3F);
+      p += 3;
+    } else if ((*p & 0xF8) == 0xF0 && end - p >= 4) {
+      c = (static_cast<char32_t>(*p & 0x07) << 18) |
+          (static_cast<char32_t>(p[1] & 0x3F) << 12) |
+          (static_cast<char32_t>(p[2] & 0x3F) << 6) |
+          static_cast<char32_t>(p[3] & 0x3F);
+      p += 4;
+    } else {
+      p += 1;
+    }
+    out.push_back(c);
+  }
+
+  return out;
 }
 
 /// \brief Write a UTF-32 string as UTF-8 to `os`, escaping characters that

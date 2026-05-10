@@ -150,7 +150,7 @@ TEST(ExprTest, RecoversFromMissingRhs) {
   const auto result = parseExpr(U"1 +");
 
   EXPECT_EQ((std::vector<std::string>{
-                "parser error at 2, 3 - found None but expected one of []"}),
+                "parser error at 2, 3 - found None but expected one of [Number, Ident, LeftParen]"}),
             result.errors);
   EXPECT_EQ(R"(Expr@0..3
   BinaryExpr@0..3
@@ -163,13 +163,13 @@ TEST(ExprTest, RecoversFromMissingRhs) {
 
 // `+ 1` has no LHS, so `parseLhs` reports an error against the unexpected
 // `+` token and injects an `Error` node containing it (the trailing space
-// attaches as trivia). `expectedKinds` is empty because `parseLhs` peeks
-// and switches rather than calling `p.at(...)`.
+// attaches as trivia). `expectedKinds` lists every kind `parseLhs` would
+// have accepted, since each branch goes through `p.at(...)`.
 TEST(ExprTest, RecoversFromMissingLhs) {
   const auto result = parseExpr(U"+ 1");
 
   EXPECT_EQ((std::vector<std::string>{
-                "parser error at 0, 1 - found Plus but expected one of []"}),
+                "parser error at 0, 1 - found Plus but expected one of [Number, Ident, LeftParen]"}),
             result.errors);
   EXPECT_EQ(R"(Expr@0..2
   Error@0..2

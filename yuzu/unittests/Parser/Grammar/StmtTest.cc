@@ -44,7 +44,7 @@ TEST(StmtTest, ReportsErrorOnMissingLhs) {
   const auto result = parseStmt(U"+ 1");
 
   EXPECT_EQ((std::vector<std::string>{
-                "parser error at 0, 1 - found Plus but expected one of []"}),
+                "parser error at 0, 1 - found Plus but expected one of [Number, Ident, LeftParen]"}),
             result.errors);
   EXPECT_EQ(R"(Stmt@0..2
   Error@0..2

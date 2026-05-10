@@ -5,7 +5,7 @@ GENERATOR := Ninja
 CC        := clang
 CXX       := clang++
 
-.PHONY: all configure build test clean
+.PHONY: all configure build test repl clean
 
 all: build
 
@@ -24,6 +24,12 @@ ifdef TEST
 else
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 endif
+
+# Build yuzu-repl (and only what it depends on) and launch it interactively.
+# The `repl` CMake target is `USES_TERMINAL`, so the running binary gets
+# the real tty for stdin/stdout.
+repl: configure
+	cmake --build $(BUILD_DIR) --target repl
 
 clean:
 	rm -rf $(BUILD_DIR)
