@@ -1,4 +1,5 @@
 add_subdirectory(Util)
+add_subdirectory(Diagnostics)
 add_subdirectory(Lexer)
 add_subdirectory(Syntax)
 add_subdirectory(Ast)

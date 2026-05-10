@@ -2,39 +2,36 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
-#include <vector>
-
 namespace {
-using yuzu::parser::test::parseRoot;
+class GrammarTest : public yuzu::parser::test::ParserFixture {};
 
 // Empty input: `parseRoot` opens its `Root` marker, sees `atEnd`, closes
 // without consuming anything. The resulting tree is just an empty Root
 // spanning offsets 0..0.
-TEST(GrammarTest, ParsesEmptyInput) {
+TEST_F(GrammarTest, ParsesEmptyInput) {
   const auto result = parseRoot(U"");
 
-  EXPECT_EQ(std::vector<std::string>{}, result.errors);
+  EXPECT_TRUE(engine.getDiagnostics().empty());
   EXPECT_EQ("Root@0..0", result.tree);
 }
 
 // `parseStmt` currently forwards to `parseExpr`, which produces an
 // `Expr`-kinded subtree directly under `Root` (there's no synthetic
 // `Stmt` wrapper — see `Stmt.cc`).
-TEST(GrammarTest, ParsesSingleNumberLiteral) {
+TEST_F(GrammarTest, ParsesSingleNumberLiteral) {
   const auto result = parseRoot(U"42");
 
-  EXPECT_EQ(std::vector<std::string>{}, result.errors);
+  EXPECT_TRUE(engine.getDiagnostics().empty());
   EXPECT_EQ(R"(Root@0..2
   LiteralExpr@0..2
     Number@0..2 "42")",
             result.tree);
 }
 
-TEST(GrammarTest, ParsesSingleBinaryExpression) {
+TEST_F(GrammarTest, ParsesSingleBinaryExpression) {
   const auto result = parseRoot(U"1 + 2");
 
-  EXPECT_EQ(std::vector<std::string>{}, result.errors);
+  EXPECT_TRUE(engine.getDiagnostics().empty());
   EXPECT_EQ(R"(Root@0..5
   BinaryExpr@0..5
     LiteralExpr@0..2
@@ -51,13 +48,18 @@ TEST(GrammarTest, ParsesSingleBinaryExpression) {
 // `+` triggers a missing-LHS error and is wrapped in an `Error` node;
 // `parseRoot` then recovers and parses the trailing `1` as a separate
 // top-level statement.
-TEST(GrammarTest, ReportsErrorOnMissingLhs) {
+TEST_F(GrammarTest, ReportsErrorOnMissingLhs) {
   const auto result = parseRoot(U"+ 1");
 
-  EXPECT_EQ(
-      (std::vector<std::string>{"parser error at 0, 1 - found Plus but "
-                                "expected one of [Number, Ident, LeftParen]"}),
-      result.errors);
+  ASSERT_EQ(1u, engine.getDiagnostics().size());
+  const auto &d = engine.getDiagnostics()[0];
+  EXPECT_EQ(yuzu::diagnostics::Severity::Error, d.severity);
+  EXPECT_EQ("found Plus but expected one of [Number, Ident, LeftParen]",
+            d.message);
+  ASSERT_EQ(1u, d.labels.size());
+  EXPECT_EQ(0u, d.labels[0].span.start);
+  EXPECT_EQ(1u, d.labels[0].span.end);
+
   EXPECT_EQ(R"(Root@0..3
   Error@0..2
     Plus@0..1 "+"

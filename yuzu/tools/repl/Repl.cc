@@ -1,4 +1,8 @@
 #include "yuzu/Ast/Ast.h"
+#include "yuzu/Diagnostics/DiagnosticPrinter.h"
+#include "yuzu/Diagnostics/DiagnosticsEngine.h"
+#include "yuzu/Diagnostics/SourceMap.h"
+#include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Lexer/Lexer.h"
 #include "yuzu/Lexer/Token.h"
 #include "yuzu/Parser/Event.h"
@@ -18,9 +22,23 @@
 
 namespace {
 
-/// Drive `parseRoot` over `source` and write the printed tree (followed by
-/// any parser errors, indented) to `out`.
-void compileAndPrint(std::u32string_view source, llvm::raw_ostream &out) {
+/// Run one REPL line through the full pipeline and write the printed
+/// tree to `out`, followed by any diagnostics rendered in the rustc-style
+/// block format.
+///
+/// `source` (UTF-32) and `utf8` (the same text as UTF-8) are both passed
+/// in: the lexer wants UTF-32, but the SourceMap stores UTF-8 so the
+/// `DiagnosticPrinter` can pull line snippets directly. The caller owns
+/// both strings for the duration of the call.
+void compileAndPrint(std::u32string_view source, std::string utf8,
+                     llvm::raw_ostream &out) {
+  // Fresh per-line context. A future polish (multi-line history,
+  // persistent diagnostics) would lift these out of the function.
+  yuzu::diagnostics::SourceMap sources;
+  yuzu::diagnostics::DiagnosticsEngine engine;
+  const yuzu::diagnostics::SourceId sourceId =
+      sources.add("<repl>", std::move(utf8));
+
   auto lexer = yuzu::lexer::Lexer(source);
   std::vector<yuzu::lexer::Token> tokens = lexer.getTokens();
 
@@ -28,7 +46,8 @@ void compileAndPrint(std::u32string_view source, llvm::raw_ostream &out) {
   yuzu::parser::parseRoot(parser);
 
   std::vector<yuzu::parser::Event> events = std::move(parser).finish();
-  auto sink = yuzu::parser::TokenSink(std::move(tokens), std::move(events));
+  auto sink = yuzu::parser::TokenSink(std::move(tokens), std::move(events),
+                                      engine, sourceId);
   yuzu::parser::TokenSink::Result result = sink.finish();
 
   using SyntaxPrinter = yuzu::syntax::SyntaxPrinter<yuzu::ast::SyntaxKind>;
@@ -36,11 +55,12 @@ void compileAndPrint(std::u32string_view source, llvm::raw_ostream &out) {
              yuzu::ast::SyntaxNode::createRoot(result.green))
       << '\n';
 
-  if (!result.errors.empty()) {
-    out << "errors:\n";
-    for (const std::string &error : result.errors) {
-      out << "  " << error << '\n';
-    }
+  // Render each diagnostic as a Rust-style block: severity header, arrow
+  // line, snippet, caret. The printer pulls the snippet text and source
+  // name straight from `sources`.
+  const yuzu::diagnostics::DiagnosticPrinter printer(sources);
+  for (const yuzu::diagnostics::Diagnostic &d : engine.getDiagnostics()) {
+    printer.print(d, out);
   }
 }
 
@@ -63,11 +83,10 @@ int main() {
       continue;
     }
 
-    // The line `decodeUtf8` returns must outlive the lexer (which holds
-    // it as a string_view), so bind it to a local variable here rather
-    // than passing the temporary.
+    // The line must outlive the lexer (which holds it as a string_view),
+    // so bind it to a local variable here rather than passing temporaries.
     const std::u32string source = yuzu::util::decodeUtf8(line);
-    compileAndPrint(source, llvm::outs());
+    compileAndPrint(source, line, llvm::outs());
   }
 
   return 0;

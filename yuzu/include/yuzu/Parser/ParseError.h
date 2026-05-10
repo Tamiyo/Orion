@@ -1,10 +1,10 @@
 #ifndef YUZU_PARSER_PARSE_ERROR_H
 #define YUZU_PARSER_PARSE_ERROR_H
 
+#include "yuzu/Diagnostics/Diagnostic.h"
+#include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/TokenKind.h"
-
-#include "llvm/Support/FormatVariadic.h"
 
 #include <optional>
 #include <string>
@@ -12,15 +12,37 @@
 #include <vector>
 
 namespace yuzu::parser {
+
+/// \brief Abstract base for the parser's structured error types.
+///
+/// The parser stays unaware of the diagnostics layer at the call site —
+/// it constructs `ParseError` subclasses and stuffs them into
+/// `ErrorEvent`s. The `TokenSink` later asks each `ParseError` to render
+/// itself as a `diagnostics::Diagnostic` (via `toDiagnostic`) and pushes
+/// the result onto the engine.
+///
+/// Adding a new error category means: subclass, hold the data the parser
+/// captured, implement `toDiagnostic` to map that data to a primary span
+/// + message (and any labels/notes you want).
 class [[nodiscard]] ParseError {
 public:
-  // Virtual destructor is crucial for abstract base classes
   virtual ~ParseError() = default;
 
-  // Pure virtual method makes the class abstract
-  virtual std::string asString() const = 0;
+  /// \brief Render this parse error as a renderable diagnostic.
+  ///
+  /// `source` is the `SourceId` of the source the parser was running
+  /// against — the subclass uses it together with whatever byte-range
+  /// it captured to build the diagnostic's `Span`.
+  [[nodiscard]] virtual diagnostics::Diagnostic
+  toDiagnostic(diagnostics::SourceId source) const = 0;
 };
 
+/// \brief Parser hit an unexpected token (or end-of-input).
+///
+/// `expected` lists every kind the parser would have accepted at this
+/// decision point (collected via `Parser::at`); `found` is what was
+/// actually there, or `nullopt` at EOF; `range` is the offending span
+/// inside the source.
 class [[nodiscard]] ExpectedKindError final : public ParseError {
 public:
   explicit ExpectedKindError(std::vector<lexer::TokenKind> expected,
@@ -31,23 +53,33 @@ public:
 
   ExpectedKindError() = delete;
 
-  std::string asString() const override {
-    const std::string expectedKindAsString =
-        found ? lexer::asString(*found) : "None";
+  [[nodiscard]] diagnostics::Diagnostic
+  toDiagnostic(diagnostics::SourceId source) const override {
+    const std::string foundName =
+        found ? lexer::asString(*found) : std::string("None");
 
-    std::string expectedKinds = "[";
-    for (size_t i = 0, size = expected.size(); i < size; i++) {
-      expectedKinds.append(lexer::asString(expected[i]));
-      if (i < size - 1) {
-        expectedKinds.append(", ");
+    std::string expectedList = "[";
+    for (size_t i = 0; i < expected.size(); ++i) {
+      expectedList.append(lexer::asString(expected[i]));
+      if (i + 1 < expected.size()) {
+        expectedList.append(", ");
       }
     }
-    expectedKinds.append("]");
+    expectedList.append("]");
 
-    return llvm::formatv(
-               "parser error at {0}, {1} - found {2} but expected one of {3}",
-               range.start, range.end, expectedKindAsString, expectedKinds)
-        .str();
+    const diagnostics::Span span{source, range.start, range.end};
+    return diagnostics::Diagnostic{
+        .severity = diagnostics::Severity::Error,
+        .code = "",
+        .message =
+            "found " + foundName + " but expected one of " + expectedList,
+        .labels = {diagnostics::Label{
+            diagnostics::LabelStyle::Primary,
+            span,
+            "",
+        }},
+        .notes = {},
+    };
   }
 
 private:
@@ -55,6 +87,7 @@ private:
   std::optional<lexer::TokenKind> found;
   lexer::Range range;
 };
+
 } // namespace yuzu::parser
 
 #endif // YUZU_PARSER_PARSE_ERROR_H

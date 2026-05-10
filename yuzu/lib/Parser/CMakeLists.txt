@@ -4,4 +4,4 @@ add_library(YuzuParser
   Grammar/Grammar.cc
   Grammar/Stmt.cc
 )
-target_link_libraries(YuzuParser PUBLIC YuzuAst YuzuLexer YuzuSyntax)
+target_link_libraries(YuzuParser PUBLIC YuzuAst YuzuDiagnostics YuzuLexer YuzuSyntax)

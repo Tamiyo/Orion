@@ -2,7 +2,10 @@
 #define YUZU_PARSER_TOKEN_SINK_H
 
 #include "yuzu/Ast/Ast.h"
+#include "yuzu/Diagnostics/DiagnosticsEngine.h"
+#include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Lexer/Token.h"
+#include "yuzu/Lexer/TokenKind.h"
 #include "yuzu/Parser/Event.h"
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Green/GreenBuilder.h"
@@ -10,26 +13,38 @@
 #include "yuzu/Util/ErrorHandling.h"
 
 #include <optional>
-#include <string>
 #include <utility>
 #include <variant>
 #include <vector>
 
 namespace yuzu::parser {
+/// \brief Consumes a parser's event stream into a green tree and emits
+/// any structured `ErrorEvent`s as diagnostics.
+///
+/// The parser is intentionally unaware of the diagnostics layer — it
+/// pushes structured `ErrorEvent`s describing what went wrong, and the
+/// sink translates those into `Diagnostic`s on the engine. The split
+/// keeps the parser focused on syntactic decisions and lets the sink
+/// own the source-position-resolution work (since it already walks
+/// the event stream).
 class [[nodiscard]] TokenSink final {
 public:
   struct Result {
-    const syntax::GreenNode green;
-    const std::vector<std::string> errors;
+    syntax::GreenNode green;
   };
 
-  // Take both vectors by value so the existing `std::move` actually moves.
-  // `Event` holds move-only payloads (e.g. `unique_ptr<ParseError>`), so a
-  // const-reference parameter would force a copy that doesn't compile.
+  /// \brief Construct a sink bound to a tokens vector, an event stream,
+  /// a diagnostics engine, and the `SourceId` the tokens came from.
+  ///
+  /// `engine` and `sourceId` are used together to translate `ErrorEvent`s
+  /// into diagnostics with source-tagged spans. The engine and source map
+  /// are owned by the caller; the sink just borrows.
   explicit TokenSink(std::vector<lexer::Token> tokens,
-                     std::vector<Event> events)
+                     std::vector<Event> events,
+                     diagnostics::DiagnosticsEngine &engine,
+                     diagnostics::SourceId sourceId)
       : builder(syntax::GreenBuilder()), tokens(std::move(tokens)),
-        events(std::move(events)), errors(std::vector<std::string>{}),
+        events(std::move(events)), engine(engine), sourceId(sourceId),
         cursor(0) {}
 
   Result finish() {
@@ -44,7 +59,9 @@ public:
       } else if (std::get_if<TokenEvent>(&event)) {
         addToken();
       } else if (const auto *errorEvent = std::get_if<ErrorEvent>(&event)) {
-        addError(errorEvent->error->asString());
+        // The ParseError owns the message/label shape — the sink just
+        // tags it with the source id and pushes onto the engine.
+        engine.push(errorEvent->error->toDiagnostic(sourceId));
       } else if (std::get_if<PlaceholderEvent>(&event)) {
         // Skip - already processed via forward parent
       } else {
@@ -54,7 +71,7 @@ public:
       bumpTrivia();
     }
 
-    return Result{.green = builder.finish(), .errors = std::move(errors)};
+    return Result{.green = builder.finish()};
   }
 
 private:
@@ -100,8 +117,6 @@ private:
     cursor += 1;
   }
 
-  void addError(const std::string &error) { errors.emplace_back(error); }
-
   void bumpTrivia() {
     while (cursor < tokens.size()) {
       if (!lexer::isTrivia(tokens.at(cursor).getKind())) {
@@ -115,7 +130,8 @@ private:
   syntax::GreenBuilder builder;
   const std::vector<lexer::Token> tokens;
   std::vector<Event> events;
-  std::vector<std::string> errors;
+  diagnostics::DiagnosticsEngine &engine;
+  diagnostics::SourceId sourceId;
   size_t cursor;
 };
 } // namespace yuzu::parser

@@ -38,10 +38,12 @@ struct [[nodiscard]] TokenEvent final {
   ast::SyntaxKind kind;
 };
 
-/// \brief Event representing a parse error.
+/// \brief Event signalling a parse error.
 ///
-/// ErrorEvent is emitted when the parser encounters a syntax error and
-/// needs to record it in the event stream.
+/// Carries an opaque `ParseError` that knows how to render itself as a
+/// renderable diagnostic via `toDiagnostic`. The parser produces these
+/// without touching the diagnostics layer; the `TokenSink` forwards them
+/// to the engine when it walks the event stream.
 struct [[nodiscard]] ErrorEvent final {
   std::unique_ptr<const ParseError> error;
 };

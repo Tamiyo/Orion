@@ -14,6 +14,7 @@ function(add_yuzu_unittest test_name)
 endfunction()
 
 add_subdirectory(Ast)
+add_subdirectory(Diagnostics)
 add_subdirectory(Lexer)
 add_subdirectory(Parser)
 add_subdirectory(Syntax)

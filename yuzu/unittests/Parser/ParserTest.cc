@@ -1,3 +1,4 @@
+#include "ParserTestUtils.h"
 #include "yuzu/Parser/Parser.h"
 
 #include "yuzu/Ast/Ast.h"
@@ -22,61 +23,66 @@ using yuzu::parser::Marker;
 using yuzu::parser::Parser;
 using yuzu::parser::TokenSource;
 
+// These tests poke at the Parser's API directly rather than running a
+// grammar entry. Inherit `ParserFixture` so each test gets its own
+// engine; tests can construct `Parser(source, engine)` against it.
+class ParserTest : public yuzu::parser::test::ParserFixture {};
+
 inline std::vector<Token> lex(const std::u32string &source) {
   auto lexer = Lexer(source);
   return lexer.getTokens();
 }
 
-TEST(ParserTest, PeekKindReturnsFirstToken) {
+TEST_F(ParserTest, PeekKindReturnsFirstToken) {
   const auto tokens = lex(U"123");
   auto parser = Parser(TokenSource(tokens));
 
   EXPECT_EQ(TokenKind::Number, parser.peekKind());
 }
 
-TEST(ParserTest, PeekKindReturnsNulloptOnEmpty) {
+TEST_F(ParserTest, PeekKindReturnsNulloptOnEmpty) {
   const auto tokens = lex(U"");
   auto parser = Parser(TokenSource(tokens));
 
   EXPECT_FALSE(parser.peekKind().has_value());
 }
 
-TEST(ParserTest, PeekKindSkipsWhitespace) {
+TEST_F(ParserTest, PeekKindSkipsWhitespace) {
   const auto tokens = lex(U"   abc");
   auto parser = Parser(TokenSource(tokens));
 
   EXPECT_EQ(TokenKind::Ident, parser.peekKind());
 }
 
-TEST(ParserTest, AtReturnsTrueForMatchingKind) {
+TEST_F(ParserTest, AtReturnsTrueForMatchingKind) {
   const auto tokens = lex(U"123");
   auto parser = Parser(TokenSource(tokens));
 
   EXPECT_TRUE(parser.at(TokenKind::Number));
 }
 
-TEST(ParserTest, AtReturnsFalseForNonMatchingKind) {
+TEST_F(ParserTest, AtReturnsFalseForNonMatchingKind) {
   const auto tokens = lex(U"123");
   auto parser = Parser(TokenSource(tokens));
 
   EXPECT_FALSE(parser.at(TokenKind::Ident));
 }
 
-TEST(ParserTest, AtEndReturnsTrueOnEmpty) {
+TEST_F(ParserTest, AtEndReturnsTrueOnEmpty) {
   const auto tokens = lex(U"");
   auto parser = Parser(TokenSource(tokens));
 
   EXPECT_TRUE(parser.atEnd());
 }
 
-TEST(ParserTest, AtEndReturnsFalseWithTokens) {
+TEST_F(ParserTest, AtEndReturnsFalseWithTokens) {
   const auto tokens = lex(U"x");
   auto parser = Parser(TokenSource(tokens));
 
   EXPECT_FALSE(parser.atEnd());
 }
 
-TEST(ParserTest, BumpAdvancesCursor) {
+TEST_F(ParserTest, BumpAdvancesCursor) {
   const auto tokens = lex(U"a b");
   auto parser = Parser(TokenSource(tokens));
 
@@ -87,7 +93,7 @@ TEST(ParserTest, BumpAdvancesCursor) {
   EXPECT_FALSE(parser.peekKind().has_value());
 }
 
-TEST(ParserTest, BumpToEnd) {
+TEST_F(ParserTest, BumpToEnd) {
   const auto tokens = lex(U"x");
   auto parser = Parser(TokenSource(tokens));
 
@@ -95,7 +101,7 @@ TEST(ParserTest, BumpToEnd) {
   EXPECT_TRUE(parser.atEnd());
 }
 
-TEST(ParserTest, StartReturnsMarkerAtPositionZero) {
+TEST_F(ParserTest, StartReturnsMarkerAtPositionZero) {
   const auto tokens = lex(U"x");
   auto parser = Parser(TokenSource(tokens));
 
@@ -103,7 +109,7 @@ TEST(ParserTest, StartReturnsMarkerAtPositionZero) {
   EXPECT_EQ(0, marker.position);
 }
 
-TEST(ParserTest, StartIncrementsPosition) {
+TEST_F(ParserTest, StartIncrementsPosition) {
   const auto tokens = lex(U"x");
   auto parser = Parser(TokenSource(tokens));
 
@@ -113,7 +119,7 @@ TEST(ParserTest, StartIncrementsPosition) {
   EXPECT_EQ(1, m2.position);
 }
 
-TEST(ParserTest, CompleteReturnsCompletedMarker) {
+TEST_F(ParserTest, CompleteReturnsCompletedMarker) {
   const auto tokens = lex(U"x");
   auto parser = Parser(TokenSource(tokens));
 
@@ -122,7 +128,7 @@ TEST(ParserTest, CompleteReturnsCompletedMarker) {
   EXPECT_EQ(0, completed.position);
 }
 
-TEST(ParserTest, PrecedeCreatesNewMarkerAfterCompleted) {
+TEST_F(ParserTest, PrecedeCreatesNewMarkerAfterCompleted) {
   const auto tokens = lex(U"x");
   auto parser = Parser(TokenSource(tokens));
 
@@ -136,7 +142,7 @@ TEST(ParserTest, PrecedeCreatesNewMarkerAfterCompleted) {
   EXPECT_GT(newMarker.position, completed.position);
 }
 
-TEST(ParserTest, ExpectConsumesMatchingToken) {
+TEST_F(ParserTest, ExpectConsumesMatchingToken) {
   const auto tokens = lex(U"123");
   auto parser = Parser(TokenSource(tokens));
 
@@ -144,7 +150,7 @@ TEST(ParserTest, ExpectConsumesMatchingToken) {
   EXPECT_TRUE(parser.atEnd());
 }
 
-TEST(ParserTest, ExpectOnMismatchGeneratesError) {
+TEST_F(ParserTest, ExpectOnMismatchGeneratesError) {
   const auto tokens = lex(U"abc");
   auto parser = Parser(TokenSource(tokens));
 

@@ -45,6 +45,21 @@ inline void writeUtf8(llvm::raw_ostream &os, std::u32string_view text) {
   }
 }
 
+/// \brief Encode a UTF-32 string as a UTF-8 `std::string`.
+///
+/// Convenience wrapper around the streaming `writeUtf8` for callers that
+/// want the bytes by value rather than written to an `llvm::raw_ostream`
+/// (e.g. registering a UTF-32 source with a UTF-8 `SourceMap`).
+///
+/// \param text The UTF-32 input.
+/// \return The UTF-8 encoding.
+inline std::string toUtf8(std::u32string_view text) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  writeUtf8(os, text);
+  return out;
+}
+
 /// \brief Decode a UTF-8 byte sequence into a UTF-32 string.
 ///
 /// Inverse of `writeUtf8`. Walks `bytes` left-to-right, emitting one

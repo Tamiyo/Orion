@@ -107,9 +107,9 @@ public:
   [[nodiscard]] std::vector<Event> finish() && { return std::move(events); }
 
 private:
+  TokenSource source;
   std::vector<Event> events;
   std::vector<lexer::TokenKind> expectedKinds;
-  TokenSource source;
 };
 } // namespace yuzu::parser
 
