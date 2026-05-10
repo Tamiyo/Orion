@@ -1,4 +1,4 @@
-#include "yuzu/Ast/AstIterator.h"
+#include "yuzu/Ast/Ast.h"
 
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Syntax/Green/Green.h"

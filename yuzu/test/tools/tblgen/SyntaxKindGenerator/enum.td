@@ -21,6 +21,11 @@ def TestRoot : Base {
 def TestExpr : Variant<TestRoot>;
 def TestBinary : Node<TestExpr>;
 
+// Base-parented Node: lives in its own `// Nodes` block after all Variants,
+// without _FIRST/_LAST sentinels (a single concrete kind has nothing to
+// discriminate against).
+def TestProgram : Node<TestRoot>;
+
 // CHECK: namespace test::ast {
 // CHECK-LABEL: enum class SyntaxKind
 // CHECK:       // Tokens
@@ -31,8 +36,14 @@ def TestBinary : Node<TestExpr>;
 // CHECK:       TestExpr,
 // CHECK:       TestBinary,
 // CHECK:       TESTEXPR_LAST,
+// CHECK:       // Nodes
+// CHECK-NEXT:  NODES_FIRST,
+// CHECK-NEXT:  TestProgram,
+// CHECK-NEXT:  NODES_LAST,
 // CHECK:       // System
-// CHECK:       Error,
-// CHECK:       Tombstone,
+// CHECK-NEXT:  SYSTEM_FIRST,
+// CHECK-NEXT:  Error,
+// CHECK-NEXT:  Tombstone,
+// CHECK-NEXT:  SYSTEM_LAST,
 // CHECK:       };
 // CHECK:       } // namespace test::ast

@@ -1,13 +1,15 @@
 add_yuzu_unittest(SyntaxTests
-  ApiTest.cc
-  SyntaxChildrenTest.cc
-  SyntaxChildrenWithTokensTest.cc
-  SyntaxMemoryTest.cc
+  SyntaxPrinterTest.cc
   SyntaxTest.cc
+  Detail/SyntaxChildrenTest.cc
+  Detail/SyntaxChildrenWithTokensTest.cc
+  Detail/SyntaxMemoryTest.cc
+  Detail/SyntaxTest.cc
   Green/GreenBuilderTest.cc
   Green/GreenCacheTest.cc
   Green/GreenChildrenTest.cc
   Green/GreenElementTest.cc
   Green/GreenNodeTest.cc
+  Green/GreenPrinterTest.cc
   Green/GreenTokenTest.cc
 )

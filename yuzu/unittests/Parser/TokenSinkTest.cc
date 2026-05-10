@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -34,30 +35,46 @@ inline std::vector<Token> lex(const std::u32string &source) {
   return lexer.getTokens();
 }
 
-const ParseError error1 =
-    ExpectedKindError{.expected = std::vector<TokenKind>{TokenKind::Plus},
-                      .found = TokenKind::Ident,
-                      .range = Range{.start = 3, .end = 8}};
+// Build a `std::vector<Event>` from a parameter pack. `Event` is move-only
+// (it can hold a `unique_ptr<ParseError>` via ErrorEvent), so the natural
+// brace-init form `std::vector<Event>{a, b, c}` would copy and fail to
+// compile. This helper emplaces each argument in turn.
+template <typename... Es>
+std::vector<Event> makeEvents(Es &&...events) {
+  std::vector<Event> out;
+  out.reserve(sizeof...(Es));
+  (out.emplace_back(std::forward<Es>(events)), ...);
+  return out;
+}
+
+// `unique_ptr<ParseError>` is move-only, so each test that consumes one needs
+// a freshly-constructed instance. Factor the fixtures into helpers rather
+// than file-scope constants.
+std::unique_ptr<ParseError> makeError1() {
+  return std::make_unique<ExpectedKindError>(
+      std::vector<TokenKind>{TokenKind::Plus}, TokenKind::Ident,
+      Range{.start = 3, .end = 8});
+}
 
 const std::string error1ToString =
     "parser error at 3, 8 - found Ident but expected one of [Plus]";
 
-const ParseError error2 =
-    ExpectedKindError{.expected = std::vector<TokenKind>{TokenKind::Minus},
-                      .found = TokenKind::Ident,
-                      .range = Range{.start = 2, .end = 7}};
+std::unique_ptr<ParseError> makeError2() {
+  return std::make_unique<ExpectedKindError>(
+      std::vector<TokenKind>{TokenKind::Minus}, TokenKind::Ident,
+      Range{.start = 2, .end = 7});
+}
 
 const std::string error2ToString =
     "parser error at 2, 7 - found Ident but expected one of [Minus]";
 
 TEST(TokenSinkTest, SingleNodeWithNoChildren) {
   const auto tokens = std::vector<Token>{};
-  const auto events = std::vector<Event>{
+  auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
-      FinishEvent{},
-  };
+      FinishEvent{});
 
-  auto sink = TokenSink(tokens, events);
+  auto sink = TokenSink(tokens, std::move(events));
   const auto result = sink.finish();
 
   EXPECT_TRUE(result.errors.empty());
@@ -68,13 +85,11 @@ TEST(TokenSinkTest, SingleNodeWithNoChildren) {
 
 TEST(TokenSinkTest, SingleTokenEvent) {
   const auto tokens = lex(U"a");
-  const auto events = std::vector<Event>{
+  auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
-      TokenEvent{.kind = SyntaxKind::Ident},
-      FinishEvent{},
-  };
+      TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, events);
+  auto sink = TokenSink(tokens, std::move(events));
   const auto result = sink.finish();
 
   EXPECT_TRUE(result.errors.empty());
@@ -85,13 +100,11 @@ TEST(TokenSinkTest, SingleTokenEvent) {
 
 TEST(TokenSinkTest, ErrorEventAddsError) {
   const auto tokens = std::vector<Token>{};
-  const auto events = std::vector<Event>{
+  auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
-      ErrorEvent{.error = error1},
-      FinishEvent{},
-  };
+      ErrorEvent{.error = makeError1()}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, events);
+  auto sink = TokenSink(tokens, std::move(events));
   const auto result = sink.finish();
 
   EXPECT_EQ(1, result.errors.size());
@@ -100,14 +113,12 @@ TEST(TokenSinkTest, ErrorEventAddsError) {
 
 TEST(TokenSinkTest, MultipleErrorEvents) {
   const auto tokens = std::vector<Token>{};
-  const auto events = std::vector<Event>{
+  auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
-      ErrorEvent{.error = error1},
-      ErrorEvent{.error = error2},
-      FinishEvent{},
-  };
+      ErrorEvent{.error = makeError1()},
+      ErrorEvent{.error = makeError2()}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, events);
+  auto sink = TokenSink(tokens, std::move(events));
   const auto result = sink.finish();
 
   EXPECT_EQ(2, result.errors.size());
@@ -117,16 +128,13 @@ TEST(TokenSinkTest, MultipleErrorEvents) {
 
 TEST(TokenSinkTest, NestedNodes) {
   const auto tokens = lex(U"a");
-  const auto events = std::vector<Event>{
+  auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       StartEvent{.forwardParent = std::nullopt,
                  .kind = SyntaxKind::LiteralExpr},
-      TokenEvent{.kind = SyntaxKind::Ident},
-      FinishEvent{},
-      FinishEvent{},
-  };
+      TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, events);
+  auto sink = TokenSink(tokens, std::move(events));
   const auto result = sink.finish();
 
   EXPECT_TRUE(result.errors.empty());
@@ -141,15 +149,13 @@ TEST(TokenSinkTest, ForwardParentCreatesWrappingNode) {
   // Event 1: Token
   // Event 2: Start BinaryExpr (will be started before LiteralExpr due to
   // forward parent) Event 3: Finish BinaryExpr Event 4: Finish LiteralExpr
-  const auto events = std::vector<Event>{
+  auto events = makeEvents(
       StartEvent{.forwardParent = 2, .kind = SyntaxKind::LiteralExpr},
       TokenEvent{.kind = SyntaxKind::Ident},
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
-      FinishEvent{},
-      FinishEvent{},
-  };
+      FinishEvent{}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, events);
+  auto sink = TokenSink(tokens, std::move(events));
   const auto result = sink.finish();
 
   EXPECT_TRUE(result.errors.empty());
@@ -160,14 +166,12 @@ TEST(TokenSinkTest, ForwardParentCreatesWrappingNode) {
 
 TEST(TokenSinkTest, MultipleTokens) {
   const auto tokens = lex(U"a b");
-  const auto events = std::vector<Event>{
+  auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       TokenEvent{.kind = SyntaxKind::Ident},
-      TokenEvent{.kind = SyntaxKind::Ident},
-      FinishEvent{},
-  };
+      TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, events);
+  auto sink = TokenSink(tokens, std::move(events));
   const auto result = sink.finish();
 
   EXPECT_TRUE(result.errors.empty());

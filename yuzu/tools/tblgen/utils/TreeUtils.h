@@ -45,8 +45,18 @@ struct Child {
   std::string typeName;
 };
 
+/// Mirror of `class Children<Def type> : Field`. List form of Child.
+struct Children {
+  std::string typeName;
+};
+
 /// Mirror of `class Val<Def type> : Field`.
 struct Val {
+  std::string typeName;
+};
+
+/// Mirror of `class Values<Def type> : Field`. List form of Val.
+struct Values {
   std::string typeName;
 };
 
@@ -58,7 +68,8 @@ struct Custom {
 /// Tagged union over every `Field` subclass the codegen knows how to emit.
 /// Adding a new `Field` subclass means: declare a struct, plumb it through
 /// `FieldKind`, and extend `parseFieldKind`.
-using FieldKind = std::variant<Native, Enum, Child, Val, Custom>;
+using FieldKind =
+    std::variant<Native, Enum, Child, Children, Val, Values, Custom>;
 
 /// A `Field` paired with the `$name` it was bound to inside a `Node`'s
 /// `Fields` dag. The name (capitalized) becomes the accessor suffix.
@@ -105,8 +116,20 @@ inline Child parseChild(const llvm::Record *record) {
   };
 }
 
+inline Children parseChildren(const llvm::Record *record) {
+  return Children{
+      .typeName = record->getValueAsDef("Type")->getName().str(),
+  };
+}
+
 inline Val parseVal(const llvm::Record *record) {
   return Val{
+      .typeName = record->getValueAsDef("Type")->getName().str(),
+  };
+}
+
+inline Values parseValues(const llvm::Record *record) {
+  return Values{
       .typeName = record->getValueAsDef("Type")->getName().str(),
   };
 }
@@ -127,8 +150,20 @@ inline FieldKind parseFieldKind(const llvm::Record *record) {
     return parseEnum(record);
   }
 
+  // Check the list forms before the singular ones: in TreeBase.td,
+  // `Children` and `Values` are siblings of `Child`/`Val` rather than
+  // subclasses, so the order is technically immaterial. Listed this way
+  // for symmetry with the variant declaration above.
+  if (record->isSubClassOf("Children")) {
+    return parseChildren(record);
+  }
+
   if (record->isSubClassOf("Child")) {
     return parseChild(record);
+  }
+
+  if (record->isSubClassOf("Values")) {
+    return parseValues(record);
   }
 
   if (record->isSubClassOf("Val")) {

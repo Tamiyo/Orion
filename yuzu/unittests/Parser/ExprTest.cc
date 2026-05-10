@@ -1,299 +1,181 @@
-#include "yuzu/Parser/Grammar/Expr.h"
-
-#include "yuzu/Ast/Ast.h"
-#include "yuzu/Lexer/Lexer.h"
-#include "yuzu/Lexer/Token.h"
-#include "yuzu/Lexer/TokenKind.h"
-#include "yuzu/Parser/Event.h"
-#include "yuzu/Parser/Marker.h"
-#include "yuzu/Parser/Parser.h"
-#include "yuzu/Parser/TokenSink.h"
-#include "yuzu/Parser/TokenSource.h"
-#include "yuzu/Syntax/Green/Green.h"
-#include "yuzu/Syntax/SyntaxKind.h"
+#include "ParserTestUtils.h"
 
 #include <gtest/gtest.h>
 
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <ostream>
-#include <string>
-#include <utility>
-#include <variant>
 #include <vector>
 
 namespace {
-using yuzu::lexer::Lexer;
-using yuzu::lexer::Token;
-using yuzu::lexer::TokenKind;
-using yuzu::parser::Event;
-using yuzu::parser::Marker;
-using yuzu::parser::Parser;
-using yuzu::parser::TokenSink;
-using yuzu::parser::TokenSource;
-using yuzu::parser::parseExpr;
-using yuzu::syntax::GreenChild;
-using yuzu::syntax::GreenNode;
-using yuzu::syntax::GreenToken;
-using AstKind = yuzu::ast::SyntaxKind;
-
-// Tokens and nodes both end up in the green tree as `uint16_t`, but they live
-// in different enum value spaces (lexer::TokenKind vs ast::SyntaxKind), so a
-// tag is needed to disambiguate them for assertions.
-struct ChildKind {
-  bool isNode;
-  uint16_t value;
-
-  bool operator==(const ChildKind &other) const {
-    return isNode == other.isNode && value == other.value;
-  }
-};
-
-ChildKind node(AstKind kind) {
-  return ChildKind{.isNode = true, .value = static_cast<uint16_t>(kind)};
-}
-
-ChildKind tok(TokenKind kind) {
-  return ChildKind{.isNode = false, .value = static_cast<uint16_t>(kind)};
-}
-
-[[maybe_unused]] std::ostream &operator<<(std::ostream &os,
-                                          const ChildKind &kind) {
-  return os << (kind.isNode ? "node(" : "tok(") << kind.value << ")";
-}
-
-ChildKind kindOf(const GreenChild &child) {
-  if (const auto *n = std::get_if<GreenNode>(&child.element)) {
-    return ChildKind{.isNode = true,
-                     .value = static_cast<uint16_t>(n->getKind())};
-  }
-  return ChildKind{
-      .isNode = false,
-      .value = static_cast<uint16_t>(
-          std::get<GreenToken>(child.element).getKind())};
-}
-
-bool isTrivia(const ChildKind &kind) {
-  if (kind.isNode) {
-    return false;
-  }
-  const auto tk = static_cast<TokenKind>(kind.value);
-  return tk == TokenKind::Space || tk == TokenKind::Newline ||
-         tk == TokenKind::Comment;
-}
-
-std::vector<ChildKind> nonTriviaKinds(const GreenNode &n) {
-  std::vector<ChildKind> kinds;
-  for (const GreenChild &child : n.getChildren()) {
-    const ChildKind kind = kindOf(child);
-    if (isTrivia(kind)) {
-      continue;
-    }
-    kinds.emplace_back(kind);
-  }
-  return kinds;
-}
-
-// Returns the n-th non-trivia child *node* of `parent`. Aborts on overrun or
-// if a token appears where a node was expected.
-const GreenNode &nthNode(const GreenNode &parent, size_t n) {
-  for (const GreenChild &child : parent.getChildren()) {
-    const ChildKind kind = kindOf(child);
-    if (isTrivia(kind)) {
-      continue;
-    }
-    const auto *inner = std::get_if<GreenNode>(&child.element);
-    if (inner == nullptr) {
-      continue;
-    }
-    if (n == 0) {
-      return *inner;
-    }
-    --n;
-  }
-  std::abort();
-}
-
-// Drive the full lex → parse → sink pipeline for a single expression. The
-// outer Expr marker guarantees the green tree always has a root, even when
-// parseExpr fails on an empty or malformed input.
-TokenSink::Result parseToTree(const std::u32string &source) {
-  auto lexer = Lexer(source);
-  const std::vector<Token> tokens = lexer.getTokens();
-
-  auto parser = Parser(TokenSource(tokens));
-  const Marker root = parser.start();
-  parseExpr(parser);
-  auto _ = parser.complete(root, AstKind::Expr);
-
-  const std::vector<Event> events = std::move(parser).finish();
-  auto sink = TokenSink(tokens, events);
-  return sink.finish();
-}
-
-// Skip the synthetic Expr root the test harness wraps every parse in.
-const GreenNode &innerExpr(const TokenSink::Result &result) {
-  return nthNode(result.green, 0);
-}
+using yuzu::parser::test::parse;
 
 TEST(ExprTest, ParsesNumberLiteral) {
-  const auto result = parseToTree(U"42");
+  const auto result = parse(U"42");
 
   EXPECT_TRUE(result.errors.empty());
-  EXPECT_EQ(static_cast<yuzu::syntax::SyntaxKind>(AstKind::LiteralExpr),
-            innerExpr(result).getKind());
-  EXPECT_EQ((std::vector<ChildKind>{tok(TokenKind::Number)}),
-            nonTriviaKinds(innerExpr(result)));
+  EXPECT_EQ(R"(Expr@0..2
+  LiteralExpr@0..2
+    Number@0..2 "42")",
+            result.tree);
 }
 
 TEST(ExprTest, ParsesIdentifier) {
-  const auto result = parseToTree(U"foo");
+  const auto result = parse(U"foo");
 
   EXPECT_TRUE(result.errors.empty());
-  EXPECT_EQ(static_cast<yuzu::syntax::SyntaxKind>(AstKind::Ident),
-            innerExpr(result).getKind());
-  EXPECT_EQ((std::vector<ChildKind>{tok(TokenKind::Ident)}),
-            nonTriviaKinds(innerExpr(result)));
+  // The parser tags an identifier node with the same `Ident` kind as the
+  // underlying token, hence the doubled `Ident@..`.
+  EXPECT_EQ(R"(Expr@0..3
+  Ident@0..3
+    Ident@0..3 "foo")",
+            result.tree);
 }
 
 TEST(ExprTest, ParsesAddition) {
-  const auto result = parseToTree(U"1 + 2");
+  const auto result = parse(U"1 + 2");
 
   EXPECT_TRUE(result.errors.empty());
-  const GreenNode &expr = innerExpr(result);
-  EXPECT_EQ(static_cast<yuzu::syntax::SyntaxKind>(AstKind::BinaryExpr),
-            expr.getKind());
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Plus),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(expr));
+  EXPECT_EQ(R"(Expr@0..5
+  BinaryExpr@0..5
+    LiteralExpr@0..2
+      Number@0..1 "1"
+      Space@1..2 " "
+    Plus@2..3 "+"
+    Space@3..4 " "
+    LiteralExpr@4..5
+      Number@4..5 "2")",
+            result.tree);
 }
 
 TEST(ExprTest, ParsesSubtraction) {
-  const auto result = parseToTree(U"5 - 3");
+  const auto result = parse(U"5 - 3");
 
   EXPECT_TRUE(result.errors.empty());
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Minus),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(innerExpr(result)));
+  EXPECT_EQ(R"(Expr@0..5
+  BinaryExpr@0..5
+    LiteralExpr@0..2
+      Number@0..1 "5"
+      Space@1..2 " "
+    Minus@2..3 "-"
+    Space@3..4 " "
+    LiteralExpr@4..5
+      Number@4..5 "3")",
+            result.tree);
 }
 
 TEST(ExprTest, ParsesMultiplication) {
-  const auto result = parseToTree(U"2 * 3");
+  const auto result = parse(U"2 * 3");
 
   EXPECT_TRUE(result.errors.empty());
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Star),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(innerExpr(result)));
+  EXPECT_EQ(R"(Expr@0..5
+  BinaryExpr@0..5
+    LiteralExpr@0..2
+      Number@0..1 "2"
+      Space@1..2 " "
+    Star@2..3 "*"
+    Space@3..4 " "
+    LiteralExpr@4..5
+      Number@4..5 "3")",
+            result.tree);
 }
 
 TEST(ExprTest, ParsesDivision) {
-  const auto result = parseToTree(U"8 / 2");
+  const auto result = parse(U"8 / 2");
 
   EXPECT_TRUE(result.errors.empty());
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Slash),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(innerExpr(result)));
+  EXPECT_EQ(R"(Expr@0..5
+  BinaryExpr@0..5
+    LiteralExpr@0..2
+      Number@0..1 "8"
+      Space@1..2 " "
+    Slash@2..3 "/"
+    Space@3..4 " "
+    LiteralExpr@4..5
+      Number@4..5 "2")",
+            result.tree);
 }
 
-// Verifies that `1 + 2 * 3` parses as `1 + (2 * 3)`.
+// `1 + 2 * 3` parses as `1 + (2 * 3)` — multiplication binds tighter than
+// addition. The right-hand side of the outer `+` is a nested `BinaryExpr`.
 TEST(ExprTest, MultiplicationBindsTighterThanAddition) {
-  const auto result = parseToTree(U"1 + 2 * 3");
+  const auto result = parse(U"1 + 2 * 3");
 
   EXPECT_TRUE(result.errors.empty());
-  const GreenNode &expr = innerExpr(result);
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Plus),
-                                    node(AstKind::BinaryExpr)}),
-            nonTriviaKinds(expr));
-
-  const GreenNode &rhs = nthNode(expr, 1);
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Star),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(rhs));
+  EXPECT_EQ(R"(Expr@0..9
+  BinaryExpr@0..9
+    LiteralExpr@0..2
+      Number@0..1 "1"
+      Space@1..2 " "
+    Plus@2..3 "+"
+    Space@3..4 " "
+    BinaryExpr@4..9
+      LiteralExpr@4..6
+        Number@4..5 "2"
+        Space@5..6 " "
+      Star@6..7 "*"
+      Space@7..8 " "
+      LiteralExpr@8..9
+        Number@8..9 "3")",
+            result.tree);
 }
 
-// Verifies that `1 * 2 + 3` parses as `(1 * 2) + 3`.
-TEST(ExprTest, AdditionFlowsAroundMultiplication) {
-  const auto result = parseToTree(U"1 * 2 + 3");
-
-  EXPECT_TRUE(result.errors.empty());
-  const GreenNode &expr = innerExpr(result);
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::BinaryExpr),
-                                    tok(TokenKind::Plus),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(expr));
-
-  const GreenNode &lhs = nthNode(expr, 0);
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Star),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(lhs));
-}
-
-// Verifies that `1 + 2 + 3` parses as `(1 + 2) + 3`.
+// `1 + 2 + 3` parses left-associatively as `(1 + 2) + 3` — the left-hand
+// side of the outer `+` is a nested `BinaryExpr`.
 TEST(ExprTest, AdditionIsLeftAssociative) {
-  const auto result = parseToTree(U"1 + 2 + 3");
+  const auto result = parse(U"1 + 2 + 3");
 
   EXPECT_TRUE(result.errors.empty());
-  const GreenNode &expr = innerExpr(result);
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::BinaryExpr),
-                                    tok(TokenKind::Plus),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(expr));
-
-  const GreenNode &lhs = nthNode(expr, 0);
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Plus),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(lhs));
-}
-
-// Verifies that `1 * 2 * 3` parses as `(1 * 2) * 3`.
-TEST(ExprTest, MultiplicationIsLeftAssociative) {
-  const auto result = parseToTree(U"1 * 2 * 3");
-
-  EXPECT_TRUE(result.errors.empty());
-  const GreenNode &expr = innerExpr(result);
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::BinaryExpr),
-                                    tok(TokenKind::Star),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(expr));
-
-  const GreenNode &lhs = nthNode(expr, 0);
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Star),
-                                    node(AstKind::LiteralExpr)}),
-            nonTriviaKinds(lhs));
+  EXPECT_EQ(R"(Expr@0..9
+  BinaryExpr@0..9
+    BinaryExpr@0..6
+      LiteralExpr@0..2
+        Number@0..1 "1"
+        Space@1..2 " "
+      Plus@2..3 "+"
+      Space@3..4 " "
+      LiteralExpr@4..6
+        Number@4..5 "2"
+        Space@5..6 " "
+    Plus@6..7 "+"
+    Space@7..8 " "
+    LiteralExpr@8..9
+      Number@8..9 "3")",
+            result.tree);
 }
 
 // `1 +` should still wrap the LHS+operator in a BinaryExpr and report one
 // error for the missing RHS — partial trees are how the parser stays
-// recoverable.
+// recoverable. The recursive `parseLhs` hits end-of-input, so `found` is
+// reported as `None` and the error range falls back to the last consumed
+// token (the `+`).
 TEST(ExprTest, RecoversFromMissingRhs) {
-  const auto result = parseToTree(U"1 +");
+  const auto result = parse(U"1 +");
 
-  EXPECT_EQ(1u, result.errors.size());
-  const GreenNode &expr = innerExpr(result);
-  EXPECT_EQ(static_cast<yuzu::syntax::SyntaxKind>(AstKind::BinaryExpr),
-            expr.getKind());
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::LiteralExpr),
-                                    tok(TokenKind::Plus)}),
-            nonTriviaKinds(expr));
+  EXPECT_EQ((std::vector<std::string>{
+                "parser error at 2, 3 - found None but expected one of []"}),
+            result.errors);
+  EXPECT_EQ(R"(Expr@0..3
+  BinaryExpr@0..3
+    LiteralExpr@0..2
+      Number@0..1 "1"
+      Space@1..2 " "
+    Plus@2..3 "+")",
+            result.tree);
 }
 
-// `+ 1` has no LHS, so parseLhs reports an error and injects an Error node
-// containing the unexpected token.
+// `+ 1` has no LHS, so `parseLhs` reports an error against the unexpected
+// `+` token and injects an `Error` node containing it (the trailing space
+// attaches as trivia). `expectedKinds` is empty because `parseLhs` peeks
+// and switches rather than calling `p.at(...)`.
 TEST(ExprTest, RecoversFromMissingLhs) {
-  const auto result = parseToTree(U"+ 1");
+  const auto result = parse(U"+ 1");
 
-  EXPECT_EQ(1u, result.errors.size());
-  EXPECT_EQ((std::vector<ChildKind>{node(AstKind::Error)}),
-            nonTriviaKinds(result.green));
+  EXPECT_EQ((std::vector<std::string>{
+                "parser error at 0, 1 - found Plus but expected one of []"}),
+            result.errors);
+  EXPECT_EQ(R"(Expr@0..2
+  Error@0..2
+    Plus@0..1 "+"
+    Space@1..2 " ")",
+            result.tree);
 }
+
 } // namespace

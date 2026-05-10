@@ -23,8 +23,11 @@ public:
     const std::vector<std::string> errors;
   };
 
-  explicit TokenSink(const std::vector<lexer::Token> &tokens,
-                     const std::vector<Event> &events)
+  // Take both vectors by value so the existing `std::move` actually moves.
+  // `Event` holds move-only payloads (e.g. `unique_ptr<ParseError>`), so a
+  // const-reference parameter would force a copy that doesn't compile.
+  explicit TokenSink(std::vector<lexer::Token> tokens,
+                     std::vector<Event> events)
       : builder(syntax::GreenBuilder()), tokens(std::move(tokens)),
         events(std::move(events)), errors(std::vector<std::string>{}),
         cursor(0) {}
@@ -41,7 +44,7 @@ public:
       } else if (std::get_if<TokenEvent>(&event)) {
         addToken();
       } else if (const auto *errorEvent = std::get_if<ErrorEvent>(&event)) {
-        addError(errorEvent->error.asString());
+        addError(errorEvent->error->asString());
       } else if (std::get_if<PlaceholderEvent>(&event)) {
         // Skip - already processed via forward parent
       } else {

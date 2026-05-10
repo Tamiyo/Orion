@@ -1,4 +1,4 @@
-#include "yuzu/Syntax/Syntax.h"
+#include "yuzu/Syntax/Detail/Syntax.h"
 
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Util/ErrorHandling.h"
@@ -8,7 +8,7 @@
 #include <optional>
 #include <variant>
 
-namespace yuzu::syntax {
+namespace yuzu::syntax::detail {
 /// ===============
 /// = SyntaxData =
 /// ===============
@@ -322,4 +322,4 @@ std::optional<SyntaxNode> SyntaxToken::getPrevSibling() const {
 std::optional<SyntaxElement> SyntaxToken::getPrevSiblingOrToken() const {
   return data->getPrevSiblingOrToken();
 }
-} // namespace yuzu::syntax
+} // namespace yuzu::syntax::detail

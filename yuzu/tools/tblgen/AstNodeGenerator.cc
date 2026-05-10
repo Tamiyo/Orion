@@ -202,6 +202,23 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
                 fmt.linef("return child<{0}>(node, {1});", kind.typeName, n);
               }
               fmt.line("}");
+            } else if constexpr (std::is_same_v<T, Children>) {
+              // `Children<T>:$f` is a lazy view over all matching children,
+              // returned as `AstChildren<T>` (defined in Ast.h). The class
+              // template already carries `[[nodiscard]]`, so functions
+              // returning it by value are diagnosed without a function-level
+              // attribute. Multiple `Children<T>` fields on the same node
+              // would currently both alias the same view — there's no second
+              // axis to distinguish them — so we don't bump childCounts here.
+              fmt.line("");
+              fmt.linef("AstChildren<{0}> {1}() const {{", kind.typeName,
+                        accessor);
+              {
+                auto inner = fmt.block();
+                fmt.linef("return AstChildren<{0}>(node.getChildren());",
+                          kind.typeName);
+              }
+              fmt.line("}");
             } else if constexpr (std::is_same_v<T, Custom>) {
               // `Custom<T>:$f` is a declaration-only accessor returning `T`.
               // The implementation is hand-written elsewhere — generator

@@ -19,9 +19,11 @@ let IsKeyword = 1 in {
   def TestLet : Token<["let"]>;
 }
 
+// Tokens are now sorted by source location, so TestPlus precedes TestMinus
+// in the order they appear here.
 // CHECK-LABEL: inline bool isSymbol(TokenKind kind)
-// CHECK:       case TokenKind::TestMinus:
-// CHECK-NEXT:  case TokenKind::TestPlus:
+// CHECK:       case TokenKind::TestPlus:
+// CHECK-NEXT:  case TokenKind::TestMinus:
 // CHECK:       return true;
 // CHECK:       default:
 // CHECK:       return false;

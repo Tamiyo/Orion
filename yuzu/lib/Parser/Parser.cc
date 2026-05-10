@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <bitset>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -41,17 +42,16 @@ void Parser::error(
 
   expectedKinds.clear();
 
-  const auto error = ExpectedKindError{
-      .expected = expected, .found = found, .range = range.value()};
-
-  events.emplace_back(ErrorEvent{.error = error});
+  events.emplace_back(
+      ErrorEvent{.error = std::make_unique<ExpectedKindError>(
+                     std::move(expected), found, range.value())});
 
   // If not at a recovery set and not at the end, inject an ERROR node into
   // the syntax tree marking this branch as corrupted.
   if (!atRecoverySet(recoverySet) && !atEnd()) {
-    const Marker marker = start();
+    const Marker m = start();
     bump();
-    auto _ = complete(marker, ast::SyntaxKind::Error);
+    auto _ = complete(m, ast::SyntaxKind::Error);
   }
 }
 

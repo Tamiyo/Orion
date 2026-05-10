@@ -53,23 +53,26 @@ std::optional<CompletedMarker> parseLiteralExpr(Parser &p) {
   assert(p.peekKind() == lexer::TokenKind::Number &&
          "Literals must be numbers.");
 
-  const Marker marker = p.start();
-  p.bump();
-  return p.complete(marker, ast::SyntaxKind::LiteralExpr);
+  const Marker m = p.start();
+  p.bump(); // Consume literal.
+  return p.complete(m, ast::SyntaxKind::LiteralExpr);
 }
 
 std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
   assert(p.peekKind() == lexer::TokenKind::Ident &&
          "Variable references must be identifiers.");
 
-  const Marker marker = p.start();
-  p.bump();
-  return p.complete(marker, ast::SyntaxKind::Ident);
+  const Marker m = p.start();
+
+  p.bump(); // Consume identifier.
+  return p.complete(m, ast::SyntaxKind::Ident);
 }
 
 std::optional<CompletedMarker> parseParenExpr(Parser &p) {
   assert(p.peekKind() == lexer::TokenKind::LeftParen &&
          "Expected a LeftParen.");
+
+  p.bump(); // Consume '('.
 
   const auto expr = parseExprBindingPower(p, 0);
   p.expect(lexer::TokenKind::RightParen);

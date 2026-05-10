@@ -1,4 +1,4 @@
-#include "yuzu/Syntax/Syntax.h"
+#include "yuzu/Syntax/Detail/Syntax.h"
 
 #include <gtest/gtest.h>
 
@@ -8,9 +8,9 @@ namespace {
 using yuzu::syntax::GreenElement;
 using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenToken;
-using yuzu::syntax::SyntaxData;
-using yuzu::syntax::SyntaxNode;
-using yuzu::syntax::SyntaxToken;
+using yuzu::syntax::detail::SyntaxData;
+using yuzu::syntax::detail::SyntaxNode;
+using yuzu::syntax::detail::SyntaxToken;
 
 GreenNode createTestGreenNode() {
   return GreenNode::create(2,

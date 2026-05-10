@@ -3,49 +3,57 @@
 
 #include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/TokenKind.h"
-#include "yuzu/Util/ErrorHandling.h"
 
 #include "llvm/Support/FormatVariadic.h"
 
 #include <optional>
 #include <string>
-#include <variant>
+#include <utility>
 #include <vector>
 
 namespace yuzu::parser {
-struct [[nodiscard]] ExpectedKindError {
-  const std::vector<lexer::TokenKind> expected;
-  const std::optional<lexer::TokenKind> found;
-  const lexer::Range range;
+class [[nodiscard]] ParseError {
+public:
+  // Virtual destructor is crucial for abstract base classes
+  virtual ~ParseError() = default;
+
+  // Pure virtual method makes the class abstract
+  virtual std::string asString() const = 0;
 };
 
-class [[nodiscard]] ParseError final : public std::variant<ExpectedKindError> {
+class [[nodiscard]] ExpectedKindError final : public ParseError {
 public:
-  using std::variant<ExpectedKindError>::variant;
+  explicit ExpectedKindError(std::vector<lexer::TokenKind> expected,
+                             std::optional<lexer::TokenKind> found,
+                             lexer::Range range)
+      : expected(std::move(expected)), found(std::move(found)),
+        range(std::move(range)) {}
 
-  ParseError() = delete;
+  ExpectedKindError() = delete;
 
-  std::string asString() const {
-    if (const ExpectedKindError *error = std::get_if<ExpectedKindError>(this)) {
-      const std::string found = lexer::asString(error->found);
+  std::string asString() const override {
+    const std::string expectedKindAsString =
+        found ? lexer::asString(*found) : "None";
 
-      std::string expected = "[";
-      for (size_t i = 0, size = error->expected.size(); i < size; i++) {
-        expected.append(lexer::asString(error->expected[i]));
-        if (i < size - 1) {
-          expected.append(", ");
-        }
+    std::string expectedKinds = "[";
+    for (size_t i = 0, size = expected.size(); i < size; i++) {
+      expectedKinds.append(lexer::asString(expected[i]));
+      if (i < size - 1) {
+        expectedKinds.append(", ");
       }
-      expected.append("]");
-
-      return llvm::formatv(
-                 "parser error at {0}, {1} - found {2} but expected one of {3}",
-                 error->range.start, error->range.end, found, expected)
-          .str();
     }
+    expectedKinds.append("]");
 
-    util::yuzu_unreachable();
+    return llvm::formatv(
+               "parser error at {0}, {1} - found {2} but expected one of {3}",
+               range.start, range.end, expectedKindAsString, expectedKinds)
+        .str();
   }
+
+private:
+  std::vector<lexer::TokenKind> expected;
+  std::optional<lexer::TokenKind> found;
+  lexer::Range range;
 };
 } // namespace yuzu::parser
 

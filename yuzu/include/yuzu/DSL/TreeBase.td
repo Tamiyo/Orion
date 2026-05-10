@@ -79,9 +79,20 @@ class Child<Def type> : Field {
     Def Type = type;
 }
 
+/// A list children of a tree, typically another `Node` or `Variant`.
+class Children<Def type> : Field {
+    Def Type = type;
+}
+
 /// A child "value" of a tree — typically a concrete type like an enum or
 /// primitive, as opposed to a structural child node.
 class Val<Def type> : Field {
+    Def Type = type;
+}
+
+/// A child list of "values" of a tree — typically a concrete type like an enum or
+/// primitive, as opposed to a structural child node.
+class Values<Def type> : Field {
     Def Type = type;
 }
 

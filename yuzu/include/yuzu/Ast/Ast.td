@@ -72,3 +72,15 @@ def ParenExpr : Node<Expr> {
 /// A literal expression. Currently always a number; the literal value lives
 /// on the syntax token, not in the AST.
 def LiteralExpr : Node<Expr> {}
+
+//===----------------------------------------------------------------------===//
+// Roots
+//===----------------------------------------------------------------------===//
+
+/// Top-level variant for statements. No concrete subtypes yet; the codegen
+/// emits a placeholder `class Stmt {};` until one shows up.
+def Root : Node<AstNode> {
+    let Fields = (ins
+        Children<Stmt>:$stmts
+    );
+}

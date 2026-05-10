@@ -1,6 +1,6 @@
 
 #include "yuzu/Syntax/Green/Green.h"
-#include "yuzu/Syntax/Syntax.h"
+#include "yuzu/Syntax/Detail/Syntax.h"
 #include "yuzu/Syntax/SyntaxKind.h"
 
 #include <gtest/gtest.h>
@@ -12,7 +12,7 @@ using yuzu::syntax::GreenElement;
 using yuzu::syntax::GreenNode;
 using yuzu::syntax::GreenToken;
 using yuzu::syntax::SyntaxKind;
-using yuzu::syntax::SyntaxNode;
+using yuzu::syntax::detail::SyntaxNode;
 
 TEST(SyntaxChildrenTest, NoChildren) {
   const auto nodeEmpty = GreenNode::create(10, std::vector<GreenElement>());

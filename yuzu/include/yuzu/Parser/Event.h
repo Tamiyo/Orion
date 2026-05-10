@@ -5,7 +5,10 @@
 #include "yuzu/Parser/ParseError.h"
 
 #include <cstddef>
+#include <memory>
 #include <optional>
+#include <variant>
+#include <utility>
 
 namespace yuzu::parser {
 /// \brief Event marking the start of a syntax node.
@@ -15,10 +18,10 @@ namespace yuzu::parser {
 /// parent relationship for handling precedence and associativity.
 struct [[nodiscard]] StartEvent final {
   /// Optional index of a forward parent event for precedence handling.
-  const std::optional<size_t> forwardParent;
+  std::optional<size_t> forwardParent;
 
   /// The kind of syntax node being started.
-  const ast::SyntaxKind kind;
+  ast::SyntaxKind kind;
 };
 
 /// \brief Event marking the completion of a syntax node.
@@ -32,7 +35,7 @@ struct [[nodiscard]] FinishEvent final {};
 /// TokenEvent is emitted when the parser consumes a token from the lexer
 /// and adds it to the current syntax node.
 struct [[nodiscard]] TokenEvent final {
-  const ast::SyntaxKind kind;
+  ast::SyntaxKind kind;
 };
 
 /// \brief Event representing a parse error.
@@ -40,7 +43,7 @@ struct [[nodiscard]] TokenEvent final {
 /// ErrorEvent is emitted when the parser encounters a syntax error and
 /// needs to record it in the event stream.
 struct [[nodiscard]] ErrorEvent final {
-  const ParseError error;
+  std::unique_ptr<const ParseError> error;
 };
 
 /// \brief Event serving as a placeholder in the event stream.

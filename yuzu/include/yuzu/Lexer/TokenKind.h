@@ -5,9 +5,8 @@
 // no includes of its own, so this wrapper stages the dependencies.
 #include "yuzu/Util/ErrorHandling.h" // IWYU pragma: keep
 
-#include <cstdint>  // IWYU pragma: keep
-#include <optional> // IWYU pragma: keep
-#include <string>   // IWYU pragma: keep
+#include <cstdint> // IWYU pragma: keep
+#include <string>  // IWYU pragma: keep
 
 #include "yuzu/Lexer/TokenKind.h.inc" // IWYU pragma: export
 
