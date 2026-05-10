@@ -25,7 +25,7 @@ protected:
 };
 
 TEST_F(DiagnosticPrinterTest, RendersSimpleErrorWithCaret) {
-  const SourceId src = sources.add("<repl>", "2 ^ 2");
+  const SourceId src = sources.add("<repl>", U"2 ^ 2");
   engine.error(span(src, 2, 3), "expected expression").emit();
 
   const DiagnosticPrinter printer(sources);
@@ -39,7 +39,7 @@ TEST_F(DiagnosticPrinterTest, RendersSimpleErrorWithCaret) {
 }
 
 TEST_F(DiagnosticPrinterTest, IncludesCodeInHeader) {
-  const SourceId src = sources.add("<repl>", "2 ^ 2");
+  const SourceId src = sources.add("<repl>", U"2 ^ 2");
   engine.error(span(src, 2, 3), "expected expression").code("E0001").emit();
 
   const DiagnosticPrinter printer(sources);
@@ -53,7 +53,7 @@ TEST_F(DiagnosticPrinterTest, IncludesCodeInHeader) {
 }
 
 TEST_F(DiagnosticPrinterTest, AppendsPrimaryLabelMessage) {
-  const SourceId src = sources.add("<repl>", "2 ^ 2");
+  const SourceId src = sources.add("<repl>", U"2 ^ 2");
   // Replace the seeded primary label with one that carries a message,
   // so the renderer prints "^ expected expression".
   engine.error(span(src, 2, 3), "expected expression")
@@ -72,7 +72,7 @@ TEST_F(DiagnosticPrinterTest, AppendsPrimaryLabelMessage) {
 }
 
 TEST_F(DiagnosticPrinterTest, RendersSecondaryLabelOnSameLine) {
-  const SourceId src = sources.add("<repl>", "1 + +");
+  const SourceId src = sources.add("<repl>", U"1 + +");
   // Primary at the trailing `+`; secondary at the leading `+` for
   // context. Same line, so both underlines stack.
   engine.error(span(src, 4, 5), "expected expression")
@@ -90,7 +90,7 @@ TEST_F(DiagnosticPrinterTest, RendersSecondaryLabelOnSameLine) {
 }
 
 TEST_F(DiagnosticPrinterTest, AppendsNotesUnderSnippet) {
-  const SourceId src = sources.add("<repl>", "2 ^ 2");
+  const SourceId src = sources.add("<repl>", U"2 ^ 2");
   engine.error(span(src, 2, 3), "expected expression")
       .note("expressions can start with a number, identifier, or `(`")
       .emit();
@@ -109,7 +109,7 @@ TEST_F(DiagnosticPrinterTest, AppendsNotesUnderSnippet) {
 TEST_F(DiagnosticPrinterTest, ReportsLineColForLaterLine) {
   // Multi-line input: the renderer should pick up the line containing
   // the primary span and align the gutter to its line-number width.
-  const SourceId src = sources.add("<test>", "first\nsecond\nthird");
+  const SourceId src = sources.add("<test>", U"first\nsecond\nthird");
   // Span over 'c' in "second" (offset 8) — line 2, column 3.
   engine.error(span(src, 8, 9), "look here").emit();
 
@@ -124,7 +124,7 @@ TEST_F(DiagnosticPrinterTest, ReportsLineColForLaterLine) {
 }
 
 TEST_F(DiagnosticPrinterTest, SeverityWordTracksDiagnosticKind) {
-  const SourceId src = sources.add("<repl>", "x");
+  const SourceId src = sources.add("<repl>", U"x");
   engine.warning(span(src, 0, 1), "unused").emit();
 
   const DiagnosticPrinter printer(sources);

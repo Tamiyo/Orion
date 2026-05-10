@@ -50,7 +50,6 @@ public:
     Event &eventAtPosition = events[completedMarker.position];
     if (const StartEvent *startEvent =
             std::get_if<StartEvent>(&eventAtPosition)) {
-
       const ast::SyntaxKind newKind = startEvent->kind;
       const size_t newForwardParent =
           newMarker.position - completedMarker.position;
@@ -86,6 +85,20 @@ public:
   }
 
   void error(
+      const std::bitset<1 << (8 * sizeof(lexer::TokenKind))> &recoverySet = {});
+
+  /// \brief Report a "this position should have been an expression" error.
+  ///
+  /// Same recovery shape as `error()` (snapshots the offending token,
+  /// optionally bumps + wraps in an ERROR node), but captures a
+  /// semantic expectation instead of the auto-collected `expectedKinds`
+  /// list. The resulting diagnostic reads `expected expression, found
+  /// `<text>`` (or `... end of input` at EOF), which is far less
+  /// jargon-y than enumerating Number/Ident/LeftParen.
+  ///
+  /// Call from grammar rules that *know* they were trying to parse an
+  /// expression — e.g. `parseLhs` when none of its branches matched.
+  void errorExpression(
       const std::bitset<1 << (8 * sizeof(lexer::TokenKind))> &recoverySet = {});
 
   void bump() {

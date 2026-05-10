@@ -3,6 +3,7 @@
 #include "yuzu/Diagnostics/Diagnostic.h"
 #include "yuzu/Diagnostics/SourceMap.h"
 #include "yuzu/Diagnostics/Span.h"
+#include "yuzu/Util/Unicode.h"
 
 #include "llvm/Support/raw_ostream.h"
 
@@ -91,7 +92,11 @@ void DiagnosticPrinter::print(const Diagnostic &diagnostic,
     out << " |\n";
 
     // The snippet line itself, with the line number on the left.
-    out << pos.line << " | " << sources.getLineText(src, pos.line) << '\n';
+    // The line is UTF-32; encode it to UTF-8 at write time.
+    const std::u32string_view lineText = sources.getLineText(src, pos.line);
+    out << pos.line << " | ";
+    util::writeUtf8(out, lineText);
+    out << '\n';
 
     // Underline row. Walk the labels and emit a caret at each label's
     // start column; only labels on the same source+line as the primary
@@ -100,10 +105,10 @@ void DiagnosticPrinter::print(const Diagnostic &diagnostic,
     out << " | ";
 
     // Build the underline by stepping column-by-column through the
-    // primary line. Each label contributes a single column at its start
-    // for now (full-width underlines come later). Track which label
-    // owns each column so primaries override secondaries.
-    const std::string_view lineText = sources.getLineText(src, pos.line);
+    // primary line. Columns count UTF-32 code points (one per char32_t)
+    // — same convention as `getLineCol` — so this is plain ASCII despite
+    // the source potentially containing non-ASCII characters. Track
+    // which label owns each column so primaries override secondaries.
     std::string underline(lineText.size(), ' ');
     const Label *trailingLabel = nullptr;
 

@@ -59,8 +59,7 @@ public:
   /// promoting an additional span to primary status (renderers will
   /// underline both with the same emphasis).
   DiagnosticBuilder &primaryLabel(Span span, std::string message = "") {
-    diag.labels.push_back(
-        Label{LabelStyle::Primary, span, std::move(message)});
+    diag.labels.push_back(Label{LabelStyle::Primary, span, std::move(message)});
     return *this;
   }
 

@@ -19,12 +19,8 @@ namespace yuzu::diagnostics {
 struct [[nodiscard]] SourceId final {
   uint32_t value = 0;
 
-  bool operator==(const SourceId &other) const {
-    return value == other.value;
-  }
-  bool operator!=(const SourceId &other) const {
-    return value != other.value;
-  }
+  bool operator==(const SourceId &other) const { return value == other.value; }
+  bool operator!=(const SourceId &other) const { return value != other.value; }
 };
 
 /// \brief Half-open `[start, end)` byte range inside a specific source.

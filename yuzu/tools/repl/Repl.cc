@@ -25,19 +25,13 @@ namespace {
 /// Run one REPL line through the full pipeline and write the printed
 /// tree to `out`, followed by any diagnostics rendered in the rustc-style
 /// block format.
-///
-/// `source` (UTF-32) and `utf8` (the same text as UTF-8) are both passed
-/// in: the lexer wants UTF-32, but the SourceMap stores UTF-8 so the
-/// `DiagnosticPrinter` can pull line snippets directly. The caller owns
-/// both strings for the duration of the call.
-void compileAndPrint(std::u32string_view source, std::string utf8,
-                     llvm::raw_ostream &out) {
+void compileAndPrint(std::u32string_view source, llvm::raw_ostream &out) {
   // Fresh per-line context. A future polish (multi-line history,
   // persistent diagnostics) would lift these out of the function.
   yuzu::diagnostics::SourceMap sources;
   yuzu::diagnostics::DiagnosticsEngine engine;
   const yuzu::diagnostics::SourceId sourceId =
-      sources.add("<repl>", std::move(utf8));
+      sources.add("<repl>", std::u32string(source));
 
   auto lexer = yuzu::lexer::Lexer(source);
   std::vector<yuzu::lexer::Token> tokens = lexer.getTokens();
@@ -84,9 +78,9 @@ int main() {
     }
 
     // The line must outlive the lexer (which holds it as a string_view),
-    // so bind it to a local variable here rather than passing temporaries.
+    // so bind it to a local variable here rather than passing a temporary.
     const std::u32string source = yuzu::util::decodeUtf8(line);
-    compileAndPrint(source, line, llvm::outs());
+    compileAndPrint(source, llvm::outs());
   }
 
   return 0;

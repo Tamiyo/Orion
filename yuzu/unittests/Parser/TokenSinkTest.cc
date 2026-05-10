@@ -77,7 +77,7 @@ protected:
     // Register a synthetic source so the sink has somewhere to attribute
     // diagnostics. The text doesn't matter — the tests don't assert on
     // rendered output, only on the structured diagnostic shape.
-    sourceId = sources.add("<test>", "");
+    sourceId = sources.add("<test>", U"");
   }
 };
 

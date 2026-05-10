@@ -93,7 +93,9 @@ std::optional<CompletedMarker> parseLhs(Parser &p) {
     return parseParenExpr(p);
   }
 
-  p.error(exprRecoverySet);
+  // Semantic version: emits `expected expression, found `<text>`` instead
+  // of enumerating the LHS kinds. Same recovery shape as `error`.
+  p.errorExpression(exprRecoverySet);
   return std::nullopt;
 }
 

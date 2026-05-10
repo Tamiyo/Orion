@@ -141,17 +141,16 @@ TEST_F(ExprTest, AdditionIsLeftAssociative) {
 
 // `1 +` should still wrap the LHS+operator in a BinaryExpr and report one
 // error for the missing RHS — partial trees are how the parser stays
-// recoverable. The recursive `parseLhs` hits end-of-input, so `found` is
-// reported as `None` and the error span falls back to the last consumed
-// token (the `+`).
+// recoverable. The recursive `parseLhs` hits end-of-input, so the error
+// reads "found end of input" and the error span falls back to the last
+// consumed token (the `+`).
 TEST_F(ExprTest, RecoversFromMissingRhs) {
   const auto result = parseExpr(U"1 +");
 
   ASSERT_EQ(1u, engine.getDiagnostics().size());
   const auto &d = engine.getDiagnostics()[0];
   EXPECT_EQ(yuzu::diagnostics::Severity::Error, d.severity);
-  EXPECT_EQ("found None but expected one of [Number, Ident, LeftParen]",
-            d.message);
+  EXPECT_EQ("expected expression, found end of input", d.message);
   ASSERT_EQ(1u, d.labels.size());
   EXPECT_EQ(2u, d.labels[0].span.start);
   EXPECT_EQ(3u, d.labels[0].span.end);
@@ -167,16 +166,15 @@ TEST_F(ExprTest, RecoversFromMissingRhs) {
 
 // `+ 1` has no LHS, so `parseLhs` reports an error against the unexpected
 // `+` token and injects an `Error` node containing it (the trailing space
-// attaches as trivia). `expectedKinds` lists every kind `parseLhs` would
-// have accepted, since each branch goes through `p.at(...)`.
+// attaches as trivia). The diagnostic quotes the actual source text in
+// backticks rather than the lexer's kind name.
 TEST_F(ExprTest, RecoversFromMissingLhs) {
   const auto result = parseExpr(U"+ 1");
 
   ASSERT_EQ(1u, engine.getDiagnostics().size());
   const auto &d = engine.getDiagnostics()[0];
   EXPECT_EQ(yuzu::diagnostics::Severity::Error, d.severity);
-  EXPECT_EQ("found Plus but expected one of [Number, Ident, LeftParen]",
-            d.message);
+  EXPECT_EQ("expected expression, found `+`", d.message);
   ASSERT_EQ(1u, d.labels.size());
   EXPECT_EQ(0u, d.labels[0].span.start);
   EXPECT_EQ(1u, d.labels[0].span.end);

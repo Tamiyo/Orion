@@ -16,7 +16,6 @@
 #include "yuzu/Parser/TokenSink.h"
 #include "yuzu/Parser/TokenSource.h"
 #include "yuzu/Syntax/SyntaxPrinter.h"
-#include "yuzu/Util/Unicode.h"
 
 #include <gtest/gtest.h>
 
@@ -98,9 +97,10 @@ private:
 
     // Register the source under a synthetic `<test>` name so diagnostics
     // can reach back through the source map for line/col + snippet
-    // rendering.
+    // rendering. Both lexer and SourceMap take UTF-32, so no encoding
+    // conversion is needed.
     const diagnostics::SourceId sourceId =
-        sources.add("<test>", util::toUtf8(source));
+        sources.add("<test>", std::u32string(source));
 
     auto parser = Parser(TokenSource(tokens));
     grammar(parser);

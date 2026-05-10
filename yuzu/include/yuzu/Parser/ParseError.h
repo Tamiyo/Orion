@@ -5,6 +5,7 @@
 #include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Lexer/Range.h"
 #include "yuzu/Lexer/TokenKind.h"
+#include "yuzu/Util/Unicode.h"
 
 #include <optional>
 #include <string>
@@ -85,6 +86,50 @@ public:
 private:
   std::vector<lexer::TokenKind> expected;
   std::optional<lexer::TokenKind> found;
+  lexer::Range range;
+};
+
+/// \brief Parser hit something other than an expression where one was
+/// required.
+///
+/// Higher-level than `ExpectedKindError`: instead of enumerating the
+/// kinds the parser would have accepted (Number, Ident, LeftParen),
+/// this carries the semantic concept "expression". The diagnostic reads
+/// `expected expression, found `<text>`` for tokens, or
+/// `expected expression, found end of input` at EOF.
+///
+/// `foundText` is the UTF-32 source slice of the offending token (empty
+/// on EOF) so the renderer can quote what the user actually typed
+/// rather than print the lexer's recovery placeholder name.
+class [[nodiscard]] ExpectedExpressionError final : public ParseError {
+public:
+  explicit ExpectedExpressionError(std::u32string foundText, lexer::Range range)
+      : foundText(std::move(foundText)), range(std::move(range)) {}
+
+  ExpectedExpressionError() = delete;
+
+  [[nodiscard]] diagnostics::Diagnostic
+  toDiagnostic(diagnostics::SourceId source) const override {
+    const std::string foundDescription =
+        foundText.empty() ? std::string("end of input")
+                          : "`" + util::toUtf8(foundText) + "`";
+
+    const diagnostics::Span span{source, range.start, range.end};
+    return diagnostics::Diagnostic{
+        .severity = diagnostics::Severity::Error,
+        .code = "",
+        .message = "expected expression, found " + foundDescription,
+        .labels = {diagnostics::Label{
+            diagnostics::LabelStyle::Primary,
+            span,
+            "",
+        }},
+        .notes = {},
+    };
+  }
+
+private:
+  std::u32string foundText;
   lexer::Range range;
 };
 

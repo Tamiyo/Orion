@@ -43,8 +43,7 @@ TEST_F(StmtTest, ReportsErrorOnMissingLhs) {
   ASSERT_EQ(1u, engine.getDiagnostics().size());
   const auto &d = engine.getDiagnostics()[0];
   EXPECT_EQ(yuzu::diagnostics::Severity::Error, d.severity);
-  EXPECT_EQ("found Plus but expected one of [Number, Ident, LeftParen]",
-            d.message);
+  EXPECT_EQ("expected expression, found `+`", d.message);
   ASSERT_EQ(1u, d.labels.size());
   EXPECT_EQ(0u, d.labels[0].span.start);
   EXPECT_EQ(1u, d.labels[0].span.end);
