@@ -1,14 +1,14 @@
-#include "ParserTestUtils.h"
+#include "../ParserTestUtils.h"
 
 #include <gtest/gtest.h>
 
 #include <vector>
 
 namespace {
-using yuzu::parser::test::parse;
+using yuzu::parser::test::parseExpr;
 
 TEST(ExprTest, ParsesNumberLiteral) {
-  const auto result = parse(U"42");
+  const auto result = parseExpr(U"42");
 
   EXPECT_TRUE(result.errors.empty());
   EXPECT_EQ(R"(Expr@0..2
@@ -18,7 +18,7 @@ TEST(ExprTest, ParsesNumberLiteral) {
 }
 
 TEST(ExprTest, ParsesIdentifier) {
-  const auto result = parse(U"foo");
+  const auto result = parseExpr(U"foo");
 
   EXPECT_TRUE(result.errors.empty());
   // The parser tags an identifier node with the same `Ident` kind as the
@@ -30,7 +30,7 @@ TEST(ExprTest, ParsesIdentifier) {
 }
 
 TEST(ExprTest, ParsesAddition) {
-  const auto result = parse(U"1 + 2");
+  const auto result = parseExpr(U"1 + 2");
 
   EXPECT_TRUE(result.errors.empty());
   EXPECT_EQ(R"(Expr@0..5
@@ -46,7 +46,7 @@ TEST(ExprTest, ParsesAddition) {
 }
 
 TEST(ExprTest, ParsesSubtraction) {
-  const auto result = parse(U"5 - 3");
+  const auto result = parseExpr(U"5 - 3");
 
   EXPECT_TRUE(result.errors.empty());
   EXPECT_EQ(R"(Expr@0..5
@@ -62,7 +62,7 @@ TEST(ExprTest, ParsesSubtraction) {
 }
 
 TEST(ExprTest, ParsesMultiplication) {
-  const auto result = parse(U"2 * 3");
+  const auto result = parseExpr(U"2 * 3");
 
   EXPECT_TRUE(result.errors.empty());
   EXPECT_EQ(R"(Expr@0..5
@@ -78,7 +78,7 @@ TEST(ExprTest, ParsesMultiplication) {
 }
 
 TEST(ExprTest, ParsesDivision) {
-  const auto result = parse(U"8 / 2");
+  const auto result = parseExpr(U"8 / 2");
 
   EXPECT_TRUE(result.errors.empty());
   EXPECT_EQ(R"(Expr@0..5
@@ -96,7 +96,7 @@ TEST(ExprTest, ParsesDivision) {
 // `1 + 2 * 3` parses as `1 + (2 * 3)` — multiplication binds tighter than
 // addition. The right-hand side of the outer `+` is a nested `BinaryExpr`.
 TEST(ExprTest, MultiplicationBindsTighterThanAddition) {
-  const auto result = parse(U"1 + 2 * 3");
+  const auto result = parseExpr(U"1 + 2 * 3");
 
   EXPECT_TRUE(result.errors.empty());
   EXPECT_EQ(R"(Expr@0..9
@@ -120,7 +120,7 @@ TEST(ExprTest, MultiplicationBindsTighterThanAddition) {
 // `1 + 2 + 3` parses left-associatively as `(1 + 2) + 3` — the left-hand
 // side of the outer `+` is a nested `BinaryExpr`.
 TEST(ExprTest, AdditionIsLeftAssociative) {
-  const auto result = parse(U"1 + 2 + 3");
+  const auto result = parseExpr(U"1 + 2 + 3");
 
   EXPECT_TRUE(result.errors.empty());
   EXPECT_EQ(R"(Expr@0..9
@@ -147,7 +147,7 @@ TEST(ExprTest, AdditionIsLeftAssociative) {
 // reported as `None` and the error range falls back to the last consumed
 // token (the `+`).
 TEST(ExprTest, RecoversFromMissingRhs) {
-  const auto result = parse(U"1 +");
+  const auto result = parseExpr(U"1 +");
 
   EXPECT_EQ((std::vector<std::string>{
                 "parser error at 2, 3 - found None but expected one of []"}),
@@ -166,7 +166,7 @@ TEST(ExprTest, RecoversFromMissingRhs) {
 // attaches as trivia). `expectedKinds` is empty because `parseLhs` peeks
 // and switches rather than calling `p.at(...)`.
 TEST(ExprTest, RecoversFromMissingLhs) {
-  const auto result = parse(U"+ 1");
+  const auto result = parseExpr(U"+ 1");
 
   EXPECT_EQ((std::vector<std::string>{
                 "parser error at 0, 1 - found Plus but expected one of []"}),

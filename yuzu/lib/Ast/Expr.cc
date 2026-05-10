@@ -7,7 +7,7 @@ std::optional<BinOp> BinaryExpr::getOp() const {
   for (const auto &child : node.getChildrenWithTokens()) {
     if (child.isToken()) {
       const auto &token = child.getToken();
-      switch (static_cast<SyntaxKind>(token.getKind())) {
+      switch (token.getKind()) {
       case SyntaxKind::Minus:
         return BinOp::Sub;
       case SyntaxKind::Plus:
