@@ -182,8 +182,7 @@ void SyntaxKindGenerator::generate(const llvm::RecordKeeper &records) {
   //   + variants + nodes + 2 sentinels per variant
   //   + 2 sentinels (NODES_FIRST/LAST)
   //   + 2 sentinels (SYSTEM_FIRST/LAST) + 2 system kinds (Error, Tombstone)
-  const std::size_t total = tokens.size() + 2 +
-                            variants.size() + nodes.size() +
+  const std::size_t total = tokens.size() + 2 + variants.size() + nodes.size() +
                             2 * variants.size() + 2 + 2 + 2;
 
   fmt.linef("namespace {0} {{", ns);

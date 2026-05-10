@@ -23,10 +23,10 @@ inline std::string findNamespace(const llvm::RecordKeeper &records,
     if (ns.empty()) {
       ns = candidate.str();
     } else if (candidate != ns) {
-      llvm::PrintFatalError(
-          r->getLoc(),
-          "yuzu-tblgen: conflicting Namespace across " + className.str() +
-              " defs ('" + ns + "' vs '" + candidate.str() + "')");
+      llvm::PrintFatalError(r->getLoc(),
+                            "yuzu-tblgen: conflicting Namespace across " +
+                                className.str() + " defs ('" + ns + "' vs '" +
+                                candidate.str() + "')");
     }
   }
   if (ns.empty()) {

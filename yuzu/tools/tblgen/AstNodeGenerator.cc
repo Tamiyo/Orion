@@ -116,8 +116,8 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
   fmt.line("public:");
   {
     auto body = fmt.block();
-    fmt.linef("explicit {0}(SyntaxNode node) : {1}(std::move(node)) {{}",
-              name, parentName);
+    fmt.linef("explicit {0}(SyntaxNode node) : {1}(std::move(node)) {{}", name,
+              parentName);
     fmt.line("");
 
     fmt.line("[[nodiscard]] static bool isA(SyntaxKind kind) {");
@@ -148,8 +148,7 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
 
 void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   const std::string name = node->getName().str();
-  const std::string parentName =
-      node->getValueAsDef("Parent")->getName().str();
+  const std::string parentName = node->getValueAsDef("Parent")->getName().str();
   const llvm::StringRef summary = node->getValueAsString("Summary");
 
   if (!summary.empty()) {
@@ -159,8 +158,8 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   fmt.line("public:");
   {
     auto body = fmt.block();
-    fmt.linef("explicit {0}(SyntaxNode node) : {1}(std::move(node)) {{}",
-              name, parentName);
+    fmt.linef("explicit {0}(SyntaxNode node) : {1}(std::move(node)) {{}", name,
+              parentName);
     fmt.line("");
 
     fmt.linef("[[nodiscard]] static bool isA(SyntaxKind kind) "

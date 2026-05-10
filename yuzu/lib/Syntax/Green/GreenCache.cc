@@ -76,12 +76,12 @@ GreenCacheEntry GreenCache::getNode(const SyntaxKind kind,
     }
 
     const GreenChildren cachedChildren = entryNode->getChildren();
-    const bool sameChildren = std::equal(
-        cachedChildren.begin(), cachedChildren.end(),
-        children->begin() + firstChild, children->end(),
-        [](const GreenChild &cached, const GreenCacheEntry &entry) {
-          return cached.element == entry.element;
-        });
+    const bool sameChildren =
+        std::equal(cachedChildren.begin(), cachedChildren.end(),
+                   children->begin() + firstChild, children->end(),
+                   [](const GreenChild &cached, const GreenCacheEntry &entry) {
+                     return cached.element == entry.element;
+                   });
 
     if (sameChildren) {
       // Release the now-consumed children and return the cached node.

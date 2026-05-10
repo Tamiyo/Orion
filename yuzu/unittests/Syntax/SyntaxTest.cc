@@ -56,9 +56,8 @@ TEST(ApiSyntaxNodeTest, GetGreenReturnsBackingNode) {
 TEST(ApiSyntaxNodeTest, GetFirstChildReturnsTypedNode) {
   const auto inner = GreenNode::create(static_cast<uint16_t>(TestKind::Inner),
                                        std::vector<GreenElement>());
-  const auto root =
-      GreenNode::create(static_cast<uint16_t>(TestKind::Root),
-                        std::vector<GreenElement>{inner});
+  const auto root = GreenNode::create(static_cast<uint16_t>(TestKind::Root),
+                                      std::vector<GreenElement>{inner});
   const auto node = SyntaxNode<TestKind>::createRoot(root);
 
   const auto first = node.getFirstChild();
@@ -97,9 +96,8 @@ TEST(ApiSyntaxNodeTest, DifferentKindNodesCompareUnequal) {
 
 TEST(ApiSyntaxTokenTest, GetKindReturnsTypedEnum) {
   const auto token = GreenToken(static_cast<uint16_t>(TestKind::Plus), U"+");
-  const auto root =
-      GreenNode::create(static_cast<uint16_t>(TestKind::Root),
-                        std::vector<GreenElement>{token});
+  const auto root = GreenNode::create(static_cast<uint16_t>(TestKind::Root),
+                                      std::vector<GreenElement>{token});
   const auto node = SyntaxNode<TestKind>::createRoot(root);
 
   const auto first = node.getFirstChildOrToken();
@@ -116,9 +114,8 @@ TEST(ApiSyntaxElementTest, IsNodeAndIsTokenDispatch) {
   const auto token = GreenToken(static_cast<uint16_t>(TestKind::Plus), U"+");
   const auto inner = GreenNode::create(static_cast<uint16_t>(TestKind::Inner),
                                        std::vector<GreenElement>());
-  const auto root = GreenNode::create(
-      static_cast<uint16_t>(TestKind::Root),
-      std::vector<GreenElement>{token, inner});
+  const auto root = GreenNode::create(static_cast<uint16_t>(TestKind::Root),
+                                      std::vector<GreenElement>{token, inner});
   const auto node = SyntaxNode<TestKind>::createRoot(root);
 
   auto it = node.getChildrenWithTokens().begin();
@@ -131,17 +128,15 @@ TEST(ApiSyntaxElementTest, GetKindForwardsToActiveAlternative) {
   const auto token = GreenToken(static_cast<uint16_t>(TestKind::Plus), U"+");
   const auto inner = GreenNode::create(static_cast<uint16_t>(TestKind::Inner),
                                        std::vector<GreenElement>());
-  const auto root = GreenNode::create(
-      static_cast<uint16_t>(TestKind::Root),
-      std::vector<GreenElement>{token, inner});
+  const auto root = GreenNode::create(static_cast<uint16_t>(TestKind::Root),
+                                      std::vector<GreenElement>{token, inner});
   const auto node = SyntaxNode<TestKind>::createRoot(root);
 
   std::vector<TestKind> kinds;
   for (auto child : node.getChildrenWithTokens()) {
     kinds.push_back(child.getKind());
   }
-  EXPECT_EQ(kinds,
-            (std::vector<TestKind>{TestKind::Plus, TestKind::Inner}));
+  EXPECT_EQ(kinds, (std::vector<TestKind>{TestKind::Plus, TestKind::Inner}));
 }
 
 TEST(ApiSyntaxChildrenTest, EmptyRangeBeginEqualsEnd) {
@@ -159,26 +154,24 @@ TEST(ApiSyntaxChildrenTest, IteratorYieldsTypedNodesAndSkipsTokens) {
                                         std::vector<GreenElement>());
   const auto inner2 = GreenNode::create(static_cast<uint16_t>(TestKind::Inner),
                                         std::vector<GreenElement>());
-  const auto root = GreenNode::create(
-      static_cast<uint16_t>(TestKind::Root),
-      std::vector<GreenElement>{inner1, token, inner2});
+  const auto root =
+      GreenNode::create(static_cast<uint16_t>(TestKind::Root),
+                        std::vector<GreenElement>{inner1, token, inner2});
   const auto node = SyntaxNode<TestKind>::createRoot(root);
 
   std::vector<TestKind> kinds;
   for (auto child : node.getChildren()) {
     kinds.push_back(child.getKind());
   }
-  EXPECT_EQ(kinds,
-            (std::vector<TestKind>{TestKind::Inner, TestKind::Inner}));
+  EXPECT_EQ(kinds, (std::vector<TestKind>{TestKind::Inner, TestKind::Inner}));
 }
 
 TEST(ApiSyntaxChildrenWithTokensTest, IteratorYieldsBothNodesAndTokens) {
   const auto token = GreenToken(static_cast<uint16_t>(TestKind::Plus), U"+");
   const auto inner = GreenNode::create(static_cast<uint16_t>(TestKind::Inner),
                                        std::vector<GreenElement>());
-  const auto root = GreenNode::create(
-      static_cast<uint16_t>(TestKind::Root),
-      std::vector<GreenElement>{inner, token});
+  const auto root = GreenNode::create(static_cast<uint16_t>(TestKind::Root),
+                                      std::vector<GreenElement>{inner, token});
   const auto node = SyntaxNode<TestKind>::createRoot(root);
 
   int nodeCount = 0;
@@ -196,9 +189,8 @@ TEST(ApiSyntaxChildrenWithTokensTest, IteratorYieldsBothNodesAndTokens) {
 
 TEST(ApiSyntaxIteratorTest, IteratorTraitsAreInputForwardOnly) {
   using It = SyntaxIterator<TestKind>;
-  static_assert(
-      std::is_same_v<It::iterator_category, std::input_iterator_tag>,
-      "SyntaxIterator must declare input-iterator semantics");
+  static_assert(std::is_same_v<It::iterator_category, std::input_iterator_tag>,
+                "SyntaxIterator must declare input-iterator semantics");
   static_assert(std::is_same_v<It::value_type, SyntaxNode<TestKind>>,
                 "SyntaxIterator value_type must be the wrapper");
 }

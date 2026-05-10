@@ -149,9 +149,10 @@ TEST(ExprTest, AdditionIsLeftAssociative) {
 TEST(ExprTest, RecoversFromMissingRhs) {
   const auto result = parseExpr(U"1 +");
 
-  EXPECT_EQ((std::vector<std::string>{
-                "parser error at 2, 3 - found None but expected one of [Number, Ident, LeftParen]"}),
-            result.errors);
+  EXPECT_EQ(
+      (std::vector<std::string>{"parser error at 2, 3 - found None but "
+                                "expected one of [Number, Ident, LeftParen]"}),
+      result.errors);
   EXPECT_EQ(R"(Expr@0..3
   BinaryExpr@0..3
     LiteralExpr@0..2
@@ -168,9 +169,10 @@ TEST(ExprTest, RecoversFromMissingRhs) {
 TEST(ExprTest, RecoversFromMissingLhs) {
   const auto result = parseExpr(U"+ 1");
 
-  EXPECT_EQ((std::vector<std::string>{
-                "parser error at 0, 1 - found Plus but expected one of [Number, Ident, LeftParen]"}),
-            result.errors);
+  EXPECT_EQ(
+      (std::vector<std::string>{"parser error at 0, 1 - found Plus but "
+                                "expected one of [Number, Ident, LeftParen]"}),
+      result.errors);
   EXPECT_EQ(R"(Expr@0..2
   Error@0..2
     Plus@0..1 "+"

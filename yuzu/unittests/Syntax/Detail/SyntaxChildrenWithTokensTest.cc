@@ -1,6 +1,6 @@
 
-#include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/Detail/Syntax.h"
+#include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Syntax/SyntaxKind.h"
 
 #include <gtest/gtest.h>

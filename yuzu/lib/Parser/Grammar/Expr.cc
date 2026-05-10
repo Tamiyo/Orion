@@ -84,11 +84,11 @@ std::optional<CompletedMarker> parseLhs(Parser &p) {
   if (p.at(lexer::TokenKind::Number)) {
     return parseLiteralExpr(p);
   }
-  
+
   if (p.at(lexer::TokenKind::Ident)) {
     return parseIdentExpr(p);
   }
-  
+
   if (p.at(lexer::TokenKind::LeftParen)) {
     return parseParenExpr(p);
   }

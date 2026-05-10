@@ -23,9 +23,9 @@ template <typename Kind> class SyntaxChildrenWithTokens;
 
 /// \brief A typed view of a node in the concrete syntax tree.
 ///
-/// SyntaxNode is a thin forwarder around syntax::detail::SyntaxNode that exposes a
-/// frontend-supplied Kind enum (typically a generated `enum class`) instead
-/// of the untyped uint16_t carried by the core. The only behavioural
+/// SyntaxNode is a thin forwarder around syntax::detail::SyntaxNode that
+/// exposes a frontend-supplied Kind enum (typically a generated `enum class`)
+/// instead of the untyped uint16_t carried by the core. The only behavioural
 /// difference from the core is that getKind() returns Kind.
 template <typename Kind> class [[nodiscard]] SyntaxNode final {
 public:
@@ -64,7 +64,9 @@ public:
   /// maintains references.
   ///
   /// \return Pointer to parent SyntaxData, or nullptr if this is a root.
-  [[nodiscard]] const detail::SyntaxData *getParent() const { return raw.getParent(); }
+  [[nodiscard]] const detail::SyntaxData *getParent() const {
+    return raw.getParent();
+  }
 
   /// \brief Get the GreenNode of this SyntaxNode.
   ///
@@ -198,8 +200,8 @@ private:
 
 /// \brief A typed view of a token in the concrete syntax tree.
 ///
-/// Mirrors syntax::detail::SyntaxToken with getKind() returning the frontend's Kind
-/// enum rather than the underlying uint16_t.
+/// Mirrors syntax::detail::SyntaxToken with getKind() returning the frontend's
+/// Kind enum rather than the underlying uint16_t.
 template <typename Kind> class [[nodiscard]] SyntaxToken final {
 public:
   /// \brief Wrap an existing untyped core SyntaxToken.
@@ -224,7 +226,9 @@ public:
   ///
   /// \return Pointer to parent SyntaxData, or nullptr if this token has no
   /// parent.
-  [[nodiscard]] const detail::SyntaxData *getParent() const { return raw.getParent(); }
+  [[nodiscard]] const detail::SyntaxData *getParent() const {
+    return raw.getParent();
+  }
 
   /// \brief Get the GreenToken backing this SyntaxToken.
   ///
@@ -302,8 +306,8 @@ private:
 /// \brief A typed variant of either a SyntaxNode<Kind> or SyntaxToken<Kind>.
 ///
 /// Inherits from std::variant so std::visit / std::get / std::get_if work as
-/// expected. Additionally holds the underlying syntax::detail::SyntaxElement so that
-/// scalar accessors (kind, isNode/isToken, sibling navigation) forward to
+/// expected. Additionally holds the underlying syntax::detail::SyntaxElement so
+/// that scalar accessors (kind, isNode/isToken, sibling navigation) forward to
 /// the core directly instead of dispatching across the variant alternatives.
 template <typename Kind>
 class [[nodiscard]] SyntaxElement final
@@ -435,8 +439,8 @@ private:
 
 /// \brief Forward-only iterator over typed sibling SyntaxNodes.
 ///
-/// Wraps syntax::detail::SyntaxIterator and materializes a SyntaxNode<Kind> on each
-/// dereference. Forward-only because operator* returns by value: there is
+/// Wraps syntax::detail::SyntaxIterator and materializes a SyntaxNode<Kind> on
+/// each dereference. Forward-only because operator* returns by value: there is
 /// no stable storage to back a `const SyntaxNode<Kind>&` reference, so we
 /// declare input-iterator semantics and skip std::reverse_iterator support.
 template <typename Kind> class [[nodiscard]] SyntaxIterator final {
@@ -448,7 +452,8 @@ public:
   using reference = SyntaxNode<Kind>;
 
   /// \brief Wrap a core SyntaxIterator at the given position.
-  explicit SyntaxIterator(syntax::detail::SyntaxIterator raw) : raw(std::move(raw)) {}
+  explicit SyntaxIterator(syntax::detail::SyntaxIterator raw)
+      : raw(std::move(raw)) {}
 
   /// Deleted default constructor to enforce proper initialization.
   SyntaxIterator() = delete;
@@ -484,8 +489,8 @@ private:
 };
 
 /// \brief Forward-only iterator over typed sibling SyntaxElements (nodes
-/// and tokens). Wraps syntax::detail::SyntaxIteratorWithTokens; see SyntaxIterator
-/// for the rationale behind the input-iterator/by-value design.
+/// and tokens). Wraps syntax::detail::SyntaxIteratorWithTokens; see
+/// SyntaxIterator for the rationale behind the input-iterator/by-value design.
 template <typename Kind> class [[nodiscard]] SyntaxIteratorWithTokens final {
 public:
   using iterator_category = std::input_iterator_tag;
@@ -495,7 +500,8 @@ public:
   using reference = SyntaxElement<Kind>;
 
   /// \brief Wrap a core SyntaxIteratorWithTokens at the given position.
-  explicit SyntaxIteratorWithTokens(syntax::detail::SyntaxIteratorWithTokens raw)
+  explicit SyntaxIteratorWithTokens(
+      syntax::detail::SyntaxIteratorWithTokens raw)
       : raw(std::move(raw)) {}
 
   /// Deleted default constructor to enforce proper initialization.
@@ -531,15 +537,16 @@ private:
 };
 
 /// \brief Forward range over a SyntaxNode<Kind>'s child nodes (skipping
-/// tokens). Wraps syntax::detail::SyntaxChildren; reverse iteration is intentionally
-/// not supported (see SyntaxIterator).
+/// tokens). Wraps syntax::detail::SyntaxChildren; reverse iteration is
+/// intentionally not supported (see SyntaxIterator).
 template <typename Kind> class [[nodiscard]] SyntaxChildren final {
 public:
   using const_iterator = SyntaxIterator<Kind>;
   using value_type = typename const_iterator::value_type;
 
   /// \brief Wrap a core SyntaxChildren range.
-  explicit SyntaxChildren(syntax::detail::SyntaxChildren raw) : raw(std::move(raw)) {}
+  explicit SyntaxChildren(syntax::detail::SyntaxChildren raw)
+      : raw(std::move(raw)) {}
 
   /// Deleted default constructor to enforce proper initialization.
   SyntaxChildren() = delete;
@@ -559,7 +566,8 @@ public:
   using value_type = typename const_iterator::value_type;
 
   /// \brief Wrap a core SyntaxChildrenWithTokens range.
-  explicit SyntaxChildrenWithTokens(syntax::detail::SyntaxChildrenWithTokens raw)
+  explicit SyntaxChildrenWithTokens(
+      syntax::detail::SyntaxChildrenWithTokens raw)
       : raw(std::move(raw)) {}
 
   /// Deleted default constructor to enforce proper initialization.

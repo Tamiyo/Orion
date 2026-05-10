@@ -9,7 +9,8 @@ namespace yuzu::parser {
 /// CompletedMarker is returned when a syntax node has been successfully
 /// parsed and finished. It records the position in the event stream where
 /// the node was started, allowing for post-processing and tree construction.
-struct [[nodiscard("CompletedMarkers should not be discarded.")]] CompletedMarker final {
+struct [[nodiscard("CompletedMarkers should not be discarded.")]]
+CompletedMarker final {
   /// The position in the event stream where this node was started.
   const size_t position;
 };

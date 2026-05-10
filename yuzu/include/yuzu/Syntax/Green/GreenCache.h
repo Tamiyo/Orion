@@ -74,8 +74,7 @@ public:
   /// \param kind The syntax kind of the token.
   /// \param source The source text content of the token.
   /// \return A GreenCacheEntry containing the token and its hash.
-  GreenCacheEntry getToken(const SyntaxKind kind,
-                           std::u32string_view source);
+  GreenCacheEntry getToken(const SyntaxKind kind, std::u32string_view source);
 
   /// \brief Get the number of cached nodes.
   ///

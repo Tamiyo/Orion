@@ -88,8 +88,8 @@ TEST(SyntaxPrinterTest, PrintsNestedNodeWithOffsets) {
   const auto rightNode = node(TestKind::Inner, {token(TestKind::Number, U"4"),
                                                 token(TestKind::Plus, U"+"),
                                                 token(TestKind::Number, U"7")});
-  const auto green = node(
-      TestKind::Root, {leftNode, token(TestKind::Other, U"="), rightNode});
+  const auto green =
+      node(TestKind::Root, {leftNode, token(TestKind::Other, U"="), rightNode});
   const auto root = SyntaxNode::createRoot(green);
 
   EXPECT_EQ(R"(Root@0..7

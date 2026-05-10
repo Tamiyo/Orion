@@ -39,8 +39,7 @@ inline std::vector<Token> lex(const std::u32string &source) {
 // (it can hold a `unique_ptr<ParseError>` via ErrorEvent), so the natural
 // brace-init form `std::vector<Event>{a, b, c}` would copy and fail to
 // compile. This helper emplaces each argument in turn.
-template <typename... Es>
-std::vector<Event> makeEvents(Es &&...events) {
+template <typename... Es> std::vector<Event> makeEvents(Es &&...events) {
   std::vector<Event> out;
   out.reserve(sizeof...(Es));
   (out.emplace_back(std::forward<Es>(events)), ...);
@@ -115,8 +114,8 @@ TEST(TokenSinkTest, MultipleErrorEvents) {
   const auto tokens = std::vector<Token>{};
   auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
-      ErrorEvent{.error = makeError1()},
-      ErrorEvent{.error = makeError2()}, FinishEvent{});
+      ErrorEvent{.error = makeError1()}, ErrorEvent{.error = makeError2()},
+      FinishEvent{});
 
   auto sink = TokenSink(tokens, std::move(events));
   const auto result = sink.finish();

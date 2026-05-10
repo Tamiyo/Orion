@@ -54,9 +54,10 @@ TEST(GrammarTest, ParsesSingleBinaryExpression) {
 TEST(GrammarTest, ReportsErrorOnMissingLhs) {
   const auto result = parseRoot(U"+ 1");
 
-  EXPECT_EQ((std::vector<std::string>{
-                "parser error at 0, 1 - found Plus but expected one of [Number, Ident, LeftParen]"}),
-            result.errors);
+  EXPECT_EQ(
+      (std::vector<std::string>{"parser error at 0, 1 - found Plus but "
+                                "expected one of [Number, Ident, LeftParen]"}),
+      result.errors);
   EXPECT_EQ(R"(Root@0..3
   Error@0..2
     Plus@0..1 "+"

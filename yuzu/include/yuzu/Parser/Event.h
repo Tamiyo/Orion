@@ -7,8 +7,8 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
-#include <variant>
 #include <utility>
+#include <variant>
 
 namespace yuzu::parser {
 /// \brief Event marking the start of a syntax node.

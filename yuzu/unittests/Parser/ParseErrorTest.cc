@@ -15,8 +15,7 @@ using yuzu::parser::ExpectedKindError;
 
 TEST(ParseErrorTest, FormatsFoundTokenByName) {
   const ExpectedKindError error(std::vector<TokenKind>{TokenKind::Plus},
-                                TokenKind::Ident,
-                                Range{.start = 3, .end = 8});
+                                TokenKind::Ident, Range{.start = 3, .end = 8});
 
   EXPECT_EQ("parser error at 3, 8 - found Ident but expected one of [Plus]",
             error.asString());
@@ -26,8 +25,7 @@ TEST(ParseErrorTest, FormatsMissingFoundTokenAsNone) {
   // When the parser hits end-of-input, `found` is nullopt; the formatter
   // must surface that as the literal "None".
   const ExpectedKindError error(std::vector<TokenKind>{TokenKind::Plus},
-                                std::nullopt,
-                                Range{.start = 3, .end = 8});
+                                std::nullopt, Range{.start = 3, .end = 8});
 
   EXPECT_EQ("parser error at 3, 8 - found None but expected one of [Plus]",
             error.asString());

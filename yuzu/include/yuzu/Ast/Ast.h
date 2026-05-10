@@ -177,7 +177,7 @@ token(const SyntaxNode &parent, SyntaxKind kind, std::size_t n = 0) {
     if (count == n) {
       return c.getToken();
     }
-    
+
     ++count;
   }
   return std::nullopt;

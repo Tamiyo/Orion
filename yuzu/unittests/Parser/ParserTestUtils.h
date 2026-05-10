@@ -23,10 +23,11 @@ namespace yuzu::parser::test {
 
 /// Snapshot of one lex → parse → sink pipeline run.
 ///
-/// `tree` is the green tree printed via `syntax::SyntaxPrinter<ast::SyntaxKind>`
-/// and is intended to be compared against a raw-string literal in test
-/// assertions. `errors` mirrors `TokenSink::Result::errors` so callers can
-/// assert error counts and contents without re-running the pipeline.
+/// `tree` is the green tree printed via
+/// `syntax::SyntaxPrinter<ast::SyntaxKind>` and is intended to be compared
+/// against a raw-string literal in test assertions. `errors` mirrors
+/// `TokenSink::Result::errors` so callers can assert error counts and contents
+/// without re-running the pipeline.
 struct ParseResult {
   std::string tree;
   std::vector<std::string> errors;

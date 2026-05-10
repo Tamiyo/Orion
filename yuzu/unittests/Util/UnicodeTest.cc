@@ -68,8 +68,7 @@ TEST(UnicodeTest, StringFormConcatenatesCodePoints) {
   EXPECT_EQ("", encode(std::u32string_view()));
   EXPECT_EQ("hi", encode(U"hi"));
   // Mixed: ASCII + 2-byte + 3-byte + 4-byte.
-  EXPECT_EQ("a\xC3\xA9\xE4\xB8\xAD\xF0\x9F\x98\x80",
-            encode(U"aé中\U0001F600"));
+  EXPECT_EQ("a\xC3\xA9\xE4\xB8\xAD\xF0\x9F\x98\x80", encode(U"aé中\U0001F600"));
 }
 
 TEST(UnicodeTest, EscapesBackslashAndQuote) {

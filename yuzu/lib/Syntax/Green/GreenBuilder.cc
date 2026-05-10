@@ -61,8 +61,7 @@ GreenBuilderCheckpoint GreenBuilder::checkpoint() const {
   return GreenBuilderCheckpoint{.index = children.size()};
 }
 
-void GreenBuilder::token(const SyntaxKind kind,
-                         std::u32string_view source) {
+void GreenBuilder::token(const SyntaxKind kind, std::u32string_view source) {
   const auto token = cache.getToken(kind, source);
   children.emplace_back(token);
 }
@@ -80,7 +79,7 @@ GreenNode GreenBuilder::finish() {
   // trees.
   if (const GreenNode *node = entry.element.getIfNode()) {
     return std::move(*node);
-  } 
+  }
 
   util::yuzu_unreachable();
 }

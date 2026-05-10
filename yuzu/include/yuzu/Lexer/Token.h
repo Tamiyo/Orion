@@ -21,8 +21,7 @@ public:
   /// \param kind The kind of token (keyword, identifier, operator, etc.).
   /// \param source A view of the entire source text.
   /// \param range The range in the source text that this token occupies.
-  explicit Token(TokenKind kind, std::u32string_view source,
-                 const Range &range)
+  explicit Token(TokenKind kind, std::u32string_view source, const Range &range)
       : source(std::move(source)), range(std::move(range)), kind(kind) {}
 
   /// \brief Construct a token.
