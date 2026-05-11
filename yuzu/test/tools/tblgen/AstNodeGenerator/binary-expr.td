@@ -26,7 +26,7 @@ def TestBinary : Node<TestExpr> {
 // CHECK:       explicit TestBinary(SyntaxNode node) : TestExpr(std::move(node)) {}
 // CHECK:       static bool isA(SyntaxKind kind)
 // CHECK:       return kind == SyntaxKind::TestBinary;
-// CHECK:       static std::optional<TestBinary> cast(SyntaxNode node)
+// CHECK:       static std::optional<TestBinary> cast(const TestRoot &node)
 // CHECK:       std::optional<TestExpr> getLhs() const {
 // CHECK-NEXT:  return child<TestExpr>(node, 0);
 // CHECK:       std::optional<TestExpr> getRhs() const {

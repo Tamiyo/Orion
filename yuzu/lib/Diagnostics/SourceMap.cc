@@ -100,8 +100,8 @@ std::u32string_view SourceMap::getLineText(SourceId id, uint32_t line) const {
     }
   }
 
-  return std::u32string_view(entry.text).substr(startOffset,
-                                                lineEnd - startOffset);
+  return std::u32string_view(entry.text)
+      .substr(startOffset, lineEnd - startOffset);
 }
 
 } // namespace yuzu::diagnostics

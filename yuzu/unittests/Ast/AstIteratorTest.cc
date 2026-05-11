@@ -26,11 +26,6 @@ GreenNode makeLiteralExpr() {
                            std::vector<GreenElement>());
 }
 
-GreenNode makeParenExpr() {
-  return GreenNode::create(static_cast<uint16_t>(SyntaxKind::ParenExpr),
-                           std::vector<GreenElement>());
-}
-
 TEST(AstIteratorTest, EmptyParentYieldsNoChildren) {
   const auto green = GreenNode::create(static_cast<uint16_t>(SyntaxKind::Stmt),
                                        std::vector<GreenElement>());
@@ -69,8 +64,7 @@ TEST(AstIteratorTest, OnlyMatchingChildrenAreYielded) {
 TEST(AstIteratorTest, VariantBaseMatchesAllConcreteVariants) {
   const auto green = GreenNode::create(
       static_cast<uint16_t>(SyntaxKind::Stmt),
-      std::vector<GreenElement>{makeBinaryExpr(), makeLiteralExpr(),
-                                makeParenExpr()});
+      std::vector<GreenElement>{makeBinaryExpr(), makeLiteralExpr()});
   const auto root = SyntaxNode::createRoot(green);
   const AstChildren<Expr> children(root.getChildren());
 
@@ -79,7 +73,7 @@ TEST(AstIteratorTest, VariantBaseMatchesAllConcreteVariants) {
     (void)child;
     ++count;
   }
-  EXPECT_EQ(count, 3);
+  EXPECT_EQ(count, 2);
 }
 
 TEST(AstIteratorTest, BeginSkipsLeadingNonMatches) {

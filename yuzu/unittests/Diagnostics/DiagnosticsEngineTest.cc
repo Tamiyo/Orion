@@ -110,9 +110,7 @@ TEST(DiagnosticsEngineTest, PrimaryLabelAddsAdditionalPrimary) {
   // The first call to engine.error() seeds one Primary label. Callers
   // can promote a second span to Primary status with `.primaryLabel`.
   DiagnosticsEngine engine;
-  engine.error(span(0, 1), "msg")
-      .primaryLabel(span(5, 7), "and here")
-      .emit();
+  engine.error(span(0, 1), "msg").primaryLabel(span(5, 7), "and here").emit();
 
   const auto &d = engine.getDiagnostics()[0];
   ASSERT_EQ(2u, d.labels.size());

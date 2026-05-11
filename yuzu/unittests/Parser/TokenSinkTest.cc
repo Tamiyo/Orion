@@ -87,8 +87,7 @@ TEST_F(TokenSinkTest, SingleNodeWithNoChildren) {
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       FinishEvent{});
 
-  auto sink =
-      TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
   const auto result = sink.finish();
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
@@ -103,8 +102,7 @@ TEST_F(TokenSinkTest, SingleTokenEvent) {
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{});
 
-  auto sink =
-      TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
   const auto result = sink.finish();
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
@@ -119,8 +117,7 @@ TEST_F(TokenSinkTest, ErrorEventEmitsDiagnostic) {
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       ErrorEvent{.error = makeError1()}, FinishEvent{});
 
-  auto sink =
-      TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
   const auto _ = sink.finish();
 
   ASSERT_EQ(1u, engine.getDiagnostics().size());
@@ -140,8 +137,7 @@ TEST_F(TokenSinkTest, MultipleErrorEvents) {
       ErrorEvent{.error = makeError1()}, ErrorEvent{.error = makeError2()},
       FinishEvent{});
 
-  auto sink =
-      TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
   const auto _ = sink.finish();
 
   ASSERT_EQ(2u, engine.getDiagnostics().size());
@@ -159,8 +155,7 @@ TEST_F(TokenSinkTest, NestedNodes) {
                  .kind = SyntaxKind::LiteralExpr},
       TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{}, FinishEvent{});
 
-  auto sink =
-      TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
   const auto result = sink.finish();
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
@@ -181,8 +176,7 @@ TEST_F(TokenSinkTest, ForwardParentCreatesWrappingNode) {
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       FinishEvent{}, FinishEvent{});
 
-  auto sink =
-      TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
   const auto result = sink.finish();
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
@@ -198,8 +192,7 @@ TEST_F(TokenSinkTest, MultipleTokens) {
       TokenEvent{.kind = SyntaxKind::Ident},
       TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{});
 
-  auto sink =
-      TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
   const auto result = sink.finish();
 
   EXPECT_TRUE(engine.getDiagnostics().empty());

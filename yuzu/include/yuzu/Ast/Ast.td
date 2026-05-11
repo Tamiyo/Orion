@@ -62,13 +62,6 @@ def BinaryExpr : Node<Expr> {
     );
 }
 
-/// A parenthesised expression like `(a + b)`.
-def ParenExpr : Node<Expr> {
-    let Fields = (ins
-        Child<Expr>:$expr
-    );
-}
-
 /// A literal expression. Currently always a number; the literal value lives
 /// on the syntax token, not in the AST.
 def LiteralExpr : Node<Expr> {}

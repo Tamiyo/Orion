@@ -22,45 +22,40 @@ namespace {
 // Class definitions
 //===----------------------------------------------------------------------===//
 //
-// Every emitted AST type is a POD-shaped view over `SyntaxNode`,
-// rooted at the grammar's `Base` def (e.g. `AstNode`):
+// Each emitted AST type is a POD view over a `SyntaxNode`, e.g.:
 //
 //   class AstNode {
 //   public:
-//     explicit AstNode(SyntaxNode node);
+//     SyntaxKind getKind() const;
+//     const SyntaxNode &getSyntax() const;
 //   protected:
+//     explicit AstNode(SyntaxNode node);
 //     SyntaxNode node;
 //   };
 //
 //   class Foo : public AstNode {
 //   public:
-//     using AstNode::AstNode;
-//     [[nodiscard]] static bool isA(SyntaxKind);
-//     [[nodiscard]] static std::optional<Foo> cast(SyntaxNode);
+//     explicit Foo(SyntaxNode node);
+//     static bool isA(SyntaxKind);
+//     static std::optional<Foo> cast(const AstNode &);
 //     ... accessor declarations ...
 //   };
-//
-// SyntaxNode is itself a refcounted handle, so passing it by value is cheap
-// (one atomic refcount op, no heap allocation). `cast` returns the view by
-// value via `std::optional<T>` — no `unique_ptr`, no allocation. The Base
-// owns `node` as `protected` so derived accessor definitions can name it
-// directly.
 
 /// Find the unique grammar root: a `Base`-derived def that is *not* a
 /// `Variant`. Variants subclass `Base` in the schema, so we filter them out.
 const llvm::Record *findBase(const llvm::RecordKeeper &records) {
   const llvm::Record *base = nullptr;
-  for (const llvm::Record *r : records.getAllDerivedDefinitions("Base")) {
-    if (r->isSubClassOf("Variant")) {
+  for (const llvm::Record *record : records.getAllDerivedDefinitions("Base")) {
+    if (record->isSubClassOf("Variant")) {
       continue;
     }
     if (base) {
-      llvm::PrintFatalError(r->getLoc(),
+      llvm::PrintFatalError(record->getLoc(),
                             "yuzu-tblgen: multiple Base defs found ('" +
                                 base->getName().str() + "' and '" +
-                                r->getName().str() + "')");
+                                record->getName().str() + "')");
     }
-    base = r;
+    base = record;
   }
   if (!base) {
     llvm::PrintFatalError("yuzu-tblgen: no Base def found");
@@ -72,11 +67,9 @@ const llvm::Record *findBase(const llvm::RecordKeeper &records) {
 /// literal on its own. So `{{}` produces `{}`, *not* `{{}}`. Using `}}`
 /// would emit a stray `}` and silently corrupt class structure.
 
-/// Emit the grammar root. The constructor is `protected` so the base is not
-/// constructable directly — each concrete subclass declares its own ctor
-/// that delegates here. `node` lives in the same `protected` section so
-/// derived accessor definitions can name it. No `isA`/`cast` — the base
-/// represents "any node in this grammar", which is trivially true.
+/// Emit the grammar root: stores the `SyntaxNode`, exposes `getKind`,
+/// `getSyntax`, and `getRange`, and provides a `protected` ctor for
+/// subclasses.
 void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   const std::string name = base->getName().str();
   const llvm::StringRef summary = base->getValueAsString("Summary");
@@ -85,11 +78,32 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
     fmt.linef("/// {0}", summary);
   }
   fmt.linef("class [[nodiscard]] {0} {{", name);
+  fmt.line("public:");
+  {
+    auto body = fmt.block();
+    fmt.line("[[nodiscard]] SyntaxKind getKind() const "
+             "{ return node.getKind(); }");
+    fmt.line("");
+    fmt.line("[[nodiscard]] const SyntaxNode &getSyntax() const "
+             "{ return node; }");
+    fmt.line("");
+    fmt.line("[[nodiscard]] lexer::Range getRange() const {");
+    {
+      auto inner = fmt.block();
+      fmt.line("const auto start = static_cast<uint32_t>(node.getOffset());");
+      fmt.line("const auto end = start "
+               "+ static_cast<uint32_t>(node.getGreen().getWidth());");
+      fmt.line("return lexer::Range{start, end};");
+    }
+    fmt.line("}");
+  }
+  fmt.line("");
   fmt.line("protected:");
   {
     auto body = fmt.block();
     fmt.linef("explicit {0}(SyntaxNode node) : node(std::move(node)) {{}",
               name);
+    fmt.linef("{}() = delete;", name);
     fmt.line("");
     fmt.line("SyntaxNode node;");
   }
@@ -97,12 +111,10 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   fmt.line("");
 }
 
-/// Variant `isA` does a SyntaxKind range check using the
-/// `<V>_FIRST`/`<V>_LAST` sentinels emitted by `SyntaxKindGenerator`. No
-/// `std::variant` — discriminating between concrete subtypes is a separate
-/// `cast()` call to the concrete type. Inherits from its `.td` Parent so
-/// the schema's hierarchy shows up in C++.
-void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
+/// Emit a Variant class. `isA` is a `SyntaxKind` range check between the
+/// `<V>_FIRST` / `<V>_LAST` sentinels.
+void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant,
+                      llvm::StringRef baseName) {
   const std::string name = variant->getName().str();
   const std::string parentName =
       variant->getValueAsDef("Parent")->getName().str();
@@ -118,6 +130,7 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
     auto body = fmt.block();
     fmt.linef("explicit {0}(SyntaxNode node) : {1}(std::move(node)) {{}", name,
               parentName);
+    fmt.linef("{}() = delete;", name);
     fmt.line("");
 
     fmt.line("[[nodiscard]] static bool isA(SyntaxKind kind) {");
@@ -131,14 +144,14 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
     fmt.line("");
 
     fmt.linef("[[nodiscard]] static std::optional<{0}> "
-              "cast(SyntaxNode node) {{",
-              name);
+              "cast(const {1} &node) {{",
+              name, baseName);
     {
       auto inner = fmt.block();
-      fmt.line("if (!isA(static_cast<SyntaxKind>(node.getKind()))) {");
+      fmt.line("if (!isA(node.getKind())) {");
       fmt.line("  return std::nullopt;");
       fmt.line("}");
-      fmt.linef("return {0}(std::move(node));", name);
+      fmt.linef("return {0}(node.getSyntax());", name);
     }
     fmt.line("}");
   }
@@ -146,7 +159,8 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
   fmt.line("");
 }
 
-void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
+void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node,
+                   llvm::StringRef baseName) {
   const std::string name = node->getName().str();
   const std::string parentName = node->getValueAsDef("Parent")->getName().str();
   const llvm::StringRef summary = node->getValueAsString("Summary");
@@ -160,6 +174,7 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
     auto body = fmt.block();
     fmt.linef("explicit {0}(SyntaxNode node) : {1}(std::move(node)) {{}", name,
               parentName);
+    fmt.linef("{}() = delete;", name);
     fmt.line("");
 
     fmt.linef("[[nodiscard]] static bool isA(SyntaxKind kind) "
@@ -167,14 +182,14 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
               name);
     fmt.line("");
     fmt.linef("[[nodiscard]] static std::optional<{0}> "
-              "cast(SyntaxNode node) {{",
-              name);
+              "cast(const {1} &node) {{",
+              name, baseName);
     {
       auto inner = fmt.block();
-      fmt.line("if (!isA(static_cast<SyntaxKind>(node.getKind()))) {");
+      fmt.line("if (!isA(node.getKind())) {");
       fmt.line("  return std::nullopt;");
       fmt.line("}");
-      fmt.linef("return {0}(std::move(node));", name);
+      fmt.linef("return {0}(node.getSyntax());", name);
     }
     fmt.line("}");
 
@@ -290,17 +305,19 @@ void AstNodeGenerator::generate(const llvm::RecordKeeper &records) {
     fmt.line("");
   }
 
+  const llvm::StringRef baseName = base->getName();
+
   // Variants first: their definitions only reference their `.td` Parent,
   // which is either the root Base or another Variant emitted earlier.
   for (const llvm::Record *v : variants) {
-    emitVariantClass(fmt, v);
+    emitVariantClass(fmt, v, baseName);
   }
 
   // Concrete nodes: accessor signatures and inline bodies reference Variant
   // types, which are complete. Each Node inherits from its `.td` Parent —
   // typically a Variant.
   for (const llvm::Record *n : nodes) {
-    emitNodeClass(fmt, n);
+    emitNodeClass(fmt, n, baseName);
   }
 
   fmt.linef("} // namespace {0}", ns);

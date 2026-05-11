@@ -13,7 +13,6 @@
 #include <vector>
 
 namespace yuzu::parser {
-
 /// \brief Abstract base for the parser's structured error types.
 ///
 /// The parser stays unaware of the diagnostics layer at the call site —

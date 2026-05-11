@@ -1,10 +1,12 @@
 #ifndef YUZU_AST_AST_H
 #define YUZU_AST_AST_H
 
+#include "yuzu/Lexer/Range.h" // IWYU pragma: keep
 #include "yuzu/Syntax/Syntax.h"
 #include "yuzu/Util/ErrorHandling.h" // IWYU pragma: keep
 
 #include <cstddef>
+#include <cstdint> // IWYU pragma: keep
 #include <iterator>
 #include <optional>
 #include <string> // IWYU pragma: keep

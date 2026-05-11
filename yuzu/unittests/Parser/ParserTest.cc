@@ -1,5 +1,5 @@
-#include "ParserTestUtils.h"
 #include "yuzu/Parser/Parser.h"
+#include "ParserTestUtils.h"
 
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Lexer/Lexer.h"

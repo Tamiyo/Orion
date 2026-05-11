@@ -15,6 +15,7 @@ endfunction()
 
 add_subdirectory(Ast)
 add_subdirectory(Diagnostics)
+add_subdirectory(Hir)
 add_subdirectory(Lexer)
 add_subdirectory(Parser)
 add_subdirectory(Syntax)

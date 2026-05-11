@@ -154,9 +154,9 @@ void DiagnosticPrinter::print(const Diagnostic &diagnostic,
   // of the snippet itself.
   const unsigned noteIndent =
       primary != nullptr
-          ? lineNumberWidth(sources.getLineCol(primary->span.source,
-                                          primary->span.start)
-                           .line)
+          ? lineNumberWidth(
+                sources.getLineCol(primary->span.source, primary->span.start)
+                    .line)
           : 1;
   for (const std::string &note : diagnostic.notes) {
     indent(out, noteIndent);
@@ -164,7 +164,8 @@ void DiagnosticPrinter::print(const Diagnostic &diagnostic,
   }
 }
 
-std::string DiagnosticPrinter::printToString(const Diagnostic &diagnostic) const {
+std::string
+DiagnosticPrinter::printToString(const Diagnostic &diagnostic) const {
   std::string out;
   llvm::raw_string_ostream os(out);
   print(diagnostic, os);

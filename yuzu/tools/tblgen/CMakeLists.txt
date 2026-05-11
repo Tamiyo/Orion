@@ -5,7 +5,9 @@ llvm_map_components_to_libnames(yuzu_tblgen_llvm_libs
 
 add_executable(yuzu-tblgen
   AstNodeGenerator.cc
+  HirBuilderGenerator.cc
   HirKindGenerator.cc
+  HirNodeGenerator.cc
   SyntaxKindGenerator.cc
   TokenKindGenerator.cc
   YuzuGenAst.cc

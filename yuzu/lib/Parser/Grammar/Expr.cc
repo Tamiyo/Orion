@@ -77,6 +77,8 @@ std::optional<CompletedMarker> parseParenExpr(Parser &p) {
   const auto expr = parseExprBindingPower(p, 0);
   p.expect(lexer::TokenKind::RightParen);
 
+  // TODO - Perhaps have a specific error for unclosed parenthesis?
+
   return expr;
 }
 

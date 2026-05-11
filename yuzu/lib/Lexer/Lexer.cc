@@ -31,6 +31,14 @@ std::optional<Token> Lexer::getNextToken() {
     bump();
     return createToken(start, TokenKind::Newline);
   }
+  case U'(': {
+    bump();
+    return createToken(start, TokenKind::LeftParen);
+  }
+  case U')': {
+    bump();
+    return createToken(start, TokenKind::RightParen);
+  }
   case U'=': {
     bump();
     return createToken(start, TokenKind::Equals);
