@@ -1,4 +1,5 @@
 #include "AstNodeGenerator.h"
+#include "HirKindGenerator.h"
 #include "SyntaxKindGenerator.h"
 #include "TokenKindGenerator.h"
 
@@ -11,6 +12,7 @@
 namespace {
 enum ActionType {
   GenAstNodeDecls,
+  GenHirKindDecls,
   GenSyntaxKindDecls,
   GenTokenKindDecls,
 };
@@ -20,6 +22,8 @@ static llvm::cl::opt<ActionType> action(
     llvm::cl::desc("Action to perform:"),
     llvm::cl::values(clEnumValN(GenAstNodeDecls, "gen-ast-node-decls",
                                 "Generate AST node and variant declarations")),
+    llvm::cl::values(clEnumValN(GenHirKindDecls, "gen-hir-kind-decls",
+                                "Generate HirKind declarations")),
     llvm::cl::values(clEnumValN(GenSyntaxKindDecls, "gen-syntax-kind-decls",
                                 "Generate SyntaxKind declarations")),
     llvm::cl::values(clEnumValN(GenTokenKindDecls, "gen-token-kind-decls",
@@ -30,6 +34,9 @@ static bool YuzuTableGenMain(llvm::raw_ostream &os,
   switch (action) {
   case GenAstNodeDecls:
     yuzu::tools::AstNodeGenerator(os).run(records);
+    break;
+  case GenHirKindDecls:
+    yuzu::tools::HirKindGenerator(os).run(records);
     break;
   case GenSyntaxKindDecls:
     yuzu::tools::SyntaxKindGenerator(os).run(records);
