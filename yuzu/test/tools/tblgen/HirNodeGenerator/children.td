@@ -21,8 +21,8 @@ def TestProgram : Node<TestRoot> {
 
 // CHECK-LABEL: class {{.*}}TestProgram : public TestRoot {
 // CHECK:       public:
-// CHECK:       TestProgram(llvm::ArrayRef<const TestStmt *> stmts)
-// CHECK:       : TestRoot(HirKind::TestProgram), stmts(stmts) {}
+// CHECK:       TestProgram(HirId id, llvm::ArrayRef<const TestStmt *> stmts)
+// CHECK:       : TestRoot(id, HirKind::TestProgram), stmts(stmts) {}
 // CHECK:       llvm::ArrayRef<const TestStmt *> getStmts() const {
 // CHECK-NEXT:  return stmts;
 // CHECK:       private:

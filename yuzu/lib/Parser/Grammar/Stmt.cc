@@ -7,5 +7,9 @@
 #include <optional>
 
 namespace yuzu::parser {
-std::optional<CompletedMarker> parseStmt(Parser &p) { return parseExpr(p); }
+std::optional<CompletedMarker> parseStmt(Parser &p) {
+  const Marker m = p.start();
+  auto _ = parseExpr(p);
+  return p.complete(m, ast::SyntaxKind::ExprStmt);
+}
 } // namespace yuzu::parser

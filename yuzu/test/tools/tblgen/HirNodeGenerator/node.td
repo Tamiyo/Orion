@@ -27,8 +27,8 @@ def TestBinary : Node<TestExpr> {
 
 // CHECK-LABEL: class {{.*}}TestBinary : public TestExpr {
 // CHECK:       public:
-// CHECK:       TestBinary(const TestExpr *lhs, TestOp op, const TestExpr *rhs)
-// CHECK:       : TestExpr(HirKind::TestBinary), lhs(lhs), op(op), rhs(rhs) {}
+// CHECK:       TestBinary(HirId id, const TestExpr *lhs, TestOp op, const TestExpr *rhs)
+// CHECK:       : TestExpr(id, HirKind::TestBinary), lhs(lhs), op(op), rhs(rhs) {}
 // CHECK:       static bool isA(HirKind kind) {
 // CHECK-NEXT:  return kind == HirKind::TestBinary;
 // CHECK:       static const TestBinary *cast(const HirNode *node)

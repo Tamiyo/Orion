@@ -1,0 +1,36 @@
+llvm_map_components_to_libnames(yuzu_codegen_llvm_libs
+  Core
+  ExecutionEngine
+  OrcJIT
+  Support
+  native
+)
+
+add_library(YuzuCodegen
+  HirDiagnosticHandler.cc
+  HirToMlir.cc
+  Jit.cc
+)
+
+target_link_libraries(YuzuCodegen
+  PUBLIC
+    YuzuDiagnostics
+    YuzuHir
+    MLIRIR
+  PRIVATE
+    YuzuUtil
+    MLIRArithDialect
+    MLIRFuncDialect
+    MLIRLLVMDialect
+    MLIRArithToLLVM
+    MLIRControlFlowToLLVM
+    MLIRFuncToLLVM
+    MLIRReconcileUnrealizedCasts
+    MLIRSCFToControlFlow
+    MLIRPass
+    MLIRTargetLLVMIRExport
+    MLIRBuiltinToLLVMIRTranslation
+    MLIRLLVMToLLVMIRTranslation
+    MLIRExecutionEngine
+    ${yuzu_codegen_llvm_libs}
+)

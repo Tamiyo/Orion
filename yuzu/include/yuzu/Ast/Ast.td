@@ -15,6 +15,8 @@ include "yuzu/DSL/TreeBase.td"
 // Types
 //===----------------------------------------------------------------------===//
 
+def Int64 : Native<"int64_t"> {}
+
 /// A binary operator.
 def BinOp : Enum<"uint8_t"> {
     let Cases = [
@@ -38,14 +40,6 @@ def AstNode : Base {
 }
 
 //===----------------------------------------------------------------------===//
-// Statements
-//===----------------------------------------------------------------------===//
-
-/// Top-level variant for statements. No concrete subtypes yet; the codegen
-/// emits a placeholder `class Stmt {};` until one shows up.
-def Stmt : Variant<AstNode> {}
-
-//===----------------------------------------------------------------------===//
 // Expressions
 //===----------------------------------------------------------------------===//
 
@@ -64,7 +58,25 @@ def BinaryExpr : Node<Expr> {
 
 /// A literal expression. Currently always a number; the literal value lives
 /// on the syntax token, not in the AST.
-def LiteralExpr : Node<Expr> {}
+def LiteralExpr : Node<Expr> {
+    let Fields = (ins
+        Custom<Int64>:$value
+    );
+}
+
+//===----------------------------------------------------------------------===//
+// Statements
+//===----------------------------------------------------------------------===//
+
+/// Top-level variant for statements.
+def Stmt : Variant<AstNode> {}
+
+/// Statement wrapping a single expression: `42`, `a + b`, etc.
+def ExprStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Expr>:$expr
+    );
+}
 
 //===----------------------------------------------------------------------===//
 // Roots

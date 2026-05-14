@@ -1,7 +1,7 @@
 add_executable(yuzu-repl
   Repl.cc
 )
-target_link_libraries(yuzu-repl PRIVATE YuzuAst YuzuDiagnostics YuzuLexer YuzuParser YuzuSyntax)
+target_link_libraries(yuzu-repl PRIVATE Yuzu YuzuUtil)
 
 # `cmake --build . --target repl` (or `ninja repl`) builds yuzu-repl and
 # launches it interactively. `USES_TERMINAL` hands the REPL the real

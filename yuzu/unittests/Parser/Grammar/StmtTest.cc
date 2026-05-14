@@ -5,14 +5,11 @@
 namespace {
 class StmtTest : public yuzu::parser::test::ParserFixture {};
 
-// `parseStmt` currently delegates straight to `parseExpr`, so the tree
-// under the test harness's `Stmt` wrapper looks identical to the
-// expression grammar's output — only the outer kind changes.
 TEST_F(StmtTest, ParsesNumberLiteral) {
   const auto result = parseStmt(U"42");
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
-  EXPECT_EQ(R"(Stmt@0..2
+  EXPECT_EQ(R"(ExprStmt@0..2
   LiteralExpr@0..2
     Number@0..2 "42")",
             result.tree);
@@ -22,7 +19,7 @@ TEST_F(StmtTest, ParsesBinaryExpression) {
   const auto result = parseStmt(U"1 + 2");
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
-  EXPECT_EQ(R"(Stmt@0..5
+  EXPECT_EQ(R"(ExprStmt@0..5
   BinaryExpr@0..5
     LiteralExpr@0..2
       Number@0..1 "1"
@@ -34,9 +31,6 @@ TEST_F(StmtTest, ParsesBinaryExpression) {
             result.tree);
 }
 
-// `parseStmt` falls through to `parseExpr`, so an unexpected leading token
-// surfaces the same `parseLhs` error and an `Error` node — wrapped in the
-// `Stmt` marker rather than `Expr`.
 TEST_F(StmtTest, ReportsErrorOnMissingLhs) {
   const auto result = parseStmt(U"+ 1");
 
@@ -48,7 +42,7 @@ TEST_F(StmtTest, ReportsErrorOnMissingLhs) {
   EXPECT_EQ(0u, d.labels[0].span.start);
   EXPECT_EQ(1u, d.labels[0].span.end);
 
-  EXPECT_EQ(R"(Stmt@0..2
+  EXPECT_EQ(R"(ExprStmt@0..2
   Error@0..2
     Plus@0..1 "+"
     Space@1..2 " ")",

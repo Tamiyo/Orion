@@ -22,3 +22,12 @@ def TestRoot : Base {
 // CHECK-NEXT:  Sub,
 // CHECK-NEXT:  Mul,
 // CHECK-NEXT:  };
+
+// CHECK-LABEL: inline std::string asString(TestOp value)
+// CHECK:       case TestOp::Add:
+// CHECK-NEXT:    return "Add";
+// CHECK:       case TestOp::Sub:
+// CHECK-NEXT:    return "Sub";
+// CHECK:       case TestOp::Mul:
+// CHECK-NEXT:    return "Mul";
+// CHECK:       util::yuzu_unreachable();

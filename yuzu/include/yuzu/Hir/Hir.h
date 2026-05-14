@@ -7,6 +7,22 @@
 
 #include <cstdint> // IWYU pragma: keep
 #include <string>  // IWYU pragma: keep
+#include <limits>
+#include <type_traits>
+
+namespace yuzu::hir {
+/// Stable integer handle for an HIR node. Assigned monotonically by
+/// `HirBuilder` and used as the key in side-tables (`BodySourceMap`,
+/// future type / name-resolution tables, LSP hover). Strong-typedef'd
+/// via empty `enum class` so a `HirId` can't be silently mixed with an
+/// unrelated `uint32_t`.
+enum class HirId : uint32_t {};
+
+/// Sentinel for nodes with no associated source — synthetic wrappers,
+/// pre-builder construction, etc.
+inline constexpr HirId InvalidHirId{
+    std::numeric_limits<std::underlying_type_t<HirId>>::max()};
+} // namespace yuzu::hir
 
 // Generated HirKind enum + asString. Emits its own
 // `namespace yuzu::hir { ... }` block, reopened by the include below.

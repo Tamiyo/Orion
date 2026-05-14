@@ -15,16 +15,14 @@ TEST_F(GrammarTest, ParsesEmptyInput) {
   EXPECT_EQ("Root@0..0", result.tree);
 }
 
-// `parseStmt` currently forwards to `parseExpr`, which produces an
-// `Expr`-kinded subtree directly under `Root` (there's no synthetic
-// `Stmt` wrapper — see `Stmt.cc`).
 TEST_F(GrammarTest, ParsesSingleNumberLiteral) {
   const auto result = parseRoot(U"42");
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
   EXPECT_EQ(R"(Root@0..2
-  LiteralExpr@0..2
-    Number@0..2 "42")",
+  ExprStmt@0..2
+    LiteralExpr@0..2
+      Number@0..2 "42")",
             result.tree);
 }
 
@@ -33,21 +31,22 @@ TEST_F(GrammarTest, ParsesSingleBinaryExpression) {
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
   EXPECT_EQ(R"(Root@0..5
-  BinaryExpr@0..5
-    LiteralExpr@0..2
-      Number@0..1 "1"
-      Space@1..2 " "
-    Plus@2..3 "+"
-    Space@3..4 " "
-    LiteralExpr@4..5
-      Number@4..5 "2")",
+  ExprStmt@0..5
+    BinaryExpr@0..5
+      LiteralExpr@0..2
+        Number@0..1 "1"
+        Space@1..2 " "
+      Plus@2..3 "+"
+      Space@3..4 " "
+      LiteralExpr@4..5
+        Number@4..5 "2")",
             result.tree);
 }
 
 // Malformed input still yields a tree with a `Root` wrapper. The leading
-// `+` triggers a missing-LHS error and is wrapped in an `Error` node;
-// `parseRoot` then recovers and parses the trailing `1` as a separate
-// top-level statement.
+// `+` triggers a missing-LHS error and is wrapped in an `Error` node
+// inside its `ExprStmt`; `parseRoot` then recovers and parses the
+// trailing `1` as a separate top-level statement.
 TEST_F(GrammarTest, ReportsErrorOnMissingLhs) {
   const auto result = parseRoot(U"+ 1");
 
@@ -60,11 +59,13 @@ TEST_F(GrammarTest, ReportsErrorOnMissingLhs) {
   EXPECT_EQ(1u, d.labels[0].span.end);
 
   EXPECT_EQ(R"(Root@0..3
-  Error@0..2
-    Plus@0..1 "+"
-    Space@1..2 " "
-  LiteralExpr@2..3
-    Number@2..3 "1")",
+  ExprStmt@0..2
+    Error@0..2
+      Plus@0..1 "+"
+      Space@1..2 " "
+  ExprStmt@2..3
+    LiteralExpr@2..3
+      Number@2..3 "1")",
             result.tree);
 }
 

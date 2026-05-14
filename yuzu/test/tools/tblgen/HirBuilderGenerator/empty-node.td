@@ -12,4 +12,6 @@ def TestRoot : Base {
 def TestExpr : Variant<TestRoot>;
 def TestLiteral : Node<TestExpr>;
 
-// CHECK-LABEL: const TestLiteral *makeTestLiteral() { return new (allocator) TestLiteral(); }
+// CHECK-LABEL: const TestLiteral *makeTestLiteral() {
+// CHECK-NEXT:  return new (allocator) TestLiteral(allocId());
+// CHECK-NEXT:  }

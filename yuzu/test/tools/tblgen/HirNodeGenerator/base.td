@@ -1,7 +1,6 @@
-// The HIR root carries a `HirKind` directly (no `SyntaxNode` backing). It
-// exposes a `getKind()` accessor; the ctor is `protected` so the root can't
-// be constructed standalone — concrete `Node`s plumb their kind up
-// through it.
+// The HIR root carries a `HirId` and `HirKind` directly (no `SyntaxNode`
+// backing). It exposes `getId` / `getKind` accessors; the ctor is
+// `protected` so the root can't be constructed standalone.
 //
 // RUN: %yuzu-tblgen -gen-hir-node-decls -I %td-include %s | %FileCheck %s
 
@@ -13,10 +12,12 @@ def TestRoot : Base {
 
 // CHECK-LABEL: class {{.*}}TestRoot {
 // CHECK:       public:
+// CHECK:       HirId getId() const { return id; }
 // CHECK:       HirKind getKind() const { return kind; }
 // CHECK:       protected:
-// CHECK:       explicit TestRoot(HirKind kind) : kind(kind) {}
+// CHECK:       TestRoot(HirId id, HirKind kind) : id(id), kind(kind) {}
 // CHECK:       TestRoot() = delete;
-// CHECK:       HirKind kind;
+// CHECK:       HirId id;
+// CHECK-NEXT:  HirKind kind;
 
 // CHECK-NOT:   SyntaxNode

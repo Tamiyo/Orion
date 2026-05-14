@@ -65,13 +65,9 @@ protected:
   }
 
   /// \brief Drive the pipeline against `source` using the statement
-  /// grammar entry, wrapped in a `Stmt`-kinded marker.
+  /// grammar entry. `parseStmt` opens its own `ExprStmt`-kinded marker.
   ParseResult parseStmt(std::u32string_view source) {
-    return run(source, [](Parser &p) {
-      const Marker root = p.start();
-      parser::parseStmt(p);
-      auto _ = p.complete(root, ast::SyntaxKind::Stmt);
-    });
+    return run(source, [](Parser &p) { auto _ = parser::parseStmt(p); });
   }
 
   /// \brief Drive the pipeline against `source` using the expression

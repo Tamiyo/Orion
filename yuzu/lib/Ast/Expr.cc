@@ -1,5 +1,6 @@
 #include "yuzu/Ast/Ast.h"
 
+#include <cstdint>
 #include <optional>
 
 namespace yuzu::ast {
@@ -25,6 +26,22 @@ std::optional<BinOp> BinaryExpr::getOp() const {
   }
 
   return std::nullopt;
+}
+
+std::optional<Int64> LiteralExpr::getValue() const {
+  const auto numberToken = token(node, SyntaxKind::Number);
+  if (!numberToken) {
+    return std::nullopt;
+  }
+
+  int64_t value = 0;
+  for (const char32_t c : numberToken->getGreen().getSource()) {
+    if (c < U'0' || c > U'9') {
+      return std::nullopt;
+    }
+    value = value * 10 + static_cast<int64_t>(c - U'0');
+  }
+  return value;
 }
 
 } // namespace yuzu::ast

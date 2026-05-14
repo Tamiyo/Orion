@@ -22,6 +22,8 @@ include "yuzu/DSL/TreeBase.td"
 // Types
 //===----------------------------------------------------------------------===//
 
+def Int64 : Native<"int64_t"> {}
+
 /// A binary operator.
 def BinOp : Enum<"uint8_t"> {
     let Cases = [
@@ -45,14 +47,6 @@ def HirNode : Base {
 }
 
 //===----------------------------------------------------------------------===//
-// Statements
-//===----------------------------------------------------------------------===//
-
-/// Top-level variant for statements. No concrete subtypes yet; the
-/// codegen emits a placeholder `class Stmt` until one shows up.
-def Stmt : Variant<HirNode> {}
-
-//===----------------------------------------------------------------------===//
 // Expressions
 //===----------------------------------------------------------------------===//
 
@@ -72,7 +66,25 @@ def BinaryExpr : Node<Expr> {
 /// A literal expression. Currently always a number; the literal value
 /// is intentionally not stored here yet (a `Custom<Number>` field will
 /// land once the literal type lives in the schema).
-def LiteralExpr : Node<Expr> {}
+def LiteralExpr : Node<Expr> {
+    let Fields = (ins
+        Custom<Int64>:$value
+    );
+}
+
+//===----------------------------------------------------------------------===//
+// Statements
+//===----------------------------------------------------------------------===//
+
+/// Top-level variant for statements.
+def Stmt : Variant<HirNode> {}
+
+/// Statement wrapping a single expression.
+def ExprStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Expr>:$expr
+    );
+}
 
 //===----------------------------------------------------------------------===//
 // Roots

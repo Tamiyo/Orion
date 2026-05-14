@@ -18,5 +18,5 @@ def TestProgram : Node<TestRoot> {
 }
 
 // CHECK-LABEL: const TestProgram *makeTestProgram(llvm::ArrayRef<const TestStmt *> stmts) {
-// CHECK-NEXT:  return new (allocator) TestProgram(stmts.copy(allocator));
+// CHECK-NEXT:  return new (allocator) TestProgram(allocId(), stmts.copy(allocator));
 // CHECK-NEXT:  }

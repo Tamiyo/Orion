@@ -15,5 +15,7 @@ def TestRoot : Base {
 // CHECK:       HirBuilder(const HirBuilder &) = delete;
 // CHECK:       HirBuilder &operator=(const HirBuilder &) = delete;
 // CHECK:       private:
-// CHECK:       llvm::BumpPtrAllocator allocator;
+// CHECK:       HirId allocId() { return HirId{nextId++}; }
+// CHECK:       uint32_t nextId = 0;
+// CHECK-NEXT:  llvm::BumpPtrAllocator allocator;
 // CHECK:       };

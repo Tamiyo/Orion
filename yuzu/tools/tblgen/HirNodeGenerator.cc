@@ -1,5 +1,6 @@
 #include "HirNodeGenerator.h"
 
+#include "utils/EnumEmitter.h"
 #include "utils/SchemaUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/TreeUtils.h"
@@ -8,7 +9,6 @@
 #include <llvm/TableGen/Error.h>
 #include <llvm/TableGen/Record.h>
 
-#include <cstddef>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -49,14 +49,17 @@ const llvm::Record *findBase(const llvm::RecordKeeper &records) {
     if (record->isSubClassOf("Variant")) {
       continue;
     }
+    
     if (base) {
       llvm::PrintFatalError(record->getLoc(),
                             "yuzu-tblgen: multiple Base defs found ('" +
                                 base->getName().str() + "' and '" +
                                 record->getName().str() + "')");
     }
+
     base = record;
   }
+  
   if (!base) {
     llvm::PrintFatalError("yuzu-tblgen: no Base def found");
   }
@@ -84,8 +87,8 @@ std::string fieldStorageType(const FieldKind &kind) {
       kind);
 }
 
-/// Emit the grammar root: stores the `HirKind` and exposes `getKind`, with
-/// a `protected` ctor for subclasses.
+/// Emit the grammar root: stores the `HirId` and `HirKind`, exposes
+/// `getId` / `getKind`, and provides a `protected` ctor for subclasses.
 void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   const std::string name = base->getName().str();
   const llvm::StringRef summary = base->getValueAsString("Summary");
@@ -97,15 +100,18 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   fmt.line("public:");
   {
     auto body = fmt.block();
+    fmt.line("[[nodiscard]] HirId getId() const { return id; }");
+    fmt.line("");
     fmt.line("[[nodiscard]] HirKind getKind() const { return kind; }");
   }
   fmt.line("");
   fmt.line("protected:");
   {
     auto body = fmt.block();
-    fmt.linef("explicit {0}(HirKind kind) : kind(kind) {{}", name);
+    fmt.linef("{0}(HirId id, HirKind kind) : id(id), kind(kind) {{}", name);
     fmt.linef("{0}() = delete;", name);
     fmt.line("");
+    fmt.line("HirId id;");
     fmt.line("HirKind kind;");
   }
   fmt.line("};");
@@ -154,7 +160,8 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
   fmt.line("protected:");
   {
     auto body = fmt.block();
-    fmt.linef("explicit {0}(HirKind kind) : {1}(kind) {{}", name, parentName);
+    fmt.linef("{0}(HirId id, HirKind kind) : {1}(id, kind) {{}", name,
+              parentName);
   }
   fmt.line("};");
   fmt.line("");
@@ -175,24 +182,24 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   {
     auto body = fmt.block();
 
-    // Constructor. Fieldless nodes still need an explicit body so the
-    // `HirKind::<Name>` initializer fires.
+    // Constructor. `HirId` is always the first parameter; field
+    // parameters follow. Fieldless nodes still need an explicit body so
+    // the parent initializer fires.
     if (fields.empty()) {
-      fmt.linef("{0}() : {1}(HirKind::{0}) {{}", name, parentName);
+      fmt.linef("explicit {0}(HirId id) : {1}(id, HirKind::{0}) {{}", name,
+                parentName);
     } else {
-      std::string params;
-      for (std::size_t i = 0; i < fields.size(); ++i) {
-        if (i != 0) {
-          params += ", ";
-        }
-        params += fieldStorageType(fields[i].kind);
+      std::string params = "HirId id";
+      for (const NamedField &f : fields) {
+        params += ", ";
+        params += fieldStorageType(f.kind);
         params += " ";
-        params += fields[i].name;
+        params += f.name;
       }
       fmt.linef("{0}({1})", name, params);
       {
         auto inner = fmt.block();
-        std::string init = parentName + "(HirKind::" + name + ")";
+        std::string init = parentName + "(id, HirKind::" + name + ")";
         for (const NamedField &f : fields) {
           init += ", " + f.name + "(" + f.name + ")";
         }
@@ -239,24 +246,6 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   fmt.line("");
 }
 
-/// Emit each `Enum` def as a C++ `enum class`. Ordered before the class
-/// definitions so `Custom<EnumDef>:$f` accessors can name the type.
-void emitEnums(CodeFormatter &fmt, const llvm::RecordKeeper &records) {
-  for (const llvm::Record *r : records.getAllDerivedDefinitions("Enum")) {
-    const Enum e = parseEnum(r);
-    const std::string name = r->getName().str();
-    fmt.linef("enum class [[nodiscard]] {0} : {1} {{", name, e.type);
-    {
-      auto body = fmt.block();
-      for (const EnumCase &c : e.cases) {
-        fmt.linef("{0},", c.name);
-      }
-    }
-    fmt.line("};");
-    fmt.line("");
-  }
-}
-
 } // namespace
 
 void HirNodeGenerator::generate(const llvm::RecordKeeper &records) {
@@ -271,8 +260,9 @@ void HirNodeGenerator::generate(const llvm::RecordKeeper &records) {
   fmt.linef("namespace {0} {{", ns);
   fmt.line("");
 
-  // Enums first — `Custom<EnumDef>:$f` accessors need them complete when the
-  // owning class is parsed.
+  // Native aliases and enums first — `Val<NativeDef>` and `Custom<...>`
+  // accessors need them complete when the class that owns them is parsed.
+  emitNatives(fmt, records);
   emitEnums(fmt, records);
 
   // Grammar root next: every Variant/Node inherits transitively from it.

@@ -29,7 +29,7 @@ def TestBeta  : Node<TestExpr>;
 // CHECK-NEXT:    return nullptr;
 // CHECK:       return static_cast<const TestExpr *>(node);
 // CHECK:       protected:
-// CHECK:       explicit TestExpr(HirKind kind) : TestRoot(kind) {}
+// CHECK:       TestExpr(HirId id, HirKind kind) : TestRoot(id, kind) {}
 
 // CHECK-LABEL: class {{.*}}TestAlpha : public TestExpr {
 // CHECK-LABEL: class {{.*}}TestBeta : public TestExpr {

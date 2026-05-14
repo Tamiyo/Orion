@@ -15,7 +15,7 @@ def TestLiteral : Node<TestExpr>;
 
 // CHECK-LABEL: class {{.*}}TestLiteral : public TestExpr {
 // CHECK:       public:
-// CHECK:       TestLiteral() : TestExpr(HirKind::TestLiteral) {}
+// CHECK:       explicit TestLiteral(HirId id) : TestExpr(id, HirKind::TestLiteral) {}
 // CHECK:       static bool isA(HirKind kind) {
 // CHECK-NEXT:  return kind == HirKind::TestLiteral;
 // CHECK:       static const TestLiteral *cast(const HirNode *node)

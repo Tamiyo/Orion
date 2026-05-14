@@ -1,5 +1,6 @@
 #include "AstNodeGenerator.h"
 
+#include "utils/EnumEmitter.h"
 #include "utils/SchemaUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/TreeUtils.h"
@@ -233,10 +234,12 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node,
                           kind.typeName);
               }
               fmt.line("}");
-            } else if constexpr (std::is_same_v<T, Custom>) {
-              // `Custom<T>:$f` is a declaration-only accessor returning `T`.
-              // The implementation is hand-written elsewhere — generator
-              // doesn't know how to derive the value.
+            } else if constexpr (std::is_same_v<T, Custom> ||
+                                 std::is_same_v<T, Val>) {
+              // Declaration-only accessor returning `std::optional<T>`. The
+              // AST has no native storage for these — the implementation
+              // is hand-written and typically reads from the underlying
+              // syntax token.
               fmt.line("");
               fmt.linef("[[nodiscard]] std::optional<{0}> {1}() const;",
                         kind.typeName, accessor);
@@ -253,24 +256,6 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node,
   fmt.line("");
 }
 
-/// Emit each `Enum` def as a C++ `enum class`. Ordered before the struct
-/// definitions so `Custom<EnumDef>:$f` accessors can name the type.
-void emitEnums(CodeFormatter &fmt, const llvm::RecordKeeper &records) {
-  for (const llvm::Record *r : records.getAllDerivedDefinitions("Enum")) {
-    const Enum e = parseEnum(r);
-    const std::string name = r->getName().str();
-    fmt.linef("enum class [[nodiscard]] {0} : {1} {{", name, e.type);
-    {
-      auto body = fmt.block();
-      for (const EnumCase &c : e.cases) {
-        fmt.linef("{0},", c.name);
-      }
-    }
-    fmt.line("};");
-    fmt.line("");
-  }
-}
-
 } // namespace
 
 void AstNodeGenerator::generate(const llvm::RecordKeeper &records) {
@@ -285,8 +270,9 @@ void AstNodeGenerator::generate(const llvm::RecordKeeper &records) {
   fmt.linef("namespace {0} {{", ns);
   fmt.line("");
 
-  // Enums first — `Custom<EnumDef>:$f` accessors need them to be a complete
-  // type when the class that owns them is parsed.
+  // Native aliases and enums first — `Val<NativeDef>` and `Custom<...>`
+  // accessors need them complete when the class that owns them is parsed.
+  emitNatives(fmt, records);
   emitEnums(fmt, records);
 
   // Grammar root next: every Variant/Node inherits (transitively) from it,

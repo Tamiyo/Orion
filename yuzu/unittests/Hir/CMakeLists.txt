@@ -1,4 +1,5 @@
 add_yuzu_unittest(HirTests
-  LowererTest.cc
+  HirPrinterTest.cc
+  HirLowererTest.cc
 )
 target_link_libraries(HirTests PRIVATE YuzuHir)

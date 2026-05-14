@@ -26,5 +26,5 @@ def TestBinary : Node<TestExpr> {
 
 // CHECK-LABEL: const TestBinary *makeTestBinary(const TestExpr *lhs, TestOp op,
 // CHECK-NEXT:  const TestExpr *rhs) {
-// CHECK-NEXT:  return new (allocator) TestBinary(lhs, op, rhs);
+// CHECK-NEXT:  return new (allocator) TestBinary(allocId(), lhs, op, rhs);
 // CHECK-NEXT:  }

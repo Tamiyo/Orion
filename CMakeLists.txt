@@ -19,9 +19,16 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
+# MLIR ships under the same install prefix as LLVM; add it to the search
+# path so find_package(MLIR) picks up `<prefix>/lib/cmake/mlir/`.
+list(APPEND CMAKE_PREFIX_PATH "${LLVM_INSTALL_PREFIX}")
+find_package(MLIR REQUIRED CONFIG)
+message(STATUS "Found MLIR ${MLIR_PACKAGE_VERSION}")
+message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+
 include(YuzuTableGen)
 
-include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 

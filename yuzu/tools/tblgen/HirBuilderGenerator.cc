@@ -7,7 +7,6 @@
 #include <llvm/TableGen/Error.h>
 #include <llvm/TableGen/Record.h>
 
-#include <cstddef>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -28,10 +27,13 @@ namespace {
 //     HirBuilder &operator=(const HirBuilder &) = delete;
 //
 //     const Foo *makeFoo(...fields) {
-//       return new (allocator) Foo(...);
+//       return new (allocator) Foo(allocId(), ...);
 //     }
 //
 //   private:
+//     HirId allocId() { return HirId{nextId++}; }
+//
+//     uint32_t nextId = 0;
 //     llvm::BumpPtrAllocator allocator;
 //   };
 
@@ -82,23 +84,20 @@ void emitMakeMethod(CodeFormatter &fmt, const llvm::Record *node) {
   const std::vector<NamedField> fields = parseFields(node);
 
   std::string params;
-  for (std::size_t i = 0; i < fields.size(); ++i) {
-    if (i != 0) {
+  for (const NamedField &f : fields) {
+    if (!params.empty()) {
       params += ", ";
     }
-    params += paramType(fields[i].kind);
+    params += paramType(f.kind);
     params += " ";
-    params += fields[i].name;
+    params += f.name;
   }
   fmt.linef("const {0} *make{0}({1}) {{", name, params);
   {
     auto body = fmt.block();
-    std::string args;
-    for (std::size_t i = 0; i < fields.size(); ++i) {
-      if (i != 0) {
-        args += ", ";
-      }
-      args += ctorArg(fields[i]);
+    std::string args = "allocId()";
+    for (const NamedField &f : fields) {
+      args += ", " + ctorArg(f);
     }
     fmt.linef("return new (allocator) {0}({1});", name, args);
   }
@@ -130,6 +129,9 @@ void HirBuilderGenerator::generate(const llvm::RecordKeeper &records) {
   fmt.line("private:");
   {
     auto body = fmt.block();
+    fmt.line("HirId allocId() { return HirId{nextId++}; }");
+    fmt.line("");
+    fmt.line("uint32_t nextId = 0;");
     fmt.line("llvm::BumpPtrAllocator allocator;");
   }
   fmt.line("};");
