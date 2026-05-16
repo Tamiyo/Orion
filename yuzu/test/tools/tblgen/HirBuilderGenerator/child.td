@@ -1,10 +1,13 @@
 // `Child<T>:$f` lowers to a `const T *` parameter that flows straight into
-// the node ctor. The builder placement-news into the arena and returns
-// `const T *`.
+// the node ctor. The builder omits any `Custom<Id>` inherited field from
+// its public signature and supplies `allocId()` in its place at the call
+// site — own fields first, then inherited (`id` last).
 //
 // RUN: %yuzu-tblgen -gen-hir-builder-decls -I %td-include %s | %FileCheck %s
 
 include "yuzu/DSL/TreeBase.td"
+
+def Id : Native<"yuzu::hir::HirId"> {}
 
 def TestOp : Enum<"uint8_t"> {
   let Cases = [EnumCase<"Add">, EnumCase<"Sub">];
@@ -12,6 +15,7 @@ def TestOp : Enum<"uint8_t"> {
 
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let Fields = (ins Custom<Id>:$id);
 }
 
 def TestExpr : Variant<TestRoot>;
@@ -26,5 +30,5 @@ def TestBinary : Node<TestExpr> {
 
 // CHECK-LABEL: const TestBinary *makeTestBinary(const TestExpr *lhs, TestOp op,
 // CHECK-NEXT:  const TestExpr *rhs) {
-// CHECK-NEXT:  return new (allocator) TestBinary(allocId(), lhs, op, rhs);
+// CHECK-NEXT:  return new (allocator) TestBinary(lhs, op, rhs, allocId());
 // CHECK-NEXT:  }

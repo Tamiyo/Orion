@@ -16,13 +16,13 @@ class DiagnosticsEngine;
 ///
 /// Created by `DiagnosticsEngine::error` / `::warning` / `::remark` —
 /// callers don't construct one directly. The diagnostic is mutated by
-/// chained calls and finally pushed to the engine via `emit`. Forgetting
+/// chained calls and finally pushed to the diagnostics via `emit`. Forgetting
 /// to call `emit` silently drops the diagnostic, which is intentional:
 /// it lets recovery code abandon a half-built diagnostic without
 /// special-casing it.
 ///
 /// \code
-///   engine.error(span, "expected expression")
+///   diagnostics.error(span, "expected expression")
 ///       .code("E0001")
 ///       .label(prevSpan, "this `+` needs a right-hand side")
 ///       .note("expressions can start with a number, identifier, or `(`")
@@ -30,11 +30,11 @@ class DiagnosticsEngine;
 /// \endcode
 class [[nodiscard]] DiagnosticBuilder final {
 public:
-  // Constructed by the engine.
+  // Constructed by the diagnostics.
   friend class DiagnosticsEngine;
 
   /// Default-constructed only via friend access; users go through the
-  /// engine's `error`/`warning`/`remark` methods.
+  /// diagnostics's `error`/`warning`/`remark` methods.
   DiagnosticBuilder() = delete;
 
   // Movable but not copyable: the in-flight diagnostic is owned by one
@@ -78,7 +78,7 @@ public:
     return *this;
   }
 
-  /// \brief Push the assembled diagnostic into the engine.
+  /// \brief Push the assembled diagnostic into the diagnostics.
   ///
   /// Moves the in-progress diagnostic out of the builder. The builder is
   /// then in a valid-but-empty state; calling `emit` again would push an
@@ -96,15 +96,15 @@ public:
 private:
   /// Internal constructor used by `DiagnosticsEngine`. Seeds the builder
   /// with a primary label spanning `span` with `message`.
-  DiagnosticBuilder(DiagnosticsEngine *engine, Severity severity, Span span,
-                    std::string message)
-      : engine(engine) {
+  DiagnosticBuilder(DiagnosticsEngine *diagnostics, Severity severity,
+                    Span span, std::string message)
+      : diagnostics(diagnostics) {
     diag.severity = severity;
     diag.message = std::move(message);
     diag.labels.push_back(Label{LabelStyle::Primary, span, ""});
   }
 
-  DiagnosticsEngine *engine;
+  DiagnosticsEngine *diagnostics;
   Diagnostic diag;
 };
 

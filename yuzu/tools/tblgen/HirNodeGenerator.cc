@@ -49,7 +49,7 @@ const llvm::Record *findBase(const llvm::RecordKeeper &records) {
     if (record->isSubClassOf("Variant")) {
       continue;
     }
-    
+
     if (base) {
       llvm::PrintFatalError(record->getLoc(),
                             "yuzu-tblgen: multiple Base defs found ('" +
@@ -59,7 +59,7 @@ const llvm::Record *findBase(const llvm::RecordKeeper &records) {
 
     base = record;
   }
-  
+
   if (!base) {
     llvm::PrintFatalError("yuzu-tblgen: no Base def found");
   }
@@ -87,11 +87,49 @@ std::string fieldStorageType(const FieldKind &kind) {
       kind);
 }
 
-/// Emit the grammar root: stores the `HirId` and `HirKind`, exposes
-/// `getId` / `getKind`, and provides a `protected` ctor for subclasses.
+/// Walk `record`'s `Parent` chain (excluding `record` itself) up to the
+/// Base, collecting each level's `Fields` in **innermost-to-outermost**
+/// order. So for `IntLit : Node<Literal>` where `Literal : Variant<Expr>`
+/// and `Expr : Variant<HirNode>`, the returned list is
+/// `Literal.Fields ++ Expr.Fields ++ HirNode.Fields`.
+std::vector<NamedField> gatherInheritedFields(const llvm::Record *record) {
+  std::vector<NamedField> out;
+  const llvm::Record *cur = record;
+  while (true) {
+    if (!cur->getValue("Parent")) {
+      break; // Base: no Parent — done.
+    }
+    cur = cur->getValueAsDef("Parent");
+    const auto fields = parseFields(cur);
+    out.insert(out.end(), fields.begin(), fields.end());
+  }
+  return out;
+}
+
+/// Render a comma-separated parameter list `<type> <name>` for `fields`.
+/// `prefix`, if non-empty, is inserted as the first parameter.
+std::string formatParams(const std::vector<NamedField> &fields,
+                         const std::string &prefix = "") {
+  std::string params = prefix;
+  for (const NamedField &f : fields) {
+    if (!params.empty()) {
+      params += ", ";
+    }
+    params += fieldStorageType(f.kind);
+    params += " ";
+    params += f.name;
+  }
+  return params;
+}
+
+/// Emit the grammar root. The Base may declare schema Fields (e.g.
+/// `Custom<Id>:$id`) that get treated like any other field — storage,
+/// accessor, ctor param. `HirKind` is always implicit (every concrete
+/// Node pins it via its parent constructor).
 void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   const std::string name = base->getName().str();
   const llvm::StringRef summary = base->getValueAsString("Summary");
+  const std::vector<NamedField> ownFields = parseFields(base);
 
   if (!summary.empty()) {
     fmt.linef("/// {0}", summary);
@@ -100,32 +138,54 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   fmt.line("public:");
   {
     auto body = fmt.block();
-    fmt.line("[[nodiscard]] HirId getId() const { return id; }");
-    fmt.line("");
     fmt.line("[[nodiscard]] HirKind getKind() const { return kind; }");
+    for (const NamedField &f : ownFields) {
+      const std::string accessor = "get" + capitalize(f.name);
+      const std::string type = fieldStorageType(f.kind);
+      fmt.line("");
+      fmt.linef("[[nodiscard]] {0} {1}() const {{ return {2}; }", type,
+                accessor, f.name);
+    }
   }
   fmt.line("");
   fmt.line("protected:");
   {
     auto body = fmt.block();
-    fmt.linef("{0}(HirId id, HirKind kind) : id(id), kind(kind) {{}", name);
+    // Ctor: (HirKind kind, ...own fields). Stores kind + each own field.
+    const std::string params = formatParams(ownFields, "HirKind kind");
+    fmt.linef("{0}({1})", name, params);
+    {
+      auto inner = fmt.block();
+      std::string init = "kind(kind)";
+      for (const NamedField &f : ownFields) {
+        init += ", " + f.name + "(" + f.name + ")";
+      }
+      fmt.linef(": {0} {{}", init);
+    }
     fmt.linef("{0}() = delete;", name);
     fmt.line("");
-    fmt.line("HirId id;");
     fmt.line("HirKind kind;");
+    for (const NamedField &f : ownFields) {
+      fmt.linef("{0} {1};", fieldStorageType(f.kind), f.name);
+    }
   }
   fmt.line("};");
   fmt.line("");
 }
 
-/// Emit a Variant class. `isA` is a `HirKind` range check between the
-/// `<V>_FIRST` / `<V>_LAST` sentinels.
+/// Emit a Variant class. Variants can declare their own `Fields` (e.g.
+/// `Expr` carrying a `Type *`) which contribute to the ctor signature
+/// alongside whatever's inherited from further up the chain. `isA` is a
+/// `HirKind` range check between the `<V>_FIRST` / `<V>_LAST` sentinels.
 void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
   const std::string name = variant->getName().str();
   const std::string parentName =
       variant->getValueAsDef("Parent")->getName().str();
   const llvm::StringRef summary = variant->getValueAsString("Summary");
   const std::string sentinel = llvm::StringRef(name).upper();
+  const std::vector<NamedField> ownFields = parseFields(variant);
+  const std::vector<NamedField> inheritedFields =
+      gatherInheritedFields(variant);
 
   if (!summary.empty()) {
     fmt.linef("/// {0}", summary);
@@ -155,24 +215,76 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
       fmt.linef("return static_cast<const {0} *>(node);", name);
     }
     fmt.line("}");
+    fmt.line("");
+
+    fmt.linef("[[nodiscard]] {0}Kind get{0}Kind() const "
+              "{{ return to{0}Kind(getKind()); }",
+              name);
+
+    // Accessors for own fields.
+    for (const NamedField &f : ownFields) {
+      const std::string accessor = "get" + capitalize(f.name);
+      const std::string type = fieldStorageType(f.kind);
+      fmt.line("");
+      fmt.linef("[[nodiscard]] {0} {1}() const {{ return {2}; }", type,
+                accessor, f.name);
+    }
   }
   fmt.line("");
   fmt.line("protected:");
   {
     auto body = fmt.block();
-    fmt.linef("{0}(HirId id, HirKind kind) : {1}(id, kind) {{}", name,
-              parentName);
+    // Ctor signature: (HirKind kind, ...own, ...inherited).
+    std::string params = "HirKind kind";
+    for (const NamedField &f : ownFields) {
+      params += ", ";
+      params += fieldStorageType(f.kind);
+      params += " ";
+      params += f.name;
+    }
+    for (const NamedField &f : inheritedFields) {
+      params += ", ";
+      params += fieldStorageType(f.kind);
+      params += " ";
+      params += f.name;
+    }
+    fmt.linef("{0}({1})", name, params);
+    {
+      auto inner = fmt.block();
+      // Forward kind + inherited up; store own.
+      std::string init = parentName + "(kind";
+      for (const NamedField &f : inheritedFields) {
+        init += ", " + f.name;
+      }
+      init += ")";
+      for (const NamedField &f : ownFields) {
+        init += ", " + f.name + "(" + f.name + ")";
+      }
+      fmt.linef(": {0} {{}", init);
+    }
+  }
+
+  if (!ownFields.empty()) {
+    fmt.line("");
+    fmt.line("private:");
+    auto body = fmt.block();
+    for (const NamedField &f : ownFields) {
+      fmt.linef("{0} {1};", fieldStorageType(f.kind), f.name);
+    }
   }
   fmt.line("};");
   fmt.line("");
 }
 
-/// Emit a concrete Node class.
+/// Emit a concrete Node class. Constructor takes own fields first,
+/// then inherited (variant chain) fields last. `HirKind` is pinned
+/// from the node's own name and forwarded to the parent.
 void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   const std::string name = node->getName().str();
   const std::string parentName = node->getValueAsDef("Parent")->getName().str();
   const llvm::StringRef summary = node->getValueAsString("Summary");
-  const std::vector<NamedField> fields = parseFields(node);
+  const std::vector<NamedField> ownFields = parseFields(node);
+  const std::vector<NamedField> inheritedFields = gatherInheritedFields(node);
 
   if (!summary.empty()) {
     fmt.linef("/// {0}", summary);
@@ -182,25 +294,36 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
   {
     auto body = fmt.block();
 
-    // Constructor. `HirId` is always the first parameter; field
-    // parameters follow. Fieldless nodes still need an explicit body so
-    // the parent initializer fires.
-    if (fields.empty()) {
-      fmt.linef("explicit {0}(HirId id) : {1}(id, HirKind::{0}) {{}", name,
-                parentName);
-    } else {
-      std::string params = "HirId id";
-      for (const NamedField &f : fields) {
+    // Constructor: (...own fields, ...inherited fields).
+    std::string params;
+    for (const NamedField &f : ownFields) {
+      if (!params.empty()) {
         params += ", ";
-        params += fieldStorageType(f.kind);
-        params += " ";
-        params += f.name;
       }
+      params += fieldStorageType(f.kind);
+      params += " ";
+      params += f.name;
+    }
+    for (const NamedField &f : inheritedFields) {
+      if (!params.empty()) {
+        params += ", ";
+      }
+      params += fieldStorageType(f.kind);
+      params += " ";
+      params += f.name;
+    }
+    if (ownFields.empty() && inheritedFields.empty()) {
+      fmt.linef("explicit {0}() : {1}(HirKind::{0}) {{}", name, parentName);
+    } else {
       fmt.linef("{0}({1})", name, params);
       {
         auto inner = fmt.block();
-        std::string init = parentName + "(id, HirKind::" + name + ")";
-        for (const NamedField &f : fields) {
+        std::string init = parentName + "(HirKind::" + name;
+        for (const NamedField &f : inheritedFields) {
+          init += ", " + f.name;
+        }
+        init += ")";
+        for (const NamedField &f : ownFields) {
           init += ", " + f.name + "(" + f.name + ")";
         }
         fmt.linef(": {0} {{}", init);
@@ -224,7 +347,7 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
     }
     fmt.line("}");
 
-    for (const NamedField &f : fields) {
+    for (const NamedField &f : ownFields) {
       const std::string accessor = "get" + capitalize(f.name);
       const std::string type = fieldStorageType(f.kind);
       fmt.line("");
@@ -233,11 +356,11 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
     }
   }
 
-  if (!fields.empty()) {
+  if (!ownFields.empty()) {
     fmt.line("");
     fmt.line("private:");
     auto body = fmt.block();
-    for (const NamedField &f : fields) {
+    for (const NamedField &f : ownFields) {
       fmt.linef("{0} {1};", fieldStorageType(f.kind), f.name);
     }
   }

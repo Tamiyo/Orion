@@ -1,5 +1,5 @@
-#ifndef YUZU_HIR_LOWERER_H
-#define YUZU_HIR_LOWERER_H
+#ifndef YUZU_HIR_HIRLOWERER_H
+#define YUZU_HIR_HIRLOWERER_H
 
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Diagnostics/DiagnosticBuilder.h"
@@ -7,7 +7,7 @@
 #include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirBuilder.h"
-#include "yuzu/Hir/HirSourceMap.h"
+#include "yuzu/Hir/HirContext.h"
 
 #include <string>
 
@@ -21,37 +21,32 @@ namespace yuzu::hir {
 /// `sourceMap`.
 class HirLowerer {
 public:
-  HirLowerer(HirBuilder &builder, HirSourceMap &sourceMap,
-             diagnostics::DiagnosticsEngine &diagnostics,
-             diagnostics::SourceId source)
-      : builder(builder), sourceMap(sourceMap), diagnostics(diagnostics),
-        source(source) {}
+  explicit HirLowerer(HirContext &ctx,
+                      diagnostics::DiagnosticsEngine &diagnostics,
+                      diagnostics::SourceId source)
+      : ctx(ctx), diagnostics(diagnostics), source(source) {}
 
-  const Root *lower(const ast::Root &root);
-  const Stmt *lowerStmt(const ast::Stmt &stmt);
-  const Expr *lowerExpr(const ast::Expr &expr);
+  const Root *lower(ast::Root root);
+  const Stmt *lowerStmt(ast::Stmt stmt);
+  const Expr *lowerExpr(ast::Expr expr);
 
   /// Start an error diagnostic at the AST node's source range.
-  diagnostics::DiagnosticBuilder error(const ast::AstNode &node,
-                                       std::string message);
+  diagnostics::DiagnosticBuilder error(ast::AstNode node, std::string message);
   /// Start an error diagnostic at the source range of the AST origin
   /// bound to `node->getId()` in the source map.
   diagnostics::DiagnosticBuilder error(const HirNode *node,
                                        std::string message);
 
 private:
-  const Stmt *lowerExprStmt(const ast::ExprStmt &stmt);
-  const Expr *lowerBinaryExpr(const ast::BinaryExpr &expr);
-  const Literal *lowerLiteralExpr(const ast::Literal &expr);
-  const IntLit *
-  lowerIntLit(const ast::IntLit &expr);
-  const FloatLit *
-  lowerFloatLit(const ast::FloatLit &expr);
-  const StringLit *
-  lowerStringLit(const ast::StringLit &expr);
+  const Stmt *lowerExprStmt(ast::ExprStmt stmt);
+  const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
+  const Literal *lowerLiteralExpr(ast::Literal expr);
+  const BoolLit *lowerBoolLit(ast::BoolLit expr);
+  const IntLit *lowerIntLit(ast::IntLit expr);
+  const FloatLit *lowerFloatLit(ast::FloatLit expr);
+  const StringLit *lowerStringLit(ast::StringLit expr);
 
-  HirBuilder &builder;
-  HirSourceMap &sourceMap;
+  HirContext &ctx;
   diagnostics::DiagnosticsEngine &diagnostics;
   diagnostics::SourceId source;
 };

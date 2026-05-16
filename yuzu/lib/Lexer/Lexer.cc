@@ -130,8 +130,7 @@ std::optional<Token> Lexer::getNextToken() {
   // leading `r` doesn't get consumed as part of an ident. Escapes inside
   // a raw string are literal; a newline terminates the literal as an
   // error, matching standard double-quoted strings.
-  if (*current == U'r' && current + 1 < source.end() &&
-      current[1] == U'"') {
+  if (*current == U'r' && current + 1 < source.end() && current[1] == U'"') {
     bump(2); // r"
     while (current < source.end() && *current != U'"' && *current != U'\n') {
       bump();
@@ -173,8 +172,7 @@ std::optional<Token> Lexer::getNextToken() {
     if (isBinaryLiteral) {
       bump(2); // bump 0b|0B
 
-      if (current < source.end() &&
-          (*current == U'0' || *current == U'1')) {
+      if (current < source.end() && (*current == U'0' || *current == U'1')) {
         bump(); // first binary digit
         bumpWhile([](const char32_t *ch) {
           return *ch == U'0' || *ch == U'1' || *ch == U'_';

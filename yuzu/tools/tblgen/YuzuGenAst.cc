@@ -2,6 +2,7 @@
 #include "HirBuilderGenerator.h"
 #include "HirKindGenerator.h"
 #include "HirNodeGenerator.h"
+#include "HirPrinterGenerator.h"
 #include "SyntaxKindGenerator.h"
 #include "TokenKindGenerator.h"
 
@@ -17,6 +18,7 @@ enum ActionType {
   GenHirBuilderDecls,
   GenHirKindDecls,
   GenHirNodeDecls,
+  GenHirPrinterDecls,
   GenSyntaxKindDecls,
   GenTokenKindDecls,
 };
@@ -32,6 +34,8 @@ static llvm::cl::opt<ActionType> action(
                                 "Generate HirKind declarations")),
     llvm::cl::values(clEnumValN(GenHirNodeDecls, "gen-hir-node-decls",
                                 "Generate HIR node and variant declarations")),
+    llvm::cl::values(clEnumValN(GenHirPrinterDecls, "gen-hir-printer-decls",
+                                "Generate HIR pretty-printer declarations")),
     llvm::cl::values(clEnumValN(GenSyntaxKindDecls, "gen-syntax-kind-decls",
                                 "Generate SyntaxKind declarations")),
     llvm::cl::values(clEnumValN(GenTokenKindDecls, "gen-token-kind-decls",
@@ -51,6 +55,9 @@ static bool YuzuTableGenMain(llvm::raw_ostream &os,
     break;
   case GenHirNodeDecls:
     yuzu::tools::HirNodeGenerator(os).run(records);
+    break;
+  case GenHirPrinterDecls:
+    yuzu::tools::HirPrinterGenerator(os).run(records);
     break;
   case GenSyntaxKindDecls:
     yuzu::tools::SyntaxKindGenerator(os).run(records);

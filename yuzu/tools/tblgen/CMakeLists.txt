@@ -8,6 +8,7 @@ add_executable(yuzu-tblgen
   HirBuilderGenerator.cc
   HirKindGenerator.cc
   HirNodeGenerator.cc
+  HirPrinterGenerator.cc
   SyntaxKindGenerator.cc
   TokenKindGenerator.cc
   YuzuGenAst.cc

@@ -79,25 +79,75 @@ std::string ctorArg(const NamedField &f) {
       f.kind);
 }
 
+/// Walk `record`'s `Parent` chain (excluding `record` itself) and
+/// collect each level's `Fields` innermost-to-outermost. Mirrors
+/// `HirNodeGenerator::gatherInheritedFields`.
+std::vector<NamedField> gatherInheritedFields(const llvm::Record *record) {
+  std::vector<NamedField> out;
+  const llvm::Record *cur = record;
+  while (true) {
+    if (!cur->getValue("Parent")) {
+      break;
+    }
+    cur = cur->getValueAsDef("Parent");
+    const auto fields = parseFields(cur);
+    out.insert(out.end(), fields.begin(), fields.end());
+  }
+  return out;
+}
+
+/// True if `f` is the implicit `HirId` field on the Base — recognised
+/// by its `Custom<Id>` schema type. The builder fills this in via
+/// `allocId()`, not from a caller argument.
+bool isIdField(const NamedField &f) {
+  if (const auto *c = std::get_if<Custom>(&f.kind)) {
+    return c->typeName == "Id";
+  }
+  return false;
+}
+
 void emitMakeMethod(CodeFormatter &fmt, const llvm::Record *node) {
   const std::string name = node->getName().str();
-  const std::vector<NamedField> fields = parseFields(node);
+  const std::vector<NamedField> ownFields = parseFields(node);
+  const std::vector<NamedField> inheritedFields = gatherInheritedFields(node);
 
+  // Constructor expects: (...own, ...inherited). Factory exposes the
+  // same order, but auto-supplies any `Id`-typed inherited field via
+  // `allocId()` instead of asking the caller.
   std::string params;
-  for (const NamedField &f : fields) {
+  auto appendParam = [&](const NamedField &f) {
+    if (isIdField(f)) {
+      return;
+    }
     if (!params.empty()) {
       params += ", ";
     }
     params += paramType(f.kind);
     params += " ";
     params += f.name;
+  };
+  for (const NamedField &f : ownFields) {
+    appendParam(f);
   }
+  for (const NamedField &f : inheritedFields) {
+    appendParam(f);
+  }
+
   fmt.linef("const {0} *make{0}({1}) {{", name, params);
   {
     auto body = fmt.block();
-    std::string args = "allocId()";
-    for (const NamedField &f : fields) {
-      args += ", " + ctorArg(f);
+    std::string args;
+    auto appendArg = [&](const NamedField &f) {
+      if (!args.empty()) {
+        args += ", ";
+      }
+      args += isIdField(f) ? "allocId()" : ctorArg(f);
+    };
+    for (const NamedField &f : ownFields) {
+      appendArg(f);
+    }
+    for (const NamedField &f : inheritedFields) {
+      appendArg(f);
     }
     fmt.linef("return new (allocator) {0}({1});", name, args);
   }

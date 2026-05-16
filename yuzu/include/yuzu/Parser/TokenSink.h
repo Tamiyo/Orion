@@ -23,7 +23,7 @@ namespace yuzu::parser {
 ///
 /// The parser is intentionally unaware of the diagnostics layer — it
 /// pushes structured `ErrorEvent`s describing what went wrong, and the
-/// sink translates those into `Diagnostic`s on the engine. The split
+/// sink translates those into `Diagnostic`s on the diagnostics. The split
 /// keeps the parser focused on syntactic decisions and lets the sink
 /// own the source-position-resolution work (since it already walks
 /// the event stream).
@@ -34,17 +34,17 @@ public:
   };
 
   /// \brief Construct a sink bound to a tokens vector, an event stream,
-  /// a diagnostics engine, and the `SourceId` the tokens came from.
+  /// a diagnostics diagnostics, and the `SourceId` the tokens came from.
   ///
-  /// `engine` and `sourceId` are used together to translate `ErrorEvent`s
-  /// into diagnostics with source-tagged spans. The engine and source map
+  /// `diagnostics` and `sourceId` are used together to translate `ErrorEvent`s
+  /// into diagnostics with source-tagged spans. The diagnostics and source map
   /// are owned by the caller; the sink just borrows.
   explicit TokenSink(std::vector<lexer::Token> tokens,
                      std::vector<Event> events,
-                     diagnostics::DiagnosticsEngine &engine,
+                     diagnostics::DiagnosticsEngine &diagnostics,
                      diagnostics::SourceId sourceId)
       : builder(syntax::GreenBuilder()), tokens(std::move(tokens)),
-        events(std::move(events)), engine(engine), sourceId(sourceId),
+        events(std::move(events)), diagnostics(diagnostics), sourceId(sourceId),
         cursor(0) {}
 
   Result finish() {
@@ -60,8 +60,8 @@ public:
         addToken();
       } else if (const auto *errorEvent = std::get_if<ErrorEvent>(&event)) {
         // The ParseError owns the message/label shape — the sink just
-        // tags it with the source id and pushes onto the engine.
-        engine.push(errorEvent->error->toDiagnostic(sourceId));
+        // tags it with the source id and pushes onto the diagnostics.
+        diagnostics.push(errorEvent->error->toDiagnostic(sourceId));
       } else if (std::get_if<PlaceholderEvent>(&event)) {
         // Skip - already processed via forward parent
       } else {
@@ -130,7 +130,7 @@ private:
   syntax::GreenBuilder builder;
   const std::vector<lexer::Token> tokens;
   std::vector<Event> events;
-  diagnostics::DiagnosticsEngine &engine;
+  diagnostics::DiagnosticsEngine &diagnostics;
   diagnostics::SourceId sourceId;
   size_t cursor;
 };

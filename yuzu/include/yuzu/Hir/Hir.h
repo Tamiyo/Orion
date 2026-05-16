@@ -1,13 +1,15 @@
-#ifndef YUZU_HIR_HIR_H
-#define YUZU_HIR_HIR_H
+#ifndef YUZU_HIR_HIRH
+#define YUZU_HIR_HIRH
 
+#include "yuzu/Hir/Ops/Op.h"         // IWYU pragma: keep
+#include "yuzu/Hir/Types/Type.h"     // IWYU pragma: keep
 #include "yuzu/Util/ErrorHandling.h" // IWYU pragma: keep
 
 #include <llvm/ADT/ArrayRef.h>
 
 #include <cstdint> // IWYU pragma: keep
-#include <string>  // IWYU pragma: keep
 #include <limits>
+#include <string> // IWYU pragma: keep
 #include <type_traits>
 
 namespace yuzu::hir {
@@ -33,4 +35,4 @@ inline constexpr HirId InvalidHirId{
 // `const T *` into the arena managed by `HirBuilder`.
 #include "yuzu/Hir/Hir.h.inc" // IWYU pragma: export
 
-#endif // YUZU_HIR_HIR_H
+#endif // YUZU_HIR_HIRH

@@ -5,7 +5,7 @@
 #include "yuzu/Util/ErrorHandling.h"
 #include "yuzu/Util/Unicode.h"
 
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include <cstddef>
 #include <string>

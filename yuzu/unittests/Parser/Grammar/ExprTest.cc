@@ -8,7 +8,7 @@ class ExprTest : public yuzu::parser::test::ParserFixture {};
 TEST_F(ExprTest, ParsesNumberLiteral) {
   const auto result = parseExpr(U"42");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Expr@0..2
   IntLit@0..2
     IntegerLiteral@0..2 "42")",
@@ -18,7 +18,7 @@ TEST_F(ExprTest, ParsesNumberLiteral) {
 TEST_F(ExprTest, ParsesIdentifier) {
   const auto result = parseExpr(U"foo");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   // The parser tags an identifier node with the same `Ident` kind as the
   // underlying token, hence the doubled `Ident@..`.
   EXPECT_EQ(R"(Expr@0..3
@@ -30,7 +30,7 @@ TEST_F(ExprTest, ParsesIdentifier) {
 TEST_F(ExprTest, ParsesAddition) {
   const auto result = parseExpr(U"1 + 2");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Expr@0..5
   BinaryExpr@0..5
     IntLit@0..2
@@ -46,7 +46,7 @@ TEST_F(ExprTest, ParsesAddition) {
 TEST_F(ExprTest, ParsesSubtraction) {
   const auto result = parseExpr(U"5 - 3");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Expr@0..5
   BinaryExpr@0..5
     IntLit@0..2
@@ -62,7 +62,7 @@ TEST_F(ExprTest, ParsesSubtraction) {
 TEST_F(ExprTest, ParsesMultiplication) {
   const auto result = parseExpr(U"2 * 3");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Expr@0..5
   BinaryExpr@0..5
     IntLit@0..2
@@ -78,7 +78,7 @@ TEST_F(ExprTest, ParsesMultiplication) {
 TEST_F(ExprTest, ParsesDivision) {
   const auto result = parseExpr(U"8 / 2");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Expr@0..5
   BinaryExpr@0..5
     IntLit@0..2
@@ -96,7 +96,7 @@ TEST_F(ExprTest, ParsesDivision) {
 TEST_F(ExprTest, MultiplicationBindsTighterThanAddition) {
   const auto result = parseExpr(U"1 + 2 * 3");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Expr@0..9
   BinaryExpr@0..9
     IntLit@0..2
@@ -120,7 +120,7 @@ TEST_F(ExprTest, MultiplicationBindsTighterThanAddition) {
 TEST_F(ExprTest, AdditionIsLeftAssociative) {
   const auto result = parseExpr(U"1 + 2 + 3");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Expr@0..9
   BinaryExpr@0..9
     BinaryExpr@0..6
@@ -147,8 +147,8 @@ TEST_F(ExprTest, AdditionIsLeftAssociative) {
 TEST_F(ExprTest, RecoversFromMissingRhs) {
   const auto result = parseExpr(U"1 +");
 
-  ASSERT_EQ(1u, engine.getDiagnostics().size());
-  const auto &d = engine.getDiagnostics()[0];
+  ASSERT_EQ(1u, diagnostics.getDiagnostics().size());
+  const auto &d = diagnostics.getDiagnostics()[0];
   EXPECT_EQ(yuzu::diagnostics::Severity::Error, d.severity);
   EXPECT_EQ("expected expression, found end of input", d.message);
   ASSERT_EQ(1u, d.labels.size());
@@ -171,8 +171,8 @@ TEST_F(ExprTest, RecoversFromMissingRhs) {
 TEST_F(ExprTest, RecoversFromMissingLhs) {
   const auto result = parseExpr(U"+ 1");
 
-  ASSERT_EQ(1u, engine.getDiagnostics().size());
-  const auto &d = engine.getDiagnostics()[0];
+  ASSERT_EQ(1u, diagnostics.getDiagnostics().size());
+  const auto &d = diagnostics.getDiagnostics()[0];
   EXPECT_EQ(yuzu::diagnostics::Severity::Error, d.severity);
   EXPECT_EQ("expected expression, found `+`", d.message);
   ASSERT_EQ(1u, d.labels.size());

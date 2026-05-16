@@ -1,4 +1,4 @@
 add_yuzu_unittest(UtilTests
-  LookupTableTest.cc
+  SideTableTest.cc
   UnicodeTest.cc
 )

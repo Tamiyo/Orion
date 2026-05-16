@@ -25,7 +25,7 @@ using yuzu::parser::TokenSource;
 
 // These tests poke at the Parser's API directly rather than running a
 // grammar entry. Inherit `ParserFixture` so each test gets its own
-// engine; tests can construct `Parser(source, engine)` against it.
+// diagnostics; tests can construct `Parser(source, diagnostics)` against it.
 class ParserTest : public yuzu::parser::test::ParserFixture {};
 
 inline std::vector<Token> lex(const std::u32string &source) {
@@ -134,8 +134,7 @@ TEST_F(ParserTest, PrecedeCreatesNewMarkerAfterCompleted) {
 
   const Marker marker = parser.start();
   parser.bump();
-  const CompletedMarker completed =
-      parser.complete(marker, SyntaxKind::IntLit);
+  const CompletedMarker completed = parser.complete(marker, SyntaxKind::IntLit);
 
   const auto [newMarker, oldKind] = parser.precede(completed);
   EXPECT_EQ(SyntaxKind::IntLit, oldKind);

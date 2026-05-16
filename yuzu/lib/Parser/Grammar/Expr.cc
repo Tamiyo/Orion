@@ -73,7 +73,7 @@ std::optional<CompletedMarker> parseLiteralExpr(Parser &p) {
     // TODO: add `BoolLit : Node<Literal>` to the AST schema and route
     // boolean tokens to it. Until then they piggyback on `IntLit` so the
     // tree is well-formed.
-    astKind = ast::SyntaxKind::IntLit;
+    astKind = ast::SyntaxKind::BoolLit;
     break;
   default:
     util::yuzu_unreachable();

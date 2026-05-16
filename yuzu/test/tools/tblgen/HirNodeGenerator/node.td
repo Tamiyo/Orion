@@ -1,11 +1,15 @@
-// Concrete Node stores its fields directly. `Child<T>` -> `const T *`,
-// `Custom<E>` -> `E` by value. The ctor takes each field as a parameter
-// and seeds `HirKind::<NodeName>` into the base. `isA` is an equality check
-// against the concrete kind; `cast` returns a downcast pointer or nullptr.
+// Concrete Node stores its own fields directly and accepts them
+// child-first in its ctor, then inherited fields (variant chain →
+// Base) appended at the end. The Node forwards `HirKind::<Self>` plus
+// inherited args up to the parent; own fields stay in its storage.
+// `isA` is an equality check on the concrete kind; `cast` returns a
+// downcast pointer or nullptr.
 //
 // RUN: %yuzu-tblgen -gen-hir-node-decls -I %td-include %s | %FileCheck %s
 
 include "yuzu/DSL/TreeBase.td"
+
+def Id : Native<"yuzu::hir::HirId"> {}
 
 def TestOp : Enum<"uint8_t"> {
   let Cases = [EnumCase<"Add">, EnumCase<"Sub">];
@@ -13,6 +17,7 @@ def TestOp : Enum<"uint8_t"> {
 
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let Fields = (ins Custom<Id>:$id);
 }
 
 def TestExpr : Variant<TestRoot>;
@@ -27,8 +32,8 @@ def TestBinary : Node<TestExpr> {
 
 // CHECK-LABEL: class {{.*}}TestBinary : public TestExpr {
 // CHECK:       public:
-// CHECK:       TestBinary(HirId id, const TestExpr *lhs, TestOp op, const TestExpr *rhs)
-// CHECK:       : TestExpr(id, HirKind::TestBinary), lhs(lhs), op(op), rhs(rhs) {}
+// CHECK:       TestBinary(const TestExpr *lhs, TestOp op, const TestExpr *rhs, Id id)
+// CHECK:       : TestExpr(HirKind::TestBinary, id), lhs(lhs), op(op), rhs(rhs) {}
 // CHECK:       static bool isA(HirKind kind) {
 // CHECK-NEXT:  return kind == HirKind::TestBinary;
 // CHECK:       static const TestBinary *cast(const HirNode *node)

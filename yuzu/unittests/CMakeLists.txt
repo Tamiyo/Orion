@@ -14,7 +14,6 @@ function(add_yuzu_unittest test_name)
 endfunction()
 
 add_subdirectory(Ast)
-add_subdirectory(Codegen)
 add_subdirectory(Diagnostics)
 add_subdirectory(Driver)
 add_subdirectory(Hir)

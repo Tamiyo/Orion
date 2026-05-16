@@ -3,7 +3,7 @@
 
 #include "yuzu/Syntax/Green/Green.h"
 
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include <cstddef>
 #include <string>

@@ -95,19 +95,20 @@ TEST(ApiSyntaxNodeTest, DifferentKindNodesCompareUnequal) {
 }
 
 TEST(ApiSyntaxTokenTest, GetKindReturnsTypedEnum) {
-  const auto token = GreenToken(static_cast<uint16_t>(TestKind::Plus), U"+");
+  const auto greenToken =
+      GreenToken(static_cast<uint16_t>(TestKind::Plus), U"+");
   const auto root = GreenNode::create(static_cast<uint16_t>(TestKind::Root),
-                                      std::vector<GreenElement>{token});
+                                      std::vector<GreenElement>{greenToken});
   const auto node = SyntaxNode<TestKind>::createRoot(root);
 
   const auto first = node.getFirstChildOrToken();
   ASSERT_TRUE(first.has_value());
   ASSERT_TRUE(first->isToken());
-  const auto &tok = first->getToken();
+  const auto &token = first->getToken();
 
-  static_assert(std::is_same_v<decltype(tok.getKind()), TestKind>,
+  static_assert(std::is_same_v<decltype(token.getKind()), TestKind>,
                 "SyntaxToken::getKind() must return the wrapper's Kind");
-  EXPECT_EQ(tok.getKind(), TestKind::Plus);
+  EXPECT_EQ(token.getKind(), TestKind::Plus);
 }
 
 TEST(ApiSyntaxElementTest, IsNodeAndIsTokenDispatch) {

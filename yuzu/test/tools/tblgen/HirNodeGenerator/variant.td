@@ -1,15 +1,17 @@
-// A Variant exposes the `isA`/`cast` discrimination pair but keeps its ctor
-// `protected` — only concrete `Node`s should construct an `Expr`, and they
-// do so by plumbing their own `HirKind` up through it. `cast` returns
-// `const T *` (nullptr on mismatch); arena pointers are the natural
-// currency on the HIR side.
+// A Variant exposes `isA`/`cast` and keeps its ctor `protected` — only
+// concrete `Node`s should construct it, plumbing `HirKind` + inherited
+// fields up through it. Inherited fields follow the variant chain, so a
+// Variant with no own Fields just forwards `(kind, ...inherited)`.
 //
 // RUN: %yuzu-tblgen -gen-hir-node-decls -I %td-include %s | %FileCheck %s
 
 include "yuzu/DSL/TreeBase.td"
 
+def Id : Native<"yuzu::hir::HirId"> {}
+
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let Fields = (ins Custom<Id>:$id);
 }
 
 def TestExpr : Variant<TestRoot>;
@@ -29,7 +31,8 @@ def TestBeta  : Node<TestExpr>;
 // CHECK-NEXT:    return nullptr;
 // CHECK:       return static_cast<const TestExpr *>(node);
 // CHECK:       protected:
-// CHECK:       TestExpr(HirId id, HirKind kind) : TestRoot(id, kind) {}
+// CHECK:       TestExpr(HirKind kind, Id id)
+// CHECK:       : TestRoot(kind, id) {}
 
 // CHECK-LABEL: class {{.*}}TestAlpha : public TestExpr {
 // CHECK-LABEL: class {{.*}}TestBeta : public TestExpr {

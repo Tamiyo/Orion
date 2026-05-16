@@ -1,6 +1,7 @@
 #include "SyntaxKindGenerator.h"
 
 #include "utils/SchemaUtils.h"
+#include "utils/TokenUtils.h"
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/TableGen/Record.h>
@@ -167,6 +168,45 @@ void emitAsStringVariant(CodeFormatter &fmt, const llvm::Record *v,
   fmt.linef("case SyntaxKind::{0}_LAST: return \"{0}_LAST\";", upper);
 }
 
+/// Emit the same per-category predicates `TokenKindGenerator` emits on
+/// `TokenKind` (`isSymbol`, `isPunctuation`, `isKeyword`, `isLiteral`,
+/// `isTrivia`), so AST consumers can check token categories without
+/// casting through `lexer::TokenKind`. Non-token `SyntaxKind` values
+/// (variants, nodes, sentinels, system kinds) fall through to `false`.
+void emitTokenPredicates(CodeFormatter &fmt,
+                         const std::vector<const llvm::Record *> &tokens) {
+  std::vector<TokenInfo> infos;
+  infos.reserve(tokens.size());
+  for (const llvm::Record *r : tokens) {
+    infos.push_back(parseTokenInfo(r));
+  }
+
+  auto emit = [&](llvm::StringRef name, auto select) {
+    fmt.linef("inline bool is{0}(SyntaxKind kind) {{", name);
+    {
+      auto body = fmt.block();
+      fmt.line("switch (kind) {");
+      for (const TokenInfo &t : infos) {
+        if (select(t)) {
+          fmt.linef("case SyntaxKind::{0}:", t.name);
+        }
+      }
+      fmt.line("  return true;");
+      fmt.line("default:");
+      fmt.line("  return false;");
+      fmt.line("}");
+    }
+    fmt.line("}");
+    fmt.line("");
+  };
+
+  emit("Symbol", [](const TokenInfo &t) { return t.isSymbol; });
+  emit("Punctuation", [](const TokenInfo &t) { return t.isPunctuation; });
+  emit("Keyword", [](const TokenInfo &t) { return t.isKeyword; });
+  emit("Literal", [](const TokenInfo &t) { return t.isLiteral; });
+  emit("Trivia", [](const TokenInfo &t) { return t.isTrivia; });
+}
+
 /// Emit `asString(SyntaxKind)`, mapping every enumerator (including the
 /// `*_FIRST` / `*_LAST` sentinels and the System block) to its name. Keeping
 /// sentinel cases makes the switch exhaustive without any `default:` arm,
@@ -256,6 +296,7 @@ void SyntaxKindGenerator::generate(const llvm::RecordKeeper &records) {
   }
   fmt.line("};");
   fmt.line("");
+  emitTokenPredicates(fmt, tokens);
   emitAsString(fmt, tokens, variants, nodes);
   fmt.linef("} // namespace {0}", ns);
 }

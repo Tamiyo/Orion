@@ -9,9 +9,9 @@ namespace yuzu::diagnostics {
 void DiagnosticBuilder::emit() {
   // Defined out-of-line so the header doesn't need to know
   // `DiagnosticsEngine`'s full layout — the builder is constructed by
-  // the engine but it's the engine that knows how to store the
+  // the diagnostics but it's the diagnostics that knows how to store the
   // resulting diagnostic.
-  engine->push(std::move(diag));
+  diagnostics->push(std::move(diag));
 }
 
 } // namespace yuzu::diagnostics

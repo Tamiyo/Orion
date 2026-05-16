@@ -12,8 +12,7 @@ namespace yuzu::tools {
 
 /// Emit each `Native` def as a C++ `using` alias so `Val<NativeDef>` and
 /// `Custom<NativeDef>` accessors can name it by its schema name.
-inline void emitNatives(CodeFormatter &fmt,
-                        const llvm::RecordKeeper &records) {
+inline void emitNatives(CodeFormatter &fmt, const llvm::RecordKeeper &records) {
   bool emitted = false;
   for (const llvm::Record *r : records.getAllDerivedDefinitions("Native")) {
     const Native n = parseNative(r);
@@ -29,8 +28,7 @@ inline void emitNatives(CodeFormatter &fmt,
 /// `inline std::string asString(EnumType)` that maps each case to its
 /// name. Ordered before any class definitions so `Custom<Enum>:$f`
 /// accessors can name the type.
-inline void emitEnums(CodeFormatter &fmt,
-                      const llvm::RecordKeeper &records) {
+inline void emitEnums(CodeFormatter &fmt, const llvm::RecordKeeper &records) {
   for (const llvm::Record *r : records.getAllDerivedDefinitions("Enum")) {
     const Enum e = parseEnum(r);
     const std::string name = r->getName().str();

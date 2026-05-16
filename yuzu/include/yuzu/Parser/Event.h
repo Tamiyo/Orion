@@ -43,7 +43,7 @@ struct [[nodiscard]] TokenEvent final {
 /// Carries an opaque `ParseError` that knows how to render itself as a
 /// renderable diagnostic via `toDiagnostic`. The parser produces these
 /// without touching the diagnostics layer; the `TokenSink` forwards them
-/// to the engine when it walks the event stream.
+/// to the diagnostics when it walks the event stream.
 struct [[nodiscard]] ErrorEvent final {
   std::unique_ptr<const ParseError> error;
 };

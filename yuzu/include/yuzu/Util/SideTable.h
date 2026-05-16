@@ -12,7 +12,7 @@ namespace yuzu::util {
 /// Vector-indexed `Id → Value` table. `Id` must be either an integer type
 /// or a strong-typedef'd `enum class` with an integer underlying type;
 /// `Value` is stored by value. Unbound slots return `std::nullopt`.
-template <typename Id, typename Value> class LookupTable {
+template <typename Id, typename Value> class SideTable {
 public:
   void bind(Id id, Value value) {
     const auto index = toIndex(id);
@@ -22,12 +22,13 @@ public:
     entries[index] = std::move(value);
   }
 
-  [[nodiscard]] std::optional<Value> get(Id id) const {
+  [[nodiscard]] const Value *get(Id id) const {
     const auto index = toIndex(id);
     if (index >= entries.size()) {
-      return std::nullopt;
+      return nullptr;
     }
-    return entries[index];
+    const auto &entry = entries[index];
+    return entry.has_value() ? &*entry : nullptr;
   }
 
 private:

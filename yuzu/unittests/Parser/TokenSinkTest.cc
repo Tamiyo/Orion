@@ -70,7 +70,7 @@ std::unique_ptr<ParseError> makeError2() {
 class TokenSinkTest : public ::testing::Test {
 protected:
   SourceMap sources;
-  DiagnosticsEngine engine;
+  DiagnosticsEngine diagnostics;
   SourceId sourceId;
 
   void SetUp() override {
@@ -87,10 +87,10 @@ TEST_F(TokenSinkTest, SingleNodeWithNoChildren) {
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       FinishEvent{});
 
-  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), diagnostics, sourceId);
   const auto result = sink.finish();
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(static_cast<yuzu::syntax::SyntaxKind>(SyntaxKind::BinaryExpr),
             result.green.getKind());
   EXPECT_EQ(0, result.green.getNumChildren());
@@ -102,10 +102,10 @@ TEST_F(TokenSinkTest, SingleTokenEvent) {
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), diagnostics, sourceId);
   const auto result = sink.finish();
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(static_cast<yuzu::syntax::SyntaxKind>(SyntaxKind::BinaryExpr),
             result.green.getKind());
   EXPECT_EQ(1, result.green.getNumChildren());
@@ -117,11 +117,11 @@ TEST_F(TokenSinkTest, ErrorEventEmitsDiagnostic) {
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       ErrorEvent{.error = makeError1()}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), diagnostics, sourceId);
   const auto _ = sink.finish();
 
-  ASSERT_EQ(1u, engine.getDiagnostics().size());
-  const auto &d = engine.getDiagnostics()[0];
+  ASSERT_EQ(1u, diagnostics.getDiagnostics().size());
+  const auto &d = diagnostics.getDiagnostics()[0];
   EXPECT_EQ(Severity::Error, d.severity);
   EXPECT_EQ("found Ident but expected one of [Plus]", d.message);
   ASSERT_EQ(1u, d.labels.size());
@@ -137,28 +137,27 @@ TEST_F(TokenSinkTest, MultipleErrorEvents) {
       ErrorEvent{.error = makeError1()}, ErrorEvent{.error = makeError2()},
       FinishEvent{});
 
-  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), diagnostics, sourceId);
   const auto _ = sink.finish();
 
-  ASSERT_EQ(2u, engine.getDiagnostics().size());
+  ASSERT_EQ(2u, diagnostics.getDiagnostics().size());
   EXPECT_EQ("found Ident but expected one of [Plus]",
-            engine.getDiagnostics()[0].message);
+            diagnostics.getDiagnostics()[0].message);
   EXPECT_EQ("found Ident but expected one of [Minus]",
-            engine.getDiagnostics()[1].message);
+            diagnostics.getDiagnostics()[1].message);
 }
 
 TEST_F(TokenSinkTest, NestedNodes) {
   const auto tokens = lex(U"a");
   auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
-      StartEvent{.forwardParent = std::nullopt,
-                 .kind = SyntaxKind::IntLit},
+      StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::IntLit},
       TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), diagnostics, sourceId);
   const auto result = sink.finish();
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(static_cast<yuzu::syntax::SyntaxKind>(SyntaxKind::BinaryExpr),
             result.green.getKind());
   EXPECT_EQ(1, result.green.getNumChildren());
@@ -176,10 +175,10 @@ TEST_F(TokenSinkTest, ForwardParentCreatesWrappingNode) {
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       FinishEvent{}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), diagnostics, sourceId);
   const auto result = sink.finish();
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   // The BinaryExpr wraps LiteralExpr due to forward parent.
   EXPECT_EQ(static_cast<yuzu::syntax::SyntaxKind>(SyntaxKind::BinaryExpr),
             result.green.getKind());
@@ -192,10 +191,10 @@ TEST_F(TokenSinkTest, MultipleTokens) {
       TokenEvent{.kind = SyntaxKind::Ident},
       TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{});
 
-  auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
+  auto sink = TokenSink(tokens, std::move(events), diagnostics, sourceId);
   const auto result = sink.finish();
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   // 2 ident tokens + 1 whitespace trivia
   EXPECT_EQ(3, result.green.getNumChildren());
 }

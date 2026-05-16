@@ -4,7 +4,7 @@
 #include "yuzu/Diagnostics/Diagnostic.h"
 #include "yuzu/Diagnostics/SourceMap.h"
 
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include <string>
 

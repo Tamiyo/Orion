@@ -31,8 +31,8 @@ namespace yuzu::parser::test {
 /// `tree` is the green tree printed via
 /// `syntax::SyntaxPrinter<ast::SyntaxKind>` and is intended to be
 /// compared against a raw-string literal in test assertions. Diagnostics
-/// live on the engine the fixture owns — tests reach for them via
-/// `engine.getDiagnostics()` rather than off the result.
+/// live on the diagnostics the fixture owns — tests reach for them via
+/// `diagnostics.getDiagnostics()` rather than off the result.
 struct ParseResult {
   std::string tree;
 };
@@ -46,17 +46,17 @@ struct ParseResult {
 /// and write tests as `TEST_F(FooTest, ...)`. Each test case gets a fresh
 /// fixture instance, so leftover state from one test can't bleed into
 /// the next. Members are `protected` so individual tests can inspect
-/// them directly (e.g. `engine.hasErrors()`,
-/// `engine.getDiagnostics()`).
+/// them directly (e.g. `diagnostics.hasErrors()`,
+/// `diagnostics.getDiagnostics()`).
 ///
 /// Helpers like `parseRoot` are methods rather than free functions so
-/// they pull the context (engine, source map, source id) from `this` —
+/// they pull the context (diagnostics, source map, source id) from `this` —
 /// adding a new component is a one-line change to this fixture, not an
 /// update to every helper signature and call site.
 class ParserFixture : public ::testing::Test {
 protected:
   diagnostics::SourceMap sources;
-  diagnostics::DiagnosticsEngine engine;
+  diagnostics::DiagnosticsEngine diagnostics;
 
   /// \brief Drive the full pipeline against `source` using the top-level
   /// grammar entry. `parseRoot` opens its own `Root`-kinded marker.
@@ -103,7 +103,7 @@ private:
 
     std::vector<Event> events = std::move(parser).finish();
     auto sink =
-        TokenSink(std::move(tokens), std::move(events), engine, sourceId);
+        TokenSink(std::move(tokens), std::move(events), diagnostics, sourceId);
     TokenSink::Result sinkResult = sink.finish();
 
     using SyntaxPrinter = syntax::SyntaxPrinter<ast::SyntaxKind>;

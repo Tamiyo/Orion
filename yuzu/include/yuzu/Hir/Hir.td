@@ -26,16 +26,15 @@ def Bool : Native<"bool"> {}
 def Int64 : Native<"int64_t"> {}
 def Float64 : Native<"double"> {}
 def String : Native<"std::u32string"> {}
+def OpRef : Native<"const yuzu::hir::Op *"> {}
 
-/// A binary operator.
-def BinOp : Enum<"uint8_t"> {
-    let Cases = [
-        EnumCase<"Add">,
-        EnumCase<"Sub">,
-        EnumCase<"Mul">,
-        EnumCase<"Div">
-    ];
-}
+/// Universal HIR-node id. Declared as a schema Field so the generator
+/// threads it through every constructor instead of special-casing it.
+def Id : Native<"yuzu::hir::HirId"> {}
+
+/// Pointer to an interned `Type`. Stored on every `Expr` so the tree is
+/// typed by construction.
+def TypeRef : Native<"const yuzu::hir::Type *"> {}
 
 //===----------------------------------------------------------------------===//
 // Root
@@ -47,22 +46,25 @@ def BinOp : Enum<"uint8_t"> {
 /// `Namespace` is the C++ namespace the codegen wraps emitted types in.
 def HirNode : Base {
     let Namespace = "yuzu::hir";
+    let Fields = (ins Custom<Id>:$id);
 }
 
 //===----------------------------------------------------------------------===//
 // Expressions
 //===----------------------------------------------------------------------===//
 
-/// Top-level variant for anything that produces a value.
-def Expr : Variant<HirNode> {}
+/// Top-level variant for anything that produces a value. Every Expr
+/// carries the type it resolves to; the typer fills this in during
+/// lowering so downstream passes consume an already-typed tree.
+def Expr : Variant<HirNode> {
+    let Fields = (ins Custom<TypeRef>:$type);
+}
 
-/// Binary infix expression like `a + b`. Stores its operands as
-/// pointers into the HIR arena.
-def BinaryExpr : Node<Expr> {
+/// A 'call' expression to a set of oeprators and some arguments.
+def CallExpr : Node<Expr> {
     let Fields = (ins
-        Child<Expr>:$lhs,
-        Custom<BinOp>:$op,
-        Child<Expr>:$rhs
+        Custom<OpRef>:$op,
+        Children<Expr>:$args
     );
 }
 
@@ -70,6 +72,12 @@ def BinaryExpr : Node<Expr> {
 /// is intentionally not stored here yet (a `Custom<Number>` field will
 /// land once the literal type lives in the schema).
 def Literal : Variant<Expr> {}
+
+def BoolLit : Node<Literal> {
+     let Fields = (ins
+        Custom<Bool>:$value
+    );
+}
 
 def IntLit : Node<Literal> {
      let Fields = (ins

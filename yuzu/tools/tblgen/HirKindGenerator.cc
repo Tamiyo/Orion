@@ -16,6 +16,10 @@ namespace yuzu::tools {
 
 namespace {
 
+//===----------------------------------------------------------------------===//
+// Helpers
+//===----------------------------------------------------------------------===//
+
 /// Smallest unsigned integer type that fits `count` distinct values.
 llvm::StringRef getUnderlyingType(std::size_t count) {
   if (count <= std::numeric_limits<std::uint8_t>::max()) {
@@ -40,77 +44,119 @@ bool byLoc(const llvm::Record *a, const llvm::Record *b) {
   return a->getLoc().front().getPointer() < b->getLoc().front().getPointer();
 }
 
-/// True if `n`'s `Parent` is a `Variant`. False when the Node is
-/// parented directly at the Base — those land in the `// Nodes` block
-/// without surrounding sentinels (a single concrete kind has nothing to
-/// discriminate against).
-bool isUnderVariant(const llvm::Record *n) {
-  return n->getValueAsDef("Parent")->isSubClassOf("Variant");
+//===----------------------------------------------------------------------===//
+// Variant tree
+//===----------------------------------------------------------------------===//
+//
+// Both the master `HirKind` enum and the per-variant `<V>Kind` enums need
+// to walk the same parent→children structure. Rather than re-query
+// `(variants, nodes)` for `Parent` matches at every emitter, build the
+// tree once and have every emitter walk it.
+
+/// One node in the variant tree: either a concrete schema `Node` leaf
+/// (`isVariant == false`, `children` empty) or a `Variant` with its own
+/// children. `children` is sorted by source location so the layout
+/// matches declaration order in the `.td`.
+struct Member {
+  const llvm::Record *record;
+  bool isVariant;
+  std::vector<Member> children;
+};
+
+bool byMemberLoc(const Member &a, const Member &b) {
+  return byLoc(a.record, b.record);
 }
 
-/// True if `v`'s `Parent` is itself a Variant. Top-level variants are
-/// parented at the Base.
-bool isNestedVariant(const llvm::Record *v) {
-  return v->getValueAsDef("Parent")->isSubClassOf("Variant");
-}
-
-/// Recursively emit one variant block: FIRST sentinel, the variant
-/// itself, concrete Node children, every sub-variant nested inside,
-/// then LAST sentinel. Nested layout makes parent-level range checks
-/// include every transitive descendant.
-void emitVariantBlock(CodeFormatter &fmt, const llvm::Record *v,
-                      const std::vector<const llvm::Record *> &variants,
-                      const std::vector<const llvm::Record *> &nodes) {
-  std::vector<const llvm::Record *> concreteChildren;
+/// Build the children of `parent` recursively. Concrete Nodes and
+/// sub-Variants are gathered into one vector and sorted by source
+/// location, so the emitted layout follows `.td` declaration order
+/// regardless of which group an entry belongs to.
+std::vector<Member>
+buildChildren(const llvm::Record *parent,
+              const std::vector<const llvm::Record *> &variants,
+              const std::vector<const llvm::Record *> &nodes) {
+  std::vector<Member> out;
   for (const llvm::Record *n : nodes) {
-    if (n->getValueAsDef("Parent") == v) {
-      concreteChildren.push_back(n);
+    if (n->getValueAsDef("Parent") == parent) {
+      out.push_back({n, false, {}});
     }
   }
-  std::sort(concreteChildren.begin(), concreteChildren.end(), byLoc);
-
-  std::vector<const llvm::Record *> subVariants;
   for (const llvm::Record *sv : variants) {
-    if (sv->getValueAsDef("Parent") == v) {
-      subVariants.push_back(sv);
+    if (sv->getValueAsDef("Parent") == parent) {
+      out.push_back({sv, true, buildChildren(sv, variants, nodes)});
     }
   }
-  std::sort(subVariants.begin(), subVariants.end(), byLoc);
+  std::sort(out.begin(), out.end(), byMemberLoc);
+  return out;
+}
 
-  const std::string upper = llvm::StringRef(v->getName()).upper();
-  fmt.linef("// {0}", v->getName().str());
-  fmt.linef("{0}_FIRST,", upper);
-  fmt.linef("{0},", v->getName().str());
-  for (const llvm::Record *n : concreteChildren) {
-    fmt.linef("{0},", n->getName().str());
+/// Top-level variants are those parented at the Base. Returns them in
+/// source order, each populated with its descendant tree.
+std::vector<Member>
+buildRoots(const std::vector<const llvm::Record *> &variants,
+           const std::vector<const llvm::Record *> &nodes) {
+  std::vector<Member> roots;
+  for (const llvm::Record *v : variants) {
+    if (!v->getValueAsDef("Parent")->isSubClassOf("Variant")) {
+      roots.push_back({v, true, buildChildren(v, variants, nodes)});
+    }
   }
-  for (const llvm::Record *sv : subVariants) {
-    emitVariantBlock(fmt, sv, variants, nodes);
+  std::sort(roots.begin(), roots.end(), byMemberLoc);
+  return roots;
+}
+
+/// Collect every transitive concrete leaf of `v`, depth-first in source
+/// order. Used by `to<V>Kind` to enumerate the `HirKind` values that can
+/// actually appear on a node within this variant's subtree.
+void collectLeaves(const Member &v, std::vector<const llvm::Record *> &out) {
+  for (const Member &c : v.children) {
+    if (c.isVariant) {
+      collectLeaves(c, out);
+    } else {
+      out.push_back(c.record);
+    }
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// HirKind enum emission
+//===----------------------------------------------------------------------===//
+
+/// Emit one variant block: FIRST sentinel, the variant itself, every
+/// child (recursing into sub-variants), then LAST sentinel. Nested layout
+/// makes parent-level range checks include every transitive descendant.
+void emitVariantBlock(CodeFormatter &fmt, const Member &v) {
+  const std::string name = v.record->getName().str();
+  const std::string upper = llvm::StringRef(name).upper();
+  fmt.linef("// {0}", name);
+  fmt.linef("{0}_FIRST,", upper);
+  fmt.linef("{0},", name);
+  for (const Member &c : v.children) {
+    if (c.isVariant) {
+      emitVariantBlock(fmt, c);
+    } else {
+      fmt.linef("{0},", c.record->getName().str());
+    }
   }
   fmt.linef("{0}_LAST,", upper);
 }
 
-void emitVariants(CodeFormatter &fmt,
-                  const std::vector<const llvm::Record *> &variants,
-                  const std::vector<const llvm::Record *> &nodes) {
-  for (const llvm::Record *v : variants) {
-    if (isNestedVariant(v)) {
-      continue; // emitted recursively by its parent's block
-    }
-    emitVariantBlock(fmt, v, variants, nodes);
+void emitVariants(CodeFormatter &fmt, const std::vector<Member> &roots) {
+  for (const Member &v : roots) {
+    emitVariantBlock(fmt, v);
     fmt.line("");
   }
 }
 
-/// Emit Nodes whose `Parent` is the Base rather than a Variant,
-/// bracketed by `NODES_FIRST`/`NODES_LAST` sentinels for symmetry with
-/// the Variant blocks. Sentinels are emitted unconditionally so the
-/// layout is stable even when no base-parented nodes exist.
+/// Emit Nodes whose `Parent` is the Base rather than a Variant, bracketed
+/// by `NODES_FIRST`/`NODES_LAST` sentinels for symmetry with the Variant
+/// blocks. Sentinels are emitted unconditionally so the layout is stable
+/// even when no base-parented nodes exist.
 void emitBaseNodes(CodeFormatter &fmt,
                    const std::vector<const llvm::Record *> &nodes) {
   std::vector<const llvm::Record *> baseNodes;
   for (const llvm::Record *n : nodes) {
-    if (!isUnderVariant(n)) {
+    if (!n->getValueAsDef("Parent")->isSubClassOf("Variant")) {
       baseNodes.push_back(n);
     }
   }
@@ -125,36 +171,22 @@ void emitBaseNodes(CodeFormatter &fmt,
   fmt.line("");
 }
 
-/// Recursive counterpart to `emitVariantBlock` for `asString`: emit
-/// FIRST/variant/children/sub-variants/LAST cases so the switch covers
-/// every enumerator the enum produced.
-void emitAsStringVariant(CodeFormatter &fmt, const llvm::Record *v,
-                         const std::vector<const llvm::Record *> &variants,
-                         const std::vector<const llvm::Record *> &nodes) {
-  std::vector<const llvm::Record *> concreteChildren;
-  for (const llvm::Record *n : nodes) {
-    if (n->getValueAsDef("Parent") == v) {
-      concreteChildren.push_back(n);
-    }
-  }
-  std::sort(concreteChildren.begin(), concreteChildren.end(), byLoc);
+//===----------------------------------------------------------------------===//
+// asString(HirKind)
+//===----------------------------------------------------------------------===//
 
-  std::vector<const llvm::Record *> subVariants;
-  for (const llvm::Record *sv : variants) {
-    if (sv->getValueAsDef("Parent") == v) {
-      subVariants.push_back(sv);
-    }
-  }
-  std::sort(subVariants.begin(), subVariants.end(), byLoc);
-
-  const std::string upper = llvm::StringRef(v->getName()).upper();
+void emitAsStringVariant(CodeFormatter &fmt, const Member &v) {
+  const std::string name = v.record->getName().str();
+  const std::string upper = llvm::StringRef(name).upper();
   fmt.linef("case HirKind::{0}_FIRST: return \"{0}_FIRST\";", upper);
-  fmt.linef("case HirKind::{0}: return \"{0}\";", v->getName().str());
-  for (const llvm::Record *n : concreteChildren) {
-    fmt.linef("case HirKind::{0}: return \"{0}\";", n->getName().str());
-  }
-  for (const llvm::Record *sv : subVariants) {
-    emitAsStringVariant(fmt, sv, variants, nodes);
+  fmt.linef("case HirKind::{0}: return \"{0}\";", name);
+  for (const Member &c : v.children) {
+    if (c.isVariant) {
+      emitAsStringVariant(fmt, c);
+    } else {
+      const std::string n = c.record->getName().str();
+      fmt.linef("case HirKind::{0}: return \"{0}\";", n);
+    }
   }
   fmt.linef("case HirKind::{0}_LAST: return \"{0}_LAST\";", upper);
 }
@@ -164,24 +196,20 @@ void emitAsStringVariant(CodeFormatter &fmt, const llvm::Record *v,
 /// Keeping sentinel cases makes the switch exhaustive without any
 /// `default:` arm, silencing `-Wswitch` regardless of how the consumer
 /// compiles.
-void emitAsString(CodeFormatter &fmt,
-                  const std::vector<const llvm::Record *> &variants,
+void emitAsString(CodeFormatter &fmt, const std::vector<Member> &roots,
                   const std::vector<const llvm::Record *> &nodes) {
   fmt.line("inline std::string asString(HirKind kind) {");
   {
     auto body = fmt.block();
     fmt.line("switch (kind) {");
 
-    for (const llvm::Record *v : variants) {
-      if (isNestedVariant(v)) {
-        continue; // emitted recursively by its parent's block
-      }
-      emitAsStringVariant(fmt, v, variants, nodes);
+    for (const Member &v : roots) {
+      emitAsStringVariant(fmt, v);
     }
 
     std::vector<const llvm::Record *> baseNodes;
     for (const llvm::Record *n : nodes) {
-      if (!isUnderVariant(n)) {
+      if (!n->getValueAsDef("Parent")->isSubClassOf("Variant")) {
         baseNodes.push_back(n);
       }
     }
@@ -203,17 +231,95 @@ void emitAsString(CodeFormatter &fmt,
   fmt.line("}");
 }
 
+//===----------------------------------------------------------------------===//
+// Per-variant <V>Kind enums
+//===----------------------------------------------------------------------===//
+//
+// For each variant `V`, emit a narrow enum listing only `V`'s direct
+// children (concrete Nodes by their own name, sub-Variants by the
+// variant's name) plus the conversion from `HirKind`. Callers dispatch
+// one level at a time and `-Wswitch` enforces exhaustiveness — adding a
+// new direct child of `V` breaks every `switch (x.getXKind())`.
+
+void emitVariantKind(CodeFormatter &fmt, const Member &v) {
+  const std::string name = v.record->getName().str();
+
+  fmt.linef("enum class {0}Kind : uint8_t {{", name);
+  {
+    auto body = fmt.block();
+    for (const Member &c : v.children) {
+      fmt.linef("{0},", c.record->getName().str());
+    }
+  }
+  fmt.line("};");
+  fmt.line("");
+
+  fmt.linef("inline {0}Kind to{0}Kind(HirKind kind) {{", name);
+  {
+    auto body = fmt.block();
+    fmt.line("switch (kind) {");
+    for (const Member &c : v.children) {
+      const std::string childName = c.record->getName().str();
+      if (c.isVariant) {
+        std::vector<const llvm::Record *> leaves;
+        collectLeaves(c, leaves);
+        for (std::size_t i = 0; i < leaves.size(); ++i) {
+          if (i + 1 < leaves.size()) {
+            fmt.linef("case HirKind::{0}:", leaves[i]->getName().str());
+          } else {
+            fmt.linef("case HirKind::{0}: return {1}Kind::{2};",
+                      leaves[i]->getName().str(), name, childName);
+          }
+        }
+      } else {
+        fmt.linef("case HirKind::{0}: return {1}Kind::{0};", childName, name);
+      }
+    }
+    fmt.line("default: util::yuzu_unreachable();");
+    fmt.line("}");
+  }
+  fmt.line("}");
+  fmt.line("");
+
+  fmt.linef("inline std::string asString({0}Kind kind) {{", name);
+  {
+    auto body = fmt.block();
+    fmt.line("switch (kind) {");
+    for (const Member &c : v.children) {
+      const std::string childName = c.record->getName().str();
+      fmt.linef("case {0}Kind::{1}: return \"{1}\";", name, childName);
+    }
+    fmt.line("}");
+    fmt.line("");
+    fmt.line("util::yuzu_unreachable();");
+  }
+  fmt.line("}");
+  fmt.line("");
+
+  for (const Member &c : v.children) {
+    if (c.isVariant) {
+      emitVariantKind(fmt, c);
+    }
+  }
+}
+
+void emitVariantKinds(CodeFormatter &fmt, const std::vector<Member> &roots) {
+  for (const Member &v : roots) {
+    emitVariantKind(fmt, v);
+  }
+}
+
 } // namespace
 
 void HirKindGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
 
-  std::vector<const llvm::Record *> variants =
+  const std::vector<const llvm::Record *> variants =
       records.getAllDerivedDefinitions("Variant");
   const std::vector<const llvm::Record *> nodes =
       records.getAllDerivedDefinitions("Node");
 
-  std::sort(variants.begin(), variants.end(), byLoc);
+  const std::vector<Member> roots = buildRoots(variants, nodes);
 
   // variants + nodes + 2 sentinels per variant
   //   + 2 sentinels (NODES_FIRST/LAST)
@@ -226,7 +332,7 @@ void HirKindGenerator::generate(const llvm::RecordKeeper &records) {
   fmt.linef("enum class HirKind : {0} {{", getUnderlyingType(total));
   {
     auto body = fmt.block();
-    emitVariants(fmt, variants, nodes);
+    emitVariants(fmt, roots);
     emitBaseNodes(fmt, nodes);
 
     fmt.line("// System");
@@ -237,7 +343,9 @@ void HirKindGenerator::generate(const llvm::RecordKeeper &records) {
   }
   fmt.line("};");
   fmt.line("");
-  emitAsString(fmt, variants, nodes);
+  emitAsString(fmt, roots, nodes);
+  fmt.line("");
+  emitVariantKinds(fmt, roots);
   fmt.linef("} // namespace {0}", ns);
 }
 

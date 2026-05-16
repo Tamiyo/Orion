@@ -1,5 +1,5 @@
-#ifndef YUZU_HIR_HIR_BUILDER_H
-#define YUZU_HIR_HIR_BUILDER_H
+#ifndef YUZU_HIR_HIRBUILDER_H
+#define YUZU_HIR_HIRBUILDER_H
 
 #include "yuzu/Hir/Hir.h" // IWYU pragma: export
 
@@ -12,4 +12,4 @@
 // copied into the arena before being handed to the node ctor.
 #include "yuzu/Hir/HirBuilder.h.inc" // IWYU pragma: export
 
-#endif // YUZU_HIR_HIR_BUILDER_H
+#endif // YUZU_HIR_HIRBUILDER_H

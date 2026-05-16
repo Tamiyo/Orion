@@ -1,7 +1,7 @@
 #ifndef YUZU_UTIL_ERROR_HANDLING_H
 #define YUZU_UTIL_ERROR_HANDLING_H
 
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include <cstdlib>
 

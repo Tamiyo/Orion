@@ -26,6 +26,7 @@ class Def {
 /// emitted types in.
 class Base : Def {
     string Namespace = "";
+    dag Fields = (ins);
 }
 
 /// An abstract node realized as a discriminated union of concrete `Node`s.
@@ -33,6 +34,7 @@ class Base : Def {
 /// alternatives.
 class Variant<Base parent> : Base {
     Def Parent = parent;
+    dag Fields = (ins);
 }
 
 /// A concrete tree node with a fixed shape described by `Fields`. Each entry

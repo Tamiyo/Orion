@@ -5,8 +5,9 @@
 #include "yuzu/Diagnostics/DiagnosticBuilder.h"
 #include "yuzu/Diagnostics/Span.h"
 
+#include <llvm/ADT/Twine.h>
+
 #include <cstddef>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -16,17 +17,17 @@ namespace yuzu::diagnostics {
 ///
 /// Components that can fail (lexer, parser, future semantic passes) hold
 /// a reference to one of these and emit through the builder API. The
-/// engine itself does no rendering — it just stores diagnostics in
+/// diagnostics itself does no rendering — it just stores diagnostics in
 /// emission order and tracks counts. A renderer walks the stored list at
 /// the end.
 ///
 /// \code
-///   DiagnosticsEngine engine;
-///   engine.error(span, "expected expression")
+///   DiagnosticsEngine diagnostics;
+///   diagnostics.error(span, "expected expression")
 ///       .label(otherSpan, "after this `+`")
 ///       .emit();
 ///
-///   if (engine.hasErrors()) { ... }
+///   if (diagnostics.hasErrors()) { ... }
 /// \endcode
 class [[nodiscard]] DiagnosticsEngine final {
 public:
@@ -35,20 +36,20 @@ public:
   /// `span` becomes the diagnostic's primary span (no inline label —
   /// add one with `.label(...)` if needed). `message` is the top-level
   /// summary printed on the first line.
-  DiagnosticBuilder error(Span span, std::string message) {
-    return DiagnosticBuilder(this, Severity::Error, span, std::move(message));
+  DiagnosticBuilder error(Span span, const llvm::Twine &message) {
+    return DiagnosticBuilder(this, Severity::Error, span, message.str());
   }
 
   /// \brief Begin building a `Warning` diagnostic. Same shape as
   /// `error`; doesn't count toward `hasErrors`.
-  DiagnosticBuilder warning(Span span, std::string message) {
-    return DiagnosticBuilder(this, Severity::Warning, span, std::move(message));
+  DiagnosticBuilder warning(Span span, const llvm::Twine &message) {
+    return DiagnosticBuilder(this, Severity::Warning, span, message.str());
   }
 
   /// \brief Begin building a `Remark` diagnostic. Lowest severity;
   /// purely informational.
-  DiagnosticBuilder remark(Span span, std::string message) {
-    return DiagnosticBuilder(this, Severity::Remark, span, std::move(message));
+  DiagnosticBuilder remark(Span span, const llvm::Twine &message) {
+    return DiagnosticBuilder(this, Severity::Remark, span, message.str());
   }
 
   /// \brief Push a fully-built diagnostic. Normally called by

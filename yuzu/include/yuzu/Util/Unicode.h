@@ -1,7 +1,7 @@
 #ifndef YUZU_UTIL_UNICODE_H
 #define YUZU_UTIL_UNICODE_H
 
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include <cstdint>
 #include <string>

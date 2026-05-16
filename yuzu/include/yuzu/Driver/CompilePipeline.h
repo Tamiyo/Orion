@@ -3,7 +3,7 @@
 
 #include <string_view>
 
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/raw_ostream.h>
 
 namespace yuzu {
 struct CompileOptions {

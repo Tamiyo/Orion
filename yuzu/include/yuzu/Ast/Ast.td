@@ -63,6 +63,12 @@ def BinaryExpr : Node<Expr> {
 /// on the syntax token, not in the AST.
 def Literal : Variant<Expr> {}
 
+def BoolLit : Node<Literal> {
+     let Fields = (ins
+        Custom<Bool>:$value
+    );
+}
+
 def IntLit : Node<Literal> {
      let Fields = (ins
         Custom<Int64>:$value

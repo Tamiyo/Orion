@@ -11,14 +11,14 @@ class GrammarTest : public yuzu::parser::test::ParserFixture {};
 TEST_F(GrammarTest, ParsesEmptyInput) {
   const auto result = parseRoot(U"");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ("Root@0..0", result.tree);
 }
 
 TEST_F(GrammarTest, ParsesSingleNumberLiteral) {
   const auto result = parseRoot(U"42");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Root@0..2
   ExprStmt@0..2
     IntLit@0..2
@@ -29,7 +29,7 @@ TEST_F(GrammarTest, ParsesSingleNumberLiteral) {
 TEST_F(GrammarTest, ParsesSingleBinaryExpression) {
   const auto result = parseRoot(U"1 + 2");
 
-  EXPECT_TRUE(engine.getDiagnostics().empty());
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Root@0..5
   ExprStmt@0..5
     BinaryExpr@0..5
@@ -50,8 +50,8 @@ TEST_F(GrammarTest, ParsesSingleBinaryExpression) {
 TEST_F(GrammarTest, ReportsErrorOnMissingLhs) {
   const auto result = parseRoot(U"+ 1");
 
-  ASSERT_EQ(1u, engine.getDiagnostics().size());
-  const auto &d = engine.getDiagnostics()[0];
+  ASSERT_EQ(1u, diagnostics.getDiagnostics().size());
+  const auto &d = diagnostics.getDiagnostics()[0];
   EXPECT_EQ(yuzu::diagnostics::Severity::Error, d.severity);
   EXPECT_EQ("expected expression, found `+`", d.message);
   ASSERT_EQ(1u, d.labels.size());

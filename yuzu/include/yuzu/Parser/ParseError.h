@@ -19,7 +19,7 @@ namespace yuzu::parser {
 /// it constructs `ParseError` subclasses and stuffs them into
 /// `ErrorEvent`s. The `TokenSink` later asks each `ParseError` to render
 /// itself as a `diagnostics::Diagnostic` (via `toDiagnostic`) and pushes
-/// the result onto the engine.
+/// the result onto the diagnostics.
 ///
 /// Adding a new error category means: subclass, hold the data the parser
 /// captured, implement `toDiagnostic` to map that data to a primary span

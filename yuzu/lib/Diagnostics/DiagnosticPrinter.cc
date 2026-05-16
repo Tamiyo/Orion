@@ -5,7 +5,7 @@
 #include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Util/Unicode.h"
 
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -147,6 +147,71 @@ void DiagnosticPrinter::print(const Diagnostic &diagnostic,
       out << ' ' << trailingLabel->message;
     }
     out << '\n';
+
+    // Per-label message rows, rustc-style. Secondary labels with their
+    // own messages render below the combined underline:
+    //
+    //   1 | 2.1 + 2
+    //     | ^^^^^^^
+    //     | |     |          <- connector row
+    //     | |     - right operand has type `int`
+    //     | --- left operand has type `float`
+    //
+    // The connector row marks each pending label's start column with a
+    // `|`. Per-label rows render rightmost-first; labels still pending
+    // (to the left) keep their `|` connector until rendered.
+    std::vector<const Label *> stacked;
+    for (const Label &l : diagnostic.labels) {
+      if (l.style == LabelStyle::Primary) {
+        continue;
+      }
+      if (l.message.empty() || l.span.source != src) {
+        continue;
+      }
+      if (sources.getLineCol(src, l.span.start).line != pos.line) {
+        continue;
+      }
+      stacked.push_back(&l);
+    }
+    std::sort(stacked.begin(), stacked.end(),
+              [](const Label *a, const Label *b) {
+                return a->span.start < b->span.start;
+              });
+
+    if (!stacked.empty()) {
+      std::vector<unsigned> cols;
+      cols.reserve(stacked.size());
+      for (const Label *l : stacked) {
+        cols.push_back(sources.getLineCol(src, l->span.start).column - 1);
+      }
+
+      // Connector row: `|` at each pending label's start column.
+      indent(out, gutterIndent);
+      out << " | ";
+      std::string connectors(cols.back() + 1, ' ');
+      for (unsigned c : cols) {
+        connectors[c] = '|';
+      }
+      out << connectors << '\n';
+
+      // Per-label rows, rightmost first. For each, place `|` connectors
+      // at every label to its left (still pending) and draw the current
+      // label's underline + message.
+      for (std::size_t k = stacked.size(); k-- > 0;) {
+        const Label &l = *stacked[k];
+        const unsigned col = cols[k];
+        const unsigned len =
+            std::max(1u, static_cast<unsigned>(l.span.end - l.span.start));
+        indent(out, gutterIndent);
+        out << " | ";
+        std::string row(col, ' ');
+        for (std::size_t j = 0; j < k; ++j) {
+          row[cols[j]] = '|';
+        }
+        row.append(len, underlineFor(l.style));
+        out << row << ' ' << l.message << '\n';
+      }
+    }
   }
 
   // Notes: same gutter indent as the snippet rows, but with `=` instead
