@@ -48,30 +48,56 @@ bool isUnderVariant(const llvm::Record *n) {
   return n->getValueAsDef("Parent")->isSubClassOf("Variant");
 }
 
-/// Emit each Variant's section: a `<V>_FIRST` sentinel, the variant
-/// itself, every concrete Node under it (sorted by source order), and
-/// a `<V>_LAST` sentinel. The sentinels are what makes range-check
-/// `classof` implementations on `Variant` cheap.
+/// True if `v`'s `Parent` is itself a Variant. Top-level variants are
+/// parented at the Base.
+bool isNestedVariant(const llvm::Record *v) {
+  return v->getValueAsDef("Parent")->isSubClassOf("Variant");
+}
+
+/// Recursively emit one variant block: FIRST sentinel, the variant
+/// itself, concrete Node children, every sub-variant nested inside,
+/// then LAST sentinel. Nested layout makes parent-level range checks
+/// include every transitive descendant.
+void emitVariantBlock(CodeFormatter &fmt, const llvm::Record *v,
+                      const std::vector<const llvm::Record *> &variants,
+                      const std::vector<const llvm::Record *> &nodes) {
+  std::vector<const llvm::Record *> concreteChildren;
+  for (const llvm::Record *n : nodes) {
+    if (n->getValueAsDef("Parent") == v) {
+      concreteChildren.push_back(n);
+    }
+  }
+  std::sort(concreteChildren.begin(), concreteChildren.end(), byLoc);
+
+  std::vector<const llvm::Record *> subVariants;
+  for (const llvm::Record *sv : variants) {
+    if (sv->getValueAsDef("Parent") == v) {
+      subVariants.push_back(sv);
+    }
+  }
+  std::sort(subVariants.begin(), subVariants.end(), byLoc);
+
+  const std::string upper = llvm::StringRef(v->getName()).upper();
+  fmt.linef("// {0}", v->getName().str());
+  fmt.linef("{0}_FIRST,", upper);
+  fmt.linef("{0},", v->getName().str());
+  for (const llvm::Record *n : concreteChildren) {
+    fmt.linef("{0},", n->getName().str());
+  }
+  for (const llvm::Record *sv : subVariants) {
+    emitVariantBlock(fmt, sv, variants, nodes);
+  }
+  fmt.linef("{0}_LAST,", upper);
+}
+
 void emitVariants(CodeFormatter &fmt,
                   const std::vector<const llvm::Record *> &variants,
                   const std::vector<const llvm::Record *> &nodes) {
   for (const llvm::Record *v : variants) {
-    std::vector<const llvm::Record *> children;
-    for (const llvm::Record *n : nodes) {
-      if (n->getValueAsDef("Parent") == v) {
-        children.push_back(n);
-      }
+    if (isNestedVariant(v)) {
+      continue; // emitted recursively by its parent's block
     }
-    std::sort(children.begin(), children.end(), byLoc);
-
-    const std::string upper = llvm::StringRef(v->getName()).upper();
-    fmt.linef("// {0}", v->getName().str());
-    fmt.linef("{0}_FIRST,", upper);
-    fmt.linef("{0},", v->getName().str());
-    for (const llvm::Record *n : children) {
-      fmt.linef("{0},", n->getName().str());
-    }
-    fmt.linef("{0}_LAST,", upper);
+    emitVariantBlock(fmt, v, variants, nodes);
     fmt.line("");
   }
 }
@@ -99,6 +125,40 @@ void emitBaseNodes(CodeFormatter &fmt,
   fmt.line("");
 }
 
+/// Recursive counterpart to `emitVariantBlock` for `asString`: emit
+/// FIRST/variant/children/sub-variants/LAST cases so the switch covers
+/// every enumerator the enum produced.
+void emitAsStringVariant(CodeFormatter &fmt, const llvm::Record *v,
+                         const std::vector<const llvm::Record *> &variants,
+                         const std::vector<const llvm::Record *> &nodes) {
+  std::vector<const llvm::Record *> concreteChildren;
+  for (const llvm::Record *n : nodes) {
+    if (n->getValueAsDef("Parent") == v) {
+      concreteChildren.push_back(n);
+    }
+  }
+  std::sort(concreteChildren.begin(), concreteChildren.end(), byLoc);
+
+  std::vector<const llvm::Record *> subVariants;
+  for (const llvm::Record *sv : variants) {
+    if (sv->getValueAsDef("Parent") == v) {
+      subVariants.push_back(sv);
+    }
+  }
+  std::sort(subVariants.begin(), subVariants.end(), byLoc);
+
+  const std::string upper = llvm::StringRef(v->getName()).upper();
+  fmt.linef("case HirKind::{0}_FIRST: return \"{0}_FIRST\";", upper);
+  fmt.linef("case HirKind::{0}: return \"{0}\";", v->getName().str());
+  for (const llvm::Record *n : concreteChildren) {
+    fmt.linef("case HirKind::{0}: return \"{0}\";", n->getName().str());
+  }
+  for (const llvm::Record *sv : subVariants) {
+    emitAsStringVariant(fmt, sv, variants, nodes);
+  }
+  fmt.linef("case HirKind::{0}_LAST: return \"{0}_LAST\";", upper);
+}
+
 /// Emit `asString(HirKind)`, mapping every enumerator (including the
 /// `*_FIRST` / `*_LAST` sentinels and the System block) to its name.
 /// Keeping sentinel cases makes the switch exhaustive without any
@@ -113,21 +173,10 @@ void emitAsString(CodeFormatter &fmt,
     fmt.line("switch (kind) {");
 
     for (const llvm::Record *v : variants) {
-      std::vector<const llvm::Record *> children;
-      for (const llvm::Record *n : nodes) {
-        if (n->getValueAsDef("Parent") == v) {
-          children.push_back(n);
-        }
+      if (isNestedVariant(v)) {
+        continue; // emitted recursively by its parent's block
       }
-      std::sort(children.begin(), children.end(), byLoc);
-
-      const std::string upper = llvm::StringRef(v->getName()).upper();
-      fmt.linef("case HirKind::{0}_FIRST: return \"{0}_FIRST\";", upper);
-      fmt.linef("case HirKind::{0}: return \"{0}\";", v->getName().str());
-      for (const llvm::Record *n : children) {
-        fmt.linef("case HirKind::{0}: return \"{0}\";", n->getName().str());
-      }
-      fmt.linef("case HirKind::{0}_LAST: return \"{0}_LAST\";", upper);
+      emitAsStringVariant(fmt, v, variants, nodes);
     }
 
     std::vector<const llvm::Record *> baseNodes;

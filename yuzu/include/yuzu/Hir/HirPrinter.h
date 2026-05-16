@@ -38,7 +38,12 @@ private:
   void printRoot(const Root *root, std::size_t indent);
   void printExprStmt(const ExprStmt *stmt, std::size_t indent);
   void printBinaryExpr(const BinaryExpr *expr, std::size_t indent);
-  void printLiteralExpr(const LiteralExpr *expr, std::size_t indent);
+  void printIntLit(const IntLit *expr,
+                               std::size_t indent);
+  void printFloatLit(const FloatLit *expr,
+                             std::size_t indent);
+  void printStringLit(const StringLit *expr,
+                              std::size_t indent);
 
   llvm::raw_ostream &os;
 };

@@ -37,7 +37,7 @@ TEST_F(ParserTest, PeekKindReturnsFirstToken) {
   const auto tokens = lex(U"123");
   auto parser = Parser(TokenSource(tokens));
 
-  EXPECT_EQ(TokenKind::Number, parser.peekKind());
+  EXPECT_EQ(TokenKind::IntegerLiteral, parser.peekKind());
 }
 
 TEST_F(ParserTest, PeekKindReturnsNulloptOnEmpty) {
@@ -58,7 +58,7 @@ TEST_F(ParserTest, AtReturnsTrueForMatchingKind) {
   const auto tokens = lex(U"123");
   auto parser = Parser(TokenSource(tokens));
 
-  EXPECT_TRUE(parser.at(TokenKind::Number));
+  EXPECT_TRUE(parser.at(TokenKind::IntegerLiteral));
 }
 
 TEST_F(ParserTest, AtReturnsFalseForNonMatchingKind) {
@@ -135,10 +135,10 @@ TEST_F(ParserTest, PrecedeCreatesNewMarkerAfterCompleted) {
   const Marker marker = parser.start();
   parser.bump();
   const CompletedMarker completed =
-      parser.complete(marker, SyntaxKind::LiteralExpr);
+      parser.complete(marker, SyntaxKind::IntLit);
 
   const auto [newMarker, oldKind] = parser.precede(completed);
-  EXPECT_EQ(SyntaxKind::LiteralExpr, oldKind);
+  EXPECT_EQ(SyntaxKind::IntLit, oldKind);
   EXPECT_GT(newMarker.position, completed.position);
 }
 
@@ -146,7 +146,7 @@ TEST_F(ParserTest, ExpectConsumesMatchingToken) {
   const auto tokens = lex(U"123");
   auto parser = Parser(TokenSource(tokens));
 
-  parser.expect(TokenKind::Number);
+  parser.expect(TokenKind::IntegerLiteral);
   EXPECT_TRUE(parser.atEnd());
 }
 
@@ -154,7 +154,7 @@ TEST_F(ParserTest, ExpectOnMismatchGeneratesError) {
   const auto tokens = lex(U"abc");
   auto parser = Parser(TokenSource(tokens));
 
-  parser.expect(TokenKind::Number);
+  parser.expect(TokenKind::IntegerLiteral);
   // After error, if not at recovery set and not at end, bump happens
   EXPECT_TRUE(parser.atEnd());
 }

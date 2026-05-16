@@ -61,8 +61,10 @@ const Expr *HirLowerer::lowerExpr(const ast::Expr &expr) {
   switch (expr.getKind()) {
   case ast::SyntaxKind::BinaryExpr:
     return lowerBinaryExpr(*ast::BinaryExpr::cast(expr));
-  case ast::SyntaxKind::LiteralExpr:
-    return lowerLiteralExpr(*ast::LiteralExpr::cast(expr));
+  case ast::SyntaxKind::IntLit:
+  case ast::SyntaxKind::FloatLit:
+  case ast::SyntaxKind::StringLit:
+    return lowerLiteralExpr(*ast::Literal::cast(expr));
   default:
     util::yuzu_unreachable();
   }
@@ -94,13 +96,52 @@ const Expr *HirLowerer::lowerBinaryExpr(const ast::BinaryExpr &expr) {
   return hir;
 }
 
-const LiteralExpr *HirLowerer::lowerLiteralExpr(const ast::LiteralExpr &expr) {
+const Literal *HirLowerer::lowerLiteralExpr(const ast::Literal &expr) {
+  switch (expr.getKind()) {
+  case ast::SyntaxKind::IntLit:
+    return lowerIntLit(*ast::IntLit::cast(expr));
+  case ast::SyntaxKind::FloatLit:
+    return lowerFloatLit(*ast::FloatLit::cast(expr));
+  case ast::SyntaxKind::StringLit:
+    return lowerStringLit(*ast::StringLit::cast(expr));
+  default:
+    util::yuzu_unreachable();
+  }
+}
+
+const IntLit *
+HirLowerer::lowerIntLit(const ast::IntLit &expr) {
   const auto value = expr.getValue();
   if (!value) {
-    error(expr, "literal is missing its value").emit();
+    error(expr, "integer literal is missing its value").emit();
     return nullptr;
   }
-  const auto *hir = builder.makeLiteralExpr(*value);
+  const auto *hir = builder.makeIntLit(*value);
+  sourceMap.bind(hir->getId(), expr);
+  return hir;
+}
+
+const FloatLit *
+HirLowerer::lowerFloatLit(const ast::FloatLit &expr) {
+  const auto value = expr.getValue();
+  if (!value) {
+    error(expr, "float literal is missing its value").emit();
+    return nullptr;
+  }
+  const auto *hir = builder.makeFloatLit(*value);
+  sourceMap.bind(hir->getId(), expr);
+  return hir;
+}
+
+const StringLit *
+HirLowerer::lowerStringLit(const ast::StringLit &expr) {
+  const auto value = expr.getValue();
+  const auto isRaw = expr.getIsRaw();
+  if (!value || !isRaw) {
+    error(expr, "string literal is missing its value").emit();
+    return nullptr;
+  }
+  const auto *hir = builder.makeStringLit(*value, *isRaw);
   sourceMap.bind(hir->getId(), expr);
   return hir;
 }

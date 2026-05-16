@@ -152,7 +152,7 @@ TEST_F(TokenSinkTest, NestedNodes) {
   auto events = makeEvents(
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       StartEvent{.forwardParent = std::nullopt,
-                 .kind = SyntaxKind::LiteralExpr},
+                 .kind = SyntaxKind::IntLit},
       TokenEvent{.kind = SyntaxKind::Ident}, FinishEvent{}, FinishEvent{});
 
   auto sink = TokenSink(tokens, std::move(events), engine, sourceId);
@@ -171,7 +171,7 @@ TEST_F(TokenSinkTest, ForwardParentCreatesWrappingNode) {
   // Event 2: Start BinaryExpr (will be started before LiteralExpr due to
   // forward parent) Event 3: Finish BinaryExpr Event 4: Finish LiteralExpr
   auto events = makeEvents(
-      StartEvent{.forwardParent = 2, .kind = SyntaxKind::LiteralExpr},
+      StartEvent{.forwardParent = 2, .kind = SyntaxKind::IntLit},
       TokenEvent{.kind = SyntaxKind::Ident},
       StartEvent{.forwardParent = std::nullopt, .kind = SyntaxKind::BinaryExpr},
       FinishEvent{}, FinishEvent{});

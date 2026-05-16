@@ -10,8 +10,8 @@ TEST_F(StmtTest, ParsesNumberLiteral) {
 
   EXPECT_TRUE(engine.getDiagnostics().empty());
   EXPECT_EQ(R"(ExprStmt@0..2
-  LiteralExpr@0..2
-    Number@0..2 "42")",
+  IntLit@0..2
+    IntegerLiteral@0..2 "42")",
             result.tree);
 }
 
@@ -21,13 +21,13 @@ TEST_F(StmtTest, ParsesBinaryExpression) {
   EXPECT_TRUE(engine.getDiagnostics().empty());
   EXPECT_EQ(R"(ExprStmt@0..5
   BinaryExpr@0..5
-    LiteralExpr@0..2
-      Number@0..1 "1"
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
       Space@1..2 " "
     Plus@2..3 "+"
     Space@3..4 " "
-    LiteralExpr@4..5
-      Number@4..5 "2")",
+    IntLit@4..5
+      IntegerLiteral@4..5 "2")",
             result.tree);
 }
 

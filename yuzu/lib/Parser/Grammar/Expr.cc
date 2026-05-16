@@ -50,12 +50,38 @@ std::optional<BinaryOp> parseBinaryOp(Parser &p) {
 }
 
 std::optional<CompletedMarker> parseLiteralExpr(Parser &p) {
-  assert(p.peekKind() == lexer::TokenKind::Number &&
-         "Literals must be numbers.");
+  const auto kind = p.peekKind();
+  assert(kind.has_value() && lexer::isLiteral(*kind) &&
+         "parseLiteralExpr must be called at a literal token");
+
+  // Map the lexer's literal-token kind to the corresponding AST node.
+  ast::SyntaxKind astKind;
+  switch (*kind) {
+  case lexer::TokenKind::IntegerLiteral:
+  case lexer::TokenKind::HexLiteral:
+  case lexer::TokenKind::BinaryLiteral:
+    astKind = ast::SyntaxKind::IntLit;
+    break;
+  case lexer::TokenKind::FloatLiteral:
+    astKind = ast::SyntaxKind::FloatLit;
+    break;
+  case lexer::TokenKind::StringLiteral:
+  case lexer::TokenKind::RawStringLiteral:
+    astKind = ast::SyntaxKind::StringLit;
+    break;
+  case lexer::TokenKind::BooleanLiteral:
+    // TODO: add `BoolLit : Node<Literal>` to the AST schema and route
+    // boolean tokens to it. Until then they piggyback on `IntLit` so the
+    // tree is well-formed.
+    astKind = ast::SyntaxKind::IntLit;
+    break;
+  default:
+    util::yuzu_unreachable();
+  }
 
   const Marker m = p.start();
-  p.bump(); // Consume literal.
-  return p.complete(m, ast::SyntaxKind::LiteralExpr);
+  p.bump(); // Consume the literal token.
+  return p.complete(m, astKind);
 }
 
 std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
@@ -83,22 +109,37 @@ std::optional<CompletedMarker> parseParenExpr(Parser &p) {
 }
 
 std::optional<CompletedMarker> parseLhs(Parser &p) {
-  if (p.at(lexer::TokenKind::Number)) {
+  const auto kind = p.peekKind();
+  if (!kind.has_value()) {
+    // End of input where an expression was required (e.g. `1 +` then EOF).
+    // Emit the same `expected expression, found ...` diagnostic the
+    // default arm uses so callers see a single recoverable error.
+    p.errorExpression(exprRecoverySet);
+    return std::nullopt;
+  }
+
+  switch (*kind) {
+  case lexer::TokenKind::BooleanLiteral:
+  case lexer::TokenKind::IntegerLiteral:
+  case lexer::TokenKind::FloatLiteral:
+  case lexer::TokenKind::HexLiteral:
+  case lexer::TokenKind::BinaryLiteral:
+  case lexer::TokenKind::StringLiteral:
+  case lexer::TokenKind::RawStringLiteral:
     return parseLiteralExpr(p);
-  }
 
-  if (p.at(lexer::TokenKind::Ident)) {
+  case lexer::TokenKind::Ident:
     return parseIdentExpr(p);
-  }
 
-  if (p.at(lexer::TokenKind::LeftParen)) {
+  case lexer::TokenKind::LeftParen:
     return parseParenExpr(p);
-  }
 
-  // Semantic version: emits `expected expression, found `<text>`` instead
-  // of enumerating the LHS kinds. Same recovery shape as `error`.
-  p.errorExpression(exprRecoverySet);
-  return std::nullopt;
+  default:
+    // Semantic version: emits `expected expression, found `<text>`` instead
+    // of enumerating the LHS kinds. Same recovery shape as `error`.
+    p.errorExpression(exprRecoverySet);
+    return std::nullopt;
+  }
 }
 
 std::optional<CompletedMarker>

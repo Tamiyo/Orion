@@ -9,15 +9,13 @@
 #include "mlir/IR/Value.h"
 
 namespace yuzu::codegen {
-
 namespace {
-
 mlir::Value genExpr(mlir::OpBuilder &builder, const hir::Expr *expr) {
   auto &ctx = *builder.getContext();
   const auto loc = locFor(ctx, expr->getId());
   switch (expr->getKind()) {
-  case hir::HirKind::LiteralExpr: {
-    const auto *lit = hir::LiteralExpr::cast(expr);
+  case hir::HirKind::IntLit: {
+    const auto *lit = hir::IntLit::cast(expr);
     return builder.create<mlir::arith::ConstantIntOp>(loc, lit->getValue(),
                                                       builder.getI64Type());
   }

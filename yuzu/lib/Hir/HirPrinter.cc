@@ -15,8 +15,14 @@ void HirPrinter::printNode(const HirNode *node, std::size_t indent) {
   case HirKind::BinaryExpr:
     printBinaryExpr(BinaryExpr::cast(node), indent);
     return;
-  case HirKind::LiteralExpr:
-    printLiteralExpr(LiteralExpr::cast(node), indent);
+  case HirKind::IntLit:
+    printIntLit(IntLit::cast(node), indent);
+    return;
+  case HirKind::FloatLit:
+    printFloatLit(FloatLit::cast(node), indent);
+    return;
+  case HirKind::StringLit:
+    printStringLit(StringLit::cast(node), indent);
     return;
   default:
     util::yuzu_unreachable();
@@ -46,10 +52,22 @@ void HirPrinter::printBinaryExpr(const BinaryExpr *expr, std::size_t indent) {
   printNode(expr->getRhs(), indent + 1);
 }
 
-void HirPrinter::printLiteralExpr(const LiteralExpr *expr,
-                                  std::size_t indent) {
+void HirPrinter::printIntLit(const IntLit *expr,
+                                         std::size_t indent) {
   os.indent(indent * 2);
-  os << "LiteralExpr value=" << expr->getValue();
+  os << "IntLit value=" << expr->getValue();
+}
+
+void HirPrinter::printFloatLit(const FloatLit *expr,
+                                       std::size_t indent) {
+  os.indent(indent * 2);
+  os << "FloatLit value=" << expr->getValue();
+}
+
+void HirPrinter::printStringLit(const StringLit *expr,
+                                        std::size_t indent) {
+  os.indent(indent * 2);
+  os << "StringLit isRaw=" << (expr->getIsRaw() ? "true" : "false");
 }
 
 } // namespace yuzu::hir

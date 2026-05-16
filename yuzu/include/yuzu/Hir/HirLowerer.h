@@ -22,8 +22,8 @@ namespace yuzu::hir {
 class HirLowerer {
 public:
   HirLowerer(HirBuilder &builder, HirSourceMap &sourceMap,
-          diagnostics::DiagnosticsEngine &diagnostics,
-          diagnostics::SourceId source)
+             diagnostics::DiagnosticsEngine &diagnostics,
+             diagnostics::SourceId source)
       : builder(builder), sourceMap(sourceMap), diagnostics(diagnostics),
         source(source) {}
 
@@ -31,15 +31,24 @@ public:
   const Stmt *lowerStmt(const ast::Stmt &stmt);
   const Expr *lowerExpr(const ast::Expr &expr);
 
+  /// Start an error diagnostic at the AST node's source range.
+  diagnostics::DiagnosticBuilder error(const ast::AstNode &node,
+                                       std::string message);
+  /// Start an error diagnostic at the source range of the AST origin
+  /// bound to `node->getId()` in the source map.
+  diagnostics::DiagnosticBuilder error(const HirNode *node,
+                                       std::string message);
+
 private:
   const Stmt *lowerExprStmt(const ast::ExprStmt &stmt);
   const Expr *lowerBinaryExpr(const ast::BinaryExpr &expr);
-  const LiteralExpr *lowerLiteralExpr(const ast::LiteralExpr &expr);
-
-  diagnostics::DiagnosticBuilder error(const ast::AstNode &node,
-                                       std::string message);
-  diagnostics::DiagnosticBuilder error(const HirNode *node,
-                                       std::string message);
+  const Literal *lowerLiteralExpr(const ast::Literal &expr);
+  const IntLit *
+  lowerIntLit(const ast::IntLit &expr);
+  const FloatLit *
+  lowerFloatLit(const ast::FloatLit &expr);
+  const StringLit *
+  lowerStringLit(const ast::StringLit &expr);
 
   HirBuilder &builder;
   HirSourceMap &sourceMap;

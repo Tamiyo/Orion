@@ -22,7 +22,10 @@ include "yuzu/DSL/TreeBase.td"
 // Types
 //===----------------------------------------------------------------------===//
 
+def Bool : Native<"bool"> {}
 def Int64 : Native<"int64_t"> {}
+def Float64 : Native<"double"> {}
+def String : Native<"std::u32string"> {}
 
 /// A binary operator.
 def BinOp : Enum<"uint8_t"> {
@@ -66,9 +69,24 @@ def BinaryExpr : Node<Expr> {
 /// A literal expression. Currently always a number; the literal value
 /// is intentionally not stored here yet (a `Custom<Number>` field will
 /// land once the literal type lives in the schema).
-def LiteralExpr : Node<Expr> {
-    let Fields = (ins
+def Literal : Variant<Expr> {}
+
+def IntLit : Node<Literal> {
+     let Fields = (ins
         Custom<Int64>:$value
+    );
+}
+
+def FloatLit : Node<Literal> {
+     let Fields = (ins
+        Custom<Float64>:$value
+    );
+}
+
+def StringLit : Node<Literal> {
+     let Fields = (ins
+        Custom<String>:$value,
+        Custom<Bool>:$isRaw
     );
 }
 

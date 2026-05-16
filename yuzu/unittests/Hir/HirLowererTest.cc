@@ -19,7 +19,7 @@ class HirLowererTest : public HirFixture {};
 TEST_F(HirLowererTest, LiteralExprLowersToLiteralExpr) {
   const auto *expr = lowerExpr(U"42");
   ASSERT_NE(expr, nullptr);
-  EXPECT_EQ(expr->getKind(), HirKind::LiteralExpr);
+  EXPECT_EQ(expr->getKind(), HirKind::IntLit);
   EXPECT_FALSE(engine.hasErrors());
 }
 
@@ -32,8 +32,8 @@ TEST_F(HirLowererTest, BinaryExprAddLowersWithCorrectOp) {
   EXPECT_EQ(bin->getOp(), BinOp::Add);
   ASSERT_NE(bin->getLhs(), nullptr);
   ASSERT_NE(bin->getRhs(), nullptr);
-  EXPECT_EQ(bin->getLhs()->getKind(), HirKind::LiteralExpr);
-  EXPECT_EQ(bin->getRhs()->getKind(), HirKind::LiteralExpr);
+  EXPECT_EQ(bin->getLhs()->getKind(), HirKind::IntLit);
+  EXPECT_EQ(bin->getRhs()->getKind(), HirKind::IntLit);
   EXPECT_FALSE(engine.hasErrors());
 }
 
@@ -60,7 +60,7 @@ TEST_F(HirLowererTest, NestedBinaryExprRecurses) {
   const auto *bin = BinaryExpr::cast(lowerExpr(U"1 + 2 * 3"));
   ASSERT_NE(bin, nullptr);
   EXPECT_EQ(bin->getOp(), BinOp::Add);
-  EXPECT_EQ(bin->getLhs()->getKind(), HirKind::LiteralExpr);
+  EXPECT_EQ(bin->getLhs()->getKind(), HirKind::IntLit);
 
   const auto *rhs = BinaryExpr::cast(bin->getRhs());
   ASSERT_NE(rhs, nullptr);
@@ -80,11 +80,11 @@ TEST_F(HirLowererTest, BindsHirNodesToAstOrigins) {
 
   const auto lhsOrigin = sourceMap.get(bin->getLhs()->getId());
   ASSERT_TRUE(lhsOrigin.has_value());
-  EXPECT_EQ(lhsOrigin->getKind(), yuzu::ast::SyntaxKind::LiteralExpr);
+  EXPECT_EQ(lhsOrigin->getKind(), yuzu::ast::SyntaxKind::IntLit);
 
   const auto rhsOrigin = sourceMap.get(bin->getRhs()->getId());
   ASSERT_TRUE(rhsOrigin.has_value());
-  EXPECT_EQ(rhsOrigin->getKind(), yuzu::ast::SyntaxKind::LiteralExpr);
+  EXPECT_EQ(rhsOrigin->getKind(), yuzu::ast::SyntaxKind::IntLit);
 }
 
 TEST_F(HirLowererTest, RootWithSingleStmtLowers) {
@@ -100,7 +100,7 @@ TEST_F(HirLowererTest, RootWithSingleStmtLowers) {
   const auto *exprStmt = ExprStmt::cast(stmt);
   ASSERT_NE(exprStmt, nullptr);
   ASSERT_NE(exprStmt->getExpr(), nullptr);
-  EXPECT_EQ(exprStmt->getExpr()->getKind(), HirKind::LiteralExpr);
+  EXPECT_EQ(exprStmt->getExpr()->getKind(), HirKind::IntLit);
 }
 
 TEST_F(HirLowererTest, RootWithMultipleStmtsLowers) {
@@ -115,6 +115,27 @@ TEST_F(HirLowererTest, RootWithMultipleStmtsLowers) {
   const auto *second = ExprStmt::cast(root->getStmts()[1]);
   ASSERT_NE(second, nullptr);
   EXPECT_EQ(second->getExpr()->getKind(), HirKind::BinaryExpr);
+}
+
+TEST_F(HirLowererTest, ErrorOnHirNodeUsesAstSpanFromSourceMap) {
+  // `1 + 2`'s rhs LiteralExpr has AST range 4..5. Emitting via the
+  // (HirNode *) overload should land at that range — proving the
+  // handler walks the source map rather than falling back to a zero
+  // span.
+  const auto *bin = BinaryExpr::cast(lowerExpr(U"1 + 2"));
+  ASSERT_NE(bin, nullptr);
+
+  const auto sourceId = sources.add("<rebuild>", U"1 + 2");
+  yuzu::hir::HirLowerer lowerer(builder, sourceMap, engine, sourceId);
+  lowerer.error(bin->getRhs(), "boom").emit();
+
+  ASSERT_FALSE(engine.getDiagnostics().empty());
+  const auto &d = engine.getDiagnostics().back();
+  EXPECT_EQ(d.severity, Severity::Error);
+  EXPECT_EQ(d.message, "boom");
+  ASSERT_FALSE(d.labels.empty());
+  EXPECT_EQ(d.labels[0].span.start, 4u);
+  EXPECT_EQ(d.labels[0].span.end, 5u);
 }
 
 TEST_F(HirLowererTest, MissingRhsEmitsRightOperandDiagnostic) {

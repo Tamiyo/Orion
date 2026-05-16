@@ -22,7 +22,7 @@ GreenNode makeBinaryExpr() {
 }
 
 GreenNode makeLiteralExpr() {
-  return GreenNode::create(static_cast<uint16_t>(SyntaxKind::LiteralExpr),
+  return GreenNode::create(static_cast<uint16_t>(SyntaxKind::IntLit),
                            std::vector<GreenElement>());
 }
 

@@ -14,15 +14,15 @@ class HirPrinterTest : public HirFixture {};
 TEST_F(HirPrinterTest, LiteralExpr) {
   const auto *expr = lowerExpr(U"42");
   ASSERT_NE(expr, nullptr);
-  EXPECT_EQ("LiteralExpr value=42", HirPrinter::printToString(expr));
+  EXPECT_EQ("IntLit value=42", HirPrinter::printToString(expr));
 }
 
 TEST_F(HirPrinterTest, BinaryExprIncludesOp) {
   const auto *expr = lowerExpr(U"1 + 2");
   ASSERT_NE(expr, nullptr);
   EXPECT_EQ(R"(BinaryExpr op=Add
-  LiteralExpr value=1
-  LiteralExpr value=2)",
+  IntLit value=1
+  IntLit value=2)",
             HirPrinter::printToString(expr));
 }
 
@@ -31,10 +31,10 @@ TEST_F(HirPrinterTest, NestedBinaryExpr) {
   const auto *expr = lowerExpr(U"1 + 2 * 3");
   ASSERT_NE(expr, nullptr);
   EXPECT_EQ(R"(BinaryExpr op=Add
-  LiteralExpr value=1
+  IntLit value=1
   BinaryExpr op=Mul
-    LiteralExpr value=2
-    LiteralExpr value=3)",
+    IntLit value=2
+    IntLit value=3)",
             HirPrinter::printToString(expr));
 }
 
@@ -43,11 +43,11 @@ TEST_F(HirPrinterTest, RootWithStmts) {
   ASSERT_NE(root, nullptr);
   EXPECT_EQ(R"(Root
   ExprStmt
-    LiteralExpr value=1
+    IntLit value=1
   ExprStmt
     BinaryExpr op=Add
-      LiteralExpr value=2
-      LiteralExpr value=3)",
+      IntLit value=2
+      IntLit value=3)",
             HirPrinter::printToString(root));
 }
 
