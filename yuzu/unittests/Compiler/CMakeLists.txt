@@ -1,0 +1,2 @@
+add_yuzu_unittest(CompilerTests CompilePipelineTest.cc)
+target_link_libraries(CompilerTests PRIVATE Yuzu)

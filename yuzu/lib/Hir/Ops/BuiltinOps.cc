@@ -15,7 +15,7 @@ const Type *AddOp::resolve(llvm::ArrayRef<const Expr *> args,
 
   // <numeric> + <numeric> = <numeric>
   if (lhsType->isNumeric() && rhsType->isNumeric()) {
-    if (const auto *coerced = coerceTypes(lhsType, rhsType, ctx)) {
+    if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
   }
@@ -41,7 +41,7 @@ const Type *SubOp::resolve(llvm::ArrayRef<const Expr *> args,
   const auto *rhsType = args[1]->getType();
 
   if (lhsType->isNumeric() && rhsType->isNumeric()) {
-    if (const auto *coerced = coerceTypes(lhsType, rhsType, ctx)) {
+    if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
   }
@@ -61,7 +61,7 @@ const Type *MulOp::resolve(llvm::ArrayRef<const Expr *> args,
   const auto *rhsType = args[1]->getType();
 
   if (lhsType->isNumeric() && rhsType->isNumeric()) {
-    if (const auto *coerced = coerceTypes(lhsType, rhsType, ctx)) {
+    if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
   }
@@ -81,7 +81,7 @@ const Type *DivOp::resolve(llvm::ArrayRef<const Expr *> args,
   const auto *rhsType = args[1]->getType();
 
   if (lhsType->isNumeric() && rhsType->isNumeric()) {
-    if (const auto *coerced = coerceTypes(lhsType, rhsType, ctx)) {
+    if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
   }

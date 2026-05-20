@@ -1,4 +1,4 @@
-#include "yuzu/Driver/CompilePipeline.h"
+#include "yuzu/Compiler/CompilePipeline.h"
 
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Diagnostics/DiagnosticPrinter.h"

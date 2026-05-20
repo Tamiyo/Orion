@@ -1,2 +1,0 @@
-add_yuzu_unittest(DriverTests CompilePipelineTest.cc)
-target_link_libraries(DriverTests PRIVATE Yuzu)

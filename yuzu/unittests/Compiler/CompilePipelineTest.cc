@@ -1,7 +1,9 @@
-#include "yuzu/Driver/CompilePipeline.h"
+#include "yuzu/Compiler/CompilePipeline.h"
+
+#include <llvm/Support/raw_ostream.h>
 
 #include <gtest/gtest.h>
-#include <llvm/Support/raw_ostream.h>
+
 #include <string>
 
 namespace {

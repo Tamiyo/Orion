@@ -1,18 +1,28 @@
 #include "yuzu/Hir/Types/TypeCoercion.h"
 
+#include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
+#include "yuzu/Hir/Types/Adjustment.h"
 #include "yuzu/Hir/Types/Type.h"
 
 #include <optional>
 
 namespace yuzu::hir {
 namespace {
+/// Casts an expression from one type to another, recording the adjustment
+/// for later application.
+const Type *cast(const Expr *from, const Expr *to, HirContext &ctx) {
+  const auto adjustment =
+      Adjustment{.kind = AdjustmentKind::Cast, .target = to->getType()};
+  ctx.getAdjustments().bind(from->getId(), adjustment);
+  return to->getType();
+}
 
 /// Rank in the numeric promotion hierarchy. Higher rank = wider type.
 /// Same-width signed/unsigned share a rank — `coerceIntegers` handles
 /// the signedness check separately so the rank table stays simple.
-std::optional<int> numericRank(TypeKind k) {
-  switch (k) {
+std::optional<int> numericRank(const Type *type) {
+  switch (type->getKind()) {
   case TypeKind::Int8:
   case TypeKind::UInt8:
     return 1;
@@ -38,38 +48,47 @@ std::optional<int> numericRank(TypeKind k) {
 /// in the float family — higher-ranked operand wins, so an integer side
 /// widens into the float. Precision loss for large integers (e.g.
 /// `Int64 → Float64`) is the caller's risk.
-const Type *coerceFloats(const Type *a, const Type *b) {
-  const auto ra = numericRank(a->getKind());
-  const auto rb = numericRank(b->getKind());
-  return *ra < *rb ? b : a;
+const Type *coerceFloats(const Expr *a, const Expr *b, HirContext &ctx) {
+  const auto ra = numericRank(a->getType());
+  const auto rb = numericRank(b->getType());
+
+  return (*ra < *rb) ? cast(a, b, ctx) : cast(b, a, ctx);
 }
 
 /// Promote two integer operands. Same signedness widens to the
 /// higher-ranked side; mixed signed/unsigned refuses implicit coercion
 /// to avoid silent value corruption (`Int8(-1) → UInt8` becomes 255,
 /// etc.). The caller writes an explicit cast.
-const Type *coerceIntegers(const Type *a, const Type *b) {
-  if (a->isUnsigned() != b->isUnsigned()) {
+const Type *coerceIntegers(const Expr *a, const Expr *b, HirContext &ctx) {
+  const auto *aType = a->getType();
+  const auto *bType = b->getType();
+  if (aType->isUnsigned() != bType->isUnsigned()) {
     return nullptr;
   }
-  const auto ra = numericRank(a->getKind());
-  const auto rb = numericRank(b->getKind());
-  return *ra < *rb ? b : a;
-}
+  const auto ra = numericRank(aType);
+  const auto rb = numericRank(bType);
 
+  return (*ra < *rb) ? cast(a, b, ctx) : cast(b, a, ctx);
+}
 } // namespace
 
-const Type *coerceTypes(const Type *a, const Type *b, HirContext &) {
-  if (a->getKind() == b->getKind()) {
-    return a;
+const Type *coerceTypes(const Expr *a, const Expr *b, HirContext &ctx) {
+  const auto *aType = a->getType();
+  const auto *bType = b->getType();
+
+  if (aType->getKind() == bType->getKind()) {
+    return aType;
   }
-  if (!a->isNumeric() || !b->isNumeric()) {
+
+  if (!aType->isNumeric() || !bType->isNumeric()) {
     return nullptr;
   }
-  if (a->isFloat() || b->isFloat()) {
-    return coerceFloats(a, b);
+
+  if (aType->isFloat() || bType->isFloat()) {
+    return coerceFloats(a, b, ctx);
   }
-  return coerceIntegers(a, b);
+
+  return coerceIntegers(a, b, ctx);
 }
 
 } // namespace yuzu::hir

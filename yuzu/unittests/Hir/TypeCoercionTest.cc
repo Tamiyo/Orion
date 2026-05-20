@@ -2,7 +2,9 @@
 
 #include "yuzu/Diagnostics/DiagnosticsEngine.h"
 #include "yuzu/Diagnostics/Span.h"
+#include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
+#include "yuzu/Hir/Types/Adjustment.h"
 #include "yuzu/Hir/Types/Type.h"
 #include "yuzu/Hir/Types/TypeInterner.h"
 
@@ -49,6 +51,24 @@ const Type *typeFor(const TypeInterner &i, TypeKind k) {
   return nullptr;
 }
 
+class TypeCoercionFixture {
+protected:
+  DiagnosticsEngine diagnostics;
+  HirContext ctx{diagnostics, SourceId{}};
+
+  /// Build a typed `Expr` whose `getType()` returns the requested
+  /// primitive. `coerceTypes` only looks at `getType()` and `getId()`,
+  /// so `IntLit` makes a fine generic carrier — the value payload is
+  /// irrelevant.
+  const Expr *typedExpr(TypeKind k) {
+    return ctx.getBuilder().makeIntLit(0, typeFor(ctx.getTypeInterner(), k));
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// Result-type matrix — parameterized over (lhs, rhs) → expected.
+//===----------------------------------------------------------------------===//
+
 struct CoercionCase {
   std::string name;
   TypeKind a;
@@ -56,17 +76,14 @@ struct CoercionCase {
   std::optional<TypeKind> expected;
 };
 
-class TypeCoercionTest : public ::testing::TestWithParam<CoercionCase> {
-protected:
-  DiagnosticsEngine diagnostics;
-  HirContext ctx{diagnostics, SourceId{}};
-  TypeInterner interner;
-};
+class TypeCoercionTest : public TypeCoercionFixture,
+                         public ::testing::TestWithParam<CoercionCase> {};
 
 TEST_P(TypeCoercionTest, Coerces) {
   const auto &c = GetParam();
-  const auto *result =
-      coerceTypes(typeFor(interner, c.a), typeFor(interner, c.b), ctx);
+  const auto *lhs = typedExpr(c.a);
+  const auto *rhs = typedExpr(c.b);
+  const auto *result = coerceTypes(lhs, rhs, ctx);
 
   if (!c.expected) {
     EXPECT_EQ(result, nullptr)
@@ -153,27 +170,81 @@ INSTANTIATE_TEST_SUITE_P(
                                    TypeKind::Bool, std::nullopt}),
     [](const auto &info) { return info.param.name; });
 
-// `coerceTypes` should yield the same result kind regardless of operand
-// order — symmetry is part of the contract since the function is meant
-// for commutative arithmetic.
-TEST_F(TypeCoercionTest, IsSymmetric) {
-  const TypeKind pairs[][2] = {
-      {TypeKind::Int8, TypeKind::Int64},    {TypeKind::UInt8, TypeKind::UInt32},
-      {TypeKind::Int32, TypeKind::Float32}, {TypeKind::Int32, TypeKind::UInt32},
-      {TypeKind::Str, TypeKind::Int64},
-  };
-  for (const auto &pair : pairs) {
-    const auto *ab = coerceTypes(typeFor(interner, pair[0]),
-                                 typeFor(interner, pair[1]), ctx);
-    const auto *ba = coerceTypes(typeFor(interner, pair[1]),
-                                 typeFor(interner, pair[0]), ctx);
-    if (ab == nullptr || ba == nullptr) {
-      EXPECT_EQ(ab, ba) << asString(pair[0]) << " / " << asString(pair[1]);
-      continue;
-    }
-    EXPECT_EQ(ab->getKind(), ba->getKind())
-        << asString(pair[0]) << " / " << asString(pair[1]);
-  }
+//===----------------------------------------------------------------------===//
+// Adjustment side-effect tests — the contract is that the narrower
+// operand gets a cast adjustment to the wider type, and the wider
+// operand is left alone. No adjustments are recorded when the kinds
+// already match or when coercion is refused.
+//===----------------------------------------------------------------------===//
+
+class TypeCoercionAdjustmentTest : public TypeCoercionFixture,
+                                   public ::testing::Test {};
+
+TEST_F(TypeCoercionAdjustmentTest, NarrowerSignedOperandGetsCastToWider) {
+  const auto *narrow = typedExpr(TypeKind::Int8);
+  const auto *wide = typedExpr(TypeKind::Int32);
+  (void)coerceTypes(narrow, wide, ctx);
+
+  const auto *narrowAdj = ctx.getAdjustments().get(narrow->getId());
+  ASSERT_NE(narrowAdj, nullptr) << "expected an adjustment on the narrow side";
+  EXPECT_EQ(narrowAdj->kind, AdjustmentKind::Cast);
+  EXPECT_EQ(narrowAdj->target->getKind(), TypeKind::Int32);
+
+  EXPECT_EQ(ctx.getAdjustments().get(wide->getId()), nullptr)
+      << "wider operand should not be adjusted";
+}
+
+TEST_F(TypeCoercionAdjustmentTest, AdjustmentBindsToNarrowSideRegardlessOfOrder) {
+  // Argument order shouldn't change which operand carries the cast —
+  // it's always the narrower one.
+  const auto *wide = typedExpr(TypeKind::UInt64);
+  const auto *narrow = typedExpr(TypeKind::UInt8);
+  (void)coerceTypes(wide, narrow, ctx);
+
+  EXPECT_EQ(ctx.getAdjustments().get(wide->getId()), nullptr);
+  const auto *narrowAdj = ctx.getAdjustments().get(narrow->getId());
+  ASSERT_NE(narrowAdj, nullptr);
+  EXPECT_EQ(narrowAdj->target->getKind(), TypeKind::UInt64);
+}
+
+TEST_F(TypeCoercionAdjustmentTest, IntPromotedToFloatRecordsCastOnIntOperand) {
+  const auto *intOperand = typedExpr(TypeKind::Int64);
+  const auto *floatOperand = typedExpr(TypeKind::Float32);
+  (void)coerceTypes(intOperand, floatOperand, ctx);
+
+  const auto *intAdj = ctx.getAdjustments().get(intOperand->getId());
+  ASSERT_NE(intAdj, nullptr) << "int operand should be cast to the float type";
+  EXPECT_EQ(intAdj->target->getKind(), TypeKind::Float32);
+  EXPECT_EQ(ctx.getAdjustments().get(floatOperand->getId()), nullptr);
+}
+
+TEST_F(TypeCoercionAdjustmentTest, IdenticalTypesRecordNoAdjustment) {
+  const auto *a = typedExpr(TypeKind::Int64);
+  const auto *b = typedExpr(TypeKind::Int64);
+  (void)coerceTypes(a, b, ctx);
+
+  EXPECT_EQ(ctx.getAdjustments().get(a->getId()), nullptr);
+  EXPECT_EQ(ctx.getAdjustments().get(b->getId()), nullptr);
+}
+
+TEST_F(TypeCoercionAdjustmentTest, RefusedMixedSignednessRecordsNoAdjustment) {
+  const auto *a = typedExpr(TypeKind::Int32);
+  const auto *b = typedExpr(TypeKind::UInt32);
+  const auto *result = coerceTypes(a, b, ctx);
+
+  EXPECT_EQ(result, nullptr);
+  EXPECT_EQ(ctx.getAdjustments().get(a->getId()), nullptr);
+  EXPECT_EQ(ctx.getAdjustments().get(b->getId()), nullptr);
+}
+
+TEST_F(TypeCoercionAdjustmentTest, RefusedNonNumericRecordsNoAdjustment) {
+  const auto *a = typedExpr(TypeKind::Str);
+  const auto *b = typedExpr(TypeKind::Int64);
+  const auto *result = coerceTypes(a, b, ctx);
+
+  EXPECT_EQ(result, nullptr);
+  EXPECT_EQ(ctx.getAdjustments().get(a->getId()), nullptr);
+  EXPECT_EQ(ctx.getAdjustments().get(b->getId()), nullptr);
 }
 
 } // namespace

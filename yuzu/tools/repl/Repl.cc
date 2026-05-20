@@ -1,4 +1,4 @@
-#include "yuzu/Driver/CompilePipeline.h"
+#include "yuzu/Compiler/CompilePipeline.h"
 #include "yuzu/Util/Unicode.h"
 
 #include <llvm/Support/raw_ostream.h>
