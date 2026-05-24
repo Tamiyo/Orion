@@ -35,6 +35,7 @@ struct TokenInfo {
   std::vector<std::string> values;
   std::vector<std::string> patterns;
   std::string callback;
+  std::string display;
   int priority;
   bool isSymbol;
   bool isPunctuation;
@@ -60,6 +61,7 @@ inline TokenInfo parseTokenInfo(const llvm::Record *record) {
       .values = std::move(values),
       .patterns = std::move(patterns),
       .callback = record->getValueAsString("Callback").str(),
+      .display = record->getValueAsString("Display").str(),
       .priority = static_cast<int>(record->getValueAsInt("Priority")),
       .isSymbol = record->getValueAsBit("IsSymbol"),
       .isPunctuation = record->getValueAsBit("IsPunctuation"),

@@ -11,12 +11,17 @@
 namespace yuzu::tools {
 
 /// Emit each `Native` def as a C++ `using` alias so `Val<NativeDef>` and
-/// `Custom<NativeDef>` accessors can name it by its schema name.
+/// `Custom<NativeDef>` accessors can name it by its schema name. When the
+/// Native opts into a view companion (`ViewName` non-empty), emit a
+/// parallel `{Name}View` alias for view-flavored accessors.
 inline void emitNatives(CodeFormatter &fmt, const llvm::RecordKeeper &records) {
   bool emitted = false;
   for (const llvm::Record *r : records.getAllDerivedDefinitions("Native")) {
     const Native n = parseNative(r);
     fmt.linef("using {0} = {1};", r->getName().str(), n.name);
+    if (!n.viewName.empty()) {
+      fmt.linef("using {0}View = {1};", r->getName().str(), n.viewName);
+    }
     emitted = true;
   }
   if (emitted) {

@@ -37,7 +37,9 @@ namespace {
 //     llvm::BumpPtrAllocator allocator;
 //   };
 
-/// Parameter type for `kind` on a builder method.
+/// Parameter type for `kind` on a builder method. Mirrors the node
+/// ctor's param convention: non-trivial `Custom`/`Val` (e.g.
+/// `std::u32string`) is taken by `const T &`, everything else by value.
 std::string paramType(const FieldKind &kind) {
   return std::visit(
       [](const auto &k) -> std::string {
@@ -48,7 +50,10 @@ std::string paramType(const FieldKind &kind) {
           return "llvm::ArrayRef<const " + k.typeName + " *>";
         } else if constexpr (std::is_same_v<T, Custom> ||
                              std::is_same_v<T, Val>) {
-          return k.typeName;
+          if (k.isTrivial) {
+            return k.typeName;
+          }
+          return "const " + k.typeName + " &";
         } else {
           llvm::PrintFatalError(
               "yuzu-tblgen: HirBuilderGenerator has no parameter emitter for "

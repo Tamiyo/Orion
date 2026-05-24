@@ -123,7 +123,7 @@ TEST_F(TokenSinkTest, ErrorEventEmitsDiagnostic) {
   ASSERT_EQ(1u, diagnostics.getDiagnostics().size());
   const auto &d = diagnostics.getDiagnostics()[0];
   EXPECT_EQ(Severity::Error, d.severity);
-  EXPECT_EQ("found Ident but expected one of [Plus]", d.message);
+  EXPECT_EQ("expected `+`, found identifier", d.message);
   ASSERT_EQ(1u, d.labels.size());
   EXPECT_EQ(sourceId, d.labels[0].span.source);
   EXPECT_EQ(3u, d.labels[0].span.start);
@@ -141,9 +141,9 @@ TEST_F(TokenSinkTest, MultipleErrorEvents) {
   const auto _ = sink.finish();
 
   ASSERT_EQ(2u, diagnostics.getDiagnostics().size());
-  EXPECT_EQ("found Ident but expected one of [Plus]",
+  EXPECT_EQ("expected `+`, found identifier",
             diagnostics.getDiagnostics()[0].message);
-  EXPECT_EQ("found Ident but expected one of [Minus]",
+  EXPECT_EQ("expected `-`, found identifier",
             diagnostics.getDiagnostics()[1].message);
 }
 

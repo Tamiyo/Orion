@@ -21,9 +21,12 @@ namespace yuzu::tools {
 // the generator dispatches over them (`std::visit`), which gives exhaustive
 // matching when a new Field subclass shows up.
 
-/// Mirror of `class Native<string name> : Field`.
+/// Mirror of `class Native<string name> : Field`. `viewName` is the
+/// optional non-owning companion (e.g. `std::u32string_view`); empty
+/// means "no separate view, use `name` directly."
 struct Native {
   std::string name;
+  std::string viewName;
   bool isTrivial;
 };
 
@@ -50,9 +53,16 @@ struct Children {
   std::string typeName;
 };
 
-/// Mirror of `class Val<Def type> : Field`.
+/// Mirror of `class Val<Def type> : Field`. `isTrivial` is lifted from
+/// the inner type (a `Native`'s `IsTrivial` bit, or `true` for `Enum`)
+/// so generators can pick `T` vs `const T &` at the boundary.
+/// `accessorTypeName` is what should appear in an accessor signature:
+/// `{typeName}View` when the inner Native opts into a view companion,
+/// otherwise the same as `typeName`.
 struct Val {
   std::string typeName;
+  std::string accessorTypeName;
+  bool isTrivial;
 };
 
 /// Mirror of `class Values<Def type> : Field`. List form of Val.
@@ -60,9 +70,12 @@ struct Values {
   std::string typeName;
 };
 
-/// Mirror of `class Custom<Def type> : Field`.
+/// Mirror of `class Custom<Def type> : Field`. Same conventions as
+/// [[Val]] for `isTrivial` and `accessorTypeName`.
 struct Custom {
   std::string typeName;
+  std::string accessorTypeName;
+  bool isTrivial;
 };
 
 /// Tagged union over every `Field` subclass the codegen knows how to emit.
@@ -85,6 +98,7 @@ struct NamedField {
 inline Native parseNative(const llvm::Record *record) {
   return Native{
       .name = record->getValueAsString("Name").str(),
+      .viewName = record->getValueAsString("ViewName").str(),
       .isTrivial = record->getValueAsBit("IsTrivial"),
   };
 }
@@ -122,9 +136,39 @@ inline Children parseChildren(const llvm::Record *record) {
   };
 }
 
+/// True when `typeDef` can be passed/returned by value cheaply: a
+/// `Native` flagged `IsTrivial`, or any `Enum` (a small integer). Everything
+/// else (e.g. `Native<"std::u32string">`) is treated as non-trivial so
+/// generators wrap accessors/params in `const T &`.
+inline bool isTrivialType(const llvm::Record *typeDef) {
+  if (typeDef->isSubClassOf("Native")) {
+    return typeDef->getValueAsBit("IsTrivial");
+  }
+  if (typeDef->isSubClassOf("Enum")) {
+    return true;
+  }
+  return false;
+}
+
+/// The alias to use in an accessor signature for a `Custom<T>` / `Val<T>`.
+/// `{T}View` when `T` is a Native with a non-empty `ViewName`; otherwise
+/// the def-level type name. The `{T}View` alias itself is emitted by
+/// [[emitNatives]] so signatures can name it.
+inline std::string accessorTypeName(const llvm::Record *typeDef) {
+  const std::string name = typeDef->getName().str();
+  if (typeDef->isSubClassOf("Native") &&
+      !typeDef->getValueAsString("ViewName").empty()) {
+    return name + "View";
+  }
+  return name;
+}
+
 inline Val parseVal(const llvm::Record *record) {
+  const llvm::Record *type = record->getValueAsDef("Type");
   return Val{
-      .typeName = record->getValueAsDef("Type")->getName().str(),
+      .typeName = type->getName().str(),
+      .accessorTypeName = accessorTypeName(type),
+      .isTrivial = isTrivialType(type),
   };
 }
 
@@ -135,8 +179,11 @@ inline Values parseValues(const llvm::Record *record) {
 }
 
 inline Custom parseCustom(const llvm::Record *record) {
+  const llvm::Record *type = record->getValueAsDef("Type");
   return Custom{
-      .typeName = record->getValueAsDef("Type")->getName().str(),
+      .typeName = type->getName().str(),
+      .accessorTypeName = accessorTypeName(type),
+      .isTrivial = isTrivialType(type),
   };
 }
 

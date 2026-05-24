@@ -39,7 +39,10 @@ public:
 
 private:
   const Stmt *lowerExprStmt(ast::ExprStmt stmt);
+  const LetStmt* lowerLetStmt(ast::LetStmt stmt);
+
   const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
+  
   const Literal *lowerLiteralExpr(ast::Literal expr);
   const BoolLit *lowerBoolLit(ast::BoolLit expr);
   const IntLit *lowerIntLit(ast::IntLit expr);

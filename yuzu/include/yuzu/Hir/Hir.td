@@ -22,19 +22,19 @@ include "yuzu/DSL/TreeBase.td"
 // Types
 //===----------------------------------------------------------------------===//
 
-def Bool : Native<"bool"> {}
-def Int64 : Native<"int64_t"> {}
-def Float64 : Native<"double"> {}
-def String : Native<"std::u32string"> {}
-def OpRef : Native<"const yuzu::hir::Op *"> {}
+def Bool : Native<"bool"> { let IsTrivial = 1; }
+def Int64 : Native<"int64_t"> { let IsTrivial = 1; }
+def Float64 : Native<"double"> { let IsTrivial = 1; }
+def String : Native<"std::u32string"> { let ViewName = "std::u32string_view"; }
+def OpRef : Native<"const yuzu::hir::Op *"> { let IsTrivial = 1; }
 
 /// Universal HIR-node id. Declared as a schema Field so the generator
 /// threads it through every constructor instead of special-casing it.
-def Id : Native<"yuzu::hir::HirId"> {}
+def Id : Native<"yuzu::hir::HirId"> { let IsTrivial = 1; }
 
 /// Pointer to an interned `Type`. Stored on every `Expr` so the tree is
 /// typed by construction.
-def TypeRef : Native<"const yuzu::hir::Type *"> {}
+def TypeRef : Native<"const yuzu::hir::Type *"> { let IsTrivial = 1; }
 
 //===----------------------------------------------------------------------===//
 // Root
@@ -111,6 +111,14 @@ def ExprStmt : Node<Stmt> {
         Child<Expr>:$expr
     );
 }
+
+def LetStmt : Node<Stmt> {
+    let Fields =  (ins
+        Custom<String>:$name,
+        Child<Expr>:$expr
+    );
+}
+
 
 //===----------------------------------------------------------------------===//
 // Roots

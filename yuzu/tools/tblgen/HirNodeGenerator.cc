@@ -66,8 +66,10 @@ const llvm::Record *findBase(const llvm::RecordKeeper &records) {
   return base;
 }
 
-/// Storage type for `kind`, used for both the ctor parameter and the
-/// private member.
+/// Storage type for `kind`, used for the private member declaration.
+/// Non-trivial `Custom`/`Val` types (e.g. `std::u32string`) are still
+/// stored by value — the by-reference flavor only applies at the API
+/// boundary.
 std::string fieldStorageType(const FieldKind &kind) {
   return std::visit(
       [](const auto &k) -> std::string {
@@ -81,6 +83,32 @@ std::string fieldStorageType(const FieldKind &kind) {
           return k.typeName;
         } else {
           llvm::PrintFatalError("yuzu-tblgen: HirNodeGenerator has no storage "
+                                "emitter for this Field kind yet");
+        }
+      },
+      kind);
+}
+
+/// Type used for accessor return values and ctor parameters. Non-trivial
+/// `Custom`/`Val` becomes `const T &` so callers don't pay a copy on every
+/// access; everything else (trivial primitives, pointers, ArrayRef views)
+/// stays by value.
+std::string fieldRefType(const FieldKind &kind) {
+  return std::visit(
+      [](const auto &k) -> std::string {
+        using T = std::decay_t<decltype(k)>;
+        if constexpr (std::is_same_v<T, Child>) {
+          return "const " + k.typeName + " *";
+        } else if constexpr (std::is_same_v<T, Children>) {
+          return "llvm::ArrayRef<const " + k.typeName + " *>";
+        } else if constexpr (std::is_same_v<T, Custom> ||
+                             std::is_same_v<T, Val>) {
+          if (k.isTrivial) {
+            return k.typeName;
+          }
+          return "const " + k.typeName + " &";
+        } else {
+          llvm::PrintFatalError("yuzu-tblgen: HirNodeGenerator has no ref "
                                 "emitter for this Field kind yet");
         }
       },
@@ -115,7 +143,7 @@ std::string formatParams(const std::vector<NamedField> &fields,
     if (!params.empty()) {
       params += ", ";
     }
-    params += fieldStorageType(f.kind);
+    params += fieldRefType(f.kind);
     params += " ";
     params += f.name;
   }
@@ -141,7 +169,7 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
     fmt.line("[[nodiscard]] HirKind getKind() const { return kind; }");
     for (const NamedField &f : ownFields) {
       const std::string accessor = "get" + capitalize(f.name);
-      const std::string type = fieldStorageType(f.kind);
+      const std::string type = fieldRefType(f.kind);
       fmt.line("");
       fmt.linef("[[nodiscard]] {0} {1}() const {{ return {2}; }", type,
                 accessor, f.name);
@@ -224,7 +252,7 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
     // Accessors for own fields.
     for (const NamedField &f : ownFields) {
       const std::string accessor = "get" + capitalize(f.name);
-      const std::string type = fieldStorageType(f.kind);
+      const std::string type = fieldRefType(f.kind);
       fmt.line("");
       fmt.linef("[[nodiscard]] {0} {1}() const {{ return {2}; }", type,
                 accessor, f.name);
@@ -238,13 +266,13 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
     std::string params = "HirKind kind";
     for (const NamedField &f : ownFields) {
       params += ", ";
-      params += fieldStorageType(f.kind);
+      params += fieldRefType(f.kind);
       params += " ";
       params += f.name;
     }
     for (const NamedField &f : inheritedFields) {
       params += ", ";
-      params += fieldStorageType(f.kind);
+      params += fieldRefType(f.kind);
       params += " ";
       params += f.name;
     }
@@ -300,7 +328,7 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
       if (!params.empty()) {
         params += ", ";
       }
-      params += fieldStorageType(f.kind);
+      params += fieldRefType(f.kind);
       params += " ";
       params += f.name;
     }
@@ -308,7 +336,7 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
       if (!params.empty()) {
         params += ", ";
       }
-      params += fieldStorageType(f.kind);
+      params += fieldRefType(f.kind);
       params += " ";
       params += f.name;
     }
@@ -349,7 +377,7 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
 
     for (const NamedField &f : ownFields) {
       const std::string accessor = "get" + capitalize(f.name);
-      const std::string type = fieldStorageType(f.kind);
+      const std::string type = fieldRefType(f.kind);
       fmt.line("");
       fmt.linef("[[nodiscard]] {0} {1}() const {{ return {2}; }", type,
                 accessor, f.name);

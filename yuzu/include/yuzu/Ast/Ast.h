@@ -9,7 +9,8 @@
 #include <cstdint> // IWYU pragma: keep
 #include <iterator>
 #include <optional>
-#include <string> // IWYU pragma: keep
+#include <string>      // IWYU pragma: keep
+#include <string_view> // IWYU pragma: keep
 #include <type_traits>
 #include <utility>
 

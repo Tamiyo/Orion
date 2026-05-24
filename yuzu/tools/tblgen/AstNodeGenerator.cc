@@ -239,10 +239,12 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node,
               // Declaration-only accessor returning `std::optional<T>`. The
               // AST has no native storage for these — the implementation
               // is hand-written and typically reads from the underlying
-              // syntax token.
+              // syntax token. `accessorTypeName` picks the view alias
+              // (e.g. `StringView`) when one is available, so callers can
+              // avoid copying owned values out of the syntax tree.
               fmt.line("");
               fmt.linef("[[nodiscard]] std::optional<{0}> {1}() const;",
-                        kind.typeName, accessor);
+                        kind.accessorTypeName, accessor);
             } else {
               llvm::PrintFatalError(
                   "yuzu-tblgen: AstNodeGenerator has no accessor emitter for "

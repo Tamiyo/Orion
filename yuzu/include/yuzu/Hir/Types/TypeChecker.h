@@ -21,6 +21,7 @@ public:
 private:
   void checkStmt(const Stmt *s);
   void checkExprStmt(const ExprStmt *s);
+  void checkLetStmt(const LetStmt *s);
 
   const Type *checkExpr(const Expr *e);
   const Type *checkCallExpr(const CallExpr *e);

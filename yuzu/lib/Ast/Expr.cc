@@ -8,7 +8,6 @@
 
 namespace yuzu::ast {
 namespace {
-
 static const std::u32string boolTrueValue = U"true";
 static const std::u32string boolFalseValue = U"false";
 
@@ -142,69 +141,16 @@ std::optional<Float64> FloatLit::getValue() const {
   return value;
 }
 
-std::optional<String> StringLit::getValue() const {
+std::optional<StringView> StringLit::getValue() const {
   for (const auto &child : node.getChildrenWithTokens()) {
     if (!child.isToken()) {
       continue;
     }
     const auto &token = child.getToken();
-    const auto text = token.getGreen().getSource();
     switch (token.getKind()) {
-    case SyntaxKind::StringLiteral: {
-      // Strip surrounding `"..."`, then resolve backslash escapes. The
-      // lexer guarantees every `\` inside the content is paired with a
-      // following character, so the i + 1 read is always in bounds.
-      if (text.size() < 2) {
-        return std::nullopt;
-      }
-      std::u32string out;
-      out.reserve(text.size() - 2);
-      for (std::size_t i = 1; i + 1 < text.size(); ++i) {
-        const char32_t c = text[i];
-        if (c != U'\\') {
-          out.push_back(c);
-          continue;
-        }
-        const char32_t e = text[++i];
-        switch (e) {
-        case U'n':
-          out.push_back(U'\n');
-          break;
-        case U't':
-          out.push_back(U'\t');
-          break;
-        case U'r':
-          out.push_back(U'\r');
-          break;
-        case U'0':
-          out.push_back(U'\0');
-          break;
-        case U'\\':
-          out.push_back(U'\\');
-          break;
-        case U'"':
-          out.push_back(U'"');
-          break;
-        case U'\'':
-          out.push_back(U'\'');
-          break;
-        default:
-          // Unknown escape — keep the backslash and the trailing char
-          // verbatim so the diagnostic (added later) can point at it.
-          out.push_back(U'\\');
-          out.push_back(e);
-          break;
-        }
-      }
-      return out;
-    }
-    case SyntaxKind::RawStringLiteral: {
-      // Strip leading `r"` and trailing `"`. Escapes are literal.
-      if (text.size() < 3) {
-        return std::nullopt;
-      }
-      return std::u32string(text.substr(2, text.size() - 3));
-    }
+    case SyntaxKind::StringLiteral:
+    case SyntaxKind::RawStringLiteral:
+      return token.getGreen().getSource();
     default:
       break;
     }

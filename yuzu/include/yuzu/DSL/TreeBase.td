@@ -52,9 +52,17 @@ class Node<Base parent> : Def {
 class Field : Def {}
 
 /// A reference to a primitive C++ type given by its source-level name. Set
-/// `IsTrivial` when the type can be passed/returned by value cheaply.
+/// `IsTrivial` when the type can be passed/returned by value cheaply (small
+/// PODs, pointers, opaque ids). Non-trivial types (e.g. `std::u32string`)
+/// are passed and returned as `const T &` by the codegen.
+///
+/// `ViewName`, when non-empty, names a non-owning companion type
+/// (e.g. `std::u32string_view`). Generators that don't own the field —
+/// the AST being the canonical example — use the view type in accessor
+/// signatures so the caller doesn't pay for materialising an owned value.
 class Native<string name> : Field {
     string Name = name;
+    string ViewName = "";
     bit IsTrivial = 0;
 }
 

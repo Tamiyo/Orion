@@ -7,7 +7,7 @@
 
 include "yuzu/DSL/TreeBase.td"
 
-def Id : Native<"yuzu::hir::HirId"> {}
+def Id : Native<"yuzu::hir::HirId"> { let IsTrivial = 1; }
 
 def TestOp : Enum<"uint8_t"> {
   let Cases = [EnumCase<"Add">, EnumCase<"Sub">];

@@ -95,6 +95,7 @@ void compile(std::u32string_view source, CompileOptions options) {
   // resolve to *something*.
   diagnostics::SourceMap sources;
   diagnostics::DiagnosticsEngine diagnostics;
+  const diagnostics::DiagnosticPrinter printer(sources);
   const diagnostics::SourceId sourceId =
       sources.add("<source>", std::u32string(source));
 
@@ -104,16 +105,27 @@ void compile(std::u32string_view source, CompileOptions options) {
   auto hirContext = hir::HirContext(diagnostics, sourceId);
 
   const auto tokens = lexerPass(source, options);
-  const auto syntaxRoot = parserPass(tokens, options, sourceId, diagnostics);
-  const auto *hirRoot =
-      hirPass(syntaxRoot, options, sourceId, diagnostics, hirContext);
-
-  const diagnostics::DiagnosticPrinter printer(sources);
-  for (const diagnostics::Diagnostic &d : diagnostics.getDiagnostics()) {
-    printer.print(d, options.out);
+  if (diagnostics.hasErrors()) {
+    for (const diagnostics::Diagnostic &d : diagnostics.getDiagnostics()) {
+      printer.print(d, options.out);
+    }
+    return;
   }
 
+  const auto syntaxRoot = parserPass(tokens, options, sourceId, diagnostics);
   if (diagnostics.hasErrors()) {
+    for (const diagnostics::Diagnostic &d : diagnostics.getDiagnostics()) {
+      printer.print(d, options.out);
+    }
+    return;
+  }
+
+  const auto *hirRoot =
+      hirPass(syntaxRoot, options, sourceId, diagnostics, hirContext);
+  if (diagnostics.hasErrors()) {
+    for (const diagnostics::Diagnostic &d : diagnostics.getDiagnostics()) {
+      printer.print(d, options.out);
+    }
     return;
   }
 

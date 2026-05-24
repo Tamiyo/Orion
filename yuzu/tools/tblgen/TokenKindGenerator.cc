@@ -113,6 +113,41 @@ void emitAsString(CodeFormatter &fmt, const std::vector<TokenInfo> &tokens) {
   fmt.line("}");
 }
 
+/// Prose form of a token kind, intended for diagnostic messages
+/// ("expected <X>, found <Y>"). Picks the first non-empty source from:
+///   1. the def's explicit `Display`,
+///   2. `` `<value>` `` for a single-value `Token` (Equals → `` `=` ``),
+///   3. the def name as a last resort.
+/// The schema sentinels (`TOKENS_FIRST`/`TOKENS_LAST`) and `Error` aren't
+/// real source tokens — calling this on them is a programming error.
+void emitAsDisplayString(CodeFormatter &fmt,
+                         const std::vector<TokenInfo> &tokens) {
+  fmt.line("inline std::string asDisplayString(TokenKind kind) {");
+  {
+    auto body = fmt.block();
+    fmt.line("switch (kind) {");
+    for (const TokenInfo &t : tokens) {
+      std::string display;
+      if (!t.display.empty()) {
+        display = t.display;
+      } else if (t.values.size() == 1) {
+        display = "`" + t.values[0] + "`";
+      } else {
+        display = t.name;
+      }
+      fmt.linef("case TokenKind::{0}: return \"{1}\";", t.name, display);
+    }
+    fmt.line("case TokenKind::TOKENS_FIRST:");
+    fmt.line("case TokenKind::TOKENS_LAST:");
+    fmt.line("case TokenKind::Error:");
+    fmt.line("  util::yuzu_unreachable();");
+    fmt.line("}");
+    fmt.line("");
+    fmt.line("util::yuzu_unreachable();");
+  }
+  fmt.line("}");
+}
+
 } // namespace
 
 void TokenKindGenerator::generate(const llvm::RecordKeeper &records) {
@@ -136,6 +171,7 @@ void TokenKindGenerator::generate(const llvm::RecordKeeper &records) {
   emitEnum(fmt, tokens);
   emitPredicates(fmt, tokens);
   emitAsString(fmt, tokens);
+  emitAsDisplayString(fmt, tokens);
   fmt.linef("} // namespace {0}", ns);
 }
 

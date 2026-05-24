@@ -31,31 +31,36 @@ TEST(ExpectedKindErrorTest, ProducesErrorSeverityDiagnostic) {
   EXPECT_EQ(Severity::Error, diag.severity);
 }
 
-TEST(ExpectedKindErrorTest, FormatsFoundTokenByName) {
+TEST(ExpectedKindErrorTest, FormatsFoundTokenByDisplayName) {
+  // Single expected: "expected <X>, found <Y>". Both names go through
+  // `asDisplayString`, so `Ident` reads as the schema's `Display`
+  // override ("identifier") and `Plus` falls back to the single-value
+  // `Token` default (`` `+` ``).
   const ExpectedKindError error(std::vector<TokenKind>{TokenKind::Plus},
                                 TokenKind::Ident, Range{.start = 3, .end = 8});
 
   const auto diag = error.toDiagnostic(kTestSource);
-  EXPECT_EQ("found Ident but expected one of [Plus]", diag.message);
+  EXPECT_EQ("expected `+`, found identifier", diag.message);
 }
 
-TEST(ExpectedKindErrorTest, FormatsMissingFoundTokenAsNone) {
-  // When the parser hits end-of-input, `found` is nullopt; the formatter
-  // surfaces that as the literal "None".
+TEST(ExpectedKindErrorTest, ReportsEndOfInputWhenFoundIsMissing) {
+  // At end-of-input, `found` is nullopt; the formatter says "end of
+  // input" instead of leaking the optional's missing state into prose.
   const ExpectedKindError error(std::vector<TokenKind>{TokenKind::Plus},
                                 std::nullopt, Range{.start = 3, .end = 8});
 
   const auto diag = error.toDiagnostic(kTestSource);
-  EXPECT_EQ("found None but expected one of [Plus]", diag.message);
+  EXPECT_EQ("expected `+`, found end of input", diag.message);
 }
 
 TEST(ExpectedKindErrorTest, JoinsMultipleExpectedKindsWithComma) {
+  // More than one expected kind switches to "expected one of <a>, <b>".
   const ExpectedKindError error(
       std::vector<TokenKind>{TokenKind::Plus, TokenKind::Minus},
       TokenKind::Ident, Range{.start = 0, .end = 1});
 
   const auto diag = error.toDiagnostic(kTestSource);
-  EXPECT_EQ("found Ident but expected one of [Plus, Minus]", diag.message);
+  EXPECT_EQ("expected one of `+`, `-`, found identifier", diag.message);
 }
 
 TEST(ExpectedKindErrorTest, EmitsPrimaryLabelOverGivenSpan) {

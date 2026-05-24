@@ -55,24 +55,27 @@ public:
 
   [[nodiscard]] diagnostics::Diagnostic
   toDiagnostic(diagnostics::SourceId source) const override {
-    const std::string foundName =
-        found ? lexer::asString(*found) : std::string("None");
+    const std::string foundName = found ? lexer::asDisplayString(*found)
+                                        : std::string("end of input");
 
-    std::string expectedList = "[";
+    std::string expectedList;
     for (size_t i = 0; i < expected.size(); ++i) {
-      expectedList.append(lexer::asString(expected[i]));
-      if (i + 1 < expected.size()) {
+      if (i > 0) {
         expectedList.append(", ");
       }
+      expectedList.append(lexer::asDisplayString(expected[i]));
     }
-    expectedList.append("]");
+
+    const std::string message =
+        expected.size() == 1
+            ? "expected " + expectedList + ", found " + foundName
+            : "expected one of " + expectedList + ", found " + foundName;
 
     const diagnostics::Span span{source, range.start, range.end};
     return diagnostics::Diagnostic{
         .severity = diagnostics::Severity::Error,
         .code = "",
-        .message =
-            "found " + foundName + " but expected one of " + expectedList,
+        .message = message,
         .labels = {diagnostics::Label{
             diagnostics::LabelStyle::Primary,
             span,

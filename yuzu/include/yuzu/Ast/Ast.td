@@ -15,10 +15,10 @@ include "yuzu/DSL/TreeBase.td"
 // Types
 //===----------------------------------------------------------------------===//
 
-def Bool : Native<"bool"> {}
-def Int64 : Native<"int64_t"> {}
-def Float64 : Native<"double"> {}
-def String : Native<"std::u32string"> {}
+def Bool : Native<"bool"> { let IsTrivial = 1; }
+def Int64 : Native<"int64_t"> { let IsTrivial = 1; }
+def Float64 : Native<"double"> { let IsTrivial = 1; }
+def String : Native<"std::u32string"> { let ViewName = "std::u32string_view"; }
 
 /// A binary operator.
 def BinOp : Enum<"uint8_t"> {
@@ -98,6 +98,13 @@ def Stmt : Variant<AstNode> {}
 /// Statement wrapping a single expression: `42`, `a + b`, etc.
 def ExprStmt : Node<Stmt> {
     let Fields = (ins
+        Child<Expr>:$expr
+    );
+}
+
+def LetStmt : Node<Stmt> {
+    let Fields =  (ins
+        Custom<String>:$name,
         Child<Expr>:$expr
     );
 }

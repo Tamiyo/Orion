@@ -13,14 +13,19 @@ void TypeChecker::check(const Root *root) {
 
 void TypeChecker::checkStmt(const Stmt *s) {
   switch (s->getStmtKind()) {
+  case StmtKind::LetStmt: {
+    checkLetStmt(LetStmt::cast(s));
+    return;
+  }
   case StmtKind::ExprStmt: {
     checkExprStmt(ExprStmt::cast(s));
     return;
   }
-  default:
-    util::yuzu_unreachable("unexpected variant in TypeChecker::checkStmt");
   }
 }
+
+// TODO - Symbol table resolution.
+void TypeChecker::checkLetStmt(const LetStmt *s) { checkExpr(s->getExpr()); }
 
 void TypeChecker::checkExprStmt(const ExprStmt *s) { checkExpr(s->getExpr()); }
 

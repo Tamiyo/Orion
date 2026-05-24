@@ -5,6 +5,7 @@
 #include "yuzu/Hir/Ops/Op.h"
 #include "yuzu/Util/ErrorHandling.h"
 
+#include <string>
 #include <vector>
 
 namespace yuzu::hir {
@@ -21,6 +22,67 @@ const Op *toHir(ast::BinOp op) {
     return DivOp::get();
   }
   util::yuzu_unreachable();
+}
+
+/// Materialise the cooked value of a string-literal token. `raw` is the
+/// full token source, including surrounding quotes (and the leading `r`
+/// for raw strings). Returns `nullopt` if the token is too short to be a
+/// valid literal; the lexer guarantees backslash-escape pairings, so the
+/// `i + 1` read inside the loop is always in bounds.
+std::optional<std::u32string> decodeStringLiteral(std::u32string_view raw,
+                                                  bool isRaw) {
+  if (isRaw) {
+    // Raw form: `r"..."`. Strip leading `r"` (2 chars) and trailing `"`.
+    if (raw.size() < 3) {
+      return std::nullopt;
+    }
+    return std::u32string(raw.substr(2, raw.size() - 3));
+  }
+
+  // Cooked form: `"..."`. Strip surrounding `"` then resolve escapes.
+  if (raw.size() < 2) {
+    return std::nullopt;
+  }
+  std::u32string out;
+  out.reserve(raw.size() - 2);
+  for (std::size_t i = 1; i + 1 < raw.size(); ++i) {
+    const char32_t c = raw[i];
+    if (c != U'\\') {
+      out.push_back(c);
+      continue;
+    }
+    const char32_t e = raw[++i];
+    switch (e) {
+    case U'n':
+      out.push_back(U'\n');
+      break;
+    case U't':
+      out.push_back(U'\t');
+      break;
+    case U'r':
+      out.push_back(U'\r');
+      break;
+    case U'0':
+      out.push_back(U'\0');
+      break;
+    case U'\\':
+      out.push_back(U'\\');
+      break;
+    case U'"':
+      out.push_back(U'"');
+      break;
+    case U'\'':
+      out.push_back(U'\'');
+      break;
+    default:
+      // Unknown escape: keep the backslash + trailing char verbatim so a
+      // future diagnostic can point at the offending pair.
+      out.push_back(U'\\');
+      out.push_back(e);
+      break;
+    }
+  }
+  return out;
 }
 } // namespace
 
@@ -40,6 +102,8 @@ const Root *HirLowerer::lower(ast::Root root) {
 
 const Stmt *HirLowerer::lowerStmt(ast::Stmt stmt) {
   switch (stmt.getKind()) {
+  case ast::SyntaxKind::LetStmt:
+    return lowerLetStmt(*ast::LetStmt::cast(stmt));
   case ast::SyntaxKind::ExprStmt:
     return lowerExprStmt(*ast::ExprStmt::cast(stmt));
   default:
@@ -47,16 +111,43 @@ const Stmt *HirLowerer::lowerStmt(ast::Stmt stmt) {
   }
 }
 
-const Stmt *HirLowerer::lowerExprStmt(ast::ExprStmt stmt) {
-  const auto expr = stmt.getExpr();
-  if (!expr) {
-    error(stmt, "incomplete statement").emit();
+const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
+  const auto name = stmt.getName();
+  if (!name) {
+    error(stmt, "incomplete let binding").emit();
     return nullptr;
   }
+
+  const auto expr = stmt.getExpr();
+  if (!expr) {
+    error(stmt, "incomplete expression").emit();
+    return nullptr;
+  }
+
   const Expr *loweredExpr = lowerExpr(*expr);
   if (!loweredExpr) {
     return nullptr;
   }
+
+  const auto *hir =
+      ctx.getBuilder().makeLetStmt(std::u32string(*name), loweredExpr);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
+  return hir;
+}
+
+const Stmt *HirLowerer::lowerExprStmt(ast::ExprStmt stmt) {
+  const auto expr = stmt.getExpr();
+
+  if (!expr) {
+    error(stmt, "incomplete statement").emit();
+    return nullptr;
+  }
+
+  const Expr *loweredExpr = lowerExpr(*expr);
+  if (!loweredExpr) {
+    return nullptr;
+  }
+
   const auto *hir = ctx.getBuilder().makeExprStmt(loweredExpr);
   ctx.getSourceTable().bind(hir->getId(), stmt);
   return hir;
@@ -161,14 +252,20 @@ const FloatLit *HirLowerer::lowerFloatLit(ast::FloatLit expr) {
 }
 
 const StringLit *HirLowerer::lowerStringLit(ast::StringLit expr) {
-  const auto value = expr.getValue();
+  const auto raw = expr.getValue();
   const auto isRaw = expr.getIsRaw();
-  if (!value || !isRaw) {
+  if (!raw || !isRaw) {
+    error(expr, "string literal is missing its value").emit();
+    return nullptr;
+  }
+  auto decoded = decodeStringLiteral(*raw, *isRaw);
+  if (!decoded) {
     error(expr, "string literal is missing its value").emit();
     return nullptr;
   }
   const auto *type = ctx.getTypeInterner().getStr();
-  const auto *hir = ctx.getBuilder().makeStringLit(*value, *isRaw, type);
+  const auto *hir =
+      ctx.getBuilder().makeStringLit(std::move(*decoded), *isRaw, type);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
