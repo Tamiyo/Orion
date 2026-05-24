@@ -28,9 +28,9 @@ private:
 
   const Type *checkLiteral(const Literal *l);
 
-  [[maybe_unused]] HirContext &ctx;
-  [[maybe_unused]] diagnostics::DiagnosticsEngine &diagnostics;
-  [[maybe_unused]] diagnostics::SourceId sourceId;
+  HirContext &ctx;
+  diagnostics::DiagnosticsEngine &diagnostics;
+  diagnostics::SourceId sourceId;
 };
 
 } // namespace yuzu::hir
