@@ -1,7 +1,6 @@
 #ifndef YUZU_HIR_TYPES_TYPECHECKER_H
 #define YUZU_HIR_TYPES_TYPECHECKER_H
 
-#include "yuzu/Diagnostics/DiagnosticsEngine.h"
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/Types/Type.h"
@@ -9,10 +8,7 @@
 namespace yuzu::hir {
 class TypeChecker final {
 public:
-  explicit TypeChecker(HirContext &hirContext,
-                       diagnostics::DiagnosticsEngine &diagnostics,
-                       diagnostics::SourceId sourceId)
-      : ctx(hirContext), diagnostics(diagnostics), sourceId(sourceId) {}
+  explicit TypeChecker(HirContext &hirContext) : ctx(hirContext) {}
 
   TypeChecker() = delete;
 
@@ -25,12 +21,11 @@ private:
 
   const Type *checkExpr(const Expr *e);
   const Type *checkCallExpr(const CallExpr *e);
+  const Type* checkIdentExpr(const IdentExpr *e);
 
   const Type *checkLiteral(const Literal *l);
 
-  HirContext &ctx;
-  diagnostics::DiagnosticsEngine &diagnostics;
-  diagnostics::SourceId sourceId;
+  [[maybe_unused]] HirContext &ctx;
 };
 
 } // namespace yuzu::hir

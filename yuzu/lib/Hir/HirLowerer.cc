@@ -100,6 +100,43 @@ const Root *HirLowerer::lower(ast::Root root) {
   return hir;
 }
 
+const Ident *HirLowerer::lowerIdent(ast::Ident ident) {
+  const auto name = ident.getName();
+  if (!name) {
+    error(ident, "missing identifier name").emit();
+    return nullptr;
+  }
+
+  const auto *hir = ctx.getBuilder().makeIdent(std::u32string(*name));
+  ctx.getSourceTable().bind(hir->getId(), ident);
+  return hir;
+}
+
+const IdentExpr *HirLowerer::lowerIdentExpr(ast::IdentExpr identExpr) {
+  const auto name = identExpr.getName();
+  if (!name) {
+    error(identExpr, "missing identifier name").emit();
+    return nullptr;
+  }
+
+  const Ident *loweredIdent = lowerIdent(*name);
+  if (!loweredIdent) {
+    return nullptr;
+  }
+
+  const Expr *expr = ctx.getSymbolTable().lookup(loweredIdent);
+  if (!expr) {
+    error(identExpr, "unresolved identifier").emit();
+    return nullptr;
+  }
+
+  const auto *hir =
+      ctx.getBuilder().makeIdentExpr(loweredIdent, expr->getType());
+
+  ctx.getSourceTable().bind(hir->getId(), identExpr);
+  return hir;
+}
+
 const Stmt *HirLowerer::lowerStmt(ast::Stmt stmt) {
   switch (stmt.getKind()) {
   case ast::SyntaxKind::LetStmt:
@@ -118,6 +155,11 @@ const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
     return nullptr;
   }
 
+  const Ident *loweredIdent = lowerIdent(*name);
+  if (!loweredIdent) {
+    return nullptr;
+  }
+
   const auto expr = stmt.getExpr();
   if (!expr) {
     error(stmt, "incomplete expression").emit();
@@ -129,9 +171,9 @@ const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
     return nullptr;
   }
 
-  const auto *hir =
-      ctx.getBuilder().makeLetStmt(std::u32string(*name), loweredExpr);
+  const auto *hir = ctx.getBuilder().makeLetStmt(loweredIdent, loweredExpr);
   ctx.getSourceTable().bind(hir->getId(), stmt);
+  ctx.getSymbolTable().bind(loweredIdent, loweredExpr);
   return hir;
 }
 
@@ -157,6 +199,8 @@ const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
   switch (expr.getKind()) {
   case ast::SyntaxKind::BinaryExpr:
     return lowerBinaryExpr(*ast::BinaryExpr::cast(expr));
+  case ast::SyntaxKind::IdentExpr:
+    return lowerIdentExpr(*ast::IdentExpr::cast(expr));
   case ast::SyntaxKind::BoolLit:
   case ast::SyntaxKind::IntLit:
   case ast::SyntaxKind::FloatLit:

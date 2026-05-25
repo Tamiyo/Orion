@@ -6,12 +6,15 @@
 #include "yuzu/Parser/Parser.h"
 
 #include <bitset>
-#include <cassert>
 #include <cstdint>
 #include <optional>
 #include <utility>
 
 namespace yuzu::parser {
+
+using yuzu::ast::SyntaxKind;
+using yuzu::lexer::TokenKind;
+
 namespace {
 constexpr std::bitset<1 << (8 * sizeof(lexer::TokenKind))> exprRecoverySet{};
 
@@ -36,13 +39,13 @@ std::optional<BinaryOp> parseBinaryOp(Parser &p) {
   }
 
   switch (kind.value()) {
-  case lexer::TokenKind::Plus:
+  case TokenKind::Plus:
     return BinaryOp::Add;
-  case lexer::TokenKind::Minus:
+  case TokenKind::Minus:
     return BinaryOp::Sub;
-  case lexer::TokenKind::Star:
+  case TokenKind::Star:
     return BinaryOp::Mul;
-  case lexer::TokenKind::Slash:
+  case TokenKind::Slash:
     return BinaryOp::Div;
   default:
     return std::nullopt;
@@ -51,29 +54,27 @@ std::optional<BinaryOp> parseBinaryOp(Parser &p) {
 
 std::optional<CompletedMarker> parseLiteralExpr(Parser &p) {
   const auto kind = p.peekKind();
-  assert(kind.has_value() && lexer::isLiteral(*kind) &&
-         "parseLiteralExpr must be called at a literal token");
 
   // Map the lexer's literal-token kind to the corresponding AST node.
-  ast::SyntaxKind astKind;
+  SyntaxKind astKind;
   switch (*kind) {
-  case lexer::TokenKind::IntegerLiteral:
-  case lexer::TokenKind::HexLiteral:
-  case lexer::TokenKind::BinaryLiteral:
-    astKind = ast::SyntaxKind::IntLit;
+  case TokenKind::IntegerLiteral:
+  case TokenKind::HexLiteral:
+  case TokenKind::BinaryLiteral:
+    astKind = SyntaxKind::IntLit;
     break;
-  case lexer::TokenKind::FloatLiteral:
-    astKind = ast::SyntaxKind::FloatLit;
+  case TokenKind::FloatLiteral:
+    astKind = SyntaxKind::FloatLit;
     break;
-  case lexer::TokenKind::StringLiteral:
-  case lexer::TokenKind::RawStringLiteral:
-    astKind = ast::SyntaxKind::StringLit;
+  case TokenKind::StringLiteral:
+  case TokenKind::RawStringLiteral:
+    astKind = SyntaxKind::StringLit;
     break;
-  case lexer::TokenKind::BooleanLiteral:
+  case TokenKind::BooleanLiteral:
     // TODO: add `BoolLit : Node<Literal>` to the AST schema and route
     // boolean tokens to it. Until then they piggyback on `IntLit` so the
     // tree is well-formed.
-    astKind = ast::SyntaxKind::BoolLit;
+    astKind = SyntaxKind::BoolLit;
     break;
   default:
     util::yuzu_unreachable();
@@ -85,23 +86,24 @@ std::optional<CompletedMarker> parseLiteralExpr(Parser &p) {
 }
 
 std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
-  assert(p.peekKind() == lexer::TokenKind::Ident &&
-         "Variable references must be identifiers.");
-
   const Marker m = p.start();
 
-  p.bump(); // Consume identifier.
-  return p.complete(m, ast::SyntaxKind::Ident);
+  // The schema declares `IdentExpr` as `Child<Ident>:$name`, so the
+  // tree must nest an `Ident` node inside the `IdentExpr` — not
+  // bury the `Identifier` token directly. The AST accessor digs out
+  // the child `Ident` via the schema's child-iteration path.
+  const Marker inner = p.start();
+  p.expect(TokenKind::Identifier);
+  const auto _ = p.complete(inner, SyntaxKind::Ident);
+
+  return p.complete(m, SyntaxKind::IdentExpr);
 }
 
 std::optional<CompletedMarker> parseParenExpr(Parser &p) {
-  assert(p.peekKind() == lexer::TokenKind::LeftParen &&
-         "Expected a LeftParen.");
-
-  p.bump(); // Consume '('.
+  p.expect(TokenKind::LeftParen); // Consume '('.
 
   const auto expr = parseExprBindingPower(p, 0);
-  p.expect(lexer::TokenKind::RightParen);
+  p.expect(TokenKind::RightParen);
 
   // TODO - Perhaps have a specific error for unclosed parenthesis?
 
@@ -119,19 +121,19 @@ std::optional<CompletedMarker> parseLhs(Parser &p) {
   }
 
   switch (*kind) {
-  case lexer::TokenKind::BooleanLiteral:
-  case lexer::TokenKind::IntegerLiteral:
-  case lexer::TokenKind::FloatLiteral:
-  case lexer::TokenKind::HexLiteral:
-  case lexer::TokenKind::BinaryLiteral:
-  case lexer::TokenKind::StringLiteral:
-  case lexer::TokenKind::RawStringLiteral:
+  case TokenKind::BooleanLiteral:
+  case TokenKind::IntegerLiteral:
+  case TokenKind::FloatLiteral:
+  case TokenKind::HexLiteral:
+  case TokenKind::BinaryLiteral:
+  case TokenKind::StringLiteral:
+  case TokenKind::RawStringLiteral:
     return parseLiteralExpr(p);
 
-  case lexer::TokenKind::Ident:
+  case TokenKind::Identifier:
     return parseIdentExpr(p);
 
-  case lexer::TokenKind::LeftParen:
+  case TokenKind::LeftParen:
     return parseParenExpr(p);
 
   default:
@@ -171,7 +173,7 @@ parseExprBindingPower(Parser &p, const size_t minimumBindingPower) {
 
     // Wrap the LHS, operator, and (possibly missing) RHS in a BinaryExpr
     // before bailing — the recursive call has already reported the error.
-    parsedLhs.emplace(p.complete(marker, ast::SyntaxKind::BinaryExpr));
+    parsedLhs.emplace(p.complete(marker, SyntaxKind::BinaryExpr));
     if (!parsedRhs.has_value()) {
       break;
     }

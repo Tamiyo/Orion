@@ -8,6 +8,8 @@
 
 namespace yuzu::parser {
 
+using yuzu::ast::SyntaxKind;
+
 std::optional<CompletedMarker> parseRoot(Parser &p) {
   const auto m = p.start();
 
@@ -20,7 +22,6 @@ std::optional<CompletedMarker> parseRoot(Parser &p) {
     auto _ = parseStmt(p);
   }
 
-  return p.complete(m, ast::SyntaxKind::Root);
+  return p.complete(m, SyntaxKind::Root);
 }
-
 } // namespace yuzu::parser

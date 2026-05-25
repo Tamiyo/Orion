@@ -7,6 +7,7 @@
 #include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirBuilder.h"
+#include "yuzu/Hir/Resolve/HirSymbolTable.h"
 #include "yuzu/Hir/Types/Adjustment.h"
 #include "yuzu/Hir/Types/TypeInterner.h"
 #include "yuzu/Util/SideTable.h"
@@ -34,6 +35,17 @@ public:
       : diagnostics(diagnostics), sourceId(sourceId) {}
 
   HirBuilder &getBuilder() { return builder; }
+
+  HirSymbolTable &getSymbolTable() { return symbolTable; }
+
+  /// Rebind the source id used by `spanFor`/`error` for any HIR nodes
+  /// lowered after this point. The session driver registers each
+  /// input as a fresh source and calls this so per-line diagnostics
+  /// resolve to the right source map entry. Spans for nodes built
+  /// *before* the rebind still resolve via the side table's
+  /// stored `ast::AstNode` (which already pins its own source via
+  /// the green-tree shared_ptr).
+  void setSourceId(diagnostics::SourceId id) { sourceId = id; }
 
   HirSourceTable &getSourceTable() { return sourceTable; }
 
@@ -83,6 +95,7 @@ public:
 
 private:
   HirBuilder builder;
+  HirSymbolTable symbolTable;
   HirSourceTable sourceTable;
   HirAdjustmentTable adjustments;
   TypeInterner typeInterner;

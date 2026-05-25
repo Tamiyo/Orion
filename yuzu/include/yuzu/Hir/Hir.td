@@ -49,6 +49,19 @@ def HirNode : Base {
     let Fields = (ins Custom<Id>:$id);
 }
 
+
+//===----------------------------------------------------------------------===//
+// Base Nodes
+//===----------------------------------------------------------------------===//
+
+/// A bare identifier used as a *binding* (e.g. the `x` in `let x = ...`).
+/// Sits outside `Expr` because declarations don't carry a type — the
+/// type belongs to the value the binding gets initialised with, not to
+/// the name itself. Use `IdentExpr` for identifier *references*.
+def Ident : Node<HirNode> {
+    let Fields = (ins Custom<String>:$name);
+}
+
 //===----------------------------------------------------------------------===//
 // Expressions
 //===----------------------------------------------------------------------===//
@@ -58,6 +71,13 @@ def HirNode : Base {
 /// lowering so downstream passes consume an already-typed tree.
 def Expr : Variant<HirNode> {
     let Fields = (ins Custom<TypeRef>:$type);
+}
+
+/// An identifier *reference* — an identifier that appears in
+/// expression position. Its `$type` is filled by name resolution,
+/// which looks up the binding the identifier refers to.
+def IdentExpr : Node<Expr> {
+    let Fields = (ins Child<Ident>:$name);
 }
 
 /// A 'call' expression to a set of oeprators and some arguments.
@@ -114,7 +134,7 @@ def ExprStmt : Node<Stmt> {
 
 def LetStmt : Node<Stmt> {
     let Fields =  (ins
-        Custom<String>:$name,
+        Child<Ident>:$name,
         Child<Expr>:$expr
     );
 }

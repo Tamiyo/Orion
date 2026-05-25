@@ -43,11 +43,29 @@ def AstNode : Base {
 }
 
 //===----------------------------------------------------------------------===//
+// Base Nodes
+//===----------------------------------------------------------------------===//
+
+/// A bare identifier used as a *binding* (e.g. the `x` in `let x = ...`).
+/// Carries no type — declarations don't have one until they're tied to
+/// an initialiser. For identifier *references* (uses) see `IdentExpr`.
+def Ident : Node<AstNode> {
+    let Fields = (ins Custom<String>:$name);
+}
+
+//===----------------------------------------------------------------------===//
 // Expressions
 //===----------------------------------------------------------------------===//
 
 /// Top-level variant for anything that produces a value.
 def Expr : Variant<AstNode> {}
+
+/// An identifier *reference* — an identifier that appears in
+/// expression position (e.g. the `x` in `x + 1`). Resolves to whatever
+/// binding it refers to and inherits its type from there.
+def IdentExpr : Node<Expr> {
+    let Fields = (ins Child<Ident>:$name);
+}
 
 /// Binary infix expression like `a + b`. The operator token isn't carried
 /// in the AST — recover it by inspecting the underlying syntax tree.
@@ -104,7 +122,7 @@ def ExprStmt : Node<Stmt> {
 
 def LetStmt : Node<Stmt> {
     let Fields =  (ins
-        Custom<String>:$name,
+        Child<Ident>:$name,
         Child<Expr>:$expr
     );
 }

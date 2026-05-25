@@ -57,13 +57,13 @@ template <typename... Es> std::vector<Event> makeEvents(Es &&...events) {
 // needs a freshly-constructed instance.
 std::unique_ptr<ParseError> makeError1() {
   return std::make_unique<ExpectedKindError>(
-      std::vector<TokenKind>{TokenKind::Plus}, TokenKind::Ident,
+      std::vector<TokenKind>{TokenKind::Plus}, TokenKind::Identifier,
       Range{.start = 3, .end = 8});
 }
 
 std::unique_ptr<ParseError> makeError2() {
   return std::make_unique<ExpectedKindError>(
-      std::vector<TokenKind>{TokenKind::Minus}, TokenKind::Ident,
+      std::vector<TokenKind>{TokenKind::Minus}, TokenKind::Identifier,
       Range{.start = 2, .end = 7});
 }
 

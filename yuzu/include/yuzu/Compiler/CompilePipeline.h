@@ -1,9 +1,14 @@
 #ifndef YUZU_COMPILER_COMPILE_PIPELINE_H
 #define YUZU_COMPILER_COMPILE_PIPELINE_H
 
-#include <string_view>
+#include "yuzu/Diagnostics/DiagnosticPrinter.h"
+#include "yuzu/Diagnostics/DiagnosticsEngine.h"
+#include "yuzu/Diagnostics/SourceMap.h"
+#include "yuzu/Hir/HirContext.h"
 
 #include <llvm/Support/raw_ostream.h>
+
+#include <string_view>
 
 namespace yuzu {
 struct CompileOptions {
@@ -18,7 +23,42 @@ struct CompileOptions {
   bool debugMlir = true;
 };
 
+/// One-shot compile. Builds fresh diagnostics + HIR state, runs the
+/// pipeline, prints any diagnostics, drops the state. Suitable for
+/// batch compiles and tests where each input is independent.
 void compile(std::u32string_view source, CompileOptions options = {});
+
+/// Stateful compile driver. The HIR arena, symbol table, source map,
+/// and type interner persist across `compile` calls, so a `let`
+/// binding from one input is visible to subsequent ones. Diagnostics
+/// are flushed and cleared at the end of every `compile` call, so
+/// errors don't pile up.
+///
+/// Intended for line-at-a-time REPL use; not thread-safe.
+class Session final {
+public:
+  explicit Session(CompileOptions options = {});
+
+  Session(const Session &) = delete;
+  Session &operator=(const Session &) = delete;
+  Session(Session &&) = delete;
+  Session &operator=(Session &&) = delete;
+
+  /// Compile one input against the persistent state, registering it
+  /// as a new entry in the source map so diagnostics can point at the
+  /// right line.
+  void compile(std::u32string_view source);
+
+private:
+  CompileOptions options;
+  diagnostics::SourceMap sources;
+  diagnostics::DiagnosticsEngine diagnostics;
+  diagnostics::DiagnosticPrinter printer;
+  // Default-constructed `SourceId` is the invalid sentinel; each
+  // `compile` call rebinds it via `hirCtx.setSourceId` before any
+  // span is produced.
+  hir::HirContext hirCtx;
+};
 } // namespace yuzu
 
 #endif

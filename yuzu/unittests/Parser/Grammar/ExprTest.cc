@@ -19,11 +19,15 @@ TEST_F(ExprTest, ParsesIdentifier) {
   const auto result = parseExpr(U"foo");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  // The parser tags an identifier node with the same `Ident` kind as the
-  // underlying token, hence the doubled `Ident@..`.
+  // The schema declares `IdentExpr` as `Child<Ident>:$name`, so the
+  // identifier is wrapped in a nested `Ident` node rather than
+  // having the `Identifier` token directly under `IdentExpr`. That
+  // way `lowerIdentExpr` can lower the child `Ident` the same way
+  // as `LetStmt.name`.
   EXPECT_EQ(R"(Expr@0..3
-  Ident@0..3
-    Ident@0..3 "foo")",
+  IdentExpr@0..3
+    Ident@0..3
+      Identifier@0..3 "foo")",
             result.tree);
 }
 

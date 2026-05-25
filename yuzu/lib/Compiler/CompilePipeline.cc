@@ -77,7 +77,7 @@ const hir::Root *hirPass(ast::SyntaxNode syntaxRoot,
   hir::HirLowerer lowerer(ctx, diagnostics, sourceId);
   const hir::Root *root = lowerer.lower(ast::Root{syntaxRoot});
 
-  auto typeChecker = hir::TypeChecker(ctx, diagnostics, sourceId);
+  auto typeChecker = hir::TypeChecker(ctx);
   typeChecker.check(root);
 
   if (options.debugHir) {
@@ -89,48 +89,95 @@ const hir::Root *hirPass(ast::SyntaxNode syntaxRoot,
 }
 } // namespace
 
-void compile(std::u32string_view source, CompileOptions options) {
-  // TODO: thread an explicit source name from the caller (filename for
-  // files, "<adhoc>" for inline). Hardcoded for now so diagnostics still
-  // resolve to *something*.
-  diagnostics::SourceMap sources;
-  diagnostics::DiagnosticsEngine diagnostics;
-  const diagnostics::DiagnosticPrinter printer(sources);
-  const diagnostics::SourceId sourceId =
-      sources.add("<source>", std::u32string(source));
+namespace {
+/// Flush every diagnostic accumulated so far to `out`. Each pipeline
+/// stage calls this when it detects errors so callers see the per-stage
+/// failure mode (lex error, parse error, lower error) without continuing
+/// the pipeline against ill-formed input.
+void flushDiagnostics(const diagnostics::DiagnosticsEngine &diagnostics,
+                      const diagnostics::DiagnosticPrinter &printer,
+                      llvm::raw_ostream &out) {
+  for (const diagnostics::Diagnostic &d : diagnostics.getDiagnostics()) {
+    printer.print(d, out);
+  }
+}
 
-  // const owns the arena(s) that backs the lowered HIR tree, so it must
-  // outlive every consumer of `hirRoot` (the HIR printer, codegen, the
-  // source-map lookups).
-  auto hirContext = hir::HirContext(diagnostics, sourceId);
-
+/// Run the lex/parse/lower passes on `source` against the supplied
+/// state. Shared by both the one-shot `compile()` and the stateful
+/// `Session::compile()` — the only difference between them is who
+/// owns the state. Stops at the first failing stage and flushes
+/// whatever diagnostics accumulated.
+void runPipeline(std::u32string_view source, const CompileOptions &options,
+                 diagnostics::SourceId sourceId,
+                 diagnostics::DiagnosticsEngine &diagnostics,
+                 const diagnostics::DiagnosticPrinter &printer,
+                 hir::HirContext &hirCtx) {
   const auto tokens = lexerPass(source, options);
   if (diagnostics.hasErrors()) {
-    for (const diagnostics::Diagnostic &d : diagnostics.getDiagnostics()) {
-      printer.print(d, options.out);
-    }
+    flushDiagnostics(diagnostics, printer, options.out);
     return;
   }
 
   const auto syntaxRoot = parserPass(tokens, options, sourceId, diagnostics);
   if (diagnostics.hasErrors()) {
-    for (const diagnostics::Diagnostic &d : diagnostics.getDiagnostics()) {
-      printer.print(d, options.out);
-    }
+    flushDiagnostics(diagnostics, printer, options.out);
     return;
   }
 
   const auto *hirRoot =
-      hirPass(syntaxRoot, options, sourceId, diagnostics, hirContext);
+      hirPass(syntaxRoot, options, sourceId, diagnostics, hirCtx);
   if (diagnostics.hasErrors()) {
-    for (const diagnostics::Diagnostic &d : diagnostics.getDiagnostics()) {
-      printer.print(d, options.out);
-    }
+    flushDiagnostics(diagnostics, printer, options.out);
     return;
   }
 
   (void)hirRoot;
-  // codegenPass(hirRoot, hirContext, diagnostics, sourceId, options);
+  // codegenPass(hirRoot, hirCtx, diagnostics, sourceId, options);
+}
+} // namespace
+
+void compile(std::u32string_view source, CompileOptions options) {
+  // TODO: thread an explicit source name from the caller (filename for
+  // files, "<adhoc>" for inline). Hardcoded as "<source>" for now so
+  // diagnostics still resolve to *something*.
+  diagnostics::SourceMap sources;
+  diagnostics::DiagnosticsEngine diagnostics;
+  const diagnostics::DiagnosticPrinter printer(sources);
+
+  const diagnostics::SourceId sourceId =
+      sources.add("<source>", std::u32string(source));
+
+  // `hirCtx` owns the arena that backs the lowered HIR tree; it must
+  // outlive every consumer of `hirRoot` (the HIR printer, codegen,
+  // source-map lookups).
+  hir::HirContext hirCtx(diagnostics, sourceId);
+
+  runPipeline(source, options, sourceId, diagnostics, printer, hirCtx);
+}
+
+Session::Session(CompileOptions options)
+    : options(options), sources(), diagnostics(), printer(sources),
+      // SourceId is a placeholder; every `compile` call rebinds it
+      // via `hirCtx.setSourceId` before any span is produced.
+      hirCtx(diagnostics, diagnostics::SourceId{}) {}
+
+void Session::compile(std::u32string_view source) {
+  // Each input is registered as a fresh entry in the shared source
+  // map so the printer can underline the right line. The HIR arena
+  // and symbol table carry over from previous calls — that's the
+  // whole point of having a session.
+  static int lineCounter = 0;
+  const diagnostics::SourceId sourceId =
+      sources.add("<repl:" + std::to_string(++lineCounter) + ">",
+                  std::u32string(source));
+  hirCtx.setSourceId(sourceId);
+
+  runPipeline(source, options, sourceId, diagnostics, printer, hirCtx);
+
+  // Drop diagnostics from this input so the next one starts clean —
+  // `hasErrors()` on the next compile should reflect only what that
+  // compile produced, not a sticky banner from earlier.
+  diagnostics.clear();
 }
 
 } // namespace yuzu

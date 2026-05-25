@@ -89,6 +89,12 @@ public:
   /// \brief Convenience predicate equivalent to `getErrorCount() > 0`.
   [[nodiscard]] bool hasErrors() const { return getErrorCount() > 0; }
 
+  /// \brief Drop every previously-pushed diagnostic. Intended for
+  /// stateful drivers (REPL session) that want to reuse one engine
+  /// across multiple inputs but reset between them so old errors
+  /// don't bleed into a new pass's hasErrors() check.
+  void clear() { diagnostics.clear(); }
+
 private:
   std::vector<Diagnostic> diagnostics;
 };

@@ -10,6 +10,8 @@ namespace yuzu::parser {
 std::optional<CompletedMarker>
 parseExprBindingPower(Parser &p, const size_t minimumBindingPower);
 
+std::optional<CompletedMarker> parseIdentExpr(Parser &p);
+
 inline std::optional<CompletedMarker> parseExpr(Parser &p) {
   return parseExprBindingPower(p, 0);
 }

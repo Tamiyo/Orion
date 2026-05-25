@@ -25,7 +25,7 @@ constexpr SourceId kTestSource{1};
 
 TEST(ExpectedKindErrorTest, ProducesErrorSeverityDiagnostic) {
   const ExpectedKindError error(std::vector<TokenKind>{TokenKind::Plus},
-                                TokenKind::Ident, Range{.start = 3, .end = 8});
+                                TokenKind::Identifier, Range{.start = 3, .end = 8});
 
   const auto diag = error.toDiagnostic(kTestSource);
   EXPECT_EQ(Severity::Error, diag.severity);
@@ -37,7 +37,7 @@ TEST(ExpectedKindErrorTest, FormatsFoundTokenByDisplayName) {
   // override ("identifier") and `Plus` falls back to the single-value
   // `Token` default (`` `+` ``).
   const ExpectedKindError error(std::vector<TokenKind>{TokenKind::Plus},
-                                TokenKind::Ident, Range{.start = 3, .end = 8});
+                                TokenKind::Identifier, Range{.start = 3, .end = 8});
 
   const auto diag = error.toDiagnostic(kTestSource);
   EXPECT_EQ("expected `+`, found identifier", diag.message);
@@ -57,7 +57,7 @@ TEST(ExpectedKindErrorTest, JoinsMultipleExpectedKindsWithComma) {
   // More than one expected kind switches to "expected one of <a>, <b>".
   const ExpectedKindError error(
       std::vector<TokenKind>{TokenKind::Plus, TokenKind::Minus},
-      TokenKind::Ident, Range{.start = 0, .end = 1});
+      TokenKind::Identifier, Range{.start = 0, .end = 1});
 
   const auto diag = error.toDiagnostic(kTestSource);
   EXPECT_EQ("expected one of `+`, `-`, found identifier", diag.message);
@@ -65,7 +65,7 @@ TEST(ExpectedKindErrorTest, JoinsMultipleExpectedKindsWithComma) {
 
 TEST(ExpectedKindErrorTest, EmitsPrimaryLabelOverGivenSpan) {
   const ExpectedKindError error(std::vector<TokenKind>{TokenKind::Plus},
-                                TokenKind::Ident, Range{.start = 3, .end = 8});
+                                TokenKind::Identifier, Range{.start = 3, .end = 8});
 
   const auto diag = error.toDiagnostic(kTestSource);
   ASSERT_EQ(1u, diag.labels.size());

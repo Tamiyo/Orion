@@ -45,13 +45,13 @@ TEST(TokenSourceTest, TriviaPeekNextTokenReturnsNullopt) {
 }
 
 TEST(TokenSourceTest, TriviaAndIdentPeekNextTokenReturnsToken) {
-  const auto identToken = Token(TokenKind::Ident, U"a", Range{1, 2});
+  const auto identToken = Token(TokenKind::Identifier, U"a", Range{1, 2});
   auto source = createTokenSource(U" a");
   EXPECT_EQ(identToken, source.getNextToken());
 }
 
 TEST(TokenSourceTest, TriviaAndIdentPeekNextKindReturnsToken) {
-  const auto identToken = Token(TokenKind::Ident, U"a", Range{1, 2});
+  const auto identToken = Token(TokenKind::Identifier, U"a", Range{1, 2});
   auto source = createTokenSource(U" a");
   EXPECT_EQ(identToken.getKind(), source.peekNextKind());
 }
@@ -62,7 +62,7 @@ TEST(TokenSourceTest, PeekLastTokenOnEmptyReturnsNullopt) {
 }
 
 TEST(TokenSourceTest, PeekLastTokenReturnsLastToken) {
-  const auto identToken = Token(TokenKind::Ident, U"b", Range{2, 3});
+  const auto identToken = Token(TokenKind::Identifier, U"b", Range{2, 3});
   auto source = createTokenSource(U"a b");
   EXPECT_EQ(identToken, source.peekLastToken());
 }

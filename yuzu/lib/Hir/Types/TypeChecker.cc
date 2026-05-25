@@ -33,11 +33,21 @@ const Type *TypeChecker::checkExpr(const Expr *e) {
   switch (e->getExprKind()) {
   case ExprKind::CallExpr:
     return checkCallExpr(CallExpr::cast(e));
+  case ExprKind::IdentExpr:
+    return checkIdentExpr(IdentExpr::cast(e));
   case ExprKind::Literal:
     return checkLiteral(Literal::cast(e));
   default:
     util::yuzu_unreachable("unexpected variant in TypeChecker::checkExpr");
   }
+}
+
+const Type *TypeChecker::checkIdentExpr(const IdentExpr *e) {
+  // The lowerer already attached a type via name resolution
+  // (whenever that exists). Until that arrives lowerIdentExpr returns
+  // null, so a reachable IdentExpr here already has whatever type the
+  // resolver decided on.
+  return e->getType();
 }
 
 const Type *TypeChecker::checkCallExpr(const CallExpr *e) {

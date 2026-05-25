@@ -12,10 +12,22 @@ using namespace yuzu::ast;
 using namespace yuzu::lexer;
 
 namespace {
+/// Parse an identifier as a *binding* — produces a `SyntaxKind::Ident`
+/// marker, not `IdentExpr`. The distinction matches the schema split:
+/// `Ident` is a name declaration (no type), `IdentExpr` is a use
+/// (typed by name resolution). `let x = ...` wants the former.
+inline std::optional<CompletedMarker> parseIdent(Parser &p) {
+  const Marker m = p.start();
+  p.expect(TokenKind::Identifier);
+  return p.complete(m, SyntaxKind::Ident);
+}
+
 inline std::optional<CompletedMarker> parseLetStmt(Parser &p) {
   const Marker m = p.start();
   p.expect(TokenKind::LetKw);
-  p.expect(TokenKind::Ident);
+
+  const auto _ = parseIdent(p);
+
   p.expect(TokenKind::Equals);
   parseExpr(p);
   return p.complete(m, SyntaxKind::LetStmt);

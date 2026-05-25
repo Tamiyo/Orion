@@ -51,7 +51,7 @@ TEST_F(ParserTest, PeekKindSkipsWhitespace) {
   const auto tokens = lex(U"   abc");
   auto parser = Parser(TokenSource(tokens));
 
-  EXPECT_EQ(TokenKind::Ident, parser.peekKind());
+  EXPECT_EQ(TokenKind::Identifier, parser.peekKind());
 }
 
 TEST_F(ParserTest, AtReturnsTrueForMatchingKind) {
@@ -65,7 +65,7 @@ TEST_F(ParserTest, AtReturnsFalseForNonMatchingKind) {
   const auto tokens = lex(U"123");
   auto parser = Parser(TokenSource(tokens));
 
-  EXPECT_FALSE(parser.at(TokenKind::Ident));
+  EXPECT_FALSE(parser.at(TokenKind::Identifier));
 }
 
 TEST_F(ParserTest, AtEndReturnsTrueOnEmpty) {
@@ -86,9 +86,9 @@ TEST_F(ParserTest, BumpAdvancesCursor) {
   const auto tokens = lex(U"a b");
   auto parser = Parser(TokenSource(tokens));
 
-  EXPECT_EQ(TokenKind::Ident, parser.peekKind());
+  EXPECT_EQ(TokenKind::Identifier, parser.peekKind());
   parser.bump();
-  EXPECT_EQ(TokenKind::Ident, parser.peekKind());
+  EXPECT_EQ(TokenKind::Identifier, parser.peekKind());
   parser.bump();
   EXPECT_FALSE(parser.peekKind().has_value());
 }

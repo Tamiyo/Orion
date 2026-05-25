@@ -224,7 +224,7 @@ std::optional<Token> Lexer::getNextToken() {
       return createToken(start, TokenKind::BooleanLiteral);
     }
 
-    return createToken(start, TokenKind::Ident);
+    return createToken(start, TokenKind::Identifier);
   }
 
   // Unknown character: emit a single-character `Error` token and advance

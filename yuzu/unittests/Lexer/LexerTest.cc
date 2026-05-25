@@ -93,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(
         // lexer backs off and emits the integer followed by an `e` ident.
         LexerParam{U"1e", std::vector<Token>{
                               Token(TokenKind::IntegerLiteral, U"1", 0, 1),
-                              Token(TokenKind::Ident, U"e", 1, 2)}}));
+                              Token(TokenKind::Identifier, U"e", 1, 2)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Strings, LexerTokenTest,
@@ -128,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(
         LexerParam{U"r\"a\\\"b\"",
                    std::vector<Token>{
                        Token(TokenKind::RawStringLiteral, U"r\"a\\\"", 0, 5),
-                       Token(TokenKind::Ident, U"b", 5, 6),
+                       Token(TokenKind::Identifier, U"b", 5, 6),
                        Token(TokenKind::Error, U"\"", 6, 7)}}));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -169,12 +169,12 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     Identifiers, LexerTokenTest,
     ::testing::Values(
-        LexerParam{U"my_1d3nt", std::vector<Token>{Token(TokenKind::Ident,
+        LexerParam{U"my_1d3nt", std::vector<Token>{Token(TokenKind::Identifier,
                                                          U"my_1d3nt", 0, 8)}},
         // `true` / `false` / `let` / `mut` are keywords; anything else
         // shaped like an identifier becomes `Ident`.
         LexerParam{U"truer", std::vector<Token>{
-                                 Token(TokenKind::Ident, U"truer", 0, 5)}}));
+                                 Token(TokenKind::Identifier, U"truer", 0, 5)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Keywords, LexerTokenTest,
@@ -204,7 +204,7 @@ INSTANTIATE_TEST_SUITE_P(
             U"let x = 42",
             std::vector<Token>{Token(TokenKind::LetKw, U"let", 0, 3),
                                Token(TokenKind::Space, U" ", 3, 4),
-                               Token(TokenKind::Ident, U"x", 4, 5),
+                               Token(TokenKind::Identifier, U"x", 4, 5),
                                Token(TokenKind::Space, U" ", 5, 6),
                                Token(TokenKind::Equals, U"=", 6, 7),
                                Token(TokenKind::Space, U" ", 7, 8),

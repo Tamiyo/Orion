@@ -81,4 +81,4 @@ let IsKeyword = 1 in {
 }
 
 // Misc
-def Ident : Regex<["[a-zA-Z_][a-zA-Z0-9_]*"]> { let Display = "identifier"; }
+def Identifier : Regex<["[a-zA-Z_][a-zA-Z0-9_]*"]> { let Display = "identifier"; }

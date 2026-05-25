@@ -38,11 +38,20 @@ public:
                                        std::string message);
 
 private:
+  /// Lower a binding-position identifier (the name in `let x = ...`).
+  /// Untyped by design — declarations carry no type of their own.
+  const Ident *lowerIdent(ast::Ident ident);
+
   const Stmt *lowerExprStmt(ast::ExprStmt stmt);
-  const LetStmt* lowerLetStmt(ast::LetStmt stmt);
+  const LetStmt *lowerLetStmt(ast::LetStmt stmt);
 
   const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
-  
+  /// Lower an identifier *reference* (an identifier appearing in
+  /// expression position). The result's type comes from name
+  /// resolution — which isn't wired in yet, so this currently emits
+  /// a diagnostic and returns null.
+  const IdentExpr *lowerIdentExpr(ast::IdentExpr expr);
+
   const Literal *lowerLiteralExpr(ast::Literal expr);
   const BoolLit *lowerBoolLit(ast::BoolLit expr);
   const IntLit *lowerIntLit(ast::IntLit expr);
