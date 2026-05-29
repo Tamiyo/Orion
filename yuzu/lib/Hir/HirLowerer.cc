@@ -20,6 +20,33 @@ const Op *toHir(ast::BinOp op) {
     return MulOp::get();
   case ast::BinOp::Div:
     return DivOp::get();
+  case ast::BinOp::And:
+    return AndOp::get();
+  case ast::BinOp::Or:
+    return OrOp::get();
+  case ast::BinOp::In:
+    return InOp::get();
+  case ast::BinOp::NotIn:
+    return NotInOp::get();
+  case ast::BinOp::Pow:
+    return PowOp::get();
+  case ast::BinOp::Eq:
+    return EqOp::get();
+  case ast::BinOp::Neq:
+    return NeqOp::get();
+  case ast::BinOp::Lt:
+    return LtOp::get();
+  case ast::BinOp::Lte:
+    return LteOp::get();
+  case ast::BinOp::Gt:
+    return GtOp::get();
+  case ast::BinOp::Gte:
+    return GteOp::get();
+  case ast::BinOp::ShiftLeft:
+    return ShiftLeftOp::get();
+  case ast::BinOp::ShiftRight:
+    return ShiftRightOp::get();
+    break;
   }
   util::yuzu_unreachable();
 }

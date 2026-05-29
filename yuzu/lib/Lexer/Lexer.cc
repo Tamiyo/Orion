@@ -11,8 +11,10 @@
 namespace yuzu::lexer {
 namespace {
 const std::u32string falseKeyword = U"false";
+const std::u32string inKeyword = U"in";
 const std::u32string letKeyword = U"let";
 const std::u32string mutKeyword = U"mut";
+const std::u32string notKeyword = U"not";
 const std::u32string trueKeyword = U"true";
 }; // namespace
 
@@ -90,7 +92,7 @@ std::optional<Token> Lexer::getNextToken() {
   }
   case U'=': {
     bump();
-    return createToken(start, TokenKind::Equals);
+    return createToken(start, TokenKind::Eq);
   }
   case U'+': {
     bump();
@@ -123,6 +125,33 @@ std::optional<Token> Lexer::getNextToken() {
     }
     bump();
     return createToken(start, TokenKind::Error);
+  }
+  case U'<': {
+    if (peek(1) == U'<') {
+      bump(2);
+      return createToken(start, TokenKind::ShiftLeft);
+    }
+
+    if (peek(1) == U'=') {
+      bump(2);
+      return createToken(start, TokenKind::Lte);
+    }
+
+    return createToken(start, TokenKind::Lt);
+  }
+
+  case U'>': {
+    if (peek(1) == U'>') {
+      bump(2);
+      return createToken(start, TokenKind::ShiftRight);
+    }
+
+    if (peek(1) == U'=') {
+      bump(2);
+      return createToken(start, TokenKind::Gte);
+    }
+
+    return createToken(start, TokenKind::Gt);
   }
   };
 
@@ -212,12 +241,20 @@ std::optional<Token> Lexer::getNextToken() {
       return createToken(start, TokenKind::BooleanLiteral);
     }
 
+    if (ident == inKeyword) {
+      return createToken(start, TokenKind::InKw);
+    }
+
     if (ident == mutKeyword) {
       return createToken(start, TokenKind::MutKw);
     }
 
     if (ident == letKeyword) {
       return createToken(start, TokenKind::LetKw);
+    }
+
+    if (ident == notKeyword) {
+      return createToken(start, TokenKind::NotKw);
     }
 
     if (ident == trueKeyword) {

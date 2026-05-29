@@ -89,6 +89,27 @@ public:
     return token.getKind();
   }
 
+  /// \brief Peek at the kind of the nth-following non-trivia token.
+  ///
+  /// `offset` 0 is the next non-trivia token (same as `peekNextKind`), 1 is
+  /// the one after it, and so on. Trivia is skipped without advancing the
+  /// cursor.
+  ///
+  /// \return The TokenKind at that offset, or nullopt if it runs off the end.
+  [[nodiscard]] std::optional<lexer::TokenKind> peekKindAhead(size_t offset) {
+    size_t remaining = offset;
+    for (size_t scan = cursor; scan < tokens.size(); scan += 1) {
+      if (lexer::isTrivia(tokens.at(scan).getKind())) {
+        continue;
+      }
+      if (remaining == 0) {
+        return tokens.at(scan).getKind();
+      }
+      remaining -= 1;
+    }
+    return std::nullopt;
+  }
+
 private:
   /// \brief Skip over the next token if it is trivia.
   void bumpTrivia() {

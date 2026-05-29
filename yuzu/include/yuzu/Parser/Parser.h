@@ -63,8 +63,10 @@ public:
     util::yuzu_unreachable();
   }
 
-  [[nodiscard]] std::optional<lexer::TokenKind> peekKind() {
-    return source.peekNextKind();
+  /// Peek the kind of the nth-following non-trivia token. `offset` 0 (the
+  /// default) is the next token; 1 is the one after it, and so on.
+  [[nodiscard]] std::optional<lexer::TokenKind> peekKind(size_t offset = 0) {
+    return source.peekKindAhead(offset);
   }
 
   [[nodiscard]] bool at(lexer::TokenKind kind) {

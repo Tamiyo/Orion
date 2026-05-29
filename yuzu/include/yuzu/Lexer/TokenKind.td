@@ -6,11 +6,23 @@ def Lex : LexGrammar {
 
 // Symbols
 let IsSymbol = 1 in {
-  def Equals : Token<["="]>;
-  def Minus  : Token<["-"]>;
-  def Plus   : Token<["+"]>;
-  def Slash  : Token<["/"]>;
-  def Star   : Token<["*"]>;
+  // Arith
+  def Plus        : Token<["+"]>;
+  def Minus       : Token<["-"]>;
+  def Star        : Token<["*"]>;
+  def Slash       : Token<["/"]>;
+
+  // Comparison
+  def Eq          : Token<["="]>;
+  def Lt          : Token<["<"]>;
+  def Lte         : Token<["<="]>;
+  def Gt          : Token<[">"]>;
+  def Gte         : Token<[">="]>;
+
+  // Bits
+  def ShiftLeft   : Token<["<<"]>;
+  def ShiftRight  : Token<[">>"]>;
+
 }
 
 // Punctuation
@@ -76,8 +88,10 @@ let IsTrivia = 1 in {
 
 // Keywords
 let IsKeyword = 1 in {
+  def InKw : Token<["in"]>;
   def LetKw : Token<["let"]>;
   def MutKw : Token<["mut"]>;
+  def NotKw : Token<["not"]>;
 }
 
 // Misc

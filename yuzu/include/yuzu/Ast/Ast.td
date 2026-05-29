@@ -23,10 +23,39 @@ def String : Native<"std::u32string"> { let ViewName = "std::u32string_view"; }
 /// A binary operator.
 def BinOp : Enum<"uint8_t"> {
     let Cases = [
+        // Logical
+        EnumCase<"And">,
+        EnumCase<"Or">,
+        EnumCase<"In">,
+        EnumCase<"NotIn">,
+
+        // Arith
         EnumCase<"Add">,
         EnumCase<"Sub">,
         EnumCase<"Mul">,
-        EnumCase<"Div">
+        EnumCase<"Div">,
+        EnumCase<"Pow">,
+
+        // Comparison
+        EnumCase<"Eq">,
+        EnumCase<"Neq">,
+        EnumCase<"Lt">,
+        EnumCase<"Lte">,
+        EnumCase<"Gt">,
+        EnumCase<"Gte">,
+
+        // Bits
+        EnumCase<"ShiftLeft">,
+        EnumCase<"ShiftRight">,
+    ];
+}
+
+/// A unary operator.
+def UnaryOp : Enum<"uint8_t"> {
+    let Cases = [
+        EnumCase<"Neg">,
+        EnumCase<"Pos">,
+        EnumCase<"Not">,
     ];
 }
 
@@ -74,6 +103,13 @@ def BinaryExpr : Node<Expr> {
         Child<Expr>:$lhs,
         Custom<BinOp>:$op,
         Child<Expr>:$rhs
+    );
+}
+
+def UnaryExpr : Node<Expr> {
+    let Fields = (ins
+        Custom<UnaryOp>:$op,
+        Child<Expr>:$expr
     );
 }
 

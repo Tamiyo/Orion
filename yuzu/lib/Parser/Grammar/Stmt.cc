@@ -28,7 +28,7 @@ inline std::optional<CompletedMarker> parseLetStmt(Parser &p) {
 
   const auto _ = parseIdent(p);
 
-  p.expect(TokenKind::Equals);
+  p.expect(TokenKind::Eq);
   parseExpr(p);
   return p.complete(m, SyntaxKind::LetStmt);
 }

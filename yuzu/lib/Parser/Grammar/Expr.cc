@@ -12,27 +12,58 @@
 
 namespace yuzu::parser {
 
+using yuzu::ast::BinOp;
 using yuzu::ast::SyntaxKind;
+using yuzu::ast::UnaryOp;
 using yuzu::lexer::TokenKind;
 
 namespace {
 constexpr std::bitset<1 << (8 * sizeof(lexer::TokenKind))> exprRecoverySet{};
 
-enum class BinaryOp : uint8_t { Add, Sub, Mul, Div };
-
-std::pair<uint8_t, uint8_t> bindingPowerOf(BinaryOp op) {
+std::pair<uint8_t, uint8_t> bindingPowerOf(UnaryOp op) {
   switch (op) {
-  case BinaryOp::Add:
-  case BinaryOp::Sub:
-    return std::make_pair(1, 2);
-  case BinaryOp::Mul:
-  case BinaryOp::Div:
-    return std::make_pair(3, 4);
+  case UnaryOp::Neg:
+  case UnaryOp::Pos:
+    return std::make_pair(-1, 9);
+  case UnaryOp::Not:
+    return std::make_pair(-1, 1);
   }
+
+  util::yuzu_unreachable();
+}
+
+std::pair<uint8_t, uint8_t> bindingPowerOf(BinOp op) {
+  switch (op) {
+  case BinOp::In:
+  case BinOp::NotIn:
+  case BinOp::Lt:
+  case BinOp::Lte:
+  case BinOp::Gt:
+  case BinOp::Gte:
+    return std::make_pair(1, 2);
+  case BinOp::ShiftLeft:
+  case BinOp::ShiftRight:
+    return std::make_pair(3, 4);
+  case BinOp::Add:
+  case BinOp::Sub:
+    return std::make_pair(5, 6);
+  case BinOp::Mul:
+  case BinOp::Div:
+    return std::make_pair(7, 8);
+  case BinOp::And:
+  case BinOp::Or:
+  case BinOp::Pow:
+  case BinOp::Eq:
+  case BinOp::Neq:
+    // No token maps to these yet, so `parseBinOp` never produces them.
+    util::yuzu_unreachable();
+  }
+
+  util::yuzu_unreachable();
 }
 }; // namespace
 
-std::optional<BinaryOp> parseBinaryOp(Parser &p) {
+std::optional<BinOp> parseBinOp(Parser &p) {
   const auto kind = p.peekKind();
   if (!kind.has_value()) {
     return std::nullopt;
@@ -40,13 +71,53 @@ std::optional<BinaryOp> parseBinaryOp(Parser &p) {
 
   switch (kind.value()) {
   case TokenKind::Plus:
-    return BinaryOp::Add;
+    return BinOp::Add;
   case TokenKind::Minus:
-    return BinaryOp::Sub;
+    return BinOp::Sub;
   case TokenKind::Star:
-    return BinaryOp::Mul;
+    return BinOp::Mul;
   case TokenKind::Slash:
-    return BinaryOp::Div;
+    return BinOp::Div;
+  case TokenKind::Lt:
+    return BinOp::Lt;
+  case TokenKind::Lte:
+    return BinOp::Lte;
+  case TokenKind::Gt:
+    return BinOp::Gt;
+  case TokenKind::Gte:
+    return BinOp::Gte;
+  case TokenKind::ShiftLeft:
+    return BinOp::ShiftLeft;
+  case TokenKind::ShiftRight:
+    return BinOp::ShiftRight;
+  case TokenKind::InKw:
+    return BinOp::In;
+  case TokenKind::NotKw:
+    // `not` is a binary operator only as the first half of `not in`; a bare
+    // `not` in operator position is not an operator (prefix `not` is handled
+    // by parseLhs).
+    if (p.peekKind(1) == TokenKind::InKw) {
+      return BinOp::NotIn;
+    }
+    return std::nullopt;
+  default:
+    return std::nullopt;
+  }
+}
+
+std::optional<UnaryOp> parseUnaryOp(Parser &p) {
+  const auto kind = p.peekKind();
+  if (!kind.has_value()) {
+    return std::nullopt;
+  }
+
+  switch (kind.value()) {
+  case TokenKind::Plus:
+    return UnaryOp::Pos;
+  case TokenKind::Minus:
+    return UnaryOp::Neg;
+  case TokenKind::NotKw:
+    return UnaryOp::Not;
   default:
     return std::nullopt;
   }
@@ -110,6 +181,19 @@ std::optional<CompletedMarker> parseParenExpr(Parser &p) {
   return expr;
 }
 
+std::optional<CompletedMarker> parseUnaryExpr(Parser &p) {
+  const auto op = parseUnaryOp(p);
+  const auto rightBindingPower = bindingPowerOf(*op).second;
+
+  const Marker m = p.start();
+  p.bump(); // Consume the prefix operator.
+
+  // The operand is parsed at the operator's right binding power.
+  const auto _ = parseExprBindingPower(p, rightBindingPower);
+
+  return p.complete(m, SyntaxKind::UnaryExpr);
+}
+
 std::optional<CompletedMarker> parseLhs(Parser &p) {
   const auto kind = p.peekKind();
   if (!kind.has_value()) {
@@ -136,6 +220,11 @@ std::optional<CompletedMarker> parseLhs(Parser &p) {
   case TokenKind::LeftParen:
     return parseParenExpr(p);
 
+  case TokenKind::Plus:
+  case TokenKind::Minus:
+  case TokenKind::NotKw:
+    return parseUnaryExpr(p);
+
   default:
     // Semantic version: emits `expected expression, found `<text>`` instead
     // of enumerating the LHS kinds. Same recovery shape as `error`.
@@ -153,7 +242,7 @@ parseExprBindingPower(Parser &p, const size_t minimumBindingPower) {
 
   while (true) {
     // Stop if we are not at a binary operator.
-    const auto op = parseBinaryOp(p);
+    const auto op = parseBinOp(p);
     if (!op.has_value()) {
       break;
     }
@@ -164,8 +253,12 @@ parseExprBindingPower(Parser &p, const size_t minimumBindingPower) {
       break;
     }
 
-    // Consume the operator.
+    // Consume the operator. `not in` spans two tokens, both of which become
+    // children of the BinaryExpr.
     p.bump();
+    if (*op == BinOp::NotIn) {
+      p.bump();
+    }
 
     // Parse the Rhs of the operation, if any.
     const auto [marker, _] = p.precede(*parsedLhs);

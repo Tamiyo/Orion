@@ -54,6 +54,46 @@ std::optional<BinOp> BinaryExpr::getOp() const {
         return BinOp::Div;
       case SyntaxKind::Star:
         return BinOp::Mul;
+      case SyntaxKind::Lt:
+        return BinOp::Lt;
+      case SyntaxKind::Lte:
+        return BinOp::Lte;
+      case SyntaxKind::Gt:
+        return BinOp::Gt;
+      case SyntaxKind::Gte:
+        return BinOp::Gte;
+      case SyntaxKind::ShiftLeft:
+        return BinOp::ShiftLeft;
+      case SyntaxKind::ShiftRight:
+        return BinOp::ShiftRight;
+      case SyntaxKind::InKw:
+        return BinOp::In;
+      case SyntaxKind::NotKw:
+        // The only binary use of `not` is `not in`; the `not` token leads,
+        // followed by the `in` token.
+        return BinOp::NotIn;
+      default:
+        break;
+      }
+
+      break;
+    }
+  }
+
+  return std::nullopt;
+}
+
+std::optional<UnaryOp> UnaryExpr::getOp() const {
+  for (const auto &child : node.getChildrenWithTokens()) {
+    if (child.isToken()) {
+      const auto &token = child.getToken();
+      switch (token.getKind()) {
+      case SyntaxKind::Plus:
+        return UnaryOp::Pos;
+      case SyntaxKind::Minus:
+        return UnaryOp::Neg;
+      case SyntaxKind::NotKw:
+        return UnaryOp::Not;
       default:
         break;
       }

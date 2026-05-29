@@ -29,8 +29,7 @@ TEST_P(LexerTokenTest, GetTokens) {
 INSTANTIATE_TEST_SUITE_P(
     Symbols, LexerTokenTest,
     ::testing::Values(
-        LexerParam{U"=",
-                   std::vector<Token>{Token(TokenKind::Equals, U"=", 0, 1)}},
+        LexerParam{U"=", std::vector<Token>{Token(TokenKind::Eq, U"=", 0, 1)}},
         LexerParam{U"+",
                    std::vector<Token>{Token(TokenKind::Plus, U"+", 0, 1)}},
         LexerParam{U"-",
@@ -43,6 +42,27 @@ INSTANTIATE_TEST_SUITE_P(
                    std::vector<Token>{Token(TokenKind::LeftParen, U"(", 0, 1)}},
         LexerParam{U")", std::vector<Token>{
                              Token(TokenKind::RightParen, U")", 0, 1)}}));
+
+INSTANTIATE_TEST_SUITE_P(
+    Comparison, LexerTokenTest,
+    ::testing::Values(
+        LexerParam{U"<",
+                   std::vector<Token>{Token(TokenKind::Lt, U"<", 0, 1)}},
+        LexerParam{U"<=",
+                   std::vector<Token>{Token(TokenKind::Lte, U"<=", 0, 2)}},
+        LexerParam{U">",
+                   std::vector<Token>{Token(TokenKind::Gt, U">", 0, 1)}},
+        LexerParam{U">=",
+                   std::vector<Token>{Token(TokenKind::Gte, U">=", 0, 2)}}));
+
+INSTANTIATE_TEST_SUITE_P(
+    Bitwise, LexerTokenTest,
+    ::testing::Values(
+        LexerParam{
+            U"<<",
+            std::vector<Token>{Token(TokenKind::ShiftLeft, U"<<", 0, 2)}},
+        LexerParam{U">>", std::vector<Token>{
+                              Token(TokenKind::ShiftRight, U">>", 0, 2)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Integers, LexerTokenTest,
@@ -173,16 +193,26 @@ INSTANTIATE_TEST_SUITE_P(
                                                          U"my_1d3nt", 0, 8)}},
         // `true` / `false` / `let` / `mut` are keywords; anything else
         // shaped like an identifier becomes `Ident`.
-        LexerParam{U"truer", std::vector<Token>{
-                                 Token(TokenKind::Identifier, U"truer", 0, 5)}}));
+        LexerParam{U"truer", std::vector<Token>{Token(TokenKind::Identifier,
+                                                      U"truer", 0, 5)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Keywords, LexerTokenTest,
     ::testing::Values(
+        LexerParam{U"in",
+                   std::vector<Token>{Token(TokenKind::InKw, U"in", 0, 2)}},
         LexerParam{U"let",
                    std::vector<Token>{Token(TokenKind::LetKw, U"let", 0, 3)}},
         LexerParam{U"mut",
-                   std::vector<Token>{Token(TokenKind::MutKw, U"mut", 0, 3)}}));
+                   std::vector<Token>{Token(TokenKind::MutKw, U"mut", 0, 3)}},
+        LexerParam{U"not",
+                   std::vector<Token>{Token(TokenKind::NotKw, U"not", 0, 3)}},
+        // A keyword that is only a prefix of a longer identifier stays an
+        // identifier; the whole word is lexed before keyword matching.
+        LexerParam{U"input", std::vector<Token>{Token(TokenKind::Identifier,
+                                                      U"input", 0, 5)}},
+        LexerParam{U"nothing", std::vector<Token>{Token(TokenKind::Identifier,
+                                                        U"nothing", 0, 7)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Trivia, LexerTokenTest,
@@ -198,7 +228,7 @@ INSTANTIATE_TEST_SUITE_P(
     MultiToken, LexerTokenTest,
     ::testing::Values(
         LexerParam{U"=+",
-                   std::vector<Token>{Token(TokenKind::Equals, U"=", 0, 1),
+                   std::vector<Token>{Token(TokenKind::Eq, U"=", 0, 1),
                                       Token(TokenKind::Plus, U"+", 1, 2)}},
         LexerParam{
             U"let x = 42",
@@ -206,7 +236,7 @@ INSTANTIATE_TEST_SUITE_P(
                                Token(TokenKind::Space, U" ", 3, 4),
                                Token(TokenKind::Identifier, U"x", 4, 5),
                                Token(TokenKind::Space, U" ", 5, 6),
-                               Token(TokenKind::Equals, U"=", 6, 7),
+                               Token(TokenKind::Eq, U"=", 6, 7),
                                Token(TokenKind::Space, U" ", 7, 8),
                                Token(TokenKind::IntegerLiteral, U"42", 8, 10)}},
         LexerParam{
@@ -217,7 +247,18 @@ INSTANTIATE_TEST_SUITE_P(
                                Token(TokenKind::Plus, U"+", 3, 4),
                                Token(TokenKind::Space, U" ", 4, 5),
                                Token(TokenKind::HexLiteral, U"0x2", 5, 8),
-                               Token(TokenKind::RightParen, U")", 8, 9)}}));
+                               Token(TokenKind::RightParen, U")", 8, 9)}},
+        // `<<` is matched before `<=`, so the trailing `=` is its own token.
+        LexerParam{U"<<=",
+                   std::vector<Token>{Token(TokenKind::ShiftLeft, U"<<", 0, 2),
+                                      Token(TokenKind::Eq, U"=", 2, 3)}},
+        LexerParam{U">>=",
+                   std::vector<Token>{Token(TokenKind::ShiftRight, U">>", 0, 2),
+                                      Token(TokenKind::Eq, U"=", 2, 3)}},
+        // `<=` is matched maximally, leaving the extra `=` separate.
+        LexerParam{U"<==",
+                   std::vector<Token>{Token(TokenKind::Lte, U"<=", 0, 2),
+                                      Token(TokenKind::Eq, U"=", 2, 3)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Unknown, LexerTokenTest,

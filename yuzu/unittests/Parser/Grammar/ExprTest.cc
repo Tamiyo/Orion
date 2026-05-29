@@ -143,6 +143,221 @@ TEST_F(ExprTest, AdditionIsLeftAssociative) {
             result.tree);
 }
 
+TEST_F(ExprTest, ParsesLessThan) {
+  const auto result = parseExpr(U"1 < 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..5
+  BinaryExpr@0..5
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    Lt@2..3 "<"
+    Space@3..4 " "
+    IntLit@4..5
+      IntegerLiteral@4..5 "2")",
+            result.tree);
+}
+
+TEST_F(ExprTest, ParsesLessThanOrEqual) {
+  const auto result = parseExpr(U"1 <= 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..6
+  BinaryExpr@0..6
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    Lte@2..4 "<="
+    Space@4..5 " "
+    IntLit@5..6
+      IntegerLiteral@5..6 "2")",
+            result.tree);
+}
+
+TEST_F(ExprTest, ParsesGreaterThan) {
+  const auto result = parseExpr(U"1 > 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..5
+  BinaryExpr@0..5
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    Gt@2..3 ">"
+    Space@3..4 " "
+    IntLit@4..5
+      IntegerLiteral@4..5 "2")",
+            result.tree);
+}
+
+TEST_F(ExprTest, ParsesGreaterThanOrEqual) {
+  const auto result = parseExpr(U"1 >= 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..6
+  BinaryExpr@0..6
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    Gte@2..4 ">="
+    Space@4..5 " "
+    IntLit@5..6
+      IntegerLiteral@5..6 "2")",
+            result.tree);
+}
+
+TEST_F(ExprTest, ParsesShiftLeft) {
+  const auto result = parseExpr(U"1 << 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..6
+  BinaryExpr@0..6
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    ShiftLeft@2..4 "<<"
+    Space@4..5 " "
+    IntLit@5..6
+      IntegerLiteral@5..6 "2")",
+            result.tree);
+}
+
+TEST_F(ExprTest, ParsesShiftRight) {
+  const auto result = parseExpr(U"1 >> 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..6
+  BinaryExpr@0..6
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    ShiftRight@2..4 ">>"
+    Space@4..5 " "
+    IntLit@5..6
+      IntegerLiteral@5..6 "2")",
+            result.tree);
+}
+
+TEST_F(ExprTest, ParsesIn) {
+  const auto result = parseExpr(U"1 in 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..6
+  BinaryExpr@0..6
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    InKw@2..4 "in"
+    Space@4..5 " "
+    IntLit@5..6
+      IntegerLiteral@5..6 "2")",
+            result.tree);
+}
+
+// `not in` is a single binary operator spanning two tokens; both the `not`
+// and `in` tokens land as children of the BinaryExpr.
+TEST_F(ExprTest, ParsesNotIn) {
+  const auto result = parseExpr(U"1 not in 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..10
+  BinaryExpr@0..10
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    NotKw@2..5 "not"
+    Space@5..6 " "
+    InKw@6..8 "in"
+    Space@8..9 " "
+    IntLit@9..10
+      IntegerLiteral@9..10 "2")",
+            result.tree);
+}
+
+// Prefix `not` produces a UnaryExpr wrapping its operand.
+TEST_F(ExprTest, ParsesNot) {
+  const auto result = parseExpr(U"not 1");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..5
+  UnaryExpr@0..5
+    NotKw@0..3 "not"
+    Space@3..4 " "
+    IntLit@4..5
+      IntegerLiteral@4..5 "1")",
+            result.tree);
+}
+
+// `1 < 2 << 3` parses as `1 < (2 << 3)` — shifts bind tighter than
+// comparisons.
+TEST_F(ExprTest, ShiftBindsTighterThanComparison) {
+  const auto result = parseExpr(U"1 < 2 << 3");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..10
+  BinaryExpr@0..10
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    Lt@2..3 "<"
+    Space@3..4 " "
+    BinaryExpr@4..10
+      IntLit@4..6
+        IntegerLiteral@4..5 "2"
+        Space@5..6 " "
+      ShiftLeft@6..8 "<<"
+      Space@8..9 " "
+      IntLit@9..10
+        IntegerLiteral@9..10 "3")",
+            result.tree);
+}
+
+// `1 << 2 + 3` parses as `1 << (2 + 3)` — addition binds tighter than
+// shifts.
+TEST_F(ExprTest, AdditionBindsTighterThanShift) {
+  const auto result = parseExpr(U"1 << 2 + 3");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..10
+  BinaryExpr@0..10
+    IntLit@0..2
+      IntegerLiteral@0..1 "1"
+      Space@1..2 " "
+    ShiftLeft@2..4 "<<"
+    Space@4..5 " "
+    BinaryExpr@5..10
+      IntLit@5..7
+        IntegerLiteral@5..6 "2"
+        Space@6..7 " "
+      Plus@7..8 "+"
+      Space@8..9 " "
+      IntLit@9..10
+        IntegerLiteral@9..10 "3")",
+            result.tree);
+}
+
+// `not 1 < 2` parses as `not (1 < 2)` — `not` binds looser than comparison,
+// so its operand swallows the whole comparison.
+TEST_F(ExprTest, NotBindsLooserThanComparison) {
+  const auto result = parseExpr(U"not 1 < 2");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(Expr@0..9
+  UnaryExpr@0..9
+    NotKw@0..3 "not"
+    Space@3..4 " "
+    BinaryExpr@4..9
+      IntLit@4..6
+        IntegerLiteral@4..5 "1"
+        Space@5..6 " "
+      Lt@6..7 "<"
+      Space@7..8 " "
+      IntLit@8..9
+        IntegerLiteral@8..9 "2")",
+            result.tree);
+}
+
 // `1 +` should still wrap the LHS+operator in a BinaryExpr and report one
 // error for the missing RHS — partial trees are how the parser stays
 // recoverable. The recursive `parseLhs` hits end-of-input, so the error
