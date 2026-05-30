@@ -107,6 +107,22 @@ public:
     }
   }
 
+  [[nodiscard]] bool isInt() const {
+    switch (kind) {
+    case TypeKind::Int8:
+    case TypeKind::Int16:
+    case TypeKind::Int32:
+    case TypeKind::Int64:
+    case TypeKind::UInt8:
+    case TypeKind::UInt16:
+    case TypeKind::UInt32:
+    case TypeKind::UInt64:
+      return true;
+    default:
+      return false;
+    }
+  }
+
   [[nodiscard]] bool isUnsigned() const {
     switch (kind) {
     case TypeKind::UInt8:

@@ -24,9 +24,12 @@ std::pair<uint8_t, uint8_t> bindingPowerOf(UnaryOp op) {
   switch (op) {
   case UnaryOp::Neg:
   case UnaryOp::Pos:
-    return std::make_pair(-1, 9);
+    // Tighter than `*`/`/` but looser than `**`, so `-2 ** 2` is `-(2 ** 2)`.
+    return std::make_pair(-1, 13);
   case UnaryOp::Not:
-    return std::make_pair(-1, 1);
+    // Looser than the comparison operators but tighter than `and`/`or`, so
+    // `not a == b` is `not (a == b)` and `not a and b` is `(not a) and b`.
+    return std::make_pair(-1, 5);
   }
 
   util::yuzu_unreachable();
@@ -34,29 +37,32 @@ std::pair<uint8_t, uint8_t> bindingPowerOf(UnaryOp op) {
 
 std::pair<uint8_t, uint8_t> bindingPowerOf(BinOp op) {
   switch (op) {
+  case BinOp::Or:
+    return std::make_pair(1, 2);
+  case BinOp::And:
+    return std::make_pair(3, 4);
+  case BinOp::Eq:
+  case BinOp::Neq:
   case BinOp::In:
   case BinOp::NotIn:
   case BinOp::Lt:
   case BinOp::Lte:
   case BinOp::Gt:
   case BinOp::Gte:
-    return std::make_pair(1, 2);
+    return std::make_pair(5, 6);
   case BinOp::ShiftLeft:
   case BinOp::ShiftRight:
-    return std::make_pair(3, 4);
+    return std::make_pair(7, 8);
   case BinOp::Add:
   case BinOp::Sub:
-    return std::make_pair(5, 6);
+    return std::make_pair(9, 10);
   case BinOp::Mul:
   case BinOp::Div:
-    return std::make_pair(7, 8);
-  case BinOp::And:
-  case BinOp::Or:
+    return std::make_pair(11, 12);
   case BinOp::Pow:
-  case BinOp::Eq:
-  case BinOp::Neq:
-    // No token maps to these yet, so `parseBinOp` never produces them.
-    util::yuzu_unreachable();
+    // Right-associative (left power > right power), so `2 ** 3 ** 4` is
+    // `2 ** (3 ** 4)`, and binds tighter than everything else.
+    return std::make_pair(15, 14);
   }
 
   util::yuzu_unreachable();
@@ -76,8 +82,18 @@ std::optional<BinOp> parseBinOp(Parser &p) {
     return BinOp::Sub;
   case TokenKind::Star:
     return BinOp::Mul;
+  case TokenKind::Pow:
+    return BinOp::Pow;
   case TokenKind::Slash:
     return BinOp::Div;
+  case TokenKind::EqEq:
+    return BinOp::Eq;
+  case TokenKind::Neq:
+    return BinOp::Neq;
+  case TokenKind::AndKw:
+    return BinOp::And;
+  case TokenKind::OrKw:
+    return BinOp::Or;
   case TokenKind::Lt:
     return BinOp::Lt;
   case TokenKind::Lte:
@@ -171,14 +187,18 @@ std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
 }
 
 std::optional<CompletedMarker> parseParenExpr(Parser &p) {
+  // Start the marker before the `(` so both parens nest inside the
+  // `ParenExpr` node; otherwise they leak out as siblings of an enclosing
+  // expression and break operand/operator lookup on it.
+  const Marker m = p.start();
   p.expect(TokenKind::LeftParen); // Consume '('.
 
-  const auto expr = parseExprBindingPower(p, 0);
+  const auto _ = parseExprBindingPower(p, 0);
   p.expect(TokenKind::RightParen);
 
   // TODO - Perhaps have a specific error for unclosed parenthesis?
 
-  return expr;
+  return p.complete(m, SyntaxKind::ParenExpr);
 }
 
 std::optional<CompletedMarker> parseUnaryExpr(Parser &p) {

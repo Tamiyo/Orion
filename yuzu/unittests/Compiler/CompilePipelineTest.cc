@@ -63,6 +63,27 @@ TEST(CompilePipelineTest, MixedNumericCoercesToFloat64) {
   EXPECT_NE(out.find("FloatLit : float64"), std::string::npos) << out;
 }
 
+TEST(CompilePipelineTest, ParenGroupingFlipsAssociativity) {
+  // `(1 + 2) * 3` forces the add to evaluate first — the inverse of
+  // `1 + 2 * 3`. The HIR should show Mul as the outer call with Add
+  // nested inside. This also locks in the lowering of `ParenExpr`
+  // (regression: without the wrapping node, paren tokens leaked into
+  // the outer `BinaryExpr` and lowering reported "binary expression is
+  // missing its operator").
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"(1 + 2) * 3", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos)
+      << "paren grouping must not emit a diagnostic:\n"
+      << out;
+  const auto mul = out.find("op=Mul");
+  const auto add = out.find("op=Add");
+  ASSERT_NE(mul, std::string::npos) << out;
+  ASSERT_NE(add, std::string::npos) << out;
+  EXPECT_LT(mul, add) << "expected Mul (outer) before Add (inner):\n" << out;
+}
+
 TEST(CompilePipelineTest, IncompleteBinaryEmitsErrorAndDropsCall) {
   // A binary expression missing its rhs is rejected during lowering.
   // The pipeline emits an error diagnostic and the resulting HIR has

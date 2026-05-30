@@ -46,6 +46,9 @@ private:
   const LetStmt *lowerLetStmt(ast::LetStmt stmt);
 
   const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
+  /// Lower a parenthesized expression by lowering its inner expression;
+  /// the grouping parens carry no semantics of their own.
+  const Expr *lowerParenExpr(ast::ParenExpr expr);
   /// Lower an identifier *reference* (an identifier appearing in
   /// expression position). The result's type comes from name
   /// resolution — which isn't wired in yet, so this currently emits

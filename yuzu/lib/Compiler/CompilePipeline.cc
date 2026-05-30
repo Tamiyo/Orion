@@ -167,9 +167,8 @@ void Session::compile(std::u32string_view source) {
   // and symbol table carry over from previous calls — that's the
   // whole point of having a session.
   static int lineCounter = 0;
-  const diagnostics::SourceId sourceId =
-      sources.add("<repl:" + std::to_string(++lineCounter) + ">",
-                  std::u32string(source));
+  const diagnostics::SourceId sourceId = sources.add(
+      "<repl:" + std::to_string(++lineCounter) + ">", std::u32string(source));
   hirCtx.setSourceId(sourceId);
 
   runPipeline(source, options, sourceId, diagnostics, printer, hirCtx);

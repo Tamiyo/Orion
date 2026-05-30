@@ -1,0 +1,48 @@
+{
+  "name": "Yuzu (Ubuntu 24.04 + LLVM 22)",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/Yuzu",
+  "containerEnv": {
+    "CC": "clang",
+    "CXX": "clang++"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "aaron-bond.better-comments",
+        "cs128.cs128-clang-tidy",
+        "jakob-erzar.llvm-tablegen",
+        "llvm-vs-code-extensions.lldb-dap",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "llvm-vs-code-extensions.vscode-mlir",
+        "ms-python.black-formatter",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-vscode.cmake-tools",
+        "tamasfe.even-better-toml",
+        "xaver.clang-format"
+      ],
+      "settings": {
+        "clangd.path": "/usr/bin/clangd-22",
+        "clangd.arguments": [
+          "--compile-commands-dir=build",
+          "--header-insertion=never",
+          "--background-index"
+        ],
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "[cpp]": {
+          "editor.defaultFormatter": "xaver.clang-format"
+        },
+        "[c]": {
+          "editor.defaultFormatter": "xaver.clang-format"
+        },
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter"
+        }
+      }
+    }
+  }
+}

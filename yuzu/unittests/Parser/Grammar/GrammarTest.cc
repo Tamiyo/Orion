@@ -44,16 +44,17 @@ TEST_F(GrammarTest, ParsesSingleBinaryExpression) {
 }
 
 // Malformed input still yields a tree with a `Root` wrapper. The leading
-// `+` triggers a missing-LHS error and is wrapped in an `Error` node
+// `*` triggers a missing-LHS error and is wrapped in an `Error` node
 // inside its `ExprStmt`; `parseRoot` then recovers and parses the
-// trailing `1` as a separate top-level statement.
+// trailing `1` as a separate top-level statement. `*` is used rather than
+// `+`/`-` because those are prefix operators and would parse as a UnaryExpr.
 TEST_F(GrammarTest, ReportsErrorOnMissingLhs) {
-  const auto result = parseRoot(U"+ 1");
+  const auto result = parseRoot(U"* 1");
 
   ASSERT_EQ(1u, diagnostics.getDiagnostics().size());
   const auto &d = diagnostics.getDiagnostics()[0];
   EXPECT_EQ(yuzu::diagnostics::Severity::Error, d.severity);
-  EXPECT_EQ("expected expression, found `+`", d.message);
+  EXPECT_EQ("expected expression, found `*`", d.message);
   ASSERT_EQ(1u, d.labels.size());
   EXPECT_EQ(0u, d.labels[0].span.start);
   EXPECT_EQ(1u, d.labels[0].span.end);
@@ -61,7 +62,7 @@ TEST_F(GrammarTest, ReportsErrorOnMissingLhs) {
   EXPECT_EQ(R"(Root@0..3
   ExprStmt@0..2
     Error@0..2
-      Plus@0..1 "+"
+      Star@0..1 "*"
       Space@1..2 " "
   ExprStmt@2..3
     IntLit@2..3

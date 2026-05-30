@@ -226,6 +226,8 @@ const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
   switch (expr.getKind()) {
   case ast::SyntaxKind::BinaryExpr:
     return lowerBinaryExpr(*ast::BinaryExpr::cast(expr));
+  case ast::SyntaxKind::ParenExpr:
+    return lowerParenExpr(*ast::ParenExpr::cast(expr));
   case ast::SyntaxKind::IdentExpr:
     return lowerIdentExpr(*ast::IdentExpr::cast(expr));
   case ast::SyntaxKind::BoolLit:
@@ -269,6 +271,16 @@ const Expr *HirLowerer::lowerBinaryExpr(ast::BinaryExpr expr) {
   const auto *hir = ctx.getBuilder().makeCallExpr(loweredOp, args, type);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
+}
+
+const Expr *HirLowerer::lowerParenExpr(ast::ParenExpr expr) {
+  const auto inner = expr.getExpr();
+  if (!inner) {
+    error(expr, "parenthesized expression is missing its inner expression")
+        .emit();
+    return nullptr;
+  }
+  return lowerExpr(*inner);
 }
 
 const Literal *HirLowerer::lowerLiteralExpr(ast::Literal expr) {

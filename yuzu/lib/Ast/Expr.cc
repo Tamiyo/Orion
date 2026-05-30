@@ -54,6 +54,16 @@ std::optional<BinOp> BinaryExpr::getOp() const {
         return BinOp::Div;
       case SyntaxKind::Star:
         return BinOp::Mul;
+      case SyntaxKind::Pow:
+        return BinOp::Pow;
+      case SyntaxKind::EqEq:
+        return BinOp::Eq;
+      case SyntaxKind::Neq:
+        return BinOp::Neq;
+      case SyntaxKind::AndKw:
+        return BinOp::And;
+      case SyntaxKind::OrKw:
+        return BinOp::Or;
       case SyntaxKind::Lt:
         return BinOp::Lt;
       case SyntaxKind::Lte:

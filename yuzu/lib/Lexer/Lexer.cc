@@ -10,11 +10,13 @@
 
 namespace yuzu::lexer {
 namespace {
+const std::u32string andKeyword = U"and";
 const std::u32string falseKeyword = U"false";
 const std::u32string inKeyword = U"in";
 const std::u32string letKeyword = U"let";
 const std::u32string mutKeyword = U"mut";
 const std::u32string notKeyword = U"not";
+const std::u32string orKeyword = U"or";
 const std::u32string trueKeyword = U"true";
 }; // namespace
 
@@ -91,8 +93,21 @@ std::optional<Token> Lexer::getNextToken() {
     return createToken(start, TokenKind::RightParen);
   }
   case U'=': {
+    if (peek(1) == U'=') {
+      bump(2);
+      return createToken(start, TokenKind::EqEq);
+    }
     bump();
     return createToken(start, TokenKind::Eq);
+  }
+  case U'!': {
+    if (peek(1) == U'=') {
+      bump(2);
+      return createToken(start, TokenKind::Neq);
+    }
+    // A lone `!` is not an operator (negation is the `not` keyword).
+    bump();
+    return createToken(start, TokenKind::Error);
   }
   case U'+': {
     bump();
@@ -103,6 +118,10 @@ std::optional<Token> Lexer::getNextToken() {
     return createToken(start, TokenKind::Minus);
   }
   case U'*': {
+    if (peek(1) == U'*') {
+      bump(2);
+      return createToken(start, TokenKind::Pow);
+    }
     bump();
     return createToken(start, TokenKind::Star);
   }
@@ -137,6 +156,7 @@ std::optional<Token> Lexer::getNextToken() {
       return createToken(start, TokenKind::Lte);
     }
 
+    bump();
     return createToken(start, TokenKind::Lt);
   }
 
@@ -151,6 +171,7 @@ std::optional<Token> Lexer::getNextToken() {
       return createToken(start, TokenKind::Gte);
     }
 
+    bump();
     return createToken(start, TokenKind::Gt);
   }
   };
@@ -237,12 +258,20 @@ std::optional<Token> Lexer::getNextToken() {
 
     const auto ident = std::u32string_view(start, current - start);
 
+    if (ident == andKeyword) {
+      return createToken(start, TokenKind::AndKw);
+    }
+
     if (ident == falseKeyword) {
       return createToken(start, TokenKind::BooleanLiteral);
     }
 
     if (ident == inKeyword) {
       return createToken(start, TokenKind::InKw);
+    }
+
+    if (ident == orKeyword) {
+      return createToken(start, TokenKind::OrKw);
     }
 
     if (ident == mutKeyword) {

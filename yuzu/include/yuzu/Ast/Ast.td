@@ -113,6 +113,14 @@ def UnaryExpr : Node<Expr> {
     );
 }
 
+/// Parenthesized expression like `(a + b)`. Purely a grouping wrapper —
+/// it holds the inner expression and exists so the `(`/`)` tokens nest
+/// under one node instead of leaking into an enclosing expression. Lowers
+/// to its inner expression and contributes no HIR of its own.
+def ParenExpr : Node<Expr> {
+    let Fields = (ins Child<Expr>:$expr);
+}
+
 /// A literal expression. Currently always a number; the literal value lives
 /// on the syntax token, not in the AST.
 def Literal : Variant<Expr> {}

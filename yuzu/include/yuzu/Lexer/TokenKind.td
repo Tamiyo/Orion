@@ -10,10 +10,13 @@ let IsSymbol = 1 in {
   def Plus        : Token<["+"]>;
   def Minus       : Token<["-"]>;
   def Star        : Token<["*"]>;
+  def Pow         : Token<["**"]>;
   def Slash       : Token<["/"]>;
 
   // Comparison
   def Eq          : Token<["="]>;
+  def EqEq        : Token<["=="]>;
+  def Neq         : Token<["!="]>;
   def Lt          : Token<["<"]>;
   def Lte         : Token<["<="]>;
   def Gt          : Token<[">"]>;
@@ -88,10 +91,12 @@ let IsTrivia = 1 in {
 
 // Keywords
 let IsKeyword = 1 in {
+  def AndKw : Token<["and"]>;
   def InKw : Token<["in"]>;
   def LetKw : Token<["let"]>;
   def MutKw : Token<["mut"]>;
   def NotKw : Token<["not"]>;
+  def OrKw : Token<["or"]>;
 }
 
 // Misc

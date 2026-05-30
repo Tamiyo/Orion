@@ -36,6 +36,8 @@ INSTANTIATE_TEST_SUITE_P(
                    std::vector<Token>{Token(TokenKind::Minus, U"-", 0, 1)}},
         LexerParam{U"*",
                    std::vector<Token>{Token(TokenKind::Star, U"*", 0, 1)}},
+        LexerParam{U"**",
+                   std::vector<Token>{Token(TokenKind::Pow, U"**", 0, 2)}},
         LexerParam{U"/",
                    std::vector<Token>{Token(TokenKind::Slash, U"/", 0, 1)}},
         LexerParam{U"(",
@@ -46,6 +48,10 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     Comparison, LexerTokenTest,
     ::testing::Values(
+        LexerParam{U"==",
+                   std::vector<Token>{Token(TokenKind::EqEq, U"==", 0, 2)}},
+        LexerParam{U"!=",
+                   std::vector<Token>{Token(TokenKind::Neq, U"!=", 0, 2)}},
         LexerParam{U"<",
                    std::vector<Token>{Token(TokenKind::Lt, U"<", 0, 1)}},
         LexerParam{U"<=",
@@ -199,6 +205,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     Keywords, LexerTokenTest,
     ::testing::Values(
+        LexerParam{U"and",
+                   std::vector<Token>{Token(TokenKind::AndKw, U"and", 0, 3)}},
         LexerParam{U"in",
                    std::vector<Token>{Token(TokenKind::InKw, U"in", 0, 2)}},
         LexerParam{U"let",
@@ -207,10 +215,16 @@ INSTANTIATE_TEST_SUITE_P(
                    std::vector<Token>{Token(TokenKind::MutKw, U"mut", 0, 3)}},
         LexerParam{U"not",
                    std::vector<Token>{Token(TokenKind::NotKw, U"not", 0, 3)}},
+        LexerParam{U"or",
+                   std::vector<Token>{Token(TokenKind::OrKw, U"or", 0, 2)}},
         // A keyword that is only a prefix of a longer identifier stays an
         // identifier; the whole word is lexed before keyword matching.
         LexerParam{U"input", std::vector<Token>{Token(TokenKind::Identifier,
                                                       U"input", 0, 5)}},
+        LexerParam{U"android", std::vector<Token>{Token(TokenKind::Identifier,
+                                                        U"android", 0, 7)}},
+        LexerParam{U"order", std::vector<Token>{Token(TokenKind::Identifier,
+                                                      U"order", 0, 5)}},
         LexerParam{U"nothing", std::vector<Token>{Token(TokenKind::Identifier,
                                                         U"nothing", 0, 7)}}));
 
@@ -258,6 +272,18 @@ INSTANTIATE_TEST_SUITE_P(
         // `<=` is matched maximally, leaving the extra `=` separate.
         LexerParam{U"<==",
                    std::vector<Token>{Token(TokenKind::Lte, U"<=", 0, 2),
+                                      Token(TokenKind::Eq, U"=", 2, 3)}},
+        // `**` is matched maximally; a third `*` is its own `Star`.
+        LexerParam{U"***",
+                   std::vector<Token>{Token(TokenKind::Pow, U"**", 0, 2),
+                                      Token(TokenKind::Star, U"*", 2, 3)}},
+        // `==` is matched maximally; a third `=` is a lone `Eq`.
+        LexerParam{U"===",
+                   std::vector<Token>{Token(TokenKind::EqEq, U"==", 0, 2),
+                                      Token(TokenKind::Eq, U"=", 2, 3)}},
+        // `!=` consumes both characters; the trailing `=` is separate.
+        LexerParam{U"!==",
+                   std::vector<Token>{Token(TokenKind::Neq, U"!=", 0, 2),
                                       Token(TokenKind::Eq, U"=", 2, 3)}}));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -267,6 +293,10 @@ INSTANTIATE_TEST_SUITE_P(
         // token so the lexer keeps making progress instead of dropping
         // the rest of the input.
         LexerParam{U"@",
-                   std::vector<Token>{Token(TokenKind::Error, U"@", 0, 1)}}));
+                   std::vector<Token>{Token(TokenKind::Error, U"@", 0, 1)}},
+        // A lone `!` is not an operator (negation is the `not` keyword), so
+        // it lexes as a single-character `Error`.
+        LexerParam{U"!",
+                   std::vector<Token>{Token(TokenKind::Error, U"!", 0, 1)}}));
 
 } // namespace
