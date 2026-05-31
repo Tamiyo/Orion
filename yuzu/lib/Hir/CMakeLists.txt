@@ -9,7 +9,8 @@ add_library(YuzuHir
   Ops/BuiltinOps.cc
   Resolve/HirScope.cc
   Resolve/HirSymbolTable.cc
-  Types/TypeChecker.cc
+  Types/TypeResolver.cc
+  Types/TypeInferrer.cc
   Types/TypeCoercion.cc
 )
 add_dependencies(YuzuHir YuzuHirKindInc YuzuHirInc YuzuHirBuilderInc YuzuHirPrinterInc YuzuHirVisitorInc)

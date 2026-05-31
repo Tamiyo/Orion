@@ -101,4 +101,120 @@ TEST(CompilePipelineTest, IncompleteBinaryEmitsErrorAndDropsCall) {
       << out;
 }
 
+//===----------------------------------------------------------------------===//
+// `let` binding types — annotation lowered/checked via `lowerType` +
+// `coercesTo`, with the resolved type recorded on the `LetStmt`.
+//===----------------------------------------------------------------------===//
+
+// With no annotation the binding type is inferred from the initializer.
+TEST(CompilePipelineTest, InfersBindingTypeFromInitializer) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x = 5", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int64"), std::string::npos) << out;
+}
+
+// A matching annotation is recorded as the binding type.
+TEST(CompilePipelineTest, MatchingAnnotationIsBindingType) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int64 = 5", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int64"), std::string::npos) << out;
+}
+
+// A wider annotation is accepted; the initializer gets a cast adjustment
+// and the binding takes the annotated type.
+TEST(CompilePipelineTest, WideningAnnotationCoercesInitializer) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: float64 = 5", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : float64"), std::string::npos) << out;
+  EXPECT_NE(out.find("cast float64"), std::string::npos) << out;
+}
+
+// A non-coercible annotation is a type error.
+TEST(CompilePipelineTest, MismatchedAnnotationEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: str = 5", opts(os));
+
+  EXPECT_NE(out.find("is not assignable to `str`"), std::string::npos) << out;
+}
+
+// An untyped integer literal adapts to a narrower annotation — `5` is an
+// inference hole, so the annotation pins it to int32 directly (no cast).
+TEST(CompilePipelineTest, LiteralAdaptsToNarrowerAnnotation) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int32 = 5", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int32"), std::string::npos) << out;
+  EXPECT_NE(out.find("IntLit : int32"), std::string::npos) << out;
+}
+
+// The whole expression adapts: both literals in `5 + 5` are holes the
+// annotation pins to int32, so the add resolves to int32, not the int64
+// default. This is the case literal-defaulting alone couldn't handle.
+TEST(CompilePipelineTest, ExpressionAdaptsToAnnotation) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int32 = 5 + 5", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int32"), std::string::npos) << out;
+  EXPECT_NE(out.find("CallExpr : int32"), std::string::npos) << out;
+}
+
+// Narrowing a concrete *value* (not a literal) stays an error — `x` is a
+// bound int64, which doesn't implicitly narrow to int32.
+TEST(CompilePipelineTest, NarrowingConcreteValueEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int64 = 5\nlet y: int32 = x", opts(os));
+
+  EXPECT_NE(out.find("is not assignable to `int32`"), std::string::npos) << out;
+}
+
+// A use of a binding resolves to its *binding* type, not the
+// initializer's: `x` is `float64` (the annotation), not `int64` (the
+// literal), so `x + x` is `float64`.
+TEST(CompilePipelineTest, IdentResolvesToBindingType) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: float64 = 5\nlet y = x + x", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("IdentExpr : float64"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : float64\n    Ident\n      name=y"),
+            std::string::npos)
+      << out;
+}
+
+// An unknown type name is reported.
+TEST(CompilePipelineTest, UnknownAnnotationTypeEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: bogus = 5", opts(os));
+
+  EXPECT_NE(out.find("unknown type `bogus`"), std::string::npos) << out;
+}
+
+// Function types have no `hir::Type` yet, so they're rejected for now.
+TEST(CompilePipelineTest, FunctionTypeAnnotationUnsupported) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: (int64) -> bool = 5", opts(os));
+
+  EXPECT_NE(out.find("function types are not supported yet"),
+            std::string::npos)
+      << out;
+}
+
 } // namespace

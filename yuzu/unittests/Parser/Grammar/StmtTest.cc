@@ -31,6 +31,54 @@ TEST_F(StmtTest, ParsesBinaryExpression) {
             result.tree);
 }
 
+// A `let` with no annotation: the optional `type` child is simply absent.
+TEST_F(StmtTest, ParsesLetWithoutAnnotation) {
+  const auto result = parseStmt(U"let x=5");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(LetStmt@0..7
+  LetKw@0..3 "let"
+  Space@3..4 " "
+  Ident@4..5
+    Identifier@4..5 "x"
+  Eq@5..6 "="
+  IntLit@6..7
+    IntegerLiteral@6..7 "5")",
+            result.tree);
+}
+
+// A `let` with an annotation: `: int` parses into a `NamedType` child
+// between the name and the `=`.
+TEST_F(StmtTest, ParsesLetWithAnnotation) {
+  const auto result = parseStmt(U"let x:int=5");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(LetStmt@0..11
+  LetKw@0..3 "let"
+  Space@3..4 " "
+  Ident@4..5
+    Identifier@4..5 "x"
+  Colon@5..6 ":"
+  NamedType@6..9
+    Ident@6..9
+      Identifier@6..9 "int"
+  Eq@9..10 "="
+  IntLit@10..11
+    IntegerLiteral@10..11 "5")",
+            result.tree);
+}
+
+// `let x:=5` — the annotation colon must be followed by a type, so the
+// `=` where a type was expected is reported.
+TEST_F(StmtTest, ReportsErrorOnMissingAnnotationType) {
+  (void)parseStmt(U"let x:=5");
+
+  ASSERT_FALSE(diagnostics.getDiagnostics().empty());
+  EXPECT_NE(diagnostics.getDiagnostics()[0].message.find("expected"),
+            std::string::npos)
+      << "first diagnostic: " << diagnostics.getDiagnostics()[0].message;
+}
+
 // `*` is used rather than `+`/`-` because those are prefix operators and
 // would parse as a UnaryExpr instead of triggering missing-LHS recovery.
 TEST_F(StmtTest, ReportsErrorOnMissingLhs) {

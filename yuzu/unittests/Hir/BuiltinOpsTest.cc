@@ -28,7 +28,9 @@ protected:
   /// as a generic carrier keeps the helper one-liner-sized — the value
   /// payload is irrelevant.
   const Expr *typedExpr(TypeKind k) {
-    return ctx.getBuilder().makeIntLit(0, typeFor(k));
+    const auto *expr = ctx.getBuilder().makeIntLit(0);
+    ctx.getTypeContext().bind(expr, typeFor(k));
+    return expr;
   }
 
   std::array<const Expr *, 2> argsOf(TypeKind a, TypeKind b) {
@@ -36,7 +38,7 @@ protected:
   }
 
   const Type *typeFor(TypeKind k) {
-    auto &i = ctx.getTypeInterner();
+    auto &i = ctx.getTypeContext();
     switch (k) {
     case TypeKind::Int8:
       return i.getInt8();
@@ -62,6 +64,11 @@ protected:
       return i.getBool();
     case TypeKind::Str:
       return i.getStr();
+    case TypeKind::Relation:
+    case TypeKind::Struct:
+    case TypeKind::Infer:
+      // Compound — can't be built from a bare kind; op tests don't use it.
+      return nullptr;
     case TypeKind::Error:
       return i.getError();
     }

@@ -3,8 +3,11 @@
 
 #include "yuzu/Util/ErrorHandling.h"
 
+#include <llvm/ADT/ArrayRef.h>
+
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace yuzu::hir {
 
@@ -36,14 +39,22 @@ enum class [[nodiscard]] TypeKind : uint8_t {
   Float64,
   Bool,
   Str,
+  Relation,
+  Struct,
+  Infer,
   //   Unit,
   //   List,
   //   Tuple,
   //   Func,
-  //   Struct,
   //   Class,
-  //   Infer,
   Error,
+};
+
+/// Kind of an `InferTy` variable.
+enum class [[nodiscard]] InferKind : uint8_t {
+  General,
+  Int,
+  Float,
 };
 
 /// Human-facing name for a `TypeKind`. Rendered into diagnostic
@@ -74,6 +85,12 @@ inline std::string asString(TypeKind kind) {
     return "bool";
   case TypeKind::Str:
     return "str";
+  case TypeKind::Relation:
+    return "relation";
+  case TypeKind::Struct:
+    return "struct";
+  case TypeKind::Infer:
+    return "<infer>";
   case TypeKind::Error:
     return "<error>";
   }
@@ -158,6 +175,10 @@ public:
       return false;
     }
   }
+
+  /// An unresolved inference hole (an `InferTy`) — a literal or generic
+  /// result the solve pass hasn't pinned to a concrete type yet.
+  [[nodiscard]] bool isHole() const { return kind == TypeKind::Infer; }
 
 protected:
   explicit Type(TypeKind k) : kind(k) {}
@@ -256,6 +277,75 @@ class ErrorTy final : public Type {
 public:
   explicit ErrorTy() : Type(TypeKind::Error) {}
   YUZU_TYPE_RTTI(Error)
+};
+
+/// `Relation[Element]` — a relation over rows of type `Element`. Interned
+/// structurally by its element.
+class RelationTy final : public Type {
+public:
+  explicit RelationTy(const Type *element)
+      : Type(TypeKind::Relation), element(element) {}
+
+  [[nodiscard]] const Type *getElement() const { return element; }
+
+  YUZU_TYPE_RTTI(Relation)
+
+private:
+  const Type *element;
+};
+
+/// A `StructTy` field: interned name + type.
+struct Field {
+  std::u32string_view name;
+  const Type *type;
+};
+
+/// A nominal record type — a declared `struct`.
+class StructTy final : public Type {
+public:
+  StructTy(std::u32string_view name, llvm::ArrayRef<Field> fields)
+      : Type(TypeKind::Struct), name(name), fields(fields) {}
+
+  [[nodiscard]] std::u32string_view getName() const { return name; }
+  [[nodiscard]] llvm::ArrayRef<Field> getFields() const { return fields; }
+
+  /// Type of the field named `fieldName`, or null if there is none.
+  [[nodiscard]] const Type *findField(std::u32string_view fieldName) const {
+    for (const Field &f : fields) {
+      if (f.name == fieldName) {
+        return f.type;
+      }
+    }
+    return nullptr;
+  }
+
+  YUZU_TYPE_RTTI(Struct)
+
+private:
+  std::u32string_view name;
+  llvm::ArrayRef<Field> fields;
+};
+
+/// Identifies an inference variable within a `UnificationTable`.
+enum class InferId : uint32_t {};
+
+/// An unresolved inference variable, owned by a `UnificationTable`. Its
+/// `id` indexes the table's union-find; `flavor` restricts what it can
+/// unify with and how it defaults. Replaced by a concrete type during the
+/// solve, so it never escapes into a finished tree.
+class InferTy final : public Type {
+public:
+  InferTy(InferId id, InferKind inferKind)
+      : Type(TypeKind::Infer), id(id), inferKind(inferKind) {}
+
+  [[nodiscard]] InferId getId() const { return id; }
+  [[nodiscard]] InferKind getInferKind() const { return inferKind; }
+
+  YUZU_TYPE_RTTI(Infer)
+
+private:
+  InferId id;
+  InferKind inferKind;
 };
 } // namespace yuzu::hir
 

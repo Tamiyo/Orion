@@ -3,5 +3,6 @@ add_library(YuzuParser
   Grammar/Expr.cc
   Grammar/Grammar.cc
   Grammar/Stmt.cc
+  Grammar/Type.cc
 )
 target_link_libraries(YuzuParser PUBLIC YuzuAst YuzuDiagnostics YuzuLexer YuzuSyntax)

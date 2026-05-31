@@ -9,7 +9,7 @@
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/HirLowerer.h"
 #include "yuzu/Hir/HirPrinter.h"
-#include "yuzu/Hir/Types/TypeChecker.h"
+#include "yuzu/Hir/Types/TypeResolver.h"
 #include "yuzu/Lexer/Lexer.h"
 #include "yuzu/Lexer/Token.h"
 #include "yuzu/Lexer/TokenKind.h"
@@ -77,8 +77,7 @@ const hir::Root *hirPass(ast::SyntaxNode syntaxRoot,
   hir::HirLowerer lowerer(ctx, diagnostics, sourceId);
   const hir::Root *root = lowerer.lower(ast::Root{syntaxRoot});
 
-  auto typeChecker = hir::TypeChecker(ctx);
-  typeChecker.check(root);
+  hir::TypeResolver(ctx).resolve(root);
 
   if (options.debugHir) {
     options.out << "=== hir ===\n"

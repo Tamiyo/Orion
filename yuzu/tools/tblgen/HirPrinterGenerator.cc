@@ -71,7 +71,8 @@ void emitField(CodeFormatter &fmt, const NamedField &f,
                         f.name, getter);
               return;
             }
-            if (nativeName == "std::u32string") {
+            if (nativeName == "std::u32string" ||
+                nativeName == "std::u32string_view") {
               fmt.linef("os << \"{0}=\";", f.name);
               fmt.linef("util::writeUtf8(os, {0});", getter);
               return;
@@ -96,53 +97,16 @@ void emitField(CodeFormatter &fmt, const NamedField &f,
       f.kind);
 }
 
-/// Walk `record`'s parent chain (excluding itself) and return every
-/// inherited Field, innermost-to-outermost. Lets the printer detect
-/// whether a Node inherits a `type` field (the convention used by
-/// `Expr`-derived Nodes) so it can emit the inline `: <type>`
-/// annotation reading directly from `node->getType()`.
-std::vector<NamedField> gatherInheritedFields(const llvm::Record *record) {
-  std::vector<NamedField> out;
-  const llvm::Record *cur = record;
-  while (true) {
-    if (!cur->getValue("Parent")) {
-      break;
-    }
-    cur = cur->getValueAsDef("Parent");
-    const auto fields = parseFields(cur);
-    out.insert(out.end(), fields.begin(), fields.end());
-  }
-  return out;
-}
-
-/// True if the node inherits a `Custom<TypeRef>:$type` field — by
-/// convention, this means the node is `Expr`-derived and has a
-/// printable inline type annotation.
-bool hasInheritedType(const std::vector<NamedField> &inheritedFields) {
-  for (const NamedField &f : inheritedFields) {
-    if (f.name != "type") {
-      continue;
-    }
-    if (const auto *c = std::get_if<Custom>(&f.kind)) {
-      if (c->typeName == "TypeRef") {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 /// Emit the inline annotations that follow a node's name on the same
 /// line:
-///   ` : <type>`   — reads `node->getType()` for `Expr`-derived nodes
-///                   (those that inherit `Custom<TypeRef>:$type`).
+///   ` : <type>`   — reads the type side table (`ctx.getTypeContext()`).
 ///   ` → <kind> <target>` — reads the adjustment side table.
-/// Both are skipped silently when not applicable, so the printer
+/// Both are skipped silently when the node has no entry, so the printer
 /// remains useful at any pipeline stage.
-void emitAnnotations(CodeFormatter &fmt, bool hasType) {
-  if (hasType) {
-    fmt.line("os << \" : \" << asString(node->getType()->getKind());");
-  }
+void emitAnnotations(CodeFormatter &fmt) {
+  fmt.line("if (const auto *t = ctx.getTypeContext().typeOf(node)) {");
+  fmt.line("  os << \" : \" << asString(t->getKind());");
+  fmt.line("}");
   fmt.line("if (const auto a = ctx.getAdjustments().get(node->getId())) {");
   fmt.line("  os << \" \\xE2\\x86\\x92 \" << asString(a->kind) << ' '");
   fmt.line("     << asString(a->target->getKind());");
@@ -150,17 +114,14 @@ void emitAnnotations(CodeFormatter &fmt, bool hasType) {
 }
 
 /// Emit a `print<X>` function for one concrete Node: the indented node
-/// name (no trailing newline), inline annotations (type from
-/// `node->getType()` when present, adjustment from the side table),
-/// then every own field in declaration order. Inherited fields aren't
-/// printed (they're either the inline-annotated `type` or the implicit
-/// `id`).
+/// name (no trailing newline), inline annotations (type and adjustment,
+/// both read from `ctx`'s side tables), then every own field in
+/// declaration order. Inherited fields aren't printed (the implicit `id`
+/// and the side-table type carry no schema field).
 void emitPrintNode(CodeFormatter &fmt, const llvm::Record *node,
                    const llvm::RecordKeeper &records) {
   const std::string name = node->getName().str();
   const std::vector<NamedField> fields = parseFields(node);
-  const std::vector<NamedField> inheritedFields = gatherInheritedFields(node);
-  const bool hasType = hasInheritedType(inheritedFields);
 
   fmt.linef("inline void print{0}(llvm::raw_ostream &os, "
             "HirContext &ctx, const {0} *node, "
@@ -170,14 +131,9 @@ void emitPrintNode(CodeFormatter &fmt, const llvm::Record *node,
     auto body = fmt.block();
     fmt.line("os.indent(indent * 2);");
     fmt.linef("os << \"{0}\";", name);
-    emitAnnotations(fmt, hasType);
+    emitAnnotations(fmt);
     for (const NamedField &f : fields) {
       emitField(fmt, f, records);
-    }
-    if (fields.empty() && !hasType) {
-      // Silence -Wunused-parameter when a Node has nothing to print
-      // beyond its name. `node` and `indent` aren't referenced otherwise.
-      fmt.line("(void)node;");
     }
   }
   fmt.line("}");

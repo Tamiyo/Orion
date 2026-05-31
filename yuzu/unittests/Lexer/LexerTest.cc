@@ -71,6 +71,38 @@ INSTANTIATE_TEST_SUITE_P(
                               Token(TokenKind::ShiftRight, U">>", 0, 2)}}));
 
 INSTANTIATE_TEST_SUITE_P(
+    Delimiters, LexerTokenTest,
+    ::testing::Values(
+        LexerParam{
+            U"[",
+            std::vector<Token>{Token(TokenKind::LeftBracket, U"[", 0, 1)}},
+        LexerParam{
+            U"]",
+            std::vector<Token>{Token(TokenKind::RightBracket, U"]", 0, 1)}},
+        LexerParam{U"{",
+                   std::vector<Token>{Token(TokenKind::LeftBrace, U"{", 0, 1)}},
+        LexerParam{U"}",
+                   std::vector<Token>{Token(TokenKind::RightBrace, U"}", 0, 1)}},
+        LexerParam{U",",
+                   std::vector<Token>{Token(TokenKind::Comma, U",", 0, 1)}},
+        LexerParam{U":", std::vector<Token>{
+                             Token(TokenKind::Colon, U":", 0, 1)}}));
+
+INSTANTIATE_TEST_SUITE_P(
+    Arrow, LexerTokenTest,
+    ::testing::Values(
+        LexerParam{U"->",
+                   std::vector<Token>{Token(TokenKind::Arrow, U"->", 0, 2)}},
+        // A lone `-` stays `Minus`; only `->` munches into an `Arrow`.
+        LexerParam{U"-",
+                   std::vector<Token>{Token(TokenKind::Minus, U"-", 0, 1)}},
+        // `-` then a space is `Minus` then `Gt`, not an arrow.
+        LexerParam{U"- >",
+                   std::vector<Token>{Token(TokenKind::Minus, U"-", 0, 1),
+                                      Token(TokenKind::Space, U" ", 1, 2),
+                                      Token(TokenKind::Gt, U">", 2, 3)}}));
+
+INSTANTIATE_TEST_SUITE_P(
     Integers, LexerTokenTest,
     ::testing::Values(
         LexerParam{U"0", std::vector<Token>{Token(TokenKind::IntegerLiteral,

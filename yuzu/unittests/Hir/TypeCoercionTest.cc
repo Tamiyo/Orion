@@ -6,7 +6,6 @@
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/Types/Adjustment.h"
 #include "yuzu/Hir/Types/Type.h"
-#include "yuzu/Hir/Types/TypeInterner.h"
 
 #include <gtest/gtest.h>
 
@@ -19,7 +18,7 @@ using namespace yuzu::hir;
 using yuzu::diagnostics::DiagnosticsEngine;
 using yuzu::diagnostics::SourceId;
 
-const Type *typeFor(const TypeInterner &i, TypeKind k) {
+const Type *typeFor(const TypeContext &i, TypeKind k) {
   switch (k) {
   case TypeKind::Int8:
     return i.getInt8();
@@ -45,6 +44,11 @@ const Type *typeFor(const TypeInterner &i, TypeKind k) {
     return i.getBool();
   case TypeKind::Str:
     return i.getStr();
+  case TypeKind::Relation:
+  case TypeKind::Struct:
+  case TypeKind::Infer:
+    // Compound — can't be built from a bare kind; coercion tests don't use it.
+    return nullptr;
   case TypeKind::Error:
     return i.getError();
   }
@@ -61,7 +65,9 @@ protected:
   /// so `IntLit` makes a fine generic carrier — the value payload is
   /// irrelevant.
   const Expr *typedExpr(TypeKind k) {
-    return ctx.getBuilder().makeIntLit(0, typeFor(ctx.getTypeInterner(), k));
+    const auto *expr = ctx.getBuilder().makeIntLit(0);
+    ctx.getTypeContext().bind(expr, typeFor(ctx.getTypeContext(), k));
+    return expr;
   }
 };
 

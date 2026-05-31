@@ -2,6 +2,7 @@ add_yuzu_unittest(ParserTests
   Grammar/ExprTest.cc
   Grammar/GrammarTest.cc
   Grammar/StmtTest.cc
+  Grammar/TypeTest.cc
   ParseErrorTest.cc
   ParserTest.cc
   TokenSinkTest.cc

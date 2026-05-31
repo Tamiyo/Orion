@@ -25,16 +25,14 @@ include "yuzu/DSL/TreeBase.td"
 def Bool : Native<"bool"> { let IsTrivial = 1; }
 def Int64 : Native<"int64_t"> { let IsTrivial = 1; }
 def Float64 : Native<"double"> { let IsTrivial = 1; }
-def String : Native<"std::u32string"> { let ViewName = "std::u32string_view"; }
+// HIR strings are interned (`util::StringInterner`), so nodes hold a
+// stable, trivially-copyable view rather than owning a `std::u32string`.
+def String : Native<"std::u32string_view"> { let IsTrivial = 1; }
 def OpRef : Native<"const yuzu::hir::Op *"> { let IsTrivial = 1; }
 
 /// Universal HIR-node id. Declared as a schema Field so the generator
 /// threads it through every constructor instead of special-casing it.
 def Id : Native<"yuzu::hir::HirId"> { let IsTrivial = 1; }
-
-/// Pointer to an interned `Type`. Stored on every `Expr` so the tree is
-/// typed by construction.
-def TypeRef : Native<"const yuzu::hir::Type *"> { let IsTrivial = 1; }
 
 //===----------------------------------------------------------------------===//
 // Root
@@ -66,16 +64,14 @@ def Ident : Node<HirNode> {
 // Expressions
 //===----------------------------------------------------------------------===//
 
-/// Top-level variant for anything that produces a value. Every Expr
-/// carries the type it resolves to; the typer fills this in during
-/// lowering so downstream passes consume an already-typed tree.
-def Expr : Variant<HirNode> {
-    let Fields = (ins Custom<TypeRef>:$type);
-}
+/// Top-level variant for anything that produces a value. The resolved
+/// type lives in `HirContext`'s type side table (keyed by `HirId`), not
+/// on the node — the tree stays immutable while the typer fills types in.
+def Expr : Variant<HirNode> {}
 
 /// An identifier *reference* — an identifier that appears in
-/// expression position. Its `$type` is filled by name resolution,
-/// which looks up the binding the identifier refers to.
+/// expression position. Its type is resolved by name resolution, which
+/// looks up the binding the identifier refers to.
 def IdentExpr : Node<Expr> {
     let Fields = (ins Child<Ident>:$name);
 }
@@ -132,6 +128,9 @@ def ExprStmt : Node<Stmt> {
     );
 }
 
+/// The binding's resolved type — the annotation when present (and checked
+/// against the initializer), otherwise inferred from it — lives in the
+/// `HirContext` type side table, keyed by this node's `HirId`.
 def LetStmt : Node<Stmt> {
     let Fields =  (ins
         Child<Ident>:$name,

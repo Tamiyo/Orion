@@ -2,10 +2,12 @@
 #define YUZU_HIR_RESOLVE_HIRSCOPE_H
 
 #include "yuzu/Hir/Hir.h"
+#include "yuzu/Util/StringInterner.h" // IWYU pragma: keep — DenseMapInfo<u32string_view>
+
+#include <llvm/ADT/DenseMap.h>
 
 #include <cstdint>
-#include <map>
-#include <string>
+#include <string_view>
 
 namespace yuzu::hir {
 class HirSymbolTable;
@@ -13,10 +15,7 @@ class HirSymbolTable;
 enum class [[nodiscard]] HirScopeKind : uint8_t { Block };
 
 /// A lexical scope's bindings + its back-pointer to the owning symbol
-/// table. Held by `HirSymbolTable` in a `std::deque` so addresses
-/// stay stable across push/pop. Keyed by name string (not by `Ident *`
-/// identity) because a binding-site `Ident` and a use-site `Ident`
-/// are independently lowered — they share a name, not a pointer.
+/// table.
 class [[nodiscard]] HirScope {
 public:
   explicit HirScope(HirSymbolTable &symbolTable, HirScopeKind kind)
@@ -31,14 +30,13 @@ public:
 
   HirScopeKind getKind() const { return kind; }
 
-  void bind(const Ident *ident, const Expr *expr) {
-    bindings[ident->getName()] = expr;
+  void bind(const Ident *ident, const LetStmt *decl) {
+    bindings[ident->getName()] = decl;
   }
 
-  /// Returns the bound defining node for `ident`'s name, or nullptr
-  /// if this scope has no entry. Uses `find` rather than `operator[]`
-  /// so a miss doesn't insert a stray default entry.
-  const Expr *lookup(const Ident *ident) const {
+  /// Declaration bound to `ident`'s name, or null if this scope has no
+  /// entry. `find` rather than `operator[]` so a miss doesn't insert.
+  const LetStmt *lookup(const Ident *ident) const {
     const auto it = bindings.find(ident->getName());
     if (it == bindings.end()) {
       return nullptr;
@@ -47,11 +45,7 @@ public:
   }
 
 private:
-  // `std::map` rather than `llvm::DenseMap` because `DenseMap` needs a
-  // `DenseMapInfo<std::u32string>` specialization that doesn't ship
-  // with LLVM. The scope map is small and queried per identifier; the
-  // O(log n) cost is fine until interned `Symbol *` keys land.
-  std::map<std::u32string, const Expr *> bindings;
+  llvm::DenseMap<std::u32string_view, const LetStmt *> bindings;
   HirSymbolTable &symbolTable;
   HirScopeKind kind;
 };

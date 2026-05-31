@@ -37,9 +37,8 @@ protected:
 
   Tree build(HirContext &ctx) {
     auto &b = ctx.getBuilder();
-    auto &ti = ctx.getTypeInterner();
-    const auto *l1 = b.makeIntLit(1, ti.getInt64());
-    const auto *l2 = b.makeIntLit(2, ti.getInt64());
+    const auto *l1 = b.makeIntLit(1);
+    const auto *l2 = b.makeIntLit(2);
     const auto *s1 = b.makeExprStmt(l1);
     const auto *s2 = b.makeExprStmt(l2);
     const std::array<const Stmt *, 2> stmts = {s1, s2};

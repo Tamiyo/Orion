@@ -3,7 +3,11 @@
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Hir/Ops/BuiltinOps.h"
 #include "yuzu/Hir/Ops/Op.h"
+#include "yuzu/Hir/Types/Type.h"
 #include "yuzu/Util/ErrorHandling.h"
+#include "yuzu/Util/Unicode.h"
+
+#include <llvm/Support/FormatVariadic.h>
 
 #include <string>
 #include <vector>
@@ -134,7 +138,8 @@ const Ident *HirLowerer::lowerIdent(ast::Ident ident) {
     return nullptr;
   }
 
-  const auto *hir = ctx.getBuilder().makeIdent(std::u32string(*name));
+  const auto *hir =
+      ctx.getBuilder().makeIdent(ctx.getStringInterner().intern(*name));
   ctx.getSourceTable().bind(hir->getId(), ident);
   return hir;
 }
@@ -151,15 +156,8 @@ const IdentExpr *HirLowerer::lowerIdentExpr(ast::IdentExpr identExpr) {
     return nullptr;
   }
 
-  const Expr *expr = ctx.getSymbolTable().lookup(loweredIdent);
-  if (!expr) {
-    error(identExpr, "unresolved identifier").emit();
-    return nullptr;
-  }
-
-  const auto *hir =
-      ctx.getBuilder().makeIdentExpr(loweredIdent, expr->getType());
-
+  // Name binding (ident → decl) and the type happen in the resolve pass.
+  const auto *hir = ctx.getBuilder().makeIdentExpr(loweredIdent);
   ctx.getSourceTable().bind(hir->getId(), identExpr);
   return hir;
 }
@@ -200,7 +198,14 @@ const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
 
   const auto *hir = ctx.getBuilder().makeLetStmt(loweredIdent, loweredExpr);
   ctx.getSourceTable().bind(hir->getId(), stmt);
-  ctx.getSymbolTable().bind(loweredIdent, loweredExpr);
+
+  // Record the declared annotation type (if any) in the type slot. The
+  // resolve pass reads it as the expected type, checks the initializer
+  // against it, then overwrites the slot with the final binding type.
+  // Name binding and inference of an un-annotated binding live there too.
+  if (const auto annotation = stmt.getType()) {
+    ctx.getTypeContext().bind(hir, lowerType(*annotation));
+  }
   return hir;
 }
 
@@ -262,13 +267,10 @@ const Expr *HirLowerer::lowerBinaryExpr(ast::BinaryExpr expr) {
     return nullptr;
   }
 
-  // Resolve the call's result type from the operand types so the
-  // CallExpr is born with the right type — no follow-up patching needed.
+  // The operator records which op this is; the resolve pass runs it to
+  // compute the result type (and check the operands).
   const std::array<const Expr *, 2> args = {loweredLhs, loweredRhs};
-  const auto *loweredOp = toHir(*op);
-  const auto *type = loweredOp->resolve(args, ctx);
-
-  const auto *hir = ctx.getBuilder().makeCallExpr(loweredOp, args, type);
+  const auto *hir = ctx.getBuilder().makeCallExpr(toHir(*op), args);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
@@ -304,8 +306,7 @@ const BoolLit *HirLowerer::lowerBoolLit(ast::BoolLit expr) {
     error(expr, "bool literal is missing its value").emit();
     return nullptr;
   }
-  const auto *type = ctx.getTypeInterner().getBool();
-  const auto *hir = ctx.getBuilder().makeBoolLit(*value, type);
+  const auto *hir = ctx.getBuilder().makeBoolLit(*value);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
@@ -316,8 +317,7 @@ const IntLit *HirLowerer::lowerIntLit(ast::IntLit expr) {
     error(expr, "integer literal is missing its value").emit();
     return nullptr;
   }
-  const auto *type = ctx.getTypeInterner().getInt64();
-  const auto *hir = ctx.getBuilder().makeIntLit(*value, type);
+  const auto *hir = ctx.getBuilder().makeIntLit(*value);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
@@ -328,8 +328,7 @@ const FloatLit *HirLowerer::lowerFloatLit(ast::FloatLit expr) {
     error(expr, "float literal is missing its value").emit();
     return nullptr;
   }
-  const auto *type = ctx.getTypeInterner().getFloat64();
-  const auto *hir = ctx.getBuilder().makeFloatLit(*value, type);
+  const auto *hir = ctx.getBuilder().makeFloatLit(*value);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
@@ -346,11 +345,65 @@ const StringLit *HirLowerer::lowerStringLit(ast::StringLit expr) {
     error(expr, "string literal is missing its value").emit();
     return nullptr;
   }
-  const auto *type = ctx.getTypeInterner().getStr();
-  const auto *hir =
-      ctx.getBuilder().makeStringLit(std::move(*decoded), *isRaw, type);
+  const auto *hir = ctx.getBuilder().makeStringLit(
+      ctx.getStringInterner().intern(*decoded), *isRaw);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
+}
+
+const Type *HirLowerer::lowerType(ast::TypeExpr type) {
+  switch (type.getKind()) {
+  case ast::SyntaxKind::NamedType:
+    return lowerNamedType(*ast::NamedType::cast(type));
+  case ast::SyntaxKind::FuncType:
+    error(type, "function types are not supported yet").emit();
+    return ctx.getTypeContext().getError();
+  case ast::SyntaxKind::RecordType:
+    error(type, "record types are not supported yet").emit();
+    return ctx.getTypeContext().getError();
+  default:
+    util::yuzu_unreachable();
+  }
+}
+
+const Type *HirLowerer::lowerNamedType(ast::NamedType type) {
+  auto &types = ctx.getTypeContext();
+
+  const auto ident = type.getName();
+  const auto name = ident ? ident->getName() : std::nullopt;
+  if (!name) {
+    error(type, "type is missing its name").emit();
+    return types.getError();
+  }
+
+  std::vector<const Type *> args;
+  for (const ast::TypeExpr arg : type.getArgs()) {
+    args.push_back(lowerType(arg));
+  }
+
+  // // `Relation[T]` — the only built-in constructor so far.
+  // if (*name == U"Relation") {
+  //   if (args.size() != 1) {
+  //     error(type, "`Relation` takes exactly one type argument").emit();
+  //     return types.getError();
+  //   }
+  //   return types.getRelation(args[0]);
+  // }
+
+  if (!args.empty()) {
+    error(
+        type,
+        llvm::formatv("`{0}` is not a generic type", util::toUtf8(*name)).str())
+        .emit();
+    return types.getError();
+  }
+
+  if (const auto *resolved = types.resolveNamed(*name)) {
+    return resolved;
+  }
+  error(type, llvm::formatv("unknown type `{0}`", util::toUtf8(*name)).str())
+      .emit();
+  return types.getError();
 }
 
 diagnostics::DiagnosticBuilder HirLowerer::error(ast::AstNode node,

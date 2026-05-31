@@ -38,21 +38,13 @@ public:
                                        std::string message);
 
 private:
-  /// Lower a binding-position identifier (the name in `let x = ...`).
-  /// Untyped by design — declarations carry no type of their own.
   const Ident *lowerIdent(ast::Ident ident);
 
   const Stmt *lowerExprStmt(ast::ExprStmt stmt);
   const LetStmt *lowerLetStmt(ast::LetStmt stmt);
 
   const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
-  /// Lower a parenthesized expression by lowering its inner expression;
-  /// the grouping parens carry no semantics of their own.
   const Expr *lowerParenExpr(ast::ParenExpr expr);
-  /// Lower an identifier *reference* (an identifier appearing in
-  /// expression position). The result's type comes from name
-  /// resolution — which isn't wired in yet, so this currently emits
-  /// a diagnostic and returns null.
   const IdentExpr *lowerIdentExpr(ast::IdentExpr expr);
 
   const Literal *lowerLiteralExpr(ast::Literal expr);
@@ -60,6 +52,9 @@ private:
   const IntLit *lowerIntLit(ast::IntLit expr);
   const FloatLit *lowerFloatLit(ast::FloatLit expr);
   const StringLit *lowerStringLit(ast::StringLit expr);
+
+  const Type *lowerType(ast::TypeExpr type);
+  const Type *lowerNamedType(ast::NamedType type);
 
   HirContext &ctx;
   diagnostics::DiagnosticsEngine &diagnostics;

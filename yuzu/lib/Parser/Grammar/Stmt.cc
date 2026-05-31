@@ -2,6 +2,8 @@
 
 #include "yuzu/Lexer/TokenKind.h"
 #include "yuzu/Parser/Grammar/Expr.h"
+#include "yuzu/Parser/Grammar/Grammar.h"
+#include "yuzu/Parser/Grammar/Type.h"
 #include "yuzu/Parser/Marker.h"
 #include "yuzu/Parser/Parser.h"
 
@@ -12,21 +14,17 @@ using namespace yuzu::ast;
 using namespace yuzu::lexer;
 
 namespace {
-/// Parse an identifier as a *binding* — produces a `SyntaxKind::Ident`
-/// marker, not `IdentExpr`. The distinction matches the schema split:
-/// `Ident` is a name declaration (no type), `IdentExpr` is a use
-/// (typed by name resolution). `let x = ...` wants the former.
-inline std::optional<CompletedMarker> parseIdent(Parser &p) {
-  const Marker m = p.start();
-  p.expect(TokenKind::Identifier);
-  return p.complete(m, SyntaxKind::Ident);
-}
-
 inline std::optional<CompletedMarker> parseLetStmt(Parser &p) {
   const Marker m = p.start();
   p.expect(TokenKind::LetKw);
 
   const auto _ = parseIdent(p);
+
+  // Optional type annotation: `let x: int = ...`.
+  if (p.at(TokenKind::Colon)) {
+    p.bump(); // ':'
+    parseType(p);
+  }
 
   p.expect(TokenKind::Eq);
   parseExpr(p);

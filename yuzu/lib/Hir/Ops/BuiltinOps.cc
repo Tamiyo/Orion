@@ -17,14 +17,28 @@ namespace {
 /// `return unsupportedOperands(args, ctx, "<")`.
 const Type *unsupportedOperands(llvm::ArrayRef<const Expr *> args,
                                 HirContext &ctx, llvm::StringRef symbol) {
-  ctx.error(args,
-            llvm::formatv("binary operator `{0}` cannot be applied to "
-                          "`{1}` and `{2}`",
-                          symbol, asString(args[0]->getType()->getKind()),
-                          asString(args[1]->getType()->getKind()))
-                .str())
+  auto &types = ctx.getTypeContext();
+
+  // Resolve holes for the message so an unpinned literal reports its
+  // default type (`int64`) rather than the internal `<infer>`.
+  const auto *lhs = types.resolve(types.typeOf(args[0]));
+  const auto *rhs = types.resolve(types.typeOf(args[1]));
+  ctx.error(args, llvm::formatv("binary operator `{0}` cannot be applied to "
+                                "`{1}` and `{2}`",
+                                symbol, asString(lhs->getKind()),
+                                asString(rhs->getKind()))
+                      .str())
       .emit();
-  return ctx.getTypeInterner().getError();
+  return ctx.getTypeContext().getError();
+}
+
+/// Resolve each operand's type, defaulting any unresolved literal hole to
+/// its concrete type. The shifts call this so an `Int` hole reads as an
+/// integer (passing `isInt`) instead of failing as an unresolved hole.
+void resolveOperandTypes(llvm::ArrayRef<const Expr *> args, HirContext &ctx) {
+  for (const Expr *arg : args) {
+    ctx.getTypeContext().concretize(arg);
+  }
 }
 
 } // namespace
@@ -36,10 +50,11 @@ const Type *unsupportedOperands(llvm::ArrayRef<const Expr *> args,
 
 const Type *AddOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
@@ -47,7 +62,7 @@ const Type *AddOp::resolve(llvm::ArrayRef<const Expr *> args,
 
   if (lhsType->getKind() == TypeKind::Str &&
       rhsType->getKind() == TypeKind::Str) {
-    return ctx.getTypeInterner().getStr();
+    return ctx.getTypeContext().getStr();
   }
 
   return unsupportedOperands(args, ctx, "+");
@@ -55,10 +70,11 @@ const Type *AddOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *SubOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
@@ -69,10 +85,11 @@ const Type *SubOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *MulOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
@@ -83,10 +100,11 @@ const Type *MulOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *DivOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
@@ -97,10 +115,11 @@ const Type *DivOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *PowOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (const auto *coerced = coerceTypes(args[0], args[1], ctx)) {
       return coerced;
     }
@@ -115,9 +134,9 @@ const Type *PowOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *AndOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  if (args[0]->getType()->getKind() == TypeKind::Bool &&
-      args[1]->getType()->getKind() == TypeKind::Bool) {
-    return ctx.getTypeInterner().getBool();
+  if (ctx.getTypeContext().typeOf(args[0])->getKind() == TypeKind::Bool &&
+      ctx.getTypeContext().typeOf(args[1])->getKind() == TypeKind::Bool) {
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, "and");
@@ -125,9 +144,9 @@ const Type *AndOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *OrOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
-  if (args[0]->getType()->getKind() == TypeKind::Bool &&
-      args[1]->getType()->getKind() == TypeKind::Bool) {
-    return ctx.getTypeInterner().getBool();
+  if (ctx.getTypeContext().typeOf(args[0])->getKind() == TypeKind::Bool &&
+      ctx.getTypeContext().typeOf(args[1])->getKind() == TypeKind::Bool) {
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, "or");
@@ -140,9 +159,9 @@ const Type *OrOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *InOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
-  if (args[0]->getType()->getKind() == TypeKind::Str &&
-      args[1]->getType()->getKind() == TypeKind::Str) {
-    return ctx.getTypeInterner().getBool();
+  if (ctx.getTypeContext().typeOf(args[0])->getKind() == TypeKind::Str &&
+      ctx.getTypeContext().typeOf(args[1])->getKind() == TypeKind::Str) {
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, "in");
@@ -150,9 +169,9 @@ const Type *InOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *NotInOp::resolve(llvm::ArrayRef<const Expr *> args,
                              HirContext &ctx) const {
-  if (args[0]->getType()->getKind() == TypeKind::Str &&
-      args[1]->getType()->getKind() == TypeKind::Str) {
-    return ctx.getTypeInterner().getBool();
+  if (ctx.getTypeContext().typeOf(args[0])->getKind() == TypeKind::Str &&
+      ctx.getTypeContext().typeOf(args[1])->getKind() == TypeKind::Str) {
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, "not in");
@@ -167,7 +186,7 @@ const Type *NotInOp::resolve(llvm::ArrayRef<const Expr *> args,
 const Type *EqOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
   if (coerceTypes(args[0], args[1], ctx)) {
-    return ctx.getTypeInterner().getBool();
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, "==");
@@ -176,7 +195,7 @@ const Type *EqOp::resolve(llvm::ArrayRef<const Expr *> args,
 const Type *NeqOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
   if (coerceTypes(args[0], args[1], ctx)) {
-    return ctx.getTypeInterner().getBool();
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, "!=");
@@ -188,18 +207,19 @@ const Type *NeqOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *LtOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (coerceTypes(args[0], args[1], ctx)) {
-      return ctx.getTypeInterner().getBool();
+      return ctx.getTypeContext().getBool();
     }
   }
 
   if (lhsType->getKind() == TypeKind::Str &&
       rhsType->getKind() == TypeKind::Str) {
-    return ctx.getTypeInterner().getBool();
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, "<");
@@ -207,18 +227,19 @@ const Type *LtOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *LteOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (coerceTypes(args[0], args[1], ctx)) {
-      return ctx.getTypeInterner().getBool();
+      return ctx.getTypeContext().getBool();
     }
   }
 
   if (lhsType->getKind() == TypeKind::Str &&
       rhsType->getKind() == TypeKind::Str) {
-    return ctx.getTypeInterner().getBool();
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, "<=");
@@ -226,18 +247,19 @@ const Type *LteOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *GtOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (coerceTypes(args[0], args[1], ctx)) {
-      return ctx.getTypeInterner().getBool();
+      return ctx.getTypeContext().getBool();
     }
   }
 
   if (lhsType->getKind() == TypeKind::Str &&
       rhsType->getKind() == TypeKind::Str) {
-    return ctx.getTypeInterner().getBool();
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, ">");
@@ -245,18 +267,19 @@ const Type *GtOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *GteOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  const auto *lhsType = args[0]->getType();
-  const auto *rhsType = args[1]->getType();
+  const auto *lhsType = ctx.getTypeContext().typeOf(args[0]);
+  const auto *rhsType = ctx.getTypeContext().typeOf(args[1]);
 
-  if (lhsType->isNumeric() && rhsType->isNumeric()) {
+  if ((lhsType->isNumeric() || lhsType->isHole()) &&
+      (rhsType->isNumeric() || rhsType->isHole())) {
     if (coerceTypes(args[0], args[1], ctx)) {
-      return ctx.getTypeInterner().getBool();
+      return ctx.getTypeContext().getBool();
     }
   }
 
   if (lhsType->getKind() == TypeKind::Str &&
       rhsType->getKind() == TypeKind::Str) {
-    return ctx.getTypeInterner().getBool();
+    return ctx.getTypeContext().getBool();
   }
 
   return unsupportedOperands(args, ctx, ">=");
@@ -270,8 +293,10 @@ const Type *GteOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *ShiftLeftOp::resolve(llvm::ArrayRef<const Expr *> args,
                                  HirContext &ctx) const {
-  if (args[0]->getType()->isInt() && args[1]->getType()->isInt()) {
-    return args[0]->getType();
+  resolveOperandTypes(args, ctx);
+  auto &types = ctx.getTypeContext();
+  if (types.typeOf(args[0])->isInt() && types.typeOf(args[1])->isInt()) {
+    return types.typeOf(args[0]);
   }
 
   return unsupportedOperands(args, ctx, "<<");
@@ -279,8 +304,10 @@ const Type *ShiftLeftOp::resolve(llvm::ArrayRef<const Expr *> args,
 
 const Type *ShiftRightOp::resolve(llvm::ArrayRef<const Expr *> args,
                                   HirContext &ctx) const {
-  if (args[0]->getType()->isInt() && args[1]->getType()->isInt()) {
-    return args[0]->getType();
+  resolveOperandTypes(args, ctx);
+  auto &types = ctx.getTypeContext();
+  if (types.typeOf(args[0])->isInt() && types.typeOf(args[1])->isInt()) {
+    return types.typeOf(args[0]);
   }
 
   return unsupportedOperands(args, ctx, ">>");

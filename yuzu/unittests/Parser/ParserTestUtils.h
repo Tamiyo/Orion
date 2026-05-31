@@ -11,6 +11,7 @@
 #include "yuzu/Parser/Grammar/Expr.h"
 #include "yuzu/Parser/Grammar/Grammar.h"
 #include "yuzu/Parser/Grammar/Stmt.h"
+#include "yuzu/Parser/Grammar/Type.h"
 #include "yuzu/Parser/Marker.h"
 #include "yuzu/Parser/Parser.h"
 #include "yuzu/Parser/TokenSink.h"
@@ -78,6 +79,13 @@ protected:
       parser::parseExpr(p);
       auto _ = p.complete(root, ast::SyntaxKind::Expr);
     });
+  }
+
+  /// \brief Drive the pipeline against `source` using the type-expression
+  /// grammar entry. `parseType` opens its own concrete-node marker
+  /// (`NamedType` / `FuncType` / `RecordType`).
+  ParseResult parseType(std::u32string_view source) {
+    return run(source, [](Parser &p) { auto _ = parser::parseType(p); });
   }
 
 private:

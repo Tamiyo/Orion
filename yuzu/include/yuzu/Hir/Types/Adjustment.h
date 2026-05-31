@@ -33,7 +33,7 @@ inline std::string asString(AdjustmentKind kind) {
 struct Adjustment {
   AdjustmentKind kind;
   /// Type after the adjustment is applied. Always an interned pointer
-  /// from `TypeInterner`, so equality is `==`.
+  /// from `TypeFactory`, so equality is `==`.
   const Type *target;
 };
 } // namespace yuzu::hir

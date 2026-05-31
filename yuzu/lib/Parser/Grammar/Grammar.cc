@@ -1,5 +1,6 @@
 #include "yuzu/Parser/Grammar/Grammar.h"
 
+#include "yuzu/Lexer/TokenKind.h"
 #include "yuzu/Parser/Grammar/Stmt.h"
 #include "yuzu/Parser/Marker.h"
 #include "yuzu/Parser/Parser.h"
@@ -9,6 +10,12 @@
 namespace yuzu::parser {
 
 using yuzu::ast::SyntaxKind;
+
+std::optional<CompletedMarker> parseIdent(Parser &p) {
+  const Marker m = p.start();
+  p.expect(lexer::TokenKind::Identifier);
+  return p.complete(m, SyntaxKind::Ident);
+}
 
 std::optional<CompletedMarker> parseRoot(Parser &p) {
   const auto m = p.start();

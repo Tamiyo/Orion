@@ -92,6 +92,30 @@ std::optional<Token> Lexer::getNextToken() {
     bump();
     return createToken(start, TokenKind::RightParen);
   }
+  case U'[': {
+    bump();
+    return createToken(start, TokenKind::LeftBracket);
+  }
+  case U']': {
+    bump();
+    return createToken(start, TokenKind::RightBracket);
+  }
+  case U'{': {
+    bump();
+    return createToken(start, TokenKind::LeftBrace);
+  }
+  case U'}': {
+    bump();
+    return createToken(start, TokenKind::RightBrace);
+  }
+  case U',': {
+    bump();
+    return createToken(start, TokenKind::Comma);
+  }
+  case U':': {
+    bump();
+    return createToken(start, TokenKind::Colon);
+  }
   case U'=': {
     if (peek(1) == U'=') {
       bump(2);
@@ -114,6 +138,10 @@ std::optional<Token> Lexer::getNextToken() {
     return createToken(start, TokenKind::Plus);
   }
   case U'-': {
+    if (peek(1) == U'>') {
+      bump(2);
+      return createToken(start, TokenKind::Arrow);
+    }
     bump();
     return createToken(start, TokenKind::Minus);
   }

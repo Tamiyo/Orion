@@ -11,3 +11,5 @@ cmake-build-debug/
 # CMake
 compile_commands.json
 .cache
+
+notes/

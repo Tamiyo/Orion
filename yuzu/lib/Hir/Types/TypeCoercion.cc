@@ -13,9 +13,9 @@ namespace {
 /// for later application.
 const Type *cast(const Expr *from, const Expr *to, HirContext &ctx) {
   const auto adjustment =
-      Adjustment{.kind = AdjustmentKind::Cast, .target = to->getType()};
+      Adjustment{.kind = AdjustmentKind::Cast, .target = ctx.getTypeContext().typeOf(to)};
   ctx.getAdjustments().bind(from->getId(), adjustment);
-  return to->getType();
+  return ctx.getTypeContext().typeOf(to);
 }
 
 /// Rank in the numeric promotion hierarchy. Higher rank = wider type.
@@ -49,8 +49,8 @@ std::optional<int> numericRank(const Type *type) {
 /// widens into the float. Precision loss for large integers (e.g.
 /// `Int64 → Float64`) is the caller's risk.
 const Type *coerceFloats(const Expr *a, const Expr *b, HirContext &ctx) {
-  const auto ra = numericRank(a->getType());
-  const auto rb = numericRank(b->getType());
+  const auto ra = numericRank(ctx.getTypeContext().typeOf(a));
+  const auto rb = numericRank(ctx.getTypeContext().typeOf(b));
 
   return (*ra < *rb) ? cast(a, b, ctx) : cast(b, a, ctx);
 }
@@ -60,8 +60,8 @@ const Type *coerceFloats(const Expr *a, const Expr *b, HirContext &ctx) {
 /// to avoid silent value corruption (`Int8(-1) → UInt8` becomes 255,
 /// etc.). The caller writes an explicit cast.
 const Type *coerceIntegers(const Expr *a, const Expr *b, HirContext &ctx) {
-  const auto *aType = a->getType();
-  const auto *bType = b->getType();
+  const auto *aType = ctx.getTypeContext().typeOf(a);
+  const auto *bType = ctx.getTypeContext().typeOf(b);
   if (aType->isUnsigned() != bType->isUnsigned()) {
     return nullptr;
   }
@@ -73,22 +73,52 @@ const Type *coerceIntegers(const Expr *a, const Expr *b, HirContext &ctx) {
 } // namespace
 
 const Type *coerceTypes(const Expr *a, const Expr *b, HirContext &ctx) {
-  const auto *aType = a->getType();
-  const auto *bType = b->getType();
+  auto &types = ctx.getTypeContext();
+  const auto *aType = types.typeOf(a);
+  const auto *bType = types.typeOf(b);
 
-  if (aType->getKind() == bType->getKind()) {
+  // Unify first: identical types, or an untyped literal adopting its
+  // partner (and `5 + 5` stays one open hole the caller can still pin).
+  if (types.unify(aType, bType)) {
     return aType;
   }
+
+  // Refused — pin any holes to their defaults, then widen numerically.
+  aType = types.resolve(aType);
+  bType = types.resolve(bType);
+  types.bind(a, aType);
+  types.bind(b, bType);
 
   if (!aType->isNumeric() || !bType->isNumeric()) {
     return nullptr;
   }
-
   if (aType->isFloat() || bType->isFloat()) {
     return coerceFloats(a, b, ctx);
   }
-
   return coerceIntegers(a, b, ctx);
+}
+
+bool coercesTo(const Expr *value, const Type *target, HirContext &ctx) {
+  const auto *source = ctx.getTypeContext().typeOf(value);
+  if (source == target) {
+    return true;
+  }
+  if (!source->isNumeric() || !target->isNumeric()) {
+    return false;
+  }
+
+  // Only widening is implicit: rank must not shrink, and signedness must
+  // match (any integer also widens into a float). Record the cast.
+  if (*numericRank(source) > *numericRank(target)) {
+    return false;
+  }
+  if (!target->isFloat() && source->isUnsigned() != target->isUnsigned()) {
+    return false;
+  }
+  ctx.getAdjustments().bind(
+      value->getId(),
+      Adjustment{.kind = AdjustmentKind::Cast, .target = target});
+  return true;
 }
 
 } // namespace yuzu::hir

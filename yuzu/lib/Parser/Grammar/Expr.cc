@@ -2,6 +2,7 @@
 
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Lexer/TokenKind.h"
+#include "yuzu/Parser/Grammar/Grammar.h"
 #include "yuzu/Parser/Marker.h"
 #include "yuzu/Parser/Parser.h"
 
@@ -176,12 +177,9 @@ std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
   const Marker m = p.start();
 
   // The schema declares `IdentExpr` as `Child<Ident>:$name`, so the
-  // tree must nest an `Ident` node inside the `IdentExpr` — not
-  // bury the `Identifier` token directly. The AST accessor digs out
-  // the child `Ident` via the schema's child-iteration path.
-  const Marker inner = p.start();
-  p.expect(TokenKind::Identifier);
-  const auto _ = p.complete(inner, SyntaxKind::Ident);
+  // tree must nest an `Ident` node inside the `IdentExpr` — not bury the
+  // `Identifier` token directly. `parseIdent` builds that nested node.
+  const auto _ = parseIdent(p);
 
   return p.complete(m, SyntaxKind::IdentExpr);
 }

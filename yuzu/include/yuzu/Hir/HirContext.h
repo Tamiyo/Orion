@@ -9,8 +9,9 @@
 #include "yuzu/Hir/HirBuilder.h"
 #include "yuzu/Hir/Resolve/HirSymbolTable.h"
 #include "yuzu/Hir/Types/Adjustment.h"
-#include "yuzu/Hir/Types/TypeInterner.h"
+#include "yuzu/Hir/Types/TypeContext.h"
 #include "yuzu/Util/SideTable.h"
+#include "yuzu/Util/StringInterner.h"
 
 #include <llvm/ADT/Twine.h>
 
@@ -35,23 +36,15 @@ public:
       : diagnostics(diagnostics), sourceId(sourceId) {}
 
   HirBuilder &getBuilder() { return builder; }
-
   HirSymbolTable &getSymbolTable() { return symbolTable; }
+  HirSourceTable &getSourceTable() { return sourceTable; }
+  HirAdjustmentTable &getAdjustments() { return adjustments; }
+  TypeContext &getTypeContext() { return typeContext; }
+  util::StringInterner &getStringInterner() { return stringInterner; }
 
   /// Rebind the source id used by `spanFor`/`error` for any HIR nodes
-  /// lowered after this point. The session driver registers each
-  /// input as a fresh source and calls this so per-line diagnostics
-  /// resolve to the right source map entry. Spans for nodes built
-  /// *before* the rebind still resolve via the side table's
-  /// stored `ast::AstNode` (which already pins its own source via
-  /// the green-tree shared_ptr).
+  /// lowered after this point.
   void setSourceId(diagnostics::SourceId id) { sourceId = id; }
-
-  HirSourceTable &getSourceTable() { return sourceTable; }
-
-  HirAdjustmentTable &getAdjustments() { return adjustments; }
-
-  TypeInterner &getTypeInterner() { return typeInterner; }
 
   diagnostics::DiagnosticBuilder error(const HirNode *node,
                                        const llvm::Twine &message) {
@@ -98,7 +91,8 @@ private:
   HirSymbolTable symbolTable;
   HirSourceTable sourceTable;
   HirAdjustmentTable adjustments;
-  TypeInterner typeInterner;
+  util::StringInterner stringInterner;
+  TypeContext typeContext{stringInterner};
 
   diagnostics::DiagnosticsEngine &diagnostics;
   diagnostics::SourceId sourceId;

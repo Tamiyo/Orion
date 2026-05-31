@@ -26,12 +26,20 @@ let IsSymbol = 1 in {
   def ShiftLeft   : Token<["<<"]>;
   def ShiftRight  : Token<[">>"]>;
 
+  // Function-type / return arrow: `(int) -> bool`.
+  def Arrow       : Token<["->"]>;
 }
 
 // Punctuation
 let IsPunctuation = 1 in {
-  def LeftParen  : Token<["("]>;
-  def RightParen : Token<[")"]>;
+  def LeftParen    : Token<["("]>;
+  def RightParen   : Token<[")"]>;
+  def LeftBracket  : Token<["["]>;
+  def RightBracket : Token<["]"]>;
+  def LeftBrace    : Token<["{"]>;
+  def RightBrace   : Token<["}"]>;
+  def Comma        : Token<[","]>;
+  def Colon        : Token<[":"]>;
 }
 
 // Literals

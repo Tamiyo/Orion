@@ -20,6 +20,15 @@ def Int64 : Native<"int64_t"> { let IsTrivial = 1; }
 def Float64 : Native<"double"> { let IsTrivial = 1; }
 def String : Native<"std::u32string"> { let ViewName = "std::u32string_view"; }
 
+def Visibility : Enum<"uint8_t"> {
+    let Cases = [
+        EnumCase<"Public">,
+        EnumCase<"Protected">,
+        EnumCase<"Internal">,
+        EnumCase<"Private">,
+    ];
+}
+
 /// A binary operator.
 def BinOp : Enum<"uint8_t"> {
     let Cases = [
@@ -151,11 +160,77 @@ def StringLit : Node<Literal> {
 }
 
 //===----------------------------------------------------------------------===//
+// Type expressions
+//===----------------------------------------------------------------------===//
+
+/// A type as written in *source* — a syntactic annotation, distinct from
+/// the semantic `hir::Type` it eventually lowers to. A variant so the
+/// different shapes (named, function, record) share one field slot, e.g.
+/// `StructField.type`.
+def TypeExpr : Variant<AstNode> {}
+
+/// A named type, optionally applied to type arguments:
+/// `string`, `Employee`, `Relation[Employee]`, `List[Relation[T]]`. The
+/// `args` list is empty for a plain name; each argument is itself a
+/// `TypeExpr`, so nesting falls out for free. Value-parameterized types
+/// like `decimal(2, 12)` are a later addition.
+def NamedType : Node<TypeExpr> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Children<TypeExpr>:$args
+    );
+}
+
+/// A function type: `(int, str) -> bool`. Positional parameter types and a
+/// single result; `params` is empty for `() -> T`.
+def FuncType : Node<TypeExpr> {
+    let Fields = (ins
+        Children<TypeExpr>:$params,
+        Child<TypeExpr>:$result
+    );
+}
+
+/// One `name: type` member of a `RecordType`. Unlike `StructField` it
+/// carries no visibility — anonymous records have no access control.
+def RecordField : Node<AstNode> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Child<TypeExpr>:$type
+    );
+}
+
+/// An anonymous record type: `(sum: decimal, count: int64)`. Structural
+/// (no declared name) — used for aggregate accumulators and `select`
+/// output rows.
+def RecordType : Node<TypeExpr> {
+    let Fields = (ins
+        Children<RecordField>:$fields
+    );
+}
+
+//===----------------------------------------------------------------------===//
 // Statements
 //===----------------------------------------------------------------------===//
 
 /// Top-level variant for statements.
 def Stmt : Variant<AstNode> {}
+
+def StructField : Node<AstNode> {
+    let Fields = (ins
+        Custom<Visibility>:$visibility,
+        Child<Ident>:$name,
+        Child<TypeExpr>:$type
+    );
+}
+
+def StructStmt : Node<Stmt> {
+    let Fields = (ins
+        Custom<Visibility>:$visibility,
+        Child<Ident>:$bound, // optional
+        Child<Ident>:$name,
+        Children<StructField>:$fields
+    );
+}
 
 /// Statement wrapping a single expression: `42`, `a + b`, etc.
 def ExprStmt : Node<Stmt> {
@@ -165,8 +240,9 @@ def ExprStmt : Node<Stmt> {
 }
 
 def LetStmt : Node<Stmt> {
-    let Fields =  (ins
+    let Fields = (ins
         Child<Ident>:$name,
+        Child<TypeExpr>:$type, // optional — present only when annotated
         Child<Expr>:$expr
     );
 }

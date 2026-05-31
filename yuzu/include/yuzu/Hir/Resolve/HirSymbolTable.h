@@ -18,20 +18,19 @@ public:
 
   HirScope &pushScope(HirScopeKind kind);
 
-  /// Bind `ident`'s name to `def` in the current (innermost) scope.
-  /// Re-binding the same name in the same scope overwrites — shadowing
-  /// across scopes is the lookup loop's job.
-  void bind(const Ident *ident, const Expr *expr) {
-    scopes.back().bind(ident, expr);
+  /// Bind `ident`'s name to its declaration in the current (innermost)
+  /// scope. Re-binding the same name in the same scope overwrites —
+  /// shadowing across scopes is the lookup loop's job.
+  void bind(const Ident *ident, const LetStmt *decl) {
+    scopes.back().bind(ident, decl);
   }
 
   /// Walk from the innermost scope outward, returning the first
-  /// binding for `ident`'s name. `nullptr` if the name is unbound
-  /// anywhere along the chain.
-  const Expr *lookup(const Ident *ident) const {
+  /// declaration bound to `ident`'s name. `nullptr` if unbound.
+  const LetStmt *lookup(const Ident *ident) const {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-      if (const Expr *expr = it->lookup(ident)) {
-        return expr;
+      if (const LetStmt *decl = it->lookup(ident)) {
+        return decl;
       }
     }
     return nullptr;
