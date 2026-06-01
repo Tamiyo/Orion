@@ -85,7 +85,14 @@ void emitField(CodeFormatter &fmt, const NamedField &f,
               return;
             }
             if (nativeName == "const yuzu::hir::Op *") {
-              fmt.linef("os << \"{0}=\" << {1}->getName();", f.name, getter);
+              // An `Op *` may be null (a function call's `CallExpr` carries a
+              // callee instead), so guard before dereferencing.
+              fmt.linef("if ({0} != nullptr) {{", getter);
+              {
+                auto body = fmt.block();
+                fmt.linef("os << \"{0}=\" << {1}->getName();", f.name, getter);
+              }
+              fmt.line("}");
               return;
             }
             fmt.linef("os << \"{0}=\" << {1};", f.name, getter);

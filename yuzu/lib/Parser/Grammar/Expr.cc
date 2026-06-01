@@ -251,6 +251,22 @@ std::optional<CompletedMarker> parseLhs(Parser &p) {
   }
 }
 
+/// `ArgList := '(' ( Expr (',' Expr)* )? ')'` — the parenthesized arguments
+/// of a call, parsed into their own node.
+std::optional<CompletedMarker> parseArgList(Parser &p) {
+  const Marker m = p.start();
+  p.expect(TokenKind::LeftParen);
+  if (!p.at(TokenKind::RightParen)) {
+    parseExprBindingPower(p, 0);
+    while (p.at(TokenKind::Comma)) {
+      p.bump(); // ','
+      parseExprBindingPower(p, 0);
+    }
+  }
+  p.expect(TokenKind::RightParen);
+  return p.complete(m, SyntaxKind::ArgList);
+}
+
 std::optional<CompletedMarker>
 parseExprBindingPower(Parser &p, const size_t minimumBindingPower) {
   std::optional<CompletedMarker> parsedLhs = parseLhs(p);
@@ -259,6 +275,16 @@ parseExprBindingPower(Parser &p, const size_t minimumBindingPower) {
   }
 
   while (true) {
+    // Postfix call: `lhs(...)`. Binds tighter than any binary operator, so
+    // it attaches to the immediate LHS before the operator loop runs. The
+    // completed LHS becomes the callee, wrapping into a `CallExpr`.
+    if (p.at(TokenKind::LeftParen)) {
+      const auto [marker, _] = p.precede(*parsedLhs);
+      parseArgList(p);
+      parsedLhs.emplace(p.complete(marker, SyntaxKind::CallExpr));
+      continue;
+    }
+
     // Stop if we are not at a binary operator.
     const auto op = parseBinOp(p);
     if (!op.has_value()) {

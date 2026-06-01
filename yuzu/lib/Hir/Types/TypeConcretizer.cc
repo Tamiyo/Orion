@@ -9,29 +9,25 @@
 namespace yuzu::hir {
 namespace {
 
-/// Range-check a literal that *directly* supplies a value (so the literal
-/// is the whole value, not an operand of a larger expression). Literals
-/// inside arithmetic (`128 - 20`) are deliberately skipped — judging those
-/// needs constant folding, which is a later phase; checking them per-literal
-/// gives both false positives (`128`) and false negatives (`126 + 127`).
+/// Range-check a literal that *directly* supplies a value (not an operand of
+/// a larger expression — those wait for constant folding).
 void checkLiteralRange(const Expr *e, HirContext &ctx) {
   const Type *type = ctx.getTypeContext().typeOf(e);
   if (!type) {
     return;
   }
 
-  if (const auto *lit = IntLit::cast(e);
-      lit && type->isInt() && !type->canRepresent(lit->getValue())) {
-    ctx.error(lit,
-              llvm::formatv("integer literal {0} is out of range for `{1}`",
-                            lit->getValue(), asString(type->getKind()))
-                  .str())
+  if (const auto *i = IntLit::cast(e);
+      i && type->isInt() && !type->canRepresent(i->getValue())) {
+    ctx.error(i, llvm::formatv("integer literal {0} is out of range for `{1}`",
+                               i->getValue(), asString(type->getKind()))
+                     .str())
         .emit();
-  } else if (const auto *flit = FloatLit::cast(e);
-             flit && type->isFloat() && !type->canRepresent(flit->getValue())) {
-    ctx.error(flit, llvm::formatv("float literal {0} is out of range for `{1}`",
-                                  flit->getValue(), asString(type->getKind()))
-                        .str())
+  } else if (const auto *f = FloatLit::cast(e);
+             f && type->isFloat() && !type->canRepresent(f->getValue())) {
+    ctx.error(f, llvm::formatv("float literal {0} is out of range for `{1}`",
+                               f->getValue(), asString(type->getKind()))
+                     .str())
         .emit();
   }
 }
@@ -43,13 +39,16 @@ void TypeConcretizer::visit(const HirNode *node) {
   HirVisitor::visit(node);
   ctx.getTypeContext().concretize(node);
 
-  // A literal that *directly* supplies a value — a binding initializer or a
-  // returned value — is range-checked against its resolved type. (Literals
-  // inside larger expressions wait for constant folding.)
+  // Range-check a literal that directly supplies a value: a binding
+  // initializer, a returned value, or a call argument.
   if (const auto *let = LetStmt::cast(node)) {
     checkLiteralRange(let->getExpr(), ctx);
   } else if (const auto *ret = ReturnStmt::cast(node); ret && ret->getExpr()) {
     checkLiteralRange(ret->getExpr(), ctx);
+  } else if (const auto *call = FnCallExpr::cast(node)) {
+    for (const Expr *arg : call->getArgs()) {
+      checkLiteralRange(arg, ctx);
+    }
   }
 }
 

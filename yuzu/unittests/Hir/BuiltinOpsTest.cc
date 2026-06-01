@@ -67,6 +67,7 @@ protected:
     case TypeKind::Relation:
     case TypeKind::Struct:
     case TypeKind::Func:
+    case TypeKind::TypeParam:
     case TypeKind::Infer:
       // Compound — can't be built from a bare kind; op tests don't use it.
       return nullptr;

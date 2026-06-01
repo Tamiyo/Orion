@@ -6,6 +6,8 @@
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/HirVisitor.h"
 
+#include <llvm/ADT/DenseMap.h>
+
 namespace yuzu::hir {
 /// Post-order walk that types every node (literals → holes, idents → their
 /// decl, operators via `op->resolve`, `let`s checked). Children are typed
@@ -20,28 +22,29 @@ public:
   void visitFloatLit(const FloatLit *n);
   void visitIdentExpr(const IdentExpr *n);
   void visitCallExpr(const CallExpr *n);
+  void visitFnCallExpr(const FnCallExpr *n);
   void visitLetStmt(const LetStmt *n);
   void visitReturnStmt(const ReturnStmt *n);
 
-  // A function controls its own traversal: bind params into a fresh scope
-  // *before* the body is typed (post-order `visit` would type the body
-  // first, when params aren't yet in scope).
+  // Override traversal so params bind into the fn scope before the body types.
   void traverseFnStmt(const FnStmt *n);
 
 private:
-  /// The resolved type a node's annotation denotes, or null if it has none.
-  /// Resolves the raw `ast::TypeExpr` recorded by lowering against the type
-  /// scope (builtins today; `[T]` params once generics land). Diagnostics
-  /// anchor at `node`, the annotated HIR node.
+  /// The type a node's annotation denotes, or null if it has none. Resolves
+  /// the raw `ast::TypeExpr` against scope; diagnostics anchor at `node`.
   const Type *resolveAnnotation(const HirNode *node);
   const Type *resolveType(ast::TypeExpr type, const HirNode *node);
   const Type *resolveNamedType(ast::NamedType type, const HirNode *node);
 
+  /// Instantiate a generic signature for one call: each `TypeParamTy` →
+  /// a fresh hole (same index → same hole, via `subst`).
+  const Type *instantiate(const Type *type,
+                          llvm::DenseMap<uint32_t, const Type *> &subst);
+
   HirContext &ctx;
 
-  // The declared return type of the function currently being typed, or null
-  // outside any function / when the function has no return annotation.
-  // Saved and restored across nested functions in `traverseFnStmt`.
+  // Declared return type of the function being typed, null outside one.
+  // Saved/restored across nested functions in `traverseFnStmt`.
   const Type *expectedReturn = nullptr;
 };
 

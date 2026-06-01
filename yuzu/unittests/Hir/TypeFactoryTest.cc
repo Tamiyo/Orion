@@ -167,6 +167,33 @@ TEST_F(TypeFactoryTest, FuncIsNotInterned) {
   EXPECT_EQ(a->getRet(), b->getRet());
 }
 
+TEST_F(TypeFactoryTest, TypeParamCarriesIndexAndName) {
+  const auto *t = interner.getTypeParam(0, U"T");
+  EXPECT_EQ(t->getKind(), TypeKind::TypeParam);
+  EXPECT_EQ(t->getIndex(), 0u);
+  EXPECT_EQ(t->getName(), U"T");
+
+  // RTTI: a type param casts to `TypeParamTy`, a primitive does not.
+  EXPECT_NE(TypeParamTy::cast(t), nullptr);
+  EXPECT_EQ(TypeParamTy::cast(interner.getInt32()), nullptr);
+}
+
+TEST_F(TypeFactoryTest, TypeParamIsNotInterned) {
+  // Each declared `[T]` is a distinct marker — identity, not name, matters.
+  EXPECT_NE(interner.getTypeParam(0, U"T"), interner.getTypeParam(0, U"T"));
+}
+
+TEST_F(TypeFactoryTest, TypeParamCopiesNameIntoArena) {
+  const TypeParamTy *t = nullptr;
+  {
+    std::u32string name = U"Elem";
+    t = interner.getTypeParam(2, name);
+    name = U"clobbered";
+  }
+  EXPECT_EQ(t->getName(), U"Elem");
+  EXPECT_EQ(t->getIndex(), 2u);
+}
+
 TEST_F(TypeFactoryTest, DistinctPrimitivesHaveDistinctPointers) {
   // Pointer-equality is the interning contract, so every primitive must
   // be a distinct address from every other primitive.

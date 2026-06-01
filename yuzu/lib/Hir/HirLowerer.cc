@@ -213,9 +213,8 @@ const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
   const auto *hir = ctx.getBuilder().makeLetStmt(loweredIdent, loweredExpr);
   ctx.getSourceTable().bind(hir->getId(), stmt);
 
-  // Record the raw annotation (if any); the type pass resolves it against
-  // scope and checks the initializer against it. Resolving here would fail
-  // for type-parameter names (`T`), which only exist inside the scoped pass.
+  // Defer the annotation; the type pass resolves it and checks the
+  // initializer (a `T` would not resolve here, only in the scoped pass).
   if (const auto annotation = stmt.getType()) {
     ctx.getTypeAnnotations().bind(hir->getId(), *annotation);
   }
@@ -237,8 +236,7 @@ const Param *HirLowerer::lowerParam(ast::Param param) {
   const auto *hir = ctx.getBuilder().makeParam(loweredName);
   ctx.getSourceTable().bind(hir->getId(), param);
 
-  // Record the raw annotation; the type pass resolves it against scope
-  // (where `[T]` params are visible).
+  // Defer the annotation; the type pass resolves it against scope.
   if (const auto annotation = param.getType()) {
     ctx.getTypeAnnotations().bind(hir->getId(), *annotation);
   }
@@ -259,8 +257,7 @@ const BlockStmt *HirLowerer::lowerBlockStmt(ast::BlockStmt stmt) {
 }
 
 const ReturnStmt *HirLowerer::lowerReturnStmt(ast::ReturnStmt stmt) {
-  // A bare `return` carries no expression — lower the operand only when
-  // present (`makeReturnStmt(nullptr)` for unit return).
+  // A bare `return` has no operand (null expr).
   const Expr *loweredExpr = nullptr;
   if (const auto expr = stmt.getExpr()) {
     loweredExpr = lowerExpr(*expr);
@@ -315,8 +312,8 @@ const FnStmt *HirLowerer::lowerFnStmt(ast::FnStmt stmt) {
       ctx.getBuilder().makeFnStmt(loweredName, typeParams, params, loweredBody);
   ctx.getSourceTable().bind(hir->getId(), stmt);
 
-  // Record the raw return annotation; the type pass resolves it (against
-  // scope, where `[T]` params are visible) and builds the signature type.
+  // Defer the return annotation; the type pass resolves it and builds the
+  // signature.
   if (const auto result = stmt.getResult()) {
     ctx.getTypeAnnotations().bind(hir->getId(), *result);
   }
@@ -351,6 +348,8 @@ const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
     return lowerParenExpr(*ast::ParenExpr::cast(expr));
   case ast::SyntaxKind::IdentExpr:
     return lowerIdentExpr(*ast::IdentExpr::cast(expr));
+  case ast::SyntaxKind::CallExpr:
+    return lowerCallExpr(*ast::CallExpr::cast(expr));
   case ast::SyntaxKind::BoolLit:
   case ast::SyntaxKind::IntLit:
   case ast::SyntaxKind::FloatLit:
@@ -433,6 +432,31 @@ const Expr *HirLowerer::lowerUnaryExpr(ast::UnaryExpr expr) {
   // Everything else lowers to a call on the matching unary operator.
   const std::array<const Expr *, 1> args = {lowered};
   const auto *hir = ctx.getBuilder().makeCallExpr(toHir(*op), args);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
+
+const Expr *HirLowerer::lowerCallExpr(ast::CallExpr expr) {
+  const auto callee = expr.getCallee();
+  if (!callee) {
+    error(expr, "call is missing its callee").emit();
+    return nullptr;
+  }
+  const Expr *loweredCallee = lowerExpr(*callee);
+  if (!loweredCallee) {
+    return nullptr;
+  }
+
+  std::vector<const Expr *> args;
+  if (const auto argList = expr.getArgs()) {
+    for (const ast::Expr arg : argList->getArgs()) {
+      if (const Expr *lowered = lowerExpr(arg)) {
+        args.push_back(lowered);
+      }
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeFnCallExpr(loweredCallee, args);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }

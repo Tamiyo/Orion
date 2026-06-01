@@ -47,6 +47,7 @@ const Type *typeFor(const TypeContext &i, TypeKind k) {
   case TypeKind::Relation:
   case TypeKind::Struct:
   case TypeKind::Func:
+  case TypeKind::TypeParam:
   case TypeKind::Infer:
     // Compound — can't be built from a bare kind; coercion tests don't use it.
     return nullptr;

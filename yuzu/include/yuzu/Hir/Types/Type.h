@@ -44,6 +44,7 @@ enum class [[nodiscard]] TypeKind : uint8_t {
   Relation,
   Struct,
   Func,
+  TypeParam,
   Infer,
   //   Unit,
   //   List,
@@ -93,6 +94,8 @@ inline std::string asString(TypeKind kind) {
     return "struct";
   case TypeKind::Func:
     return "func";
+  case TypeKind::TypeParam:
+    return "<type-param>";
   case TypeKind::Infer:
     return "<infer>";
   case TypeKind::Error:
@@ -369,10 +372,9 @@ private:
   llvm::ArrayRef<Field> fields;
 };
 
-/// A function type: `(P0, P1, ...) -> R`. `params` and `ret` are interned
-/// types; the `params` array is owned by the `TypeFactory`'s arena. Generic
-/// functions carry inference holes in `params`/`ret` for their `[T]`
-/// parameters until a call site fills them.
+/// A function type `(P0, ...) -> R`. The `params` array is arena-owned. A
+/// generic signature is a template: its `[T]` params are `TypeParamTy`
+/// markers a call site instantiates.
 class FuncTy final : public Type {
 public:
   FuncTy(llvm::ArrayRef<const Type *> params, const Type *ret)
@@ -388,6 +390,24 @@ public:
 private:
   llvm::ArrayRef<const Type *> params;
   const Type *ret;
+};
+
+/// A declared generic type parameter — the `T` in `fn id[T](...)`. A rigid
+/// marker, never unified: a call site substitutes a fresh hole for it.
+/// `index` is its position in `[...]`; `name` is for diagnostics.
+class TypeParamTy final : public Type {
+public:
+  TypeParamTy(uint32_t index, std::u32string_view name)
+      : Type(TypeKind::TypeParam), index(index), name(name) {}
+
+  [[nodiscard]] uint32_t getIndex() const { return index; }
+  [[nodiscard]] std::u32string_view getName() const { return name; }
+
+  YUZU_TYPE_RTTI(TypeParam)
+
+private:
+  uint32_t index;
+  std::u32string_view name;
 };
 
 /// Identifies an inference variable within a `UnificationTable`.

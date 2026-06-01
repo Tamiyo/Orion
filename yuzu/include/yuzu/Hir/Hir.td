@@ -76,10 +76,22 @@ def IdentExpr : Node<Expr> {
     let Fields = (ins Child<Ident>:$name);
 }
 
-/// A 'call' expression to a set of oeprators and some arguments.
+/// A builtin operator applied to its arguments (`x + y`, `-x`). `op`
+/// identifies the operator; the typer runs `op->resolve` to compute the
+/// result type. Function calls are `FnCallExpr`, a distinct node.
 def CallExpr : Node<Expr> {
     let Fields = (ins
         Custom<OpRef>:$op,
+        Children<Expr>:$args
+    );
+}
+
+/// A function call `callee(args)`. The callee is the expression being
+/// invoked (a function-typed value); the typer checks each argument against
+/// the callee's parameter types and takes its return type.
+def FnCallExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$callee,
         Children<Expr>:$args
     );
 }

@@ -48,6 +48,10 @@ public:
     return i.getFunc(params, ret);
   }
 
+  const TypeParamTy *getTypeParam(uint32_t index, std::u32string_view name) {
+    return i.getTypeParam(index, name);
+  }
+
   [[nodiscard]] const Type *resolveNamed(std::u32string_view name) const {
     return i.resolveNamed(name);
   }

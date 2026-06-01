@@ -122,6 +122,24 @@ def UnaryExpr : Node<Expr> {
     );
 }
 
+/// The parenthesized argument list of a call: `(a, b, c)`. Wraps the args
+/// in their own node so they don't collide with the callee — both are
+/// `Expr`, and a bare `Children<Expr>` on `CallExpr` would otherwise sweep
+/// the callee in too.
+def ArgList : Node<AstNode> {
+    let Fields = (ins Children<Expr>:$args);
+}
+
+/// A function call `callee(args)`. `callee` is any expression (a bare name
+/// today; `getFn()(x)` and methods fall out for free). Operators are not
+/// calls here — they stay `BinaryExpr`/`UnaryExpr`.
+def CallExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$callee,
+        Child<ArgList>:$args
+    );
+}
+
 /// Parenthesized expression like `(a + b)`. Purely a grouping wrapper —
 /// it holds the inner expression and exists so the `(`/`)` tokens nest
 /// under one node instead of leaking into an enclosing expression. Lowers

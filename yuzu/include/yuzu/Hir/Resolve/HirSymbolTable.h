@@ -38,6 +38,21 @@ public:
     return std::nullopt;
   }
 
+  /// Bind a type name (a `[T]` param) in the current (innermost) scope.
+  void bindType(std::u32string_view name, const Type *type) {
+    scopes.back().bindType(name, type);
+  }
+
+  /// First type bound to `name`, innermost scope outward; null if unbound.
+  const Type *lookupType(std::u32string_view name) const {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+      if (const Type *type = it->lookupType(name)) {
+        return type;
+      }
+    }
+    return nullptr;
+  }
+
 private:
   // Only `HirScopeGuard` pops, on its own destruction — keeping the pop
   // off the scope's own destructor avoids mutating `scopes` mid-teardown.

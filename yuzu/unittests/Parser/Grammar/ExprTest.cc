@@ -631,4 +631,60 @@ TEST_F(ExprTest, RecoversFromMissingLhs) {
             result.tree);
 }
 
+//===----------------------------------------------------------------------===//
+// Function calls
+//===----------------------------------------------------------------------===//
+
+TEST_F(ExprTest, ParsesCallNoArgs) {
+  const auto result = parseExpr(U"f()");
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"tree(Expr@0..3
+  CallExpr@0..3
+    IdentExpr@0..1
+      Ident@0..1
+        Identifier@0..1 "f"
+    ArgList@1..3
+      LeftParen@1..2 "("
+      RightParen@2..3 ")")tree",
+            result.tree);
+}
+
+TEST_F(ExprTest, ParsesCallWithArgs) {
+  const auto result = parseExpr(U"add(1,2)");
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"tree(Expr@0..8
+  CallExpr@0..8
+    IdentExpr@0..3
+      Ident@0..3
+        Identifier@0..3 "add"
+    ArgList@3..8
+      LeftParen@3..4 "("
+      IntLit@4..5
+        IntegerLiteral@4..5 "1"
+      Comma@5..6 ","
+      IntLit@6..7
+        IntegerLiteral@6..7 "2"
+      RightParen@7..8 ")")tree",
+            result.tree);
+}
+
+// A chained call `f()()` nests: the outer call's callee is the inner call.
+TEST_F(ExprTest, ParsesCallChained) {
+  const auto result = parseExpr(U"f()()");
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"tree(Expr@0..5
+  CallExpr@0..5
+    CallExpr@0..3
+      IdentExpr@0..1
+        Ident@0..1
+          Identifier@0..1 "f"
+      ArgList@1..3
+        LeftParen@1..2 "("
+        RightParen@2..3 ")"
+    ArgList@3..5
+      LeftParen@3..4 "("
+      RightParen@4..5 ")")tree",
+            result.tree);
+}
+
 } // namespace

@@ -425,4 +425,175 @@ TEST(CompilePipelineTest, ReturnParamMatchesType) {
   EXPECT_EQ(out.find("error:"), std::string::npos) << out;
 }
 
+//===----------------------------------------------------------------------===//
+// Function calls — the callee must be a function; args are checked against
+// the parameters, and the call's type is the function's return type.
+//===----------------------------------------------------------------------===//
+
+// A well-typed call resolves to the function's return type.
+TEST(CompilePipelineTest, CallResolvesToReturnType) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add(x: int32, y: int32) -> int32 { return x + y }\n"
+                U"let r = add(1, 2)",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int32"), std::string::npos) << out;
+  EXPECT_NE(out.find("CallExpr : int32"), std::string::npos) << out;
+}
+
+// Too few arguments is an arity error.
+TEST(CompilePipelineTest, CallArityMismatchEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add(x: int32, y: int32) -> int32 { return x + y }\n"
+                U"let r = add(1)",
+                opts(os));
+
+  EXPECT_NE(out.find("expected 2 argument(s), found 1"), std::string::npos)
+      << out;
+}
+
+// An argument whose type isn't assignable to the parameter is rejected.
+TEST(CompilePipelineTest, CallArgTypeMismatchEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn id(x: int32) -> int32 { return x }\n"
+                U"let r = id(true)",
+                opts(os));
+
+  EXPECT_NE(out.find("is not assignable to parameter"), std::string::npos)
+      << out;
+}
+
+// Calling a non-function value is rejected.
+TEST(CompilePipelineTest, CallNonFunctionEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x = 5\nlet r = x(1)", opts(os));
+
+  EXPECT_NE(out.find("is not callable"), std::string::npos) << out;
+}
+
+// An untyped literal argument adapts to the parameter type (no cast needed).
+TEST(CompilePipelineTest, CallLiteralArgAdaptsToParam) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f(x: int8) -> int8 { return x }\nlet r = f(5)", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// An out-of-range literal argument is caught against the parameter type.
+TEST(CompilePipelineTest, CallLiteralArgOutOfRangeEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f(x: int8) -> int8 { return x }\nlet r = f(5000)",
+                opts(os));
+
+  EXPECT_NE(out.find("out of range for `int8`"), std::string::npos) << out;
+}
+
+//===----------------------------------------------------------------------===//
+// Generics — `[T]` parameters are rigid markers in the signature; a call
+// site substitutes a fresh inference hole for each and infers it from args.
+//===----------------------------------------------------------------------===//
+
+// A generic function declares without error: `: T` resolves to the type
+// parameter, not an unknown-type error.
+TEST(CompilePipelineTest, GenericFunctionDeclares) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn id[T](x: T) -> T { return x }", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// `T` is only in scope inside its function — referencing it elsewhere is an
+// unknown type.
+TEST(CompilePipelineTest, TypeParamNotVisibleOutsideFunction) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn id[T](x: T) -> T { return x }\nlet y: T = 5", opts(os));
+
+  EXPECT_NE(out.find("unknown type `T`"), std::string::npos) << out;
+}
+
+// `id[T](x: T) -> T` called with an int infers T = int, so the call (and the
+// binding) is int64.
+TEST(CompilePipelineTest, GenericCallInfersIntReturn) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn id[T](x: T) -> T { return x }\nlet r = id(5)", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int64"), std::string::npos) << out;
+  EXPECT_NE(out.find("FnCallExpr : int64"), std::string::npos) << out;
+}
+
+// Called with a bool, the same function infers T = bool.
+TEST(CompilePipelineTest, GenericCallInfersBoolReturn) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn id[T](x: T) -> T { return x }\nlet r = id(true)",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : bool"), std::string::npos) << out;
+}
+
+// Two calls with different types must not leak: the int call doesn't pin T
+// for the bool call. Both resolve independently.
+TEST(CompilePipelineTest, GenericCallsDoNotLeakBetweenSites) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn id[T](x: T) -> T { return x }\n"
+                U"let a = id(5)\n"
+                U"let b = id(true)",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int64"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : bool"), std::string::npos) << out;
+}
+
+// A two-parameter generic infers each independently; the return picks the
+// second.
+TEST(CompilePipelineTest, GenericTwoParamsInferIndependently) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn second[A, B](a: A, b: B) -> B { return b }\n"
+                U"let r = second(5, true)",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : bool"), std::string::npos) << out;
+}
+
+// A repeated type parameter must agree across arguments: `pair[T](a: T, b: T)`
+// called with mismatched argument types is an error.
+TEST(CompilePipelineTest, GenericRepeatedParamMustAgree) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn pair[T](a: T, b: T) -> T { return a }\n"
+                U"let r = pair(5, true)",
+                opts(os));
+
+  EXPECT_NE(out.find("is not assignable to parameter"), std::string::npos)
+      << out;
+}
+
+// An annotation pins the inferred type parameter: `id(5)` bound to a `: int8`
+// flows int8 into T, so the literal is range-checked as int8.
+TEST(CompilePipelineTest, GenericCallResultAdaptsToAnnotation) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn id[T](x: T) -> T { return x }\nlet r: int8 = id(5)",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int8"), std::string::npos) << out;
+}
+
 } // namespace
