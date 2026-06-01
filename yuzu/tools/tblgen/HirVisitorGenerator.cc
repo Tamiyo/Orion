@@ -80,7 +80,14 @@ void emitChildWalk(CodeFormatter &fmt, const NamedField &f) {
       [&](const auto &k) {
         using T = std::decay_t<decltype(k)>;
         if constexpr (std::is_same_v<T, Child>) {
-          fmt.linef("derived().visit({0});", getter);
+          // A `Child<T>` may be null (an optional child like a bare
+          // `return`'s expr), so guard before descending.
+          fmt.linef("if ({0} != nullptr) {{", getter);
+          {
+            auto body = fmt.block();
+            fmt.linef("derived().visit({0});", getter);
+          }
+          fmt.line("}");
         } else if constexpr (std::is_same_v<T, Children>) {
           fmt.linef("for (const auto *child : {0}) {{", getter);
           {

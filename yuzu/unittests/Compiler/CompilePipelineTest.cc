@@ -315,4 +315,114 @@ TEST(CompilePipelineTest, UnaryNotOnNonBoolEmitsError) {
       << out;
 }
 
+//===----------------------------------------------------------------------===//
+// Functions — `fn` lowers to HIR, then the type pass gives it a signature,
+// binds params into a function scope, and types the body against them.
+//===----------------------------------------------------------------------===//
+
+TEST(CompilePipelineTest, LowersFunctionToHir) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add(x: int32, y: int32) -> int32 { return x + y }",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("FnStmt"), std::string::npos) << out;
+  EXPECT_NE(out.find("BlockStmt"), std::string::npos) << out;
+  EXPECT_NE(out.find("ReturnStmt"), std::string::npos) << out;
+}
+
+// Params resolve their annotations and are visible in the body: `x`/`y` are
+// int32, so `x + y` types to int32.
+TEST(CompilePipelineTest, TypesParamsAndBody) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add(x: int32, y: int32) -> int32 { return x + y }",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("Param : int32"), std::string::npos) << out;
+  EXPECT_NE(out.find("IdentExpr : int32"), std::string::npos) << out;
+  EXPECT_NE(out.find("CallExpr : int32"), std::string::npos) << out;
+}
+
+// A parameter referencing an unknown type name is reported (resolution now
+// runs in the type pass, not lowering).
+TEST(CompilePipelineTest, UnknownParamTypeEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f(x: bogus) { return }", opts(os));
+
+  EXPECT_NE(out.find("unknown type `bogus`"), std::string::npos) << out;
+}
+
+// A use of a parameter outside the function is unresolved — the function
+// scope is popped after the body.
+TEST(CompilePipelineTest, ParamNotVisibleOutsideFunction) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f(x: int32) { return x }\nlet y = x", opts(os));
+
+  EXPECT_NE(out.find("unresolved identifier"), std::string::npos) << out;
+}
+
+TEST(CompilePipelineTest, LowersBareReturn) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() { return }", opts(os));
+
+  EXPECT_NE(out.find("FnStmt"), std::string::npos) << out;
+  EXPECT_NE(out.find("ReturnStmt"), std::string::npos) << out;
+}
+
+//===----------------------------------------------------------------------===//
+// Return-type checking — a `return expr` must be assignable to the declared
+// return type. An untyped literal adapts to it; a widening coercion is OK;
+// a mismatch or out-of-range value is an error.
+//===----------------------------------------------------------------------===//
+
+TEST(CompilePipelineTest, ReturnLiteralAdaptsToReturnType) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() -> int8 { return 5 }", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+TEST(CompilePipelineTest, ReturnWideningCoerces) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() -> float64 { return 5 }", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+TEST(CompilePipelineTest, ReturnTypeMismatchEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() -> int32 { return true }", opts(os));
+
+  EXPECT_NE(out.find("returning `bool` from a function declared to return "
+                     "`int32`"),
+            std::string::npos)
+      << out;
+}
+
+TEST(CompilePipelineTest, ReturnOutOfRangeLiteralEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() -> int8 { return 5000 }", opts(os));
+
+  EXPECT_NE(out.find("out of range for `int8`"), std::string::npos) << out;
+}
+
+// A parameter returned at its own type is fine.
+TEST(CompilePipelineTest, ReturnParamMatchesType) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f(x: int32) -> int32 { return x }", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
 } // namespace

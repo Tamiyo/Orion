@@ -42,6 +42,10 @@ private:
 
   const Stmt *lowerExprStmt(ast::ExprStmt stmt);
   const LetStmt *lowerLetStmt(ast::LetStmt stmt);
+  const FnStmt *lowerFnStmt(ast::FnStmt stmt);
+  const BlockStmt *lowerBlockStmt(ast::BlockStmt stmt);
+  const ReturnStmt *lowerReturnStmt(ast::ReturnStmt stmt);
+  const Param *lowerParam(ast::Param param);
 
   const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
   const Expr *lowerUnaryExpr(ast::UnaryExpr expr);
@@ -53,9 +57,6 @@ private:
   const IntLit *lowerIntLit(ast::IntLit expr);
   const FloatLit *lowerFloatLit(ast::FloatLit expr);
   const StringLit *lowerStringLit(ast::StringLit expr);
-
-  const Type *lowerType(ast::TypeExpr type);
-  const Type *lowerNamedType(ast::NamedType type);
 
   HirContext &ctx;
   diagnostics::DiagnosticsEngine &diagnostics;

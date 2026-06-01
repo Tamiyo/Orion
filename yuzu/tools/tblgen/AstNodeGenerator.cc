@@ -9,6 +9,7 @@
 #include <llvm/TableGen/Error.h>
 #include <llvm/TableGen/Record.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <type_traits>
@@ -18,6 +19,13 @@
 namespace yuzu::tools {
 
 namespace {
+
+/// Sort defs by source position so emitted classes follow `.td` declaration
+/// order — a node's inline accessor constructs its child types, which must
+/// be defined first. `getAllDerivedDefinitions` returns them alphabetically.
+bool byLoc(const llvm::Record *a, const llvm::Record *b) {
+  return a->getLoc().front().getPointer() < b->getLoc().front().getPointer();
+}
 
 //===----------------------------------------------------------------------===//
 // Class definitions
@@ -264,10 +272,12 @@ void AstNodeGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
   const llvm::Record *base = findBase(records);
 
-  const std::vector<const llvm::Record *> variants =
+  std::vector<const llvm::Record *> variants =
       records.getAllDerivedDefinitions("Variant");
-  const std::vector<const llvm::Record *> nodes =
+  std::vector<const llvm::Record *> nodes =
       records.getAllDerivedDefinitions("Node");
+  std::sort(variants.begin(), variants.end(), byLoc);
+  std::sort(nodes.begin(), nodes.end(), byLoc);
 
   fmt.linef("namespace {0} {{", ns);
   fmt.line("");

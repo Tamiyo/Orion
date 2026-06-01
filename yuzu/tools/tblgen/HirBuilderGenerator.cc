@@ -7,6 +7,7 @@
 #include <llvm/TableGen/Error.h>
 #include <llvm/TableGen/Record.h>
 
+#include <algorithm>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -15,6 +16,12 @@
 namespace yuzu::tools {
 
 namespace {
+
+/// Sort defs by source position so emitted factory methods follow `.td`
+/// declaration order. `getAllDerivedDefinitions` returns them alphabetically.
+bool byLoc(const llvm::Record *a, const llvm::Record *b) {
+  return a->getLoc().front().getPointer() < b->getLoc().front().getPointer();
+}
 
 //===----------------------------------------------------------------------===//
 // HirBuilder layout
@@ -164,8 +171,9 @@ void emitMakeMethod(CodeFormatter &fmt, const llvm::Record *node) {
 
 void HirBuilderGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
-  const std::vector<const llvm::Record *> nodes =
+  std::vector<const llvm::Record *> nodes =
       records.getAllDerivedDefinitions("Node");
+  std::sort(nodes.begin(), nodes.end(), byLoc);
 
   fmt.linef("namespace {0} {{", ns);
   fmt.line("");

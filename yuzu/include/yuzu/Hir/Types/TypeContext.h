@@ -44,6 +44,10 @@ public:
     return i.getStruct(name, fields);
   }
 
+  const FuncTy *getFunc(llvm::ArrayRef<const Type *> params, const Type *ret) {
+    return i.getFunc(params, ret);
+  }
+
   [[nodiscard]] const Type *resolveNamed(std::u32string_view name) const {
     return i.resolveNamed(name);
   }

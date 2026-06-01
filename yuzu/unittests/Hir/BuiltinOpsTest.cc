@@ -66,6 +66,7 @@ protected:
       return i.getStr();
     case TypeKind::Relation:
     case TypeKind::Struct:
+    case TypeKind::Func:
     case TypeKind::Infer:
       // Compound — can't be built from a bare kind; op tests don't use it.
       return nullptr;

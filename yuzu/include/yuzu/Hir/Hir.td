@@ -138,6 +138,42 @@ def LetStmt : Node<Stmt> {
     );
 }
 
+/// One `name: type` function parameter. The parameter's type (lowered from
+/// its annotation) lives in the type side table keyed by this node's id.
+def Param : Node<HirNode> {
+    let Fields = (ins
+        Child<Ident>:$name
+    );
+}
+
+/// A brace-delimited statement sequence (a function body for now).
+def BlockStmt : Node<Stmt> {
+    let Fields = (ins
+        Children<Stmt>:$stmts
+    );
+}
+
+/// `return expr` — `expr` is null for a bare `return` (unit).
+def ReturnStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Expr>:$expr
+    );
+}
+
+/// A function declaration. `typeParams` are the generic parameters (bare
+/// names for now); each parameter's and the function's signature type live
+/// in the type side table. The declared return annotation, if any, is
+/// stored at this node's id until the typer replaces it with the full
+/// signature type.
+def FnStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Children<Ident>:$typeParams,
+        Children<Param>:$params,
+        Child<BlockStmt>:$body
+    );
+}
+
 
 //===----------------------------------------------------------------------===//
 // Roots

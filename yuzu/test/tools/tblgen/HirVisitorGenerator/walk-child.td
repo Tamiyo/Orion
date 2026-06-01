@@ -26,9 +26,15 @@ def TestBinary : Node<TestExpr> {
   );
 }
 
+// A `Child<T>` may be null (an optional child), so the walk guards each
+// descent with a null check.
 // CHECK-LABEL: void walkTestBinary(const TestBinary *node) {
-// CHECK-NEXT:  derived().visit(node->getLhs());
-// CHECK-NEXT:  derived().visit(node->getRhs());
+// CHECK-NEXT:  if (node->getLhs() != nullptr) {
+// CHECK-NEXT:    derived().visit(node->getLhs());
+// CHECK-NEXT:  }
+// CHECK-NEXT:  if (node->getRhs() != nullptr) {
+// CHECK-NEXT:    derived().visit(node->getRhs());
+// CHECK-NEXT:  }
 // CHECK-NEXT:  }
 
 // `op` is data, not a tree edge — the walker shouldn't touch it.

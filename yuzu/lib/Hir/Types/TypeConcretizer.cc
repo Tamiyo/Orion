@@ -43,10 +43,13 @@ void TypeConcretizer::visit(const HirNode *node) {
   HirVisitor::visit(node);
   ctx.getTypeContext().concretize(node);
 
-  // Only a literal that directly initializes a binding is range-checked for
-  // now; expression initializers wait for constant folding.
+  // A literal that *directly* supplies a value — a binding initializer or a
+  // returned value — is range-checked against its resolved type. (Literals
+  // inside larger expressions wait for constant folding.)
   if (const auto *let = LetStmt::cast(node)) {
     checkLiteralRange(let->getExpr(), ctx);
+  } else if (const auto *ret = ReturnStmt::cast(node); ret && ret->getExpr()) {
+    checkLiteralRange(ret->getExpr(), ctx);
   }
 }
 

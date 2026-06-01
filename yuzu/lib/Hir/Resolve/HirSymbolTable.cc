@@ -3,26 +3,14 @@
 #include "yuzu/Hir/Resolve/HirScope.h"
 
 namespace yuzu::hir {
-HirSymbolTable::HirSymbolTable() {
-  scopes.emplace_back(*this, HirScopeKind::Block);
+HirSymbolTable::HirSymbolTable(HirContext &ctx) : ctx(ctx) {
+  // The outermost (module) scope. It is never popped — no guard owns it —
+  // so it lives for the table's whole lifetime.
+  scopes.emplace_back(ctx, HirScopeKind::Block);
 }
 
-// Flip the guard *before* the implicit member-destruction sequence
-// runs. After this line, the deque's dtor fires and destroys each
-// `HirScope`; each ~HirScope calls back into `popScope`, which
-// short-circuits on `destructing` instead of mutating the deque
-// mid-destruction.
-HirSymbolTable::~HirSymbolTable() { destructing = true; }
-
-HirScope &HirSymbolTable::pushScope(HirScopeKind kind) {
-  scopes.emplace_back(*this, kind);
-  return scopes.back();
-}
-
-void HirSymbolTable::popScope() {
-  if (destructing) {
-    return;
-  }
-  scopes.pop_back();
+HirScopeGuard HirSymbolTable::pushScope(HirScopeKind kind) {
+  scopes.emplace_back(ctx, kind);
+  return HirScopeGuard(*this);
 }
 } // namespace yuzu::hir

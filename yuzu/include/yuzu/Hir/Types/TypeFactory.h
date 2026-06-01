@@ -81,8 +81,18 @@ public:
     return it->second;
   }
 
-  // const FuncTy *getFunc(llvm::ArrayRef<const Type *> params,s
-  //                       const Type *result);
+  /// `(params...) -> ret`. Not interned: a function signature isn't
+  /// compared by pointer, and a generic function's params/ret hold unique
+  /// inference holes that must not be shared, so each call allocates a
+  /// fresh `FuncTy` with its `params` copied into the arena.
+  const FuncTy *getFunc(llvm::ArrayRef<const Type *> params, const Type *ret) {
+    const Type **savedParams = arena.Allocate<const Type *>(params.size());
+    for (size_t i = 0; i < params.size(); ++i) {
+      savedParams[i] = params[i];
+    }
+    return new (arena.Allocate<FuncTy>())
+        FuncTy(llvm::ArrayRef<const Type *>(savedParams, params.size()), ret);
+  }
 
   /// Fresh nominal struct, registered for `resolveNamed`. Name and fields
   /// are interned/copied, so the caller's storage needn't outlive the call.

@@ -4,6 +4,7 @@
 #include "yuzu/Hir/Resolve/HirScope.h"
 
 #include <deque>
+#include <optional>
 
 namespace yuzu::hir {
 class [[nodiscard]] HirSymbolTable {
@@ -13,46 +14,38 @@ public:
   HirSymbolTable(HirSymbolTable &&) = delete;
   HirSymbolTable &operator=(HirSymbolTable &&) = delete;
 
-  explicit HirSymbolTable();
-  ~HirSymbolTable();
+  explicit HirSymbolTable(HirContext &ctx);
 
-  HirScope &pushScope(HirScopeKind kind);
+  /// Push a fresh innermost scope and return a guard that pops it when the
+  /// guard leaves C++ scope. Bind into / look up the new scope until then.
+  HirScopeGuard pushScope(HirScopeKind kind);
 
   /// Bind `ident`'s name to its declaration in the current (innermost)
   /// scope. Re-binding the same name in the same scope overwrites —
   /// shadowing across scopes is the lookup loop's job.
-  void bind(const Ident *ident, const LetStmt *decl) {
+  void bind(const Ident *ident, HirScope::Binding decl) {
     scopes.back().bind(ident, decl);
   }
 
   /// Walk from the innermost scope outward, returning the first
-  /// declaration bound to `ident`'s name. `nullptr` if unbound.
-  const LetStmt *lookup(const Ident *ident) const {
+  /// declaration bound to `ident`'s name. `nullopt` if unbound.
+  HirScope::LookupResult lookup(const Ident *ident) const {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-      if (const LetStmt *decl = it->lookup(ident)) {
-        return decl;
+      if (const auto result = it->lookup(ident)) {
+        return result;
       }
     }
-    return nullptr;
+    return std::nullopt;
   }
 
 private:
-  // `HirScope::~HirScope` calls `popScope` to drop itself off the
-  // stack; friending keeps that the only path that pops the table.
-  friend class HirScope;
-  void popScope();
-
-  // `HirScope` is stored *inside* `scopes`, so the natural teardown
-  // path is `~HirSymbolTable` → deque dtor → element dtors →
-  // `popScope` → `scopes.pop_back()` *during* the deque's own
-  // destruction (UB / segfault). The dtor flips this before the
-  // deque dies so `popScope` short-circuits during teardown. Long
-  // term, separating the scope *data* (owned by the deque) from a
-  // stack-allocated *guard* (which calls `popScope` on its own
-  // destruction) would eliminate the need for this entirely.
-  bool destructing = false;
+  // Only `HirScopeGuard` pops, on its own destruction — keeping the pop
+  // off the scope's own destructor avoids mutating `scopes` mid-teardown.
+  friend class HirScopeGuard;
+  void popScope() { scopes.pop_back(); }
 
   std::deque<HirScope> scopes;
+  HirContext &ctx;
 };
 } // namespace yuzu::hir
 

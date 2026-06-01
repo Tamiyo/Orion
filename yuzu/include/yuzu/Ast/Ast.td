@@ -247,6 +247,50 @@ def LetStmt : Node<Stmt> {
     );
 }
 
+/// A generic type parameter at a declaration site: the `T` in `fn id[T]`.
+/// A bare name for now; bounds (`T: Comparable`) are a later field.
+def TypeParam : Node<AstNode> {
+    let Fields = (ins
+        Child<Ident>:$name
+    );
+}
+
+/// One `name: type` function parameter.
+def Param : Node<AstNode> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Child<TypeExpr>:$type
+    );
+}
+
+/// A brace-delimited statement sequence: a function body, eventually any
+/// block. `{ let x = 1\n return x }`.
+def BlockStmt : Node<Stmt> {
+    let Fields = (ins
+        Children<Stmt>:$stmts
+    );
+}
+
+/// `return expr` — `expr` is optional (`return` alone returns unit).
+def ReturnStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Expr>:$expr
+    );
+}
+
+/// A function declaration: `fn id[T](x: T) -> T { ... }`. `typeParams` is
+/// empty for a non-generic function; `result` is the optional return type
+/// annotation.
+def FnStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Children<TypeParam>:$typeParams,
+        Children<Param>:$params,
+        Child<TypeExpr>:$result, // optional
+        Child<BlockStmt>:$body
+    );
+}
+
 //===----------------------------------------------------------------------===//
 // Roots
 //===----------------------------------------------------------------------===//

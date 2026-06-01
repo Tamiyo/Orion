@@ -36,8 +36,8 @@ let IsPunctuation = 1 in {
   def RightParen   : Token<[")"]>;
   def LeftBracket  : Token<["["]>;
   def RightBracket : Token<["]"]>;
-  def LeftBrace    : Token<["{"]>;
-  def RightBrace   : Token<["}"]>;
+  def LeftCurly    : Token<["{"]>;
+  def RightCurly   : Token<["}"]>;
   def Comma        : Token<[","]>;
   def Colon        : Token<[":"]>;
 }
@@ -100,11 +100,13 @@ let IsTrivia = 1 in {
 // Keywords
 let IsKeyword = 1 in {
   def AndKw : Token<["and"]>;
+  def FnKw : Token<["fn"]>;
   def InKw : Token<["in"]>;
   def LetKw : Token<["let"]>;
   def MutKw : Token<["mut"]>;
   def NotKw : Token<["not"]>;
   def OrKw : Token<["or"]>;
+  def ReturnKw : Token<["return"]>;
 }
 
 // Misc

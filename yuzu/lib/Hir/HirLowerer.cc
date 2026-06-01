@@ -3,11 +3,7 @@
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Hir/Ops/BuiltinOps.h"
 #include "yuzu/Hir/Ops/Op.h"
-#include "yuzu/Hir/Types/Type.h"
 #include "yuzu/Util/ErrorHandling.h"
-#include "yuzu/Util/Unicode.h"
-
-#include <llvm/Support/FormatVariadic.h>
 
 #include <string>
 #include <vector>
@@ -180,6 +176,12 @@ const Stmt *HirLowerer::lowerStmt(ast::Stmt stmt) {
     return lowerLetStmt(*ast::LetStmt::cast(stmt));
   case ast::SyntaxKind::ExprStmt:
     return lowerExprStmt(*ast::ExprStmt::cast(stmt));
+  case ast::SyntaxKind::FnStmt:
+    return lowerFnStmt(*ast::FnStmt::cast(stmt));
+  case ast::SyntaxKind::BlockStmt:
+    return lowerBlockStmt(*ast::BlockStmt::cast(stmt));
+  case ast::SyntaxKind::ReturnStmt:
+    return lowerReturnStmt(*ast::ReturnStmt::cast(stmt));
   default:
     util::yuzu_unreachable();
   }
@@ -211,12 +213,112 @@ const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
   const auto *hir = ctx.getBuilder().makeLetStmt(loweredIdent, loweredExpr);
   ctx.getSourceTable().bind(hir->getId(), stmt);
 
-  // Record the declared annotation type (if any) in the type slot. The
-  // resolve pass reads it as the expected type, checks the initializer
-  // against it, then overwrites the slot with the final binding type.
-  // Name binding and inference of an un-annotated binding live there too.
+  // Record the raw annotation (if any); the type pass resolves it against
+  // scope and checks the initializer against it. Resolving here would fail
+  // for type-parameter names (`T`), which only exist inside the scoped pass.
   if (const auto annotation = stmt.getType()) {
-    ctx.getTypeContext().bind(hir, lowerType(*annotation));
+    ctx.getTypeAnnotations().bind(hir->getId(), *annotation);
+  }
+  return hir;
+}
+
+const Param *HirLowerer::lowerParam(ast::Param param) {
+  const auto name = param.getName();
+  if (!name) {
+    error(param, "parameter is missing its name").emit();
+    return nullptr;
+  }
+
+  const Ident *loweredName = lowerIdent(*name);
+  if (!loweredName) {
+    return nullptr;
+  }
+
+  const auto *hir = ctx.getBuilder().makeParam(loweredName);
+  ctx.getSourceTable().bind(hir->getId(), param);
+
+  // Record the raw annotation; the type pass resolves it against scope
+  // (where `[T]` params are visible).
+  if (const auto annotation = param.getType()) {
+    ctx.getTypeAnnotations().bind(hir->getId(), *annotation);
+  }
+  return hir;
+}
+
+const BlockStmt *HirLowerer::lowerBlockStmt(ast::BlockStmt stmt) {
+  std::vector<const Stmt *> stmts;
+  for (const ast::Stmt &s : stmt.getStmts()) {
+    if (const Stmt *lowered = lowerStmt(s)) {
+      stmts.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeBlockStmt(stmts);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
+  return hir;
+}
+
+const ReturnStmt *HirLowerer::lowerReturnStmt(ast::ReturnStmt stmt) {
+  // A bare `return` carries no expression — lower the operand only when
+  // present (`makeReturnStmt(nullptr)` for unit return).
+  const Expr *loweredExpr = nullptr;
+  if (const auto expr = stmt.getExpr()) {
+    loweredExpr = lowerExpr(*expr);
+    if (!loweredExpr) {
+      return nullptr;
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeReturnStmt(loweredExpr);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
+  return hir;
+}
+
+const FnStmt *HirLowerer::lowerFnStmt(ast::FnStmt stmt) {
+  const auto name = stmt.getName();
+  if (!name) {
+    error(stmt, "function is missing its name").emit();
+    return nullptr;
+  }
+
+  const Ident *loweredName = lowerIdent(*name);
+  if (!loweredName) {
+    return nullptr;
+  }
+
+  std::vector<const Ident *> typeParams;
+  for (const ast::TypeParam &tp : stmt.getTypeParams()) {
+    const auto tpName = tp.getName();
+    if (!tpName) {
+      continue;
+    }
+    if (const Ident *lowered = lowerIdent(*tpName)) {
+      typeParams.push_back(lowered);
+    }
+  }
+
+  std::vector<const Param *> params;
+  for (const ast::Param &p : stmt.getParams()) {
+    if (const Param *lowered = lowerParam(p)) {
+      params.push_back(lowered);
+    }
+  }
+
+  const auto body = stmt.getBody();
+  if (!body) {
+    error(stmt, "function is missing its body").emit();
+    return nullptr;
+  }
+  const BlockStmt *loweredBody = lowerBlockStmt(*body);
+
+  const auto *hir =
+      ctx.getBuilder().makeFnStmt(loweredName, typeParams, params, loweredBody);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
+
+  // Record the raw return annotation; the type pass resolves it (against
+  // scope, where `[T]` params are visible) and builds the signature type.
+  if (const auto result = stmt.getResult()) {
+    ctx.getTypeAnnotations().bind(hir->getId(), *result);
   }
   return hir;
 }
@@ -401,60 +503,6 @@ const StringLit *HirLowerer::lowerStringLit(ast::StringLit expr) {
   return hir;
 }
 
-const Type *HirLowerer::lowerType(ast::TypeExpr type) {
-  switch (type.getKind()) {
-  case ast::SyntaxKind::NamedType:
-    return lowerNamedType(*ast::NamedType::cast(type));
-  case ast::SyntaxKind::FuncType:
-    error(type, "function types are not supported yet").emit();
-    return ctx.getTypeContext().getError();
-  case ast::SyntaxKind::RecordType:
-    error(type, "record types are not supported yet").emit();
-    return ctx.getTypeContext().getError();
-  default:
-    util::yuzu_unreachable();
-  }
-}
-
-const Type *HirLowerer::lowerNamedType(ast::NamedType type) {
-  auto &types = ctx.getTypeContext();
-
-  const auto ident = type.getName();
-  const auto name = ident ? ident->getName() : std::nullopt;
-  if (!name) {
-    error(type, "type is missing its name").emit();
-    return types.getError();
-  }
-
-  std::vector<const Type *> args;
-  for (const ast::TypeExpr arg : type.getArgs()) {
-    args.push_back(lowerType(arg));
-  }
-
-  // // `Relation[T]` — the only built-in constructor so far.
-  // if (*name == U"Relation") {
-  //   if (args.size() != 1) {
-  //     error(type, "`Relation` takes exactly one type argument").emit();
-  //     return types.getError();
-  //   }
-  //   return types.getRelation(args[0]);
-  // }
-
-  if (!args.empty()) {
-    error(
-        type,
-        llvm::formatv("`{0}` is not a generic type", util::toUtf8(*name)).str())
-        .emit();
-    return types.getError();
-  }
-
-  if (const auto *resolved = types.resolveNamed(*name)) {
-    return resolved;
-  }
-  error(type, llvm::formatv("unknown type `{0}`", util::toUtf8(*name)).str())
-      .emit();
-  return types.getError();
-}
 
 diagnostics::DiagnosticBuilder HirLowerer::error(ast::AstNode node,
                                                  std::string message) {

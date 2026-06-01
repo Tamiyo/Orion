@@ -120,6 +120,53 @@ TEST_F(TypeFactoryTest, GetStructCopiesNamesIntoArena) {
   EXPECT_EQ(s->findField(U"x"), interner.getInt32());
 }
 
+TEST_F(TypeFactoryTest, FuncCarriesParamsAndRet) {
+  const Type *params[] = {interner.getInt32(), interner.getStr()};
+  const auto *fn = interner.getFunc(params, interner.getBool());
+
+  EXPECT_EQ(fn->getKind(), TypeKind::Func);
+  ASSERT_EQ(fn->getParams().size(), 2u);
+  EXPECT_EQ(fn->getParams()[0], interner.getInt32());
+  EXPECT_EQ(fn->getParams()[1], interner.getStr());
+  EXPECT_EQ(fn->getRet(), interner.getBool());
+
+  // RTTI: a func casts to `FuncTy`, a primitive does not.
+  EXPECT_NE(FuncTy::cast(fn), nullptr);
+  EXPECT_EQ(FuncTy::cast(interner.getInt32()), nullptr);
+}
+
+TEST_F(TypeFactoryTest, FuncWithNoParams) {
+  const auto *fn = interner.getFunc({}, interner.getInt64());
+  EXPECT_TRUE(fn->getParams().empty());
+  EXPECT_EQ(fn->getRet(), interner.getInt64());
+}
+
+TEST_F(TypeFactoryTest, FuncCopiesParamsIntoArena) {
+  // `getFunc` copies the params array, so the type stays valid after the
+  // caller's buffer is gone.
+  const FuncTy *fn = nullptr;
+  {
+    std::vector<const Type *> params = {interner.getInt8(), interner.getInt16()};
+    fn = interner.getFunc(params, interner.getBool());
+    params.clear();
+    params.shrink_to_fit();
+  }
+  ASSERT_EQ(fn->getParams().size(), 2u);
+  EXPECT_EQ(fn->getParams()[0], interner.getInt8());
+  EXPECT_EQ(fn->getParams()[1], interner.getInt16());
+}
+
+TEST_F(TypeFactoryTest, FuncIsNotInterned) {
+  // Unlike `Relation`, function types are not deduplicated — each call
+  // allocates a fresh `FuncTy` (so a generic signature's holes stay
+  // distinct per instantiation). Structurally-identical calls differ by
+  // pointer but agree on contents.
+  const auto *a = interner.getFunc({interner.getInt32()}, interner.getBool());
+  const auto *b = interner.getFunc({interner.getInt32()}, interner.getBool());
+  EXPECT_NE(a, b);
+  EXPECT_EQ(a->getRet(), b->getRet());
+}
+
 TEST_F(TypeFactoryTest, DistinctPrimitivesHaveDistinctPointers) {
   // Pointer-equality is the interning contract, so every primitive must
   // be a distinct address from every other primitive.

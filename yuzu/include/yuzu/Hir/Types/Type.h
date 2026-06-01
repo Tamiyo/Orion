@@ -43,11 +43,11 @@ enum class [[nodiscard]] TypeKind : uint8_t {
   Str,
   Relation,
   Struct,
+  Func,
   Infer,
   //   Unit,
   //   List,
   //   Tuple,
-  //   Func,
   //   Class,
   Error,
 };
@@ -91,6 +91,8 @@ inline std::string asString(TypeKind kind) {
     return "relation";
   case TypeKind::Struct:
     return "struct";
+  case TypeKind::Func:
+    return "func";
   case TypeKind::Infer:
     return "<infer>";
   case TypeKind::Error:
@@ -365,6 +367,27 @@ public:
 private:
   std::u32string_view name;
   llvm::ArrayRef<Field> fields;
+};
+
+/// A function type: `(P0, P1, ...) -> R`. `params` and `ret` are interned
+/// types; the `params` array is owned by the `TypeFactory`'s arena. Generic
+/// functions carry inference holes in `params`/`ret` for their `[T]`
+/// parameters until a call site fills them.
+class FuncTy final : public Type {
+public:
+  FuncTy(llvm::ArrayRef<const Type *> params, const Type *ret)
+      : Type(TypeKind::Func), params(params), ret(ret) {}
+
+  [[nodiscard]] llvm::ArrayRef<const Type *> getParams() const {
+    return params;
+  }
+  [[nodiscard]] const Type *getRet() const { return ret; }
+
+  YUZU_TYPE_RTTI(Func)
+
+private:
+  llvm::ArrayRef<const Type *> params;
+  const Type *ret;
 };
 
 /// Identifies an inference variable within a `UnificationTable`.

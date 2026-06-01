@@ -132,6 +132,16 @@ public:
     return const_iterator(children.end(), children.end());
   }
 
+  /// True if no child matches `Kind`. Counts via the filtering iterator,
+  /// since the underlying `children` also holds trivia and other kinds.
+  [[nodiscard]] bool empty() const { return begin() == end(); }
+
+  /// Number of children matching `Kind`. O(n) over the raw children — the
+  /// filtering iterator has no random access.
+  [[nodiscard]] size_t size() const {
+    return static_cast<std::size_t>(std::distance(begin(), end()));
+  }
+
 private:
   SyntaxChildren children;
 };

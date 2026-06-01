@@ -99,4 +99,184 @@ TEST_F(StmtTest, ReportsErrorOnMissingLhs) {
             result.tree);
 }
 
+//===----------------------------------------------------------------------===//
+// Functions
+//===----------------------------------------------------------------------===//
+
+// Minimal function: no params, no return type, a block with one return.
+TEST_F(StmtTest, ParsesFnNoParams) {
+  const auto result = parseStmt(U"fn f(){return 1}");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"tree(FnStmt@0..16
+  FnKw@0..2 "fn"
+  Space@2..3 " "
+  Ident@3..4
+    Identifier@3..4 "f"
+  LeftParen@4..5 "("
+  RightParen@5..6 ")"
+  BlockStmt@6..16
+    LeftCurly@6..7 "{"
+    ReturnStmt@7..15
+      ReturnKw@7..13 "return"
+      Space@13..14 " "
+      IntLit@14..15
+        IntegerLiteral@14..15 "1"
+    RightCurly@15..16 "}")tree",
+            result.tree);
+}
+
+// Comma-separated params and a return type annotation.
+TEST_F(StmtTest, ParsesFnParamsAndReturnType) {
+  const auto result = parseStmt(U"fn add(x:int32,y:int32)->int32{return x+y}");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"tree(FnStmt@0..42
+  FnKw@0..2 "fn"
+  Space@2..3 " "
+  Ident@3..6
+    Identifier@3..6 "add"
+  LeftParen@6..7 "("
+  Param@7..14
+    Ident@7..8
+      Identifier@7..8 "x"
+    Colon@8..9 ":"
+    NamedType@9..14
+      Ident@9..14
+        Identifier@9..14 "int32"
+  Comma@14..15 ","
+  Param@15..22
+    Ident@15..16
+      Identifier@15..16 "y"
+    Colon@16..17 ":"
+    NamedType@17..22
+      Ident@17..22
+        Identifier@17..22 "int32"
+  RightParen@22..23 ")"
+  Arrow@23..25 "->"
+  NamedType@25..30
+    Ident@25..30
+      Identifier@25..30 "int32"
+  BlockStmt@30..42
+    LeftCurly@30..31 "{"
+    ReturnStmt@31..41
+      ReturnKw@31..37 "return"
+      Space@37..38 " "
+      BinaryExpr@38..41
+        IdentExpr@38..39
+          Ident@38..39
+            Identifier@38..39 "x"
+        Plus@39..40 "+"
+        IdentExpr@40..41
+          Ident@40..41
+            Identifier@40..41 "y"
+    RightCurly@41..42 "}")tree",
+            result.tree);
+}
+
+// A single generic type parameter `[T]`, used in a param and the return.
+TEST_F(StmtTest, ParsesFnSingleTypeParam) {
+  const auto result = parseStmt(U"fn id[T](x:T)->T{return x}");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"tree(FnStmt@0..26
+  FnKw@0..2 "fn"
+  Space@2..3 " "
+  Ident@3..5
+    Identifier@3..5 "id"
+  LeftBracket@5..6 "["
+  TypeParam@6..7
+    Ident@6..7
+      Identifier@6..7 "T"
+  RightBracket@7..8 "]"
+  LeftParen@8..9 "("
+  Param@9..12
+    Ident@9..10
+      Identifier@9..10 "x"
+    Colon@10..11 ":"
+    NamedType@11..12
+      Ident@11..12
+        Identifier@11..12 "T"
+  RightParen@12..13 ")"
+  Arrow@13..15 "->"
+  NamedType@15..16
+    Ident@15..16
+      Identifier@15..16 "T"
+  BlockStmt@16..26
+    LeftCurly@16..17 "{"
+    ReturnStmt@17..25
+      ReturnKw@17..23 "return"
+      Space@23..24 " "
+      IdentExpr@24..25
+        Ident@24..25
+          Identifier@24..25 "x"
+    RightCurly@25..26 "}")tree",
+            result.tree);
+}
+
+// Multiple comma-separated type parameters `[T, U]`.
+TEST_F(StmtTest, ParsesFnMultipleTypeParams) {
+  const auto result = parseStmt(U"fn two[T,U](a:T,b:U){return a}");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"tree(FnStmt@0..30
+  FnKw@0..2 "fn"
+  Space@2..3 " "
+  Ident@3..6
+    Identifier@3..6 "two"
+  LeftBracket@6..7 "["
+  TypeParam@7..8
+    Ident@7..8
+      Identifier@7..8 "T"
+  Comma@8..9 ","
+  TypeParam@9..10
+    Ident@9..10
+      Identifier@9..10 "U"
+  RightBracket@10..11 "]"
+  LeftParen@11..12 "("
+  Param@12..15
+    Ident@12..13
+      Identifier@12..13 "a"
+    Colon@13..14 ":"
+    NamedType@14..15
+      Ident@14..15
+        Identifier@14..15 "T"
+  Comma@15..16 ","
+  Param@16..19
+    Ident@16..17
+      Identifier@16..17 "b"
+    Colon@17..18 ":"
+    NamedType@18..19
+      Ident@18..19
+        Identifier@18..19 "U"
+  RightParen@19..20 ")"
+  BlockStmt@20..30
+    LeftCurly@20..21 "{"
+    ReturnStmt@21..29
+      ReturnKw@21..27 "return"
+      Space@27..28 " "
+      IdentExpr@28..29
+        Ident@28..29
+          Identifier@28..29 "a"
+    RightCurly@29..30 "}")tree",
+            result.tree);
+}
+
+//===----------------------------------------------------------------------===//
+// Return statements
+//===----------------------------------------------------------------------===//
+
+// `return expr` keeps the operand as a child.
+TEST_F(StmtTest, ParsesReturnWithValue) {
+  const auto result = parseStmt(U"return 5");
+
+  EXPECT_TRUE(diagnostics.getDiagnostics().empty());
+  EXPECT_EQ(R"(ReturnStmt@0..8
+  ReturnKw@0..6 "return"
+  Space@6..7 " "
+  IntLit@7..8
+    IntegerLiteral@7..8 "5")",
+            result.tree);
+}
+
 } // namespace

@@ -80,9 +80,9 @@ INSTANTIATE_TEST_SUITE_P(
             U"]",
             std::vector<Token>{Token(TokenKind::RightBracket, U"]", 0, 1)}},
         LexerParam{U"{",
-                   std::vector<Token>{Token(TokenKind::LeftBrace, U"{", 0, 1)}},
+                   std::vector<Token>{Token(TokenKind::LeftCurly, U"{", 0, 1)}},
         LexerParam{U"}",
-                   std::vector<Token>{Token(TokenKind::RightBrace, U"}", 0, 1)}},
+                   std::vector<Token>{Token(TokenKind::RightCurly, U"}", 0, 1)}},
         LexerParam{U",",
                    std::vector<Token>{Token(TokenKind::Comma, U",", 0, 1)}},
         LexerParam{U":", std::vector<Token>{

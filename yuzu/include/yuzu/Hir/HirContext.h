@@ -29,6 +29,14 @@ using HirSourceTable = util::SideTable<HirId, ast::AstNode>;
 /// adjustment's cast op if an entry exists.
 using HirAdjustmentTable = util::SideTable<HirId, Adjustment>;
 
+/// Side table of *unresolved* type annotations, keyed by the `HirId` of the
+/// annotated node (a `LetStmt`, `Param`, or `FnStmt`). Lowering records the
+/// raw `ast::TypeExpr` here rather than resolving it, because a name like a
+/// generic `T` is only meaningful inside the scoped type pass. `TypeInferrer`
+/// resolves each against the type scope and writes the result to the type
+/// side table.
+using HirTypeAnnotationTable = util::SideTable<HirId, ast::TypeExpr>;
+
 class HirContext final {
 public:
   explicit HirContext(diagnostics::DiagnosticsEngine &diagnostics,
@@ -39,6 +47,7 @@ public:
   HirSymbolTable &getSymbolTable() { return symbolTable; }
   HirSourceTable &getSourceTable() { return sourceTable; }
   HirAdjustmentTable &getAdjustments() { return adjustments; }
+  HirTypeAnnotationTable &getTypeAnnotations() { return typeAnnotations; }
   TypeContext &getTypeContext() { return typeContext; }
   util::StringInterner &getStringInterner() { return stringInterner; }
 
@@ -88,9 +97,10 @@ public:
 
 private:
   HirBuilder builder;
-  HirSymbolTable symbolTable;
+  HirSymbolTable symbolTable{*this};
   HirSourceTable sourceTable;
   HirAdjustmentTable adjustments;
+  HirTypeAnnotationTable typeAnnotations;
   util::StringInterner stringInterner;
   TypeContext typeContext{stringInterner};
 
