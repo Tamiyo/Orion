@@ -61,20 +61,6 @@ private:
     return *ch >= U'0' && *ch <= U'9';
   }
 
-  /// \brief Check if the current character is whitespace.
-  ///
-  /// \return true if current is within bounds and is whitespace.
-  [[nodiscard]] static bool atWhitespace(const char32_t *ch) {
-    return (*ch == U' ' || *ch == U'\t' || *ch == U'\n' || *ch == U'\r');
-  }
-
-  /// \brief Check if the current character is alphabetic.
-  ///
-  /// \return true if current is within bounds and is a letter (a-z or A-Z).
-  [[nodiscard]] static bool atAlpha(const char32_t *ch) {
-    return ((*ch >= U'a' && *ch <= U'z') || (*ch >= U'A' && *ch <= U'Z'));
-  }
-
   /// \brief Check if the current character is a valid identifier character.
   ///
   /// \return true if current is a letter, digit, or underscore.

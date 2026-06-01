@@ -32,6 +32,20 @@ const Type *unsupportedOperands(llvm::ArrayRef<const Expr *> args,
   return ctx.getTypeContext().getError();
 }
 
+/// Unary counterpart of `unsupportedOperands` — reads the single operand
+/// (resolving a hole so the message shows a concrete type, not `<infer>`).
+const Type *unsupportedUnaryOperand(llvm::ArrayRef<const Expr *> args,
+                                    HirContext &ctx, llvm::StringRef symbol) {
+  auto &types = ctx.getTypeContext();
+  const auto *operand = types.resolve(types.typeOf(args[0]));
+  ctx.error(args,
+            llvm::formatv("unary operator `{0}` cannot be applied to `{1}`",
+                          symbol, asString(operand->getKind()))
+                .str())
+      .emit();
+  return ctx.getTypeContext().getError();
+}
+
 /// Resolve each operand's type, defaulting any unresolved literal hole to
 /// its concrete type. The shifts call this so an `Int` hole reads as an
 /// integer (passing `isInt`) instead of failing as an unresolved hole.
@@ -311,6 +325,40 @@ const Type *ShiftRightOp::resolve(llvm::ArrayRef<const Expr *> args,
   }
 
   return unsupportedOperands(args, ctx, ">>");
+}
+
+//===----------------------------------------------------------------------===//
+// Unary. `+`/`-` take a numeric operand and preserve its type (so an untyped
+// literal stays a hole); `not` takes a bool and yields bool.
+//===----------------------------------------------------------------------===//
+
+const Type *UnaryPosOp::resolve(llvm::ArrayRef<const Expr *> args,
+                                HirContext &ctx) const {
+  const auto *operand = ctx.getTypeContext().typeOf(args[0]);
+  if (operand->isNumeric() || operand->isHole()) {
+    return operand;
+  }
+
+  return unsupportedUnaryOperand(args, ctx, "+");
+}
+
+const Type *UnaryNegOp::resolve(llvm::ArrayRef<const Expr *> args,
+                                HirContext &ctx) const {
+  const auto *operand = ctx.getTypeContext().typeOf(args[0]);
+  if (operand->isNumeric() || operand->isHole()) {
+    return operand;
+  }
+
+  return unsupportedUnaryOperand(args, ctx, "-");
+}
+
+const Type *UnaryNotOp::resolve(llvm::ArrayRef<const Expr *> args,
+                                HirContext &ctx) const {
+  if (ctx.getTypeContext().typeOf(args[0])->getKind() == TypeKind::Bool) {
+    return ctx.getTypeContext().getBool();
+  }
+
+  return unsupportedUnaryOperand(args, ctx, "not");
 }
 
 } // namespace yuzu::hir

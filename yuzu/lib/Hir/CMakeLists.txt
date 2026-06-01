@@ -11,6 +11,7 @@ add_library(YuzuHir
   Resolve/HirSymbolTable.cc
   Types/TypeResolver.cc
   Types/TypeInferrer.cc
+  Types/TypeConcretizer.cc
   Types/TypeCoercion.cc
 )
 add_dependencies(YuzuHir YuzuHirKindInc YuzuHirInc YuzuHirBuilderInc YuzuHirPrinterInc YuzuHirVisitorInc)

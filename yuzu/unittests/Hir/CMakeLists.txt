@@ -3,6 +3,7 @@ add_yuzu_unittest(HirTests
   HirContextTest.cc
   HirVisitorTest.cc
   TypeFactoryTest.cc
+  TypeTest.cc
   TypeCoercionTest.cc
   UnificationTableTest.cc
 )

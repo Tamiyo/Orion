@@ -47,6 +47,10 @@ YUZU_SINGLETON_OP(Gte)
 YUZU_SINGLETON_OP(ShiftLeft)
 YUZU_SINGLETON_OP(ShiftRight)
 
+YUZU_SINGLETON_OP(UnaryPos)
+YUZU_SINGLETON_OP(UnaryNeg)
+YUZU_SINGLETON_OP(UnaryNot)
+
 } // namespace yuzu::hir
 
 #endif // YUZU_HIR_OP_BUILTINOP_H

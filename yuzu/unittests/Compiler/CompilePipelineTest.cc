@@ -217,4 +217,102 @@ TEST(CompilePipelineTest, FunctionTypeAnnotationUnsupported) {
       << out;
 }
 
+//===----------------------------------------------------------------------===//
+// Literal range checks — a literal must fit the type it resolved to.
+//===----------------------------------------------------------------------===//
+
+// A signed integer literal beyond its annotated type's range is rejected.
+TEST(CompilePipelineTest, IntLiteralOutOfRangeEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int8 = 500", opts(os));
+
+  EXPECT_NE(out.find("integer literal 500 is out of range for `int8`"),
+            std::string::npos)
+      << out;
+}
+
+// Unsigned ranges are checked too (300 > 255).
+TEST(CompilePipelineTest, UnsignedLiteralOutOfRangeEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: uint8 = 300", opts(os));
+
+  EXPECT_NE(out.find("out of range for `uint8`"), std::string::npos) << out;
+}
+
+// A float literal past float32's finite range is rejected.
+TEST(CompilePipelineTest, FloatLiteralOutOfRangeEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: float32 = 1e40", opts(os));
+
+  EXPECT_NE(out.find("out of range for `float32`"), std::string::npos) << out;
+}
+
+// An in-range literal is accepted and takes the annotated type.
+TEST(CompilePipelineTest, InRangeLiteralAccepted) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int8 = 100", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int8"), std::string::npos) << out;
+}
+
+// Unary minus folds into the literal, so `-128` is range-checked as written
+// (in range for int8) rather than as its magnitude 128 (which is not).
+TEST(CompilePipelineTest, NegativeLiteralInRangeAccepted) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int8 = -128", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : int8"), std::string::npos) << out;
+}
+
+TEST(CompilePipelineTest, NegativeLiteralOutOfRangeEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int8 = -129", opts(os));
+
+  EXPECT_NE(out.find("out of range for `int8`"), std::string::npos) << out;
+}
+
+//===----------------------------------------------------------------------===//
+// Unary operators — `-`/`+` on a non-literal lower to a unary op call;
+// `not` requires a bool.
+//===----------------------------------------------------------------------===//
+
+// Negating a binding preserves its type (`-x` where `x : int32` is int32).
+TEST(CompilePipelineTest, UnaryNegateBindingPreservesType) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let x: int32 = 5\nlet y = -x", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("CallExpr : int32"), std::string::npos) << out;
+}
+
+// `not` on a bool yields bool.
+TEST(CompilePipelineTest, UnaryNotProducesBool) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let b = not true", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("LetStmt : bool"), std::string::npos) << out;
+}
+
+// `not` on a non-bool is rejected.
+TEST(CompilePipelineTest, UnaryNotOnNonBoolEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"let b = not 5", opts(os));
+
+  EXPECT_NE(out.find("unary operator `not` cannot be applied"),
+            std::string::npos)
+      << out;
+}
+
 } // namespace

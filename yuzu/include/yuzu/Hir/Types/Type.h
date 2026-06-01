@@ -5,6 +5,8 @@
 
 #include <llvm/ADT/ArrayRef.h>
 
+#include <cfloat>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -179,6 +181,45 @@ public:
   /// An unresolved inference hole (an `InferTy`) — a literal or generic
   /// result the solve pass hasn't pinned to a concrete type yet.
   [[nodiscard]] bool isHole() const { return kind == TypeKind::Infer; }
+
+  /// Whether this integer type can represent `value`. Non-integer types
+  /// return false. (`int64`/`uint64` hold any in-range `int64_t`.)
+  [[nodiscard]] bool canRepresent(int64_t value) const {
+    switch (kind) {
+    case TypeKind::Int8:
+      return value >= INT8_MIN && value <= INT8_MAX;
+    case TypeKind::Int16:
+      return value >= INT16_MIN && value <= INT16_MAX;
+    case TypeKind::Int32:
+      return value >= INT32_MIN && value <= INT32_MAX;
+    case TypeKind::Int64:
+      return true;
+    case TypeKind::UInt8:
+      return value >= 0 && value <= UINT8_MAX;
+    case TypeKind::UInt16:
+      return value >= 0 && value <= UINT16_MAX;
+    case TypeKind::UInt32:
+      return value >= 0 && value <= UINT32_MAX;
+    case TypeKind::UInt64:
+      return value >= 0;
+    default:
+      return false;
+    }
+  }
+
+  /// Whether this float type can represent `value`'s magnitude. `float64`
+  /// holds any double; `float32` rejects magnitudes past its finite range.
+  /// Non-float types return false.
+  [[nodiscard]] bool canRepresent(double value) const {
+    switch (kind) {
+    case TypeKind::Float32:
+      return std::abs(value) <= static_cast<double>(FLT_MAX);
+    case TypeKind::Float64:
+      return true;
+    default:
+      return false;
+    }
+  }
 
 protected:
   explicit Type(TypeKind k) : kind(k) {}

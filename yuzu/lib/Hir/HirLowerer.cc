@@ -55,6 +55,18 @@ const Op *toHir(ast::BinOp op) {
   util::yuzu_unreachable();
 }
 
+const Op *toHir(ast::UnaryOp op) {
+  switch (op) {
+  case ast::UnaryOp::Pos:
+    return UnaryPosOp::get();
+  case ast::UnaryOp::Neg:
+    return UnaryNegOp::get();
+  case ast::UnaryOp::Not:
+    return UnaryNotOp::get();
+  }
+  util::yuzu_unreachable();
+}
+
 /// Materialise the cooked value of a string-literal token. `raw` is the
 /// full token source, including surrounding quotes (and the leading `r`
 /// for raw strings). Returns `nullopt` if the token is too short to be a
@@ -231,6 +243,8 @@ const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
   switch (expr.getKind()) {
   case ast::SyntaxKind::BinaryExpr:
     return lowerBinaryExpr(*ast::BinaryExpr::cast(expr));
+  case ast::SyntaxKind::UnaryExpr:
+    return lowerUnaryExpr(*ast::UnaryExpr::cast(expr));
   case ast::SyntaxKind::ParenExpr:
     return lowerParenExpr(*ast::ParenExpr::cast(expr));
   case ast::SyntaxKind::IdentExpr:
@@ -283,6 +297,42 @@ const Expr *HirLowerer::lowerParenExpr(ast::ParenExpr expr) {
     return nullptr;
   }
   return lowerExpr(*inner);
+}
+
+const Expr *HirLowerer::lowerUnaryExpr(ast::UnaryExpr expr) {
+  const auto op = expr.getOp();
+  const auto operand = expr.getExpr();
+  if (!op || !operand) {
+    error(expr, "incomplete unary expression").emit();
+    return nullptr;
+  }
+
+  const Expr *lowered = lowerExpr(*operand);
+  if (!lowered) {
+    return nullptr;
+  }
+
+  // Fold negation of a numeric literal into the literal itself, so the value
+  // (e.g. `-128`) is range-checked as written rather than as its positive
+  // magnitude. (`+literal` needs no fold — its magnitude is unchanged.)
+  if (*op == ast::UnaryOp::Neg) {
+    if (const IntLit *lit = IntLit::cast(lowered)) {
+      const auto *hir = ctx.getBuilder().makeIntLit(-lit->getValue());
+      ctx.getSourceTable().bind(hir->getId(), expr);
+      return hir;
+    }
+    if (const FloatLit *lit = FloatLit::cast(lowered)) {
+      const auto *hir = ctx.getBuilder().makeFloatLit(-lit->getValue());
+      ctx.getSourceTable().bind(hir->getId(), expr);
+      return hir;
+    }
+  }
+
+  // Everything else lowers to a call on the matching unary operator.
+  const std::array<const Expr *, 1> args = {lowered};
+  const auto *hir = ctx.getBuilder().makeCallExpr(toHir(*op), args);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
 }
 
 const Literal *HirLowerer::lowerLiteralExpr(ast::Literal expr) {

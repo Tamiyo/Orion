@@ -13,10 +13,7 @@ class TypeConcretizer final : public HirVisitor<TypeConcretizer> {
 public:
   explicit TypeConcretizer(HirContext &ctx) : ctx(ctx) {}
 
-  void visit(const HirNode *node) {
-    HirVisitor::visit(node);
-    ctx.getTypeContext().concretize(node);
-  }
+  void visit(const HirNode *node);
 
 private:
   HirContext &ctx;

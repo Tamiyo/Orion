@@ -450,6 +450,46 @@ TEST(BuiltinOpsNameTest, EachSingletonReportsItsClassName) {
   EXPECT_EQ(GteOp::get()->getName(), "Gte");
   EXPECT_EQ(ShiftLeftOp::get()->getName(), "ShiftLeft");
   EXPECT_EQ(ShiftRightOp::get()->getName(), "ShiftRight");
+  EXPECT_EQ(UnaryPosOp::get()->getName(), "UnaryPos");
+  EXPECT_EQ(UnaryNegOp::get()->getName(), "UnaryNeg");
+  EXPECT_EQ(UnaryNotOp::get()->getName(), "UnaryNot");
+}
+
+//===----------------------------------------------------------------------===//
+// Unary operators.
+//===----------------------------------------------------------------------===//
+
+TEST_F(BuiltinOpsTest, UnaryNegPreservesNumericType) {
+  const std::array<const Expr *, 1> i = {typedExpr(TypeKind::Int32)};
+  EXPECT_EQ(UnaryNegOp::get()->resolve(i, ctx)->getKind(), TypeKind::Int32);
+
+  const std::array<const Expr *, 1> f = {typedExpr(TypeKind::Float64)};
+  EXPECT_EQ(UnaryNegOp::get()->resolve(f, ctx)->getKind(), TypeKind::Float64);
+}
+
+TEST_F(BuiltinOpsTest, UnaryNegRejectsNonNumeric) {
+  const std::array<const Expr *, 1> b = {typedExpr(TypeKind::Bool)};
+  EXPECT_EQ(UnaryNegOp::get()->resolve(b, ctx)->getKind(), TypeKind::Error);
+}
+
+TEST_F(BuiltinOpsTest, UnaryPosPreservesNumericType) {
+  const std::array<const Expr *, 1> u = {typedExpr(TypeKind::UInt16)};
+  EXPECT_EQ(UnaryPosOp::get()->resolve(u, ctx)->getKind(), TypeKind::UInt16);
+}
+
+TEST_F(BuiltinOpsTest, UnaryPosRejectsNonNumeric) {
+  const std::array<const Expr *, 1> s = {typedExpr(TypeKind::Str)};
+  EXPECT_EQ(UnaryPosOp::get()->resolve(s, ctx)->getKind(), TypeKind::Error);
+}
+
+TEST_F(BuiltinOpsTest, UnaryNotRequiresBool) {
+  const std::array<const Expr *, 1> b = {typedExpr(TypeKind::Bool)};
+  EXPECT_EQ(UnaryNotOp::get()->resolve(b, ctx)->getKind(), TypeKind::Bool);
+}
+
+TEST_F(BuiltinOpsTest, UnaryNotRejectsNonBool) {
+  const std::array<const Expr *, 1> i = {typedExpr(TypeKind::Int32)};
+  EXPECT_EQ(UnaryNotOp::get()->resolve(i, ctx)->getKind(), TypeKind::Error);
 }
 
 } // namespace

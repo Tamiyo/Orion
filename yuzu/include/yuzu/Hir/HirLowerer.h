@@ -44,6 +44,7 @@ private:
   const LetStmt *lowerLetStmt(ast::LetStmt stmt);
 
   const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
+  const Expr *lowerUnaryExpr(ast::UnaryExpr expr);
   const Expr *lowerParenExpr(ast::ParenExpr expr);
   const IdentExpr *lowerIdentExpr(ast::IdentExpr expr);
 
