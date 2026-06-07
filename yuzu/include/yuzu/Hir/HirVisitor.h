@@ -1,8 +1,8 @@
 #ifndef YUZU_HIR_HIRVISITOR_H
 #define YUZU_HIR_HIRVISITOR_H
 
-#include "yuzu/Hir/Hir.h"             // IWYU pragma: keep
-#include "yuzu/Util/ErrorHandling.h"  // IWYU pragma: keep
+#include "yuzu/Hir/Hir.h"            // IWYU pragma: keep
+#include "yuzu/Util/ErrorHandling.h" // IWYU pragma: keep
 
 // Generated CRTP `HirVisitor<Derived>` template. `visit(node)` is the
 // only public entry — internal hooks are protected so external code

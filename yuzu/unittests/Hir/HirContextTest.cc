@@ -93,8 +93,7 @@ TEST_F(HirContextTest, SpanForUnboundIdReturnsZeroSpanInCtxSource) {
   // well-formed span — start == end == 0, source == ctx's source.
   const auto [root, sourceId] = parse(U"1 + 2");
   HirContext ctx{diagnostics, sourceId};
-  const auto *lit =
-      ctx.getBuilder().makeIntLit(0);
+  const auto *lit = ctx.getBuilder().makeIntLit(0);
 
   const auto span = ctx.spanFor(lit);
   EXPECT_EQ(span.source, sourceId);
@@ -108,8 +107,7 @@ TEST_F(HirContextTest, SpanForBoundNodeReturnsTightRangeOfAstOrigin) {
   const auto [root, sourceId] = parse(U"1 + 2");
   HirContext ctx{diagnostics, sourceId};
   const auto operands = operandsOf(root);
-  const auto *lit =
-      ctx.getBuilder().makeIntLit(0);
+  const auto *lit = ctx.getBuilder().makeIntLit(0);
   ctx.getSourceTable().bind(lit->getId(), operands.lhs);
 
   const auto span = ctx.spanFor(lit);
@@ -124,8 +122,7 @@ TEST_F(HirContextTest, SpanForHirIdAgreesWithSpanForNode) {
   const auto [root, sourceId] = parse(U"1 + 2");
   HirContext ctx{diagnostics, sourceId};
   const auto operands = operandsOf(root);
-  const auto *lit =
-      ctx.getBuilder().makeIntLit(0);
+  const auto *lit = ctx.getBuilder().makeIntLit(0);
   ctx.getSourceTable().bind(lit->getId(), operands.rhs);
 
   const auto a = ctx.spanFor(lit);
@@ -153,8 +150,7 @@ TEST_F(HirContextTest, SpanForSingleElementArrayMatchesSingleNodeSpan) {
   const auto [root, sourceId] = parse(U"1 + 2");
   HirContext ctx{diagnostics, sourceId};
   const auto operands = operandsOf(root);
-  const auto *lit =
-      ctx.getBuilder().makeIntLit(0);
+  const auto *lit = ctx.getBuilder().makeIntLit(0);
   ctx.getSourceTable().bind(lit->getId(), operands.lhs);
 
   const std::array<const HirNode *, 1> one = {lit};
@@ -172,10 +168,8 @@ TEST_F(HirContextTest, SpanForTwoElementArrayCoversFirstStartToLastEnd) {
   HirContext ctx{diagnostics, sourceId};
   const auto operands = operandsOf(root);
 
-  const auto *lhsHir =
-      ctx.getBuilder().makeIntLit(1);
-  const auto *rhsHir =
-      ctx.getBuilder().makeIntLit(2);
+  const auto *lhsHir = ctx.getBuilder().makeIntLit(1);
+  const auto *rhsHir = ctx.getBuilder().makeIntLit(2);
   ctx.getSourceTable().bind(lhsHir->getId(), operands.lhs);
   ctx.getSourceTable().bind(rhsHir->getId(), operands.rhs);
 
@@ -194,10 +188,8 @@ TEST_F(HirContextTest, SpanForArrayOfExprPointersInstantiatesTemplate) {
   HirContext ctx{diagnostics, sourceId};
   const auto operands = operandsOf(root);
 
-  const Expr *lhsHir =
-      ctx.getBuilder().makeIntLit(1);
-  const Expr *rhsHir =
-      ctx.getBuilder().makeIntLit(2);
+  const Expr *lhsHir = ctx.getBuilder().makeIntLit(1);
+  const Expr *rhsHir = ctx.getBuilder().makeIntLit(2);
   ctx.getSourceTable().bind(lhsHir->getId(), operands.lhs);
   ctx.getSourceTable().bind(rhsHir->getId(), operands.rhs);
 
@@ -216,8 +208,7 @@ TEST_F(HirContextTest, ErrorOnNodeRecordsDiagnosticAtNodeSpan) {
   const auto [root, sourceId] = parse(U"1 + 2");
   HirContext ctx{diagnostics, sourceId};
   const auto operands = operandsOf(root);
-  const auto *lit =
-      ctx.getBuilder().makeIntLit(0);
+  const auto *lit = ctx.getBuilder().makeIntLit(0);
   ctx.getSourceTable().bind(lit->getId(), operands.lhs);
 
   ctx.error(lit, "something is wrong").emit();
@@ -237,10 +228,8 @@ TEST_F(HirContextTest, ErrorOnArrayRecordsStitchedSpan) {
   HirContext ctx{diagnostics, sourceId};
   const auto operands = operandsOf(root);
 
-  const Expr *lhsHir =
-      ctx.getBuilder().makeIntLit(1);
-  const Expr *rhsHir =
-      ctx.getBuilder().makeIntLit(2);
+  const Expr *lhsHir = ctx.getBuilder().makeIntLit(1);
+  const Expr *rhsHir = ctx.getBuilder().makeIntLit(2);
   ctx.getSourceTable().bind(lhsHir->getId(), operands.lhs);
   ctx.getSourceTable().bind(rhsHir->getId(), operands.rhs);
 

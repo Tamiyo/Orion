@@ -31,8 +31,10 @@ TEST_F(UnificationTableTest, FillsHoleFromConcrete) {
 
 TEST_F(UnificationTableTest, FillIsKindRestricted) {
   // An Int hole rejects a non-integer; a General hole accepts anything.
-  EXPECT_FALSE(table.unify(table.makeTypeHole(InferKind::Int), types.getStrType()));
-  EXPECT_FALSE(table.unify(table.makeTypeHole(InferKind::Float), types.getInt32Type()));
+  EXPECT_FALSE(
+      table.unify(table.makeTypeHole(InferKind::Int), types.getStrType()));
+  EXPECT_FALSE(
+      table.unify(table.makeTypeHole(InferKind::Float), types.getInt32Type()));
 
   const auto *general = table.makeTypeHole(InferKind::General);
   EXPECT_TRUE(table.unify(general, types.getStrType()));
@@ -40,7 +42,8 @@ TEST_F(UnificationTableTest, FillIsKindRestricted) {
 }
 
 TEST_F(UnificationTableTest, UnfilledNumericHolesDefault) {
-  EXPECT_EQ(table.resolve(table.makeTypeHole(InferKind::Int)), types.getInt64Type());
+  EXPECT_EQ(table.resolve(table.makeTypeHole(InferKind::Int)),
+            types.getInt64Type());
   EXPECT_EQ(table.resolve(table.makeTypeHole(InferKind::Float)),
             types.getFloat64Type());
 }
@@ -85,8 +88,8 @@ TEST_F(UnificationTableTest, FuncTypesDifferingInResultDoNotUnify) {
 
 TEST_F(UnificationTableTest, FuncTypesDifferingInArityDoNotUnify) {
   const auto *a = types.getFuncTy({types.getInt32Type()}, types.getBoolType());
-  const auto *b = types.getFuncTy(
-      {types.getInt32Type(), types.getInt32Type()}, types.getBoolType());
+  const auto *b = types.getFuncTy({types.getInt32Type(), types.getInt32Type()},
+                                  types.getBoolType());
   EXPECT_FALSE(table.unify(a, b));
 }
 
@@ -136,7 +139,7 @@ TEST_F(UnificationTableTest, GeneralHoleAdoptsNumericKind) {
 
 TEST_F(UnificationTableTest, IntAndFloatHolesClash) {
   EXPECT_FALSE(table.unify(table.makeTypeHole(InferKind::Int),
-                                table.makeTypeHole(InferKind::Float)));
+                           table.makeTypeHole(InferKind::Float)));
 }
 
 TEST_F(UnificationTableTest, LinkChainPropagates) {

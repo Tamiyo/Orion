@@ -52,41 +52,36 @@ INSTANTIATE_TEST_SUITE_P(
                    std::vector<Token>{Token(TokenKind::EqEq, U"==", 0, 2)}},
         LexerParam{U"!=",
                    std::vector<Token>{Token(TokenKind::Neq, U"!=", 0, 2)}},
-        LexerParam{U"<",
-                   std::vector<Token>{Token(TokenKind::Lt, U"<", 0, 1)}},
+        LexerParam{U"<", std::vector<Token>{Token(TokenKind::Lt, U"<", 0, 1)}},
         LexerParam{U"<=",
                    std::vector<Token>{Token(TokenKind::Lte, U"<=", 0, 2)}},
-        LexerParam{U">",
-                   std::vector<Token>{Token(TokenKind::Gt, U">", 0, 1)}},
+        LexerParam{U">", std::vector<Token>{Token(TokenKind::Gt, U">", 0, 1)}},
         LexerParam{U">=",
                    std::vector<Token>{Token(TokenKind::Gte, U">=", 0, 2)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Bitwise, LexerTokenTest,
     ::testing::Values(
-        LexerParam{
-            U"<<",
-            std::vector<Token>{Token(TokenKind::ShiftLeft, U"<<", 0, 2)}},
+        LexerParam{U"<<", std::vector<Token>{Token(TokenKind::ShiftLeft, U"<<",
+                                                   0, 2)}},
         LexerParam{U">>", std::vector<Token>{
                               Token(TokenKind::ShiftRight, U">>", 0, 2)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Delimiters, LexerTokenTest,
     ::testing::Values(
-        LexerParam{
-            U"[",
-            std::vector<Token>{Token(TokenKind::LeftBracket, U"[", 0, 1)}},
-        LexerParam{
-            U"]",
-            std::vector<Token>{Token(TokenKind::RightBracket, U"]", 0, 1)}},
+        LexerParam{U"[", std::vector<Token>{Token(TokenKind::LeftBracket, U"[",
+                                                  0, 1)}},
+        LexerParam{U"]", std::vector<Token>{Token(TokenKind::RightBracket, U"]",
+                                                  0, 1)}},
         LexerParam{U"{",
                    std::vector<Token>{Token(TokenKind::LeftCurly, U"{", 0, 1)}},
-        LexerParam{U"}",
-                   std::vector<Token>{Token(TokenKind::RightCurly, U"}", 0, 1)}},
+        LexerParam{
+            U"}", std::vector<Token>{Token(TokenKind::RightCurly, U"}", 0, 1)}},
         LexerParam{U",",
                    std::vector<Token>{Token(TokenKind::Comma, U",", 0, 1)}},
-        LexerParam{U":", std::vector<Token>{
-                             Token(TokenKind::Colon, U":", 0, 1)}}));
+        LexerParam{U":",
+                   std::vector<Token>{Token(TokenKind::Colon, U":", 0, 1)}}));
 
 INSTANTIATE_TEST_SUITE_P(
     Arrow, LexerTokenTest,

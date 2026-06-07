@@ -136,7 +136,8 @@ void emitVariantKind(CodeFormatter &fmt, const llvm::Record *v,
                     leaves.back()->getName().str(), name, childName);
         }
       } else {
-        fmt.linef("case SyntaxKind::{0}: return {1}Kind::{0};", childName, name);
+        fmt.linef("case SyntaxKind::{0}: return {1}Kind::{0};", childName,
+                  name);
       }
     }
     fmt.line("default: util::yuzu_unreachable();");

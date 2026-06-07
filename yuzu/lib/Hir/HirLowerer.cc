@@ -304,7 +304,8 @@ HirLowerer::lowerFuncTypeAnnotation(ast::FuncTypeAnnotation type) {
     return nullptr;
   }
 
-  const auto *hir = ctx.getBuilder().makeFuncTypeAnnotation(params, loweredResult);
+  const auto *hir =
+      ctx.getBuilder().makeFuncTypeAnnotation(params, loweredResult);
   ctx.getSourceTable().bind(hir->getId(), type);
   return hir;
 }

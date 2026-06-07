@@ -4,8 +4,12 @@ BUILD_DIR := build
 GENERATOR := Ninja
 CC        := clang
 CXX       := clang++
+CLANG_FORMAT := clang-format
 
-.PHONY: all configure build test repl compile clean
+# Hand-written C++ sources (generated *.inc live under $(BUILD_DIR), excluded).
+CXX_SOURCES := $(shell find yuzu \( -name '*.cc' -o -name '*.h' \))
+
+.PHONY: all configure build test repl compile format format-check clean
 
 all: build
 
@@ -35,6 +39,14 @@ repl: configure
 # Extra flags pass through ARGS, e.g. `make compile FILE=x.yz ARGS=--debug-hir`.
 compile: build
 	$(BUILD_DIR)/yuzu/tools/compile/yuzu-compile $(ARGS) $(FILE)
+
+# Format all C++ sources in place using .clang-format.
+format:
+	$(CLANG_FORMAT) -i $(CXX_SOURCES)
+
+# Report files that aren't formatted (non-zero exit if any), without editing.
+format-check:
+	$(CLANG_FORMAT) --dry-run --Werror $(CXX_SOURCES)
 
 clean:
 	rm -rf $(BUILD_DIR)

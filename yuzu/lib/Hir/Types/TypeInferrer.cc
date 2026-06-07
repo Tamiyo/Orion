@@ -145,11 +145,10 @@ void TypeInferrer::visitFuncCallExpr(const FuncCallExpr *funcCallExpr) {
     const Type *concrete = types.resolveType(holeType);
     for (const std::u32string_view trait : it->second) {
       if (!registry.lookupImpl(trait, concrete)) {
-        ctx.error(funcCallExpr,
-                  llvm::formatv("`{0}` does not implement `{1}`",
-                                asString(concrete->getKind()),
-                                util::toUtf8(trait))
-                      .str())
+        ctx.error(funcCallExpr, llvm::formatv("`{0}` does not implement `{1}`",
+                                              asString(concrete->getKind()),
+                                              util::toUtf8(trait))
+                                    .str())
             .emit();
       }
     }
@@ -159,9 +158,8 @@ void TypeInferrer::visitFuncCallExpr(const FuncCallExpr *funcCallExpr) {
   types.bind(funcCallExpr, substituteType(funcType->getReturnType(), subst));
 }
 
-const Type *
-TypeInferrer::substituteType(const Type *type,
-                             llvm::DenseMap<const Type *, const Type *> &subst) {
+const Type *TypeInferrer::substituteType(
+    const Type *type, llvm::DenseMap<const Type *, const Type *> &subst) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
 
@@ -267,7 +265,7 @@ const FuncType *TypeInferrer::signatureOf(const FuncStmt *n) {
   // and global builtins; a nested capture would need declaration-site scope.)
   const HirScopeGuard guard =
       ctx.getSymbolTable().pushScope(HirScopeKind::Func);
-      
+
   return resolveFuncType(n);
 }
 
@@ -275,9 +273,8 @@ const TypeParamType *TypeInferrer::markerFor(const Ident *decl,
                                              uint32_t index) {
   auto [it, inserted] = typeParamMarkers.try_emplace(decl, nullptr);
   if (inserted) {
-    it->second =
-        ctx.getTypeContext().getTypeFactory().getTypeParamType(index,
-                                                               decl->getName());
+    it->second = ctx.getTypeContext().getTypeFactory().getTypeParamType(
+        index, decl->getName());
   }
   return it->second;
 }
@@ -301,9 +298,9 @@ void TypeInferrer::resolveTraitBounds(const FuncStmt *funcStmt) {
     for (const TraitRef *traitRef : bound->getTraits()) {
       const std::u32string_view trait = traitRef->getName()->getName();
       if (!registry.isRegistered(trait)) {
-        ctx.error(traitRef,
-                  llvm::formatv("unknown trait `{0}`", util::toUtf8(trait))
-                      .str())
+        ctx.error(
+               traitRef,
+               llvm::formatv("unknown trait `{0}`", util::toUtf8(trait)).str())
             .emit();
         continue;
       }
@@ -376,7 +373,6 @@ void TypeInferrer::traverseFuncStmt(const FuncStmt *n) {
     symbols.bindType(typeParam->getName(),
                      markerFor(typeParam, static_cast<uint32_t>(i)));
   }
-
 
   for (const Param *param : n->getParams()) {
     symbols.bind(param->getName(), param);

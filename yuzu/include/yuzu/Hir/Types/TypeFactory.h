@@ -18,23 +18,23 @@ public:
       : stringInterner(strings) {
     // Pre-allocate primitives in the arena so getXxx() returns a stable
     // pointer with no interner hit. Placement-new each one in turn.
-    int8Type= new (arena.Allocate<Int8Type>()) Int8Type();
-    int16Type= new (arena.Allocate<Int16Type>()) Int16Type();
-    int32Type= new (arena.Allocate<Int32Type>()) Int32Type();
-    int64Type= new (arena.Allocate<Int64Type>()) Int64Type();
+    int8Type = new (arena.Allocate<Int8Type>()) Int8Type();
+    int16Type = new (arena.Allocate<Int16Type>()) Int16Type();
+    int32Type = new (arena.Allocate<Int32Type>()) Int32Type();
+    int64Type = new (arena.Allocate<Int64Type>()) Int64Type();
 
-    uint8Type= new (arena.Allocate<UInt8Type>()) UInt8Type();
-    uint16Type= new (arena.Allocate<UInt16Type>()) UInt16Type();
-    uint32Type= new (arena.Allocate<UInt32Type>()) UInt32Type();
-    uint64Type= new (arena.Allocate<UInt64Type>()) UInt64Type();
+    uint8Type = new (arena.Allocate<UInt8Type>()) UInt8Type();
+    uint16Type = new (arena.Allocate<UInt16Type>()) UInt16Type();
+    uint32Type = new (arena.Allocate<UInt32Type>()) UInt32Type();
+    uint64Type = new (arena.Allocate<UInt64Type>()) UInt64Type();
 
-    float32Type= new (arena.Allocate<Float32Type>()) Float32Type();
-    float64Type= new (arena.Allocate<Float64Type>()) Float64Type();
+    float32Type = new (arena.Allocate<Float32Type>()) Float32Type();
+    float64Type = new (arena.Allocate<Float64Type>()) Float64Type();
 
-    boolType= new (arena.Allocate<BoolType>()) BoolType();
-    strType= new (arena.Allocate<StrType>()) StrType();
-    unitType= new (arena.Allocate<UnitType>()) UnitType();
-    errorType= new (arena.Allocate<ErrorType>()) ErrorType();
+    boolType = new (arena.Allocate<BoolType>()) BoolType();
+    strType = new (arena.Allocate<StrType>()) StrType();
+    unitType = new (arena.Allocate<UnitType>()) UnitType();
+    errorType = new (arena.Allocate<ErrorType>()) ErrorType();
   }
 
   TypeFactory(const TypeFactory &) = delete;
@@ -51,8 +51,12 @@ public:
   [[nodiscard]] const UInt32Type *getUInt32Type() const { return uint32Type; }
   [[nodiscard]] const UInt64Type *getUInt64Type() const { return uint64Type; }
 
-  [[nodiscard]] const Float32Type *getFloat32Type() const { return float32Type; }
-  [[nodiscard]] const Float64Type *getFloat64Type() const { return float64Type; }
+  [[nodiscard]] const Float32Type *getFloat32Type() const {
+    return float32Type;
+  }
+  [[nodiscard]] const Float64Type *getFloat64Type() const {
+    return float64Type;
+  }
 
   [[nodiscard]] const BoolType *getBoolType() const { return boolType; }
   [[nodiscard]] const StrType *getStrType() const { return strType; }
@@ -109,7 +113,8 @@ public:
   /// `(params...) -> ret`. Not interned: a function signature isn't compared
   /// by pointer, so each call allocates a fresh `FuncTy` with its `params`
   /// copied into the arena.
-  const FuncType *getFuncTy(llvm::ArrayRef<const Type *> params, const Type *ret) {
+  const FuncType *getFuncTy(llvm::ArrayRef<const Type *> params,
+                            const Type *ret) {
     const Type **savedParams = arena.Allocate<const Type *>(params.size());
     for (size_t i = 0; i < params.size(); ++i) {
       savedParams[i] = params[i];
@@ -121,7 +126,8 @@ public:
   /// A generic type parameter `T#index`. Not interned: each declared `[T]`
   /// is a distinct marker (its identity, not its name, is what matters). The
   /// name is interned so it outlives the caller's storage.
-  const TypeParamType *getTypeParamType(uint32_t index, std::u32string_view name) {
+  const TypeParamType *getTypeParamType(uint32_t index,
+                                        std::u32string_view name) {
     return new (arena.Allocate<TypeParamType>())
         TypeParamType(index, stringInterner.intern(name));
   }
@@ -130,7 +136,7 @@ public:
   /// caller's storage needn't outlive the call. Name *resolution* is the
   /// scope's job — the caller binds the struct's name into the environment.
   const StructType *getStructType(std::u32string_view name,
-                            llvm::ArrayRef<StructField> fields) {
+                                  llvm::ArrayRef<StructField> fields) {
     StructField *savedFields = arena.Allocate<StructField>(fields.size());
     for (size_t i = 0; i < fields.size(); ++i) {
       savedFields[i] =
@@ -138,7 +144,7 @@ public:
     }
     return new (arena.Allocate<StructType>())
         StructType(stringInterner.intern(name),
-                 llvm::ArrayRef<StructField>(savedFields, fields.size()));
+                   llvm::ArrayRef<StructField>(savedFields, fields.size()));
   }
 
 private:

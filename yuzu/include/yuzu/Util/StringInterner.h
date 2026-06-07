@@ -28,11 +28,11 @@ public:
   std::u32string_view intern(std::u32string_view s) {
     if (s.empty()) {
       return {};
-    }             
+    }
     if (const auto it = pool.find(s); it != pool.end()) {
       return *it;
     }
-    auto *buf  = arena.Allocate<char32_t>(s.size());
+    auto *buf = arena.Allocate<char32_t>(s.size());
     std::copy(s.begin(), s.end(), buf);
     const std::u32string_view interned(buf, s.size());
     pool.insert(interned);

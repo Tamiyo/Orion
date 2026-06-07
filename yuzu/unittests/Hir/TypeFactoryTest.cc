@@ -66,8 +66,8 @@ TEST_F(TypeFactoryTest, RelationOfRelationNestsAndInterns) {
   const auto *inner = interner.getRelationType(interner.getInt64Type());
   const auto *outer = interner.getRelationType(inner);
   EXPECT_EQ(outer->getElement(), inner);
-  EXPECT_EQ(outer,
-            interner.getRelationType(interner.getRelationType(interner.getInt64Type())));
+  EXPECT_EQ(outer, interner.getRelationType(
+                       interner.getRelationType(interner.getInt64Type())));
   EXPECT_NE(outer, inner);
 }
 
@@ -146,7 +146,8 @@ TEST_F(TypeFactoryTest, FuncCopiesParamsIntoArena) {
   // caller's buffer is gone.
   const FuncType *fn = nullptr;
   {
-    std::vector<const Type *> params = {interner.getInt8Type(), interner.getInt16Type()};
+    std::vector<const Type *> params = {interner.getInt8Type(),
+                                        interner.getInt16Type()};
     fn = interner.getFuncTy(params, interner.getBoolType());
     params.clear();
     params.shrink_to_fit();
@@ -161,8 +162,10 @@ TEST_F(TypeFactoryTest, FuncIsNotInterned) {
   // allocates a fresh `FuncTy` (so a generic signature's holes stay
   // distinct per instantiation). Structurally-identical calls differ by
   // pointer but agree on contents.
-  const auto *a = interner.getFuncTy({interner.getInt32Type()}, interner.getBoolType());
-  const auto *b = interner.getFuncTy({interner.getInt32Type()}, interner.getBoolType());
+  const auto *a =
+      interner.getFuncTy({interner.getInt32Type()}, interner.getBoolType());
+  const auto *b =
+      interner.getFuncTy({interner.getInt32Type()}, interner.getBoolType());
   EXPECT_NE(a, b);
   EXPECT_EQ(a->getReturnType(), b->getReturnType());
 }
@@ -180,7 +183,8 @@ TEST_F(TypeFactoryTest, TypeParamCarriesIndexAndName) {
 
 TEST_F(TypeFactoryTest, TypeParamIsNotInterned) {
   // Each declared `[T]` is a distinct marker — identity, not name, matters.
-  EXPECT_NE(interner.getTypeParamType(0, U"T"), interner.getTypeParamType(0, U"T"));
+  EXPECT_NE(interner.getTypeParamType(0, U"T"),
+            interner.getTypeParamType(0, U"T"));
 }
 
 TEST_F(TypeFactoryTest, TypeParamCopiesNameIntoArena) {
@@ -198,10 +202,12 @@ TEST_F(TypeFactoryTest, DistinctPrimitivesHaveDistinctPointers) {
   // Pointer-equality is the interning contract, so every primitive must
   // be a distinct address from every other primitive.
   const Type *all[] = {
-      interner.getInt8Type(),    interner.getInt16Type(),  interner.getInt32Type(),
-      interner.getInt64Type(),   interner.getUInt8Type(),  interner.getUInt16Type(),
-      interner.getUInt32Type(),  interner.getUInt64Type(), interner.getFloat32Type(),
-      interner.getFloat64Type(), interner.getBoolType(),   interner.getStrType(),
+      interner.getInt8Type(),    interner.getInt16Type(),
+      interner.getInt32Type(),   interner.getInt64Type(),
+      interner.getUInt8Type(),   interner.getUInt16Type(),
+      interner.getUInt32Type(),  interner.getUInt64Type(),
+      interner.getFloat32Type(), interner.getFloat64Type(),
+      interner.getBoolType(),    interner.getStrType(),
       interner.getUnitType(),    interner.getErrorType(),
   };
   for (std::size_t i = 0; i < std::size(all); ++i) {

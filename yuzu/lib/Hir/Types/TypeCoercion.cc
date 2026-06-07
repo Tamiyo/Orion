@@ -12,8 +12,8 @@ namespace {
 /// Casts an expression from one type to another, recording the adjustment
 /// for later application.
 const Type *cast(const Expr *from, const Expr *to, HirContext &ctx) {
-  const auto adjustment =
-      Adjustment{.kind = AdjustmentKind::Cast, .target = ctx.getTypeContext().typeOf(to)};
+  const auto adjustment = Adjustment{.kind = AdjustmentKind::Cast,
+                                     .target = ctx.getTypeContext().typeOf(to)};
   ctx.getAdjustments().bind(from->getId(), adjustment);
   return ctx.getTypeContext().typeOf(to);
 }

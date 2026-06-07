@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(./build/yuzu/unittests/Compiler/CompilerTests --gtest_filter='*Function*:*Return*')"
-    ]
-  }
-}

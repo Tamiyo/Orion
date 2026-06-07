@@ -55,8 +55,8 @@ public:
 
   [[nodiscard]] diagnostics::Diagnostic
   toDiagnostic(diagnostics::SourceId source) const override {
-    const std::string foundName = found ? lexer::asDisplayString(*found)
-                                        : std::string("end of input");
+    const std::string foundName =
+        found ? lexer::asDisplayString(*found) : std::string("end of input");
 
     std::string expectedList;
     for (size_t i = 0; i < expected.size(); ++i) {

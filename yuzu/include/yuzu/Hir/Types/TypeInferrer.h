@@ -65,9 +65,9 @@ private:
   const Type *resolveTypeAnnotation(const TypeAnnotation *type,
                                     const HirNode *node);
   const Type *resolveNamedTypeAnnotation(const NamedTypeAnnotation *annotation,
-                               const HirNode *node);
+                                         const HirNode *node);
   const Type *resolveFuncTypeAnnotation(const FuncTypeAnnotation *annotation,
-                            const HirNode *node);
+                                        const HirNode *node);
 
   /// The marker for a type-parameter declaration, interned by its declaration
   /// node. The same `[T]` always yields the same marker (so a signature and

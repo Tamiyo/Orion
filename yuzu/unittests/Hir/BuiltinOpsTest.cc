@@ -250,11 +250,11 @@ TEST_P(MembershipOpsParam, StrInInt_ReturnsError_EmitsDiagnostic) {
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    AllMembershipOps, MembershipOpsParam,
-    ::testing::Values(OpCase{"In", InOp::get(), "in"},
-                      OpCase{"NotIn", NotInOp::get(), "not in"}),
-    [](const auto &info) { return info.param.name; });
+INSTANTIATE_TEST_SUITE_P(AllMembershipOps, MembershipOpsParam,
+                         ::testing::Values(OpCase{"In", InOp::get(), "in"},
+                                           OpCase{"NotIn", NotInOp::get(),
+                                                  "not in"}),
+                         [](const auto &info) { return info.param.name; });
 
 //===----------------------------------------------------------------------===//
 // Equality (`==`, `!=`) — operands that coerce to a common type are

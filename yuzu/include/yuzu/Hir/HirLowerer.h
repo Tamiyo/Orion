@@ -50,8 +50,10 @@ private:
   const TraitRef *lowerTraitRef(ast::TraitRef traitRef);
 
   const TypeAnnotation *lowerTypeAnnotation(ast::TypeAnnotation type);
-  const NamedTypeAnnotation *lowerNamedTypeAnnotation(ast::NamedTypeAnnotation type);
-  const FuncTypeAnnotation *lowerFuncTypeAnnotation(ast::FuncTypeAnnotation type);
+  const NamedTypeAnnotation *
+  lowerNamedTypeAnnotation(ast::NamedTypeAnnotation type);
+  const FuncTypeAnnotation *
+  lowerFuncTypeAnnotation(ast::FuncTypeAnnotation type);
 
   const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
   const Expr *lowerUnaryExpr(ast::UnaryExpr expr);
