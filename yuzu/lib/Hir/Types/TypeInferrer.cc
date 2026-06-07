@@ -10,301 +10,416 @@
 
 #include <llvm/Support/FormatVariadic.h>
 
+#include <type_traits>
 #include <variant>
 #include <vector>
 
 namespace yuzu::hir {
-namespace {
-// Type of a binding, uniform across the variant arms (all read the side table).
-const Type *typeOf(const HirScope::LookupResult &result, HirContext &ctx) {
-  if (!result) {
-    return nullptr;
-  }
-  return std::visit(
-      [&](const auto *decl) { return ctx.getTypeContext().typeOf(decl); },
-      *result);
-}
-} // namespace
 
 void TypeInferrer::visitBoolLit(const BoolLit *n) {
-  ctx.getTypeContext().bind(n, ctx.getTypeContext().getBool());
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+  types.bind(n, typeFactory.getBoolType());
 }
 
 void TypeInferrer::visitStringLit(const StringLit *n) {
-  ctx.getTypeContext().bind(n, ctx.getTypeContext().getStr());
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+  types.bind(n, typeFactory.getStrType());
 }
 
 // Untyped numeric literals are holes; context pins them, else they default.
 void TypeInferrer::visitIntLit(const IntLit *n) {
-  ctx.getTypeContext().bind(n, ctx.getTypeContext().hole(InferKind::Int));
+  auto &types = ctx.getTypeContext();
+  types.bind(n, types.makeTypeHole(InferKind::Int));
 }
 
 void TypeInferrer::visitFloatLit(const FloatLit *n) {
-  ctx.getTypeContext().bind(n, ctx.getTypeContext().hole(InferKind::Float));
+  auto &types = ctx.getTypeContext();
+  types.bind(n, types.makeTypeHole(InferKind::Float));
 }
 
 void TypeInferrer::visitIdentExpr(const IdentExpr *n) {
-  const auto res = ctx.getSymbolTable().lookup(n->getName());
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+  const auto lookupResult = ctx.getSymbolTable().lookup(n->getName());
 
-  if (!res) {
+  if (!lookupResult) {
     ctx.error(n, "unresolved identifier").emit();
-    ctx.getTypeContext().bind(n, ctx.getTypeContext().getError());
+    types.bind(n, typeFactory.getErrorType());
     return;
   }
 
-  ctx.getTypeContext().bind(n, typeOf(res, ctx));
+  // A function reference resolves its signature lazily on first use (forward
+  // references); other bindings already carry a type in the side table.
+  const Type *type = std::visit(
+      [&](const auto *decl) -> const Type * {
+        if constexpr (std::is_same_v<std::decay_t<decltype(*decl)>, FuncStmt>) {
+          return signatureOf(decl);
+        } else {
+          return types.typeOf(decl);
+        }
+      },
+      *lookupResult);
+
+  types.bind(n, type);
 }
 
-void TypeInferrer::visitCallExpr(const CallExpr *n) {
+void TypeInferrer::visitCallExpr(const CallExpr *callExpr) {
   auto &types = ctx.getTypeContext();
 
   // A failed operand poisons the call silently — no cascading diagnostic.
-  for (const Expr *arg : n->getArgs()) {
-    if (types.typeOf(arg)->getKind() == TypeKind::Error) {
-      types.bind(n, types.getError());
+  for (const Expr *arg : callExpr->getArgs()) {
+    const Type *type = types.typeOf(arg);
+    if (type->getKind() == TypeKind::Error) {
+      types.bind(callExpr, types.getTypeFactory().getErrorType());
       return;
     }
   }
-  types.bind(n, n->getOp()->resolve(n->getArgs(), ctx));
+
+  const Type *resolvedType =
+      callExpr->getOp()->resolve(callExpr->getArgs(), ctx);
+
+  types.bind(callExpr, resolvedType);
 }
 
-void TypeInferrer::visitFnCallExpr(const FnCallExpr *n) {
+void TypeInferrer::visitFuncCallExpr(const FuncCallExpr *funcCallExpr) {
   auto &types = ctx.getTypeContext();
-  const Expr *callee = n->getCallee();
+  const Expr *callee = funcCallExpr->getCallee();
   const Type *calleeType = types.typeOf(callee);
 
-  // A failed callee already reported; stay quiet.
+  // A failed callee already reported; early exist.
   if (calleeType->getKind() == TypeKind::Error) {
-    types.bind(n, types.getError());
+    types.bind(funcCallExpr, types.getTypeFactory().getErrorType());
     return;
   }
 
-  const auto *fn = FuncTy::cast(calleeType);
-  if (!fn) {
+  const auto *funcType = FuncType::cast(calleeType);
+  if (!funcType) {
     ctx.error(callee, llvm::formatv("`{0}` is not callable",
                                     asString(calleeType->getKind()))
                           .str())
         .emit();
-    types.bind(n, types.getError());
+    types.bind(funcCallExpr, types.getTypeFactory().getErrorType());
     return;
   }
 
-  const auto args = n->getArgs();
-  const auto params = fn->getParams();
-  if (args.size() != params.size()) {
-    ctx.error(n, llvm::formatv("expected {0} argument(s), found {1}",
-                               params.size(), args.size())
-                     .str())
+  // Arity check.
+  const auto args = funcCallExpr->getArgs();
+  const auto argTypes = funcType->getArgTypes();
+  if (args.size() != argTypes.size()) {
+    ctx.error(funcCallExpr, llvm::formatv("expected {0} argument(s), found {1}",
+                                          argTypes.size(), args.size())
+                                .str())
         .emit();
-    types.bind(n, fn->getRet());
+    types.bind(funcCallExpr, funcType->getReturnType());
     return;
   }
 
   // Per-call substitution of `[T]` markers → fresh holes, so calls don't
   // disturb the stored template.
-  llvm::DenseMap<uint32_t, const Type *> subst;
+  llvm::DenseMap<const Type *, const Type *> subst;
 
   // Each argument must be assignable to its instantiated parameter.
   for (size_t i = 0; i < args.size(); ++i) {
-    const Type *param = instantiate(params[i], subst);
-    if (types.unify(types.typeOf(args[i]), param)) {
-      continue;
-    }
-    types.concretize(args[i]);
-    if (!coercesTo(args[i], types.resolve(param), ctx)) {
+    const Type *param = substituteType(argTypes[i], subst);
+    if (!isAssignable(args[i], param)) {
       ctx.error(args[i],
                 llvm::formatv("argument of type `{0}` is not assignable to "
                               "parameter of type `{1}`",
                               asString(types.typeOf(args[i])->getKind()),
-                              asString(types.resolve(param)->getKind()))
+                              asString(types.resolveType(param)->getKind()))
                     .str())
           .emit();
     }
   }
 
   // Leave the return as a (possibly open) hole so an annotation can pin it.
-  types.bind(n, instantiate(fn->getRet(), subst));
+  types.bind(funcCallExpr, substituteType(funcType->getReturnType(), subst));
 }
 
 const Type *
-TypeInferrer::instantiate(const Type *type,
-                          llvm::DenseMap<uint32_t, const Type *> &subst) {
-  if (const auto *tp = TypeParamTy::cast(type)) {
-    // Same `[T]` → same fresh hole within this call.
-    auto [it, inserted] = subst.try_emplace(tp->getIndex(), nullptr);
+TypeInferrer::substituteType(const Type *type,
+                             llvm::DenseMap<const Type *, const Type *> &subst) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  if (TypeParamType::cast(type)) {
+    // Same marker → same fresh hole within this call. Keyed by marker identity
+    // (interned per declaration), so a captured `[T]` and an own `[U]` stay
+    // distinct even at the same position.
+    auto [it, inserted] = subst.try_emplace(type, nullptr);
     if (inserted) {
-      it->second = ctx.getTypeContext().hole(InferKind::General);
+      it->second = types.makeTypeHole(InferKind::General);
     }
     return it->second;
   }
 
   // Nested function types substitute component-wise; concretes pass through.
-  if (const auto *fn = FuncTy::cast(type)) {
+  if (const auto *funcType = FuncType::cast(type)) {
     std::vector<const Type *> params;
-    params.reserve(fn->getParams().size());
-    for (const Type *p : fn->getParams()) {
-      params.push_back(instantiate(p, subst));
+    params.reserve(funcType->getArgTypes().size());
+    for (const Type *argType : funcType->getArgTypes()) {
+      params.push_back(substituteType(argType, subst));
     }
-    return ctx.getTypeContext().getFunc(params,
-                                        instantiate(fn->getRet(), subst));
+
+    const Type *returnType = substituteType(funcType->getReturnType(), subst);
+    return typeFactory.getFuncTy(params, returnType);
   }
 
   return type;
 }
 
+bool TypeInferrer::isAssignable(const Expr *value, const Type *target) {
+  auto &types = ctx.getTypeContext();
+  if (types.unifyTypes(types.typeOf(value), target)) {
+    return true;
+  }
+  types.concretize(value);
+  return coercesTo(value, types.resolveType(target), ctx);
+}
+
 void TypeInferrer::visitLetStmt(const LetStmt *n) {
   auto &types = ctx.getTypeContext();
-  const Type *initType = types.typeOf(n->getExpr());
 
-  if (const Type *declared = resolveAnnotation(n)) {
-    types.bind(n, declared);
-    // Unify so a literal adopts the annotation (`let x: int32 = 5`); else
-    // concretize and widen-coerce (`let x: float64 = 5`).
-    if (declared->getKind() != TypeKind::Error &&
-        !types.unify(initType, declared)) {
-      types.concretize(n->getExpr());
-      if (!coercesTo(n->getExpr(), declared, ctx)) {
-        ctx.error(n, llvm::formatv(
-                         "value of type `{0}` is not assignable to `{1}`",
-                         asString(types.typeOf(n->getExpr())->getKind()),
-                         asString(declared->getKind()))
-                         .str())
-            .emit();
-      }
+  const Expr *expr = n->getExpr();
+
+  if (const Type *type = resolveTypeAnnotation(n->getTypeAnnotation(), n)) {
+    types.bind(n, type);
+
+    // Check if the type annotation is assignable. Skip error types because they
+    // are inheriently not assignable.
+    if (type->getKind() != TypeKind::Error && !isAssignable(expr, type)) {
+      ctx.error(n, llvm::formatv("value of type `{0}` is not assignable to "
+                                 "`{1}`",
+                                 asString(types.typeOf(expr)->getKind()),
+                                 asString(type->getKind()))
+                       .str())
+          .emit();
     }
-  } else {
-    // No annotation: infer, resolving now so references read a concrete type.
-    types.bind(n, types.resolve(initType));
+  }
+  // No annotation: keep the initializer's open type so a later use can pin
+  // it.
+  else {
+    types.bind(n, types.typeOf(expr));
   }
 
   ctx.getSymbolTable().bind(n->getName(), n);
 }
 
-void TypeInferrer::traverseFnStmt(const FnStmt *n) {
-  auto &types = ctx.getTypeContext();
+void TypeInferrer::traverseRoot(const Root *n) { hoistAndWalk(n->getStmts()); }
+
+void TypeInferrer::traverseBlockStmt(const BlockStmt *n) {
+  hoistAndWalk(n->getStmts());
+  visitBlockStmt(n);
+}
+
+void TypeInferrer::hoistAndWalk(llvm::ArrayRef<const Stmt *> stmts) {
   auto &symbols = ctx.getSymbolTable();
 
-  // Bind the name in the enclosing scope so the body can recurse.
-  symbols.bind(n->getName(), n);
-
-  // Fresh scope for the type params, value params, and locals.
-  const HirScopeGuard guard = symbols.pushScope(HirScopeKind::Fn);
-
-  // Each `[T]` is a rigid `TypeParamTy` in the type namespace, so `: T`
-  // resolves.
-  for (size_t i = 0; i < n->getTypeParams().size(); ++i) {
-    const Ident *tp = n->getTypeParams()[i];
-    symbols.bindType(tp->getName(), types.getTypeParam(static_cast<uint32_t>(i),
-                                                       tp->getName()));
+  // Pass 1: bind every function's name so a body can reference siblings
+  // declared later in the same scope. Signatures resolve lazily on first use
+  // (`signatureOf`), so declaration order doesn't matter.
+  for (const Stmt *stmt : stmts) {
+    if (const auto *funcStmt = FuncStmt::cast(stmt)) {
+      symbols.bind(funcStmt->getName(), funcStmt);
+    }
   }
 
-  // Resolve each parameter's annotation (now `[T]` is visible) and bind it.
+  // Pass 2: type each statement.
+  for (const Stmt *stmt : stmts) {
+    visit(stmt);
+  }
+}
+
+const FuncType *TypeInferrer::signatureOf(const FuncStmt *n) {
+  auto &types = ctx.getTypeContext();
+
+  // Memoized: resolve the signature once, then serve it from the side table.
+  if (const Type *cached = types.typeOf(n)) {
+    return FuncType::cast(cached);
+  }
+
+  // Resolve in an isolated scope so the function's params/type-params don't
+  // leak into the requesting scope. (Resolution sees the request site's
+  // visible types, which is fine while type lookup only reaches type-params
+  // and global builtins; a nested capture would need declaration-site scope.)
+  const HirScopeGuard guard =
+      ctx.getSymbolTable().pushScope(HirScopeKind::Func);
+      
+  return resolveFuncType(n);
+}
+
+const TypeParamType *TypeInferrer::markerFor(const Ident *decl,
+                                             uint32_t index) {
+  auto [it, inserted] = typeParamMarkers.try_emplace(decl, nullptr);
+  if (inserted) {
+    it->second =
+        ctx.getTypeContext().getTypeFactory().getTypeParamType(index,
+                                                               decl->getName());
+  }
+  return it->second;
+}
+
+const FuncType *TypeInferrer::resolveFuncType(const FuncStmt *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+  auto &symbols = ctx.getSymbolTable();
+
+  // Type parameters (generics) — bound in the function scope. Markers are
+  // interned by declaration, so the body sees the same ones as the signature.
+  for (size_t i = 0; i < n->getTypeParams().size(); ++i) {
+    const Ident *typeParam = n->getTypeParams()[i];
+    symbols.bindType(typeParam->getName(),
+                     markerFor(typeParam, static_cast<uint32_t>(i)));
+  }
+
+  // Parameters — resolve each annotation, binding its type and name.
   std::vector<const Type *> paramTypes;
   paramTypes.reserve(n->getParams().size());
   for (const Param *param : n->getParams()) {
-    const Type *paramType = resolveAnnotation(param);
-    if (!paramType) {
-      ctx.error(param, "parameter is missing a type annotation").emit();
-      paramType = types.getError();
-    }
+    // SAFETY: TypeAnnotations on function parameters are never null.
+    const TypeAnnotation *annotation = param->getTypeAnnotation();
+    const Type *paramType = resolveTypeAnnotation(annotation, param);
+
     types.bind(param, paramType);
+    symbols.bind(param->getName(), param);
     paramTypes.push_back(paramType);
+  }
+
+  // Return type — an omitted annotation defaults to `unit`.
+  // SAFETY: `resolveTypeAnnotation` never returns null for a present
+  // annotation.
+  const Type *returnType =
+      n->getReturnTypeAnnotation()
+          ? resolveTypeAnnotation(n->getReturnTypeAnnotation(), n)
+          : typeFactory.getUnitType();
+
+  // The signature; a template when generic (`[T]` params are markers).
+  const FuncType *funcType = typeFactory.getFuncTy(paramTypes, returnType);
+  types.bind(n, funcType);
+  return funcType;
+}
+
+void TypeInferrer::traverseFuncStmt(const FuncStmt *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+  auto &symbols = ctx.getSymbolTable();
+
+  // The signature is resolved once (here if not already, else served from the
+  // cache); the body references it rather than re-resolving.
+  const FuncType *funcType = signatureOf(n);
+
+  // Fresh scope for the body. Re-establish the function's bindings: type-param
+  // markers (interned by declaration, so identical to the cached signature's)
+  // and parameter values (their types are already in the side table).
+  const HirScopeGuard guard = symbols.pushScope(HirScopeKind::Func);
+  for (size_t i = 0; i < n->getTypeParams().size(); ++i) {
+    const Ident *typeParam = n->getTypeParams()[i];
+    symbols.bindType(typeParam->getName(),
+                     markerFor(typeParam, static_cast<uint32_t>(i)));
+  }
+
+
+  for (const Param *param : n->getParams()) {
     symbols.bind(param->getName(), param);
   }
 
-  // Return type: the annotation, else error as a placeholder (no unit type
-  // yet) — an undeclared return is left unchecked.
-  const Type *declaredReturn = resolveAnnotation(n);
-  const Type *retType = declaredReturn ? declaredReturn : types.getError();
-
-  // The signature; a template when generic (`[T]` params are markers).
-  types.bind(n, types.getFunc(paramTypes, retType));
-
-  const Type *outerReturn = expectedReturn;
-  expectedReturn = declaredReturn;
+  const Type *prevExpectedReturn = expectedReturn;
+  expectedReturn =
+      funcType ? funcType->getReturnType() : typeFactory.getErrorType();
   visit(n->getBody());
-  expectedReturn = outerReturn;
+  expectedReturn = prevExpectedReturn;
 }
 
 void TypeInferrer::visitReturnStmt(const ReturnStmt *returnStmt) {
+  auto &types = ctx.getTypeContext();
+
   // Check only a value `return` inside a function with a declared return type.
   if (expectedReturn == nullptr || returnStmt->getExpr() == nullptr ||
       expectedReturn->getKind() == TypeKind::Error) {
     return;
   }
 
-  auto &types = ctx.getTypeContext();
+  // A poisoned return value already reported; don't cascade.
   const Expr *expr = returnStmt->getExpr();
-
-  // Unify so a literal adopts the return type; else concretize and widen.
-  if (types.unify(types.typeOf(expr), expectedReturn)) {
+  if (types.typeOf(expr)->getKind() == TypeKind::Error) {
     return;
   }
-  types.concretize(expr);
-  if (!coercesTo(expr, expectedReturn, ctx)) {
-    ctx.error(returnStmt, llvm::formatv("returning `{0}` from a function declared to "
-                               "return `{1}`",
-                               asString(types.typeOf(expr)->getKind()),
-                               asString(expectedReturn->getKind()))
-                     .str())
-        .emit();
-  }
-}
 
-const Type *TypeInferrer::resolveAnnotation(const HirNode *node) {
-  const auto *annotation = ctx.getTypeAnnotations().get(node->getId());
-  if (!annotation) {
-    return nullptr;
-  }
-  return resolveType(*annotation, node);
-}
-
-const Type *TypeInferrer::resolveType(ast::TypeExpr typeExpr, const HirNode *node) {
-  switch (typeExpr.getKind()) {
-  case ast::SyntaxKind::NamedType:
-    return resolveNamedType(*ast::NamedType::cast(typeExpr), node);
-  case ast::SyntaxKind::FuncType:
-    ctx.error(node, "function types are not supported yet").emit();
-    return ctx.getTypeContext().getError();
-  case ast::SyntaxKind::RecordType:
-    ctx.error(node, "record types are not supported yet").emit();
-    return ctx.getTypeContext().getError();
-  default:
-    util::yuzu_unreachable();
-  }
-}
-
-const Type *TypeInferrer::resolveNamedType(ast::NamedType type,
-                                           const HirNode *node) {
-  auto &types = ctx.getTypeContext();
-
-  const auto ident = type.getName();
-  const auto name = ident ? ident->getName() : std::nullopt;
-  if (!name) {
-    ctx.error(node, "type is missing its name").emit();
-    return types.getError();
-  }
-
-  if (!type.getArgs().empty()) {
-    ctx.error(node,
-              llvm::formatv("`{0}` is not a generic type", util::toUtf8(*name))
+  if (!isAssignable(expr, expectedReturn)) {
+    ctx.error(returnStmt,
+              llvm::formatv("returning `{0}` from a function declared to "
+                            "return `{1}`",
+                            asString(types.typeOf(expr)->getKind()),
+                            asString(expectedReturn->getKind()))
                   .str())
         .emit();
-    return types.getError();
+  }
+}
+
+const Type *
+TypeInferrer::resolveTypeAnnotation(const TypeAnnotation *typeAnnotation,
+                                    const HirNode *node) {
+  if (!typeAnnotation) {
+    return nullptr;
   }
 
-  // A `[T]` in scope precedes any global type name.
-  if (const Type *param = ctx.getSymbolTable().lookupType(*name)) {
-    return param;
+  if (const auto *annotation = NamedTypeAnnotation::cast(typeAnnotation)) {
+    return resolveNamedTypeAnnotation(annotation, node);
+  }
+  if (const auto *annotation = FuncTypeAnnotation::cast(typeAnnotation)) {
+    return resolveFuncTypeAnnotation(annotation, node);
   }
 
-  if (const auto *resolved = types.resolveNamed(*name)) {
-    return resolved;
+  return ctx.getTypeContext().getTypeFactory().getErrorType();
+}
+
+const Type *
+TypeInferrer::resolveFuncTypeAnnotation(const FuncTypeAnnotation *fnType,
+                                        const HirNode *node) {
+  auto &types = ctx.getTypeContext();
+
+  std::vector<const Type *> params;
+  params.reserve(fnType->getParams().size());
+  for (const TypeAnnotation *param : fnType->getParams()) {
+    params.push_back(resolveTypeAnnotation(param, node));
   }
-  ctx.error(node,
-            llvm::formatv("unknown type `{0}`", util::toUtf8(*name)).str())
+
+  const Type *result = resolveTypeAnnotation(fnType->getResult(), node);
+  return types.getTypeFactory().getFuncTy(params, result);
+}
+
+const Type *
+TypeInferrer::resolveNamedTypeAnnotation(const NamedTypeAnnotation *annotation,
+                                         const HirNode *node) {
+  auto &types = ctx.getTypeContext();
+  auto &symbolTable = ctx.getSymbolTable();
+
+  const Ident *ident = annotation->getName();
+  if (!ident) {
+    ctx.error(node, "type is missing its name").emit();
+    return types.getTypeFactory().getErrorType();
+  }
+
+  const std::u32string_view name = ident->getName();
+  if (!annotation->getArgs().empty()) {
+    ctx.error(node, llvm::formatv("parameterized types are not supported: "
+                                  "`{0}` is not a generic type",
+                                  util::toUtf8(name))
+                        .str())
+        .emit();
+    return types.getTypeFactory().getErrorType();
+  }
+
+  if (const Type *type = symbolTable.lookupType(name)) {
+    return type;
+  }
+
+  ctx.error(node, llvm::formatv("unknown type `{0}`", util::toUtf8(name)).str())
       .emit();
-  return types.getError();
+
+  return types.getTypeFactory().getErrorType();
 }
 
 } // namespace yuzu::hir

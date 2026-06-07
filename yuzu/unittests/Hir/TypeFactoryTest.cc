@@ -18,98 +18,98 @@ protected:
 };
 
 TEST_F(TypeFactoryTest, SameGetterReturnsStablePointer) {
-  EXPECT_EQ(interner.getInt64(), interner.getInt64());
-  EXPECT_EQ(interner.getFloat32(), interner.getFloat32());
-  EXPECT_EQ(interner.getStr(), interner.getStr());
-  EXPECT_EQ(interner.getError(), interner.getError());
+  EXPECT_EQ(interner.getInt64Type(), interner.getInt64Type());
+  EXPECT_EQ(interner.getFloat32Type(), interner.getFloat32Type());
+  EXPECT_EQ(interner.getStrType(), interner.getStrType());
+  EXPECT_EQ(interner.getErrorType(), interner.getErrorType());
 }
 
 TEST_F(TypeFactoryTest, EachGetterReturnsItsOwnKind) {
-  EXPECT_EQ(interner.getInt8()->getKind(), TypeKind::Int8);
-  EXPECT_EQ(interner.getInt16()->getKind(), TypeKind::Int16);
-  EXPECT_EQ(interner.getInt32()->getKind(), TypeKind::Int32);
-  EXPECT_EQ(interner.getInt64()->getKind(), TypeKind::Int64);
-  EXPECT_EQ(interner.getUInt8()->getKind(), TypeKind::UInt8);
-  EXPECT_EQ(interner.getUInt16()->getKind(), TypeKind::UInt16);
-  EXPECT_EQ(interner.getUInt32()->getKind(), TypeKind::UInt32);
-  EXPECT_EQ(interner.getUInt64()->getKind(), TypeKind::UInt64);
-  EXPECT_EQ(interner.getFloat32()->getKind(), TypeKind::Float32);
-  EXPECT_EQ(interner.getFloat64()->getKind(), TypeKind::Float64);
-  EXPECT_EQ(interner.getBool()->getKind(), TypeKind::Bool);
-  EXPECT_EQ(interner.getStr()->getKind(), TypeKind::Str);
-  EXPECT_EQ(interner.getError()->getKind(), TypeKind::Error);
+  EXPECT_EQ(interner.getInt8Type()->getKind(), TypeKind::Int8);
+  EXPECT_EQ(interner.getInt16Type()->getKind(), TypeKind::Int16);
+  EXPECT_EQ(interner.getInt32Type()->getKind(), TypeKind::Int32);
+  EXPECT_EQ(interner.getInt64Type()->getKind(), TypeKind::Int64);
+  EXPECT_EQ(interner.getUInt8Type()->getKind(), TypeKind::UInt8);
+  EXPECT_EQ(interner.getUInt16Type()->getKind(), TypeKind::UInt16);
+  EXPECT_EQ(interner.getUInt32Type()->getKind(), TypeKind::UInt32);
+  EXPECT_EQ(interner.getUInt64Type()->getKind(), TypeKind::UInt64);
+  EXPECT_EQ(interner.getFloat32Type()->getKind(), TypeKind::Float32);
+  EXPECT_EQ(interner.getFloat64Type()->getKind(), TypeKind::Float64);
+  EXPECT_EQ(interner.getBoolType()->getKind(), TypeKind::Bool);
+  EXPECT_EQ(interner.getStrType()->getKind(), TypeKind::Str);
+  EXPECT_EQ(interner.getUnitType()->getKind(), TypeKind::Unit);
+  EXPECT_EQ(interner.getErrorType()->getKind(), TypeKind::Error);
 }
 
 TEST_F(TypeFactoryTest, RelationInternsByElement) {
   // Same element ⇒ same canonical `Relation` pointer; different elements
   // ⇒ different pointers. This is the interning contract extended to the
   // first compound type.
-  const auto *intRel = interner.getRelation(interner.getInt64());
-  EXPECT_EQ(intRel, interner.getRelation(interner.getInt64()));
-  EXPECT_NE(intRel, interner.getRelation(interner.getFloat32()));
+  const auto *intRel = interner.getRelationType(interner.getInt64Type());
+  EXPECT_EQ(intRel, interner.getRelationType(interner.getInt64Type()));
+  EXPECT_NE(intRel, interner.getRelationType(interner.getFloat32Type()));
 }
 
 TEST_F(TypeFactoryTest, RelationCarriesKindAndElement) {
-  const auto *strRel = interner.getRelation(interner.getStr());
+  const auto *strRel = interner.getRelationType(interner.getStrType());
   EXPECT_EQ(strRel->getKind(), TypeKind::Relation);
-  EXPECT_EQ(strRel->getElement(), interner.getStr());
+  EXPECT_EQ(strRel->getElement(), interner.getStrType());
 
   // RTTI: a `Relation` casts to `RelationTy`; a primitive does not.
-  EXPECT_NE(RelationTy::cast(strRel), nullptr);
-  EXPECT_EQ(RelationTy::cast(interner.getStr()), nullptr);
+  EXPECT_NE(RelationType::cast(strRel), nullptr);
+  EXPECT_EQ(RelationType::cast(interner.getStrType()), nullptr);
 }
 
 TEST_F(TypeFactoryTest, RelationOfRelationNestsAndInterns) {
   // `Relation[Relation[Int64]]` — the element of the outer relation is the
   // (interned) inner relation, and the whole thing still deduplicates.
-  const auto *inner = interner.getRelation(interner.getInt64());
-  const auto *outer = interner.getRelation(inner);
+  const auto *inner = interner.getRelationType(interner.getInt64Type());
+  const auto *outer = interner.getRelationType(inner);
   EXPECT_EQ(outer->getElement(), inner);
   EXPECT_EQ(outer,
-            interner.getRelation(interner.getRelation(interner.getInt64())));
+            interner.getRelationType(interner.getRelationType(interner.getInt64Type())));
   EXPECT_NE(outer, inner);
 }
 
-TEST_F(TypeFactoryTest, ResolvesBuiltinNames) {
-  // The built-in spellings resolve to their primitive types; an unknown
-  // name resolves to null (the lowerer turns that into a diagnostic).
-  EXPECT_EQ(interner.resolveNamed(U"int64"), interner.getInt64());
-  EXPECT_EQ(interner.resolveNamed(U"bool"), interner.getBool());
-  EXPECT_EQ(interner.resolveNamed(U"str"), interner.getStr());
-  EXPECT_EQ(interner.resolveNamed(U"float32"), interner.getFloat32());
-  EXPECT_EQ(interner.resolveNamed(U"Employee"), nullptr);
+TEST_F(TypeFactoryTest, GetScalarMapsKindToType) {
+  // `getScalar` returns the interned scalar for each builtin `TypeKind`.
+  // (Resolving a *name* to a type is the environment's job, not the factory's.)
+  EXPECT_EQ(interner.getScalarTy(TypeKind::Int64), interner.getInt64Type());
+  EXPECT_EQ(interner.getScalarTy(TypeKind::Bool), interner.getBoolType());
+  EXPECT_EQ(interner.getScalarTy(TypeKind::Str), interner.getStrType());
+  EXPECT_EQ(interner.getScalarTy(TypeKind::Float32), interner.getFloat32Type());
+  EXPECT_EQ(interner.getScalarTy(TypeKind::Unit), interner.getUnitType());
 }
 
-TEST_F(TypeFactoryTest, GetStructRegistersAndExposesFields) {
-  const Field fields[] = {
-      {U"id", interner.getStr()},
-      {U"tenure", interner.getInt64()},
+TEST_F(TypeFactoryTest, GetStructExposesFields) {
+  const StructField fields[] = {
+      {U"id", interner.getStrType()},
+      {U"tenure", interner.getInt64Type()},
   };
-  const auto *employee = interner.getStruct(U"Employee", fields);
+  const auto *employee = interner.getStructType(U"Employee", fields);
 
-  // The struct resolves by name and carries its fields.
-  EXPECT_EQ(interner.resolveNamed(U"Employee"), employee);
+  // The struct carries its name and fields.
   EXPECT_EQ(employee->getKind(), TypeKind::Struct);
   EXPECT_EQ(employee->getName(), U"Employee");
   ASSERT_EQ(employee->getFields().size(), 2u);
-  EXPECT_EQ(employee->findField(U"id"), interner.getStr());
-  EXPECT_EQ(employee->findField(U"tenure"), interner.getInt64());
+  EXPECT_EQ(employee->findField(U"id"), interner.getStrType());
+  EXPECT_EQ(employee->findField(U"tenure"), interner.getInt64Type());
   EXPECT_EQ(employee->findField(U"missing"), nullptr);
 
   // RTTI: a struct casts to `StructTy`, a primitive does not.
-  EXPECT_NE(StructTy::cast(employee), nullptr);
-  EXPECT_EQ(StructTy::cast(interner.getInt64()), nullptr);
+  EXPECT_NE(StructType::cast(employee), nullptr);
+  EXPECT_EQ(StructType::cast(interner.getInt64Type()), nullptr);
 }
 
 TEST_F(TypeFactoryTest, GetStructCopiesNamesIntoArena) {
   // `getStruct` must copy the name and field names, so the type stays
   // valid after the caller's buffers are gone.
-  const StructTy *s = nullptr;
+  const StructType *s = nullptr;
   {
     std::u32string structName = U"Temp";
     std::u32string fieldName = U"x";
-    const Field fields[] = {{fieldName, interner.getInt32()}};
-    s = interner.getStruct(structName, fields);
+    const StructField fields[] = {{fieldName, interner.getInt32Type()}};
+    s = interner.getStructType(structName, fields);
     // Mutate the originals to prove the struct doesn't alias them.
     structName = U"clobbered";
     fieldName = U"clobbered";
@@ -117,43 +117,43 @@ TEST_F(TypeFactoryTest, GetStructCopiesNamesIntoArena) {
   EXPECT_EQ(s->getName(), U"Temp");
   ASSERT_EQ(s->getFields().size(), 1u);
   EXPECT_EQ(s->getFields()[0].name, U"x");
-  EXPECT_EQ(s->findField(U"x"), interner.getInt32());
+  EXPECT_EQ(s->findField(U"x"), interner.getInt32Type());
 }
 
 TEST_F(TypeFactoryTest, FuncCarriesParamsAndRet) {
-  const Type *params[] = {interner.getInt32(), interner.getStr()};
-  const auto *fn = interner.getFunc(params, interner.getBool());
+  const Type *params[] = {interner.getInt32Type(), interner.getStrType()};
+  const auto *fn = interner.getFuncTy(params, interner.getBoolType());
 
   EXPECT_EQ(fn->getKind(), TypeKind::Func);
-  ASSERT_EQ(fn->getParams().size(), 2u);
-  EXPECT_EQ(fn->getParams()[0], interner.getInt32());
-  EXPECT_EQ(fn->getParams()[1], interner.getStr());
-  EXPECT_EQ(fn->getRet(), interner.getBool());
+  ASSERT_EQ(fn->getArgTypes().size(), 2u);
+  EXPECT_EQ(fn->getArgTypes()[0], interner.getInt32Type());
+  EXPECT_EQ(fn->getArgTypes()[1], interner.getStrType());
+  EXPECT_EQ(fn->getReturnType(), interner.getBoolType());
 
   // RTTI: a func casts to `FuncTy`, a primitive does not.
-  EXPECT_NE(FuncTy::cast(fn), nullptr);
-  EXPECT_EQ(FuncTy::cast(interner.getInt32()), nullptr);
+  EXPECT_NE(FuncType::cast(fn), nullptr);
+  EXPECT_EQ(FuncType::cast(interner.getInt32Type()), nullptr);
 }
 
 TEST_F(TypeFactoryTest, FuncWithNoParams) {
-  const auto *fn = interner.getFunc({}, interner.getInt64());
-  EXPECT_TRUE(fn->getParams().empty());
-  EXPECT_EQ(fn->getRet(), interner.getInt64());
+  const auto *fn = interner.getFuncTy({}, interner.getInt64Type());
+  EXPECT_TRUE(fn->getArgTypes().empty());
+  EXPECT_EQ(fn->getReturnType(), interner.getInt64Type());
 }
 
 TEST_F(TypeFactoryTest, FuncCopiesParamsIntoArena) {
   // `getFunc` copies the params array, so the type stays valid after the
   // caller's buffer is gone.
-  const FuncTy *fn = nullptr;
+  const FuncType *fn = nullptr;
   {
-    std::vector<const Type *> params = {interner.getInt8(), interner.getInt16()};
-    fn = interner.getFunc(params, interner.getBool());
+    std::vector<const Type *> params = {interner.getInt8Type(), interner.getInt16Type()};
+    fn = interner.getFuncTy(params, interner.getBoolType());
     params.clear();
     params.shrink_to_fit();
   }
-  ASSERT_EQ(fn->getParams().size(), 2u);
-  EXPECT_EQ(fn->getParams()[0], interner.getInt8());
-  EXPECT_EQ(fn->getParams()[1], interner.getInt16());
+  ASSERT_EQ(fn->getArgTypes().size(), 2u);
+  EXPECT_EQ(fn->getArgTypes()[0], interner.getInt8Type());
+  EXPECT_EQ(fn->getArgTypes()[1], interner.getInt16Type());
 }
 
 TEST_F(TypeFactoryTest, FuncIsNotInterned) {
@@ -161,33 +161,33 @@ TEST_F(TypeFactoryTest, FuncIsNotInterned) {
   // allocates a fresh `FuncTy` (so a generic signature's holes stay
   // distinct per instantiation). Structurally-identical calls differ by
   // pointer but agree on contents.
-  const auto *a = interner.getFunc({interner.getInt32()}, interner.getBool());
-  const auto *b = interner.getFunc({interner.getInt32()}, interner.getBool());
+  const auto *a = interner.getFuncTy({interner.getInt32Type()}, interner.getBoolType());
+  const auto *b = interner.getFuncTy({interner.getInt32Type()}, interner.getBoolType());
   EXPECT_NE(a, b);
-  EXPECT_EQ(a->getRet(), b->getRet());
+  EXPECT_EQ(a->getReturnType(), b->getReturnType());
 }
 
 TEST_F(TypeFactoryTest, TypeParamCarriesIndexAndName) {
-  const auto *t = interner.getTypeParam(0, U"T");
+  const auto *t = interner.getTypeParamType(0, U"T");
   EXPECT_EQ(t->getKind(), TypeKind::TypeParam);
   EXPECT_EQ(t->getIndex(), 0u);
   EXPECT_EQ(t->getName(), U"T");
 
   // RTTI: a type param casts to `TypeParamTy`, a primitive does not.
-  EXPECT_NE(TypeParamTy::cast(t), nullptr);
-  EXPECT_EQ(TypeParamTy::cast(interner.getInt32()), nullptr);
+  EXPECT_NE(TypeParamType::cast(t), nullptr);
+  EXPECT_EQ(TypeParamType::cast(interner.getInt32Type()), nullptr);
 }
 
 TEST_F(TypeFactoryTest, TypeParamIsNotInterned) {
   // Each declared `[T]` is a distinct marker — identity, not name, matters.
-  EXPECT_NE(interner.getTypeParam(0, U"T"), interner.getTypeParam(0, U"T"));
+  EXPECT_NE(interner.getTypeParamType(0, U"T"), interner.getTypeParamType(0, U"T"));
 }
 
 TEST_F(TypeFactoryTest, TypeParamCopiesNameIntoArena) {
-  const TypeParamTy *t = nullptr;
+  const TypeParamType *t = nullptr;
   {
     std::u32string name = U"Elem";
-    t = interner.getTypeParam(2, name);
+    t = interner.getTypeParamType(2, name);
     name = U"clobbered";
   }
   EXPECT_EQ(t->getName(), U"Elem");
@@ -198,11 +198,11 @@ TEST_F(TypeFactoryTest, DistinctPrimitivesHaveDistinctPointers) {
   // Pointer-equality is the interning contract, so every primitive must
   // be a distinct address from every other primitive.
   const Type *all[] = {
-      interner.getInt8(),    interner.getInt16(),  interner.getInt32(),
-      interner.getInt64(),   interner.getUInt8(),  interner.getUInt16(),
-      interner.getUInt32(),  interner.getUInt64(), interner.getFloat32(),
-      interner.getFloat64(), interner.getBool(),   interner.getStr(),
-      interner.getError(),
+      interner.getInt8Type(),    interner.getInt16Type(),  interner.getInt32Type(),
+      interner.getInt64Type(),   interner.getUInt8Type(),  interner.getUInt16Type(),
+      interner.getUInt32Type(),  interner.getUInt64Type(), interner.getFloat32Type(),
+      interner.getFloat64Type(), interner.getBoolType(),   interner.getStrType(),
+      interner.getUnitType(),    interner.getErrorType(),
   };
   for (std::size_t i = 0; i < std::size(all); ++i) {
     for (std::size_t j = i + 1; j < std::size(all); ++j) {

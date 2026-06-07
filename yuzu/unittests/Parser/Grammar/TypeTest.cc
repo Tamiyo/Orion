@@ -10,7 +10,7 @@ TEST_F(TypeTest, ParsesBareName) {
   const auto result = parseType(U"string");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(NamedType@0..6
+  EXPECT_EQ(R"tree(NamedTypeAnnotation@0..6
   Ident@0..6
     Identifier@0..6 "string")tree",
             result.tree);
@@ -22,11 +22,11 @@ TEST_F(TypeTest, ParsesSingleTypeArgument) {
   const auto result = parseType(U"Relation[Employee]");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(NamedType@0..18
+  EXPECT_EQ(R"tree(NamedTypeAnnotation@0..18
   Ident@0..8
     Identifier@0..8 "Relation"
   LeftBracket@8..9 "["
-  NamedType@9..17
+  NamedTypeAnnotation@9..17
     Ident@9..17
       Identifier@9..17 "Employee"
   RightBracket@17..18 "]")tree",
@@ -38,15 +38,15 @@ TEST_F(TypeTest, ParsesMultipleTypeArguments) {
   const auto result = parseType(U"Aggregate[decimal,int64]");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(NamedType@0..24
+  EXPECT_EQ(R"tree(NamedTypeAnnotation@0..24
   Ident@0..9
     Identifier@0..9 "Aggregate"
   LeftBracket@9..10 "["
-  NamedType@10..17
+  NamedTypeAnnotation@10..17
     Ident@10..17
       Identifier@10..17 "decimal"
   Comma@17..18 ","
-  NamedType@18..23
+  NamedTypeAnnotation@18..23
     Ident@18..23
       Identifier@18..23 "int64"
   RightBracket@23..24 "]")tree",
@@ -58,15 +58,15 @@ TEST_F(TypeTest, ParsesNestedGenerics) {
   const auto result = parseType(U"List[Relation[Employee]]");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(NamedType@0..24
+  EXPECT_EQ(R"tree(NamedTypeAnnotation@0..24
   Ident@0..4
     Identifier@0..4 "List"
   LeftBracket@4..5 "["
-  NamedType@5..23
+  NamedTypeAnnotation@5..23
     Ident@5..13
       Identifier@5..13 "Relation"
     LeftBracket@13..14 "["
-    NamedType@14..22
+    NamedTypeAnnotation@14..22
       Ident@14..22
         Identifier@14..22 "Employee"
     RightBracket@22..23 "]"
@@ -80,18 +80,19 @@ TEST_F(TypeTest, ParsesFunctionType) {
   const auto result = parseType(U"(int,str)->bool");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(FuncType@0..15
-  LeftParen@0..1 "("
-  NamedType@1..4
-    Ident@1..4
-      Identifier@1..4 "int"
-  Comma@4..5 ","
-  NamedType@5..8
-    Ident@5..8
-      Identifier@5..8 "str"
-  RightParen@8..9 ")"
+  EXPECT_EQ(R"tree(FuncTypeAnnotation@0..15
+  FuncTypeAnnotationParams@0..9
+    LeftParen@0..1 "("
+    NamedTypeAnnotation@1..4
+      Ident@1..4
+        Identifier@1..4 "int"
+    Comma@4..5 ","
+    NamedTypeAnnotation@5..8
+      Ident@5..8
+        Identifier@5..8 "str"
+    RightParen@8..9 ")"
   Arrow@9..11 "->"
-  NamedType@11..15
+  NamedTypeAnnotation@11..15
     Ident@11..15
       Identifier@11..15 "bool")tree",
             result.tree);
@@ -102,11 +103,12 @@ TEST_F(TypeTest, ParsesNullaryFunctionType) {
   const auto result = parseType(U"()->bool");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(FuncType@0..8
-  LeftParen@0..1 "("
-  RightParen@1..2 ")"
+  EXPECT_EQ(R"tree(FuncTypeAnnotation@0..8
+  FuncTypeAnnotationParams@0..2
+    LeftParen@0..1 "("
+    RightParen@1..2 ")"
   Arrow@2..4 "->"
-  NamedType@4..8
+  NamedTypeAnnotation@4..8
     Ident@4..8
       Identifier@4..8 "bool")tree",
             result.tree);
@@ -124,7 +126,7 @@ TEST_F(TypeTest, ParsesRecordType) {
     Ident@1..4
       Identifier@1..4 "sum"
     Colon@4..5 ":"
-    NamedType@5..12
+    NamedTypeAnnotation@5..12
       Ident@5..12
         Identifier@5..12 "decimal"
   Comma@12..13 ","
@@ -132,7 +134,7 @@ TEST_F(TypeTest, ParsesRecordType) {
     Ident@13..18
       Identifier@13..18 "count"
     Colon@18..19 ":"
-    NamedType@19..24
+    NamedTypeAnnotation@19..24
       Ident@19..24
         Identifier@19..24 "int64"
   RightParen@24..25 ")")tree",

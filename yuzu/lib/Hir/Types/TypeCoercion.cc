@@ -79,13 +79,13 @@ const Type *coerceTypes(const Expr *a, const Expr *b, HirContext &ctx) {
 
   // Unify first: identical types, or an untyped literal adopting its
   // partner (and `5 + 5` stays one open hole the caller can still pin).
-  if (types.unify(aType, bType)) {
+  if (types.unifyTypes(aType, bType)) {
     return aType;
   }
 
   // Refused — pin any holes to their defaults, then widen numerically.
-  aType = types.resolve(aType);
-  bType = types.resolve(bType);
+  aType = types.resolveType(aType);
+  bType = types.resolveType(bType);
   types.bind(a, aType);
   types.bind(b, bType);
 

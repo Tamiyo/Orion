@@ -59,7 +59,7 @@ TEST_F(StmtTest, ParsesLetWithAnnotation) {
   Ident@4..5
     Identifier@4..5 "x"
   Colon@5..6 ":"
-  NamedType@6..9
+  NamedTypeAnnotation@6..9
     Ident@6..9
       Identifier@6..9 "int"
   Eq@9..10 "="
@@ -108,7 +108,7 @@ TEST_F(StmtTest, ParsesFnNoParams) {
   const auto result = parseStmt(U"fn f(){return 1}");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(FnStmt@0..16
+  EXPECT_EQ(R"tree(FuncStmt@0..16
   FnKw@0..2 "fn"
   Space@2..3 " "
   Ident@3..4
@@ -131,7 +131,7 @@ TEST_F(StmtTest, ParsesFnParamsAndReturnType) {
   const auto result = parseStmt(U"fn add(x:int32,y:int32)->int32{return x+y}");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(FnStmt@0..42
+  EXPECT_EQ(R"tree(FuncStmt@0..42
   FnKw@0..2 "fn"
   Space@2..3 " "
   Ident@3..6
@@ -141,7 +141,7 @@ TEST_F(StmtTest, ParsesFnParamsAndReturnType) {
     Ident@7..8
       Identifier@7..8 "x"
     Colon@8..9 ":"
-    NamedType@9..14
+    NamedTypeAnnotation@9..14
       Ident@9..14
         Identifier@9..14 "int32"
   Comma@14..15 ","
@@ -149,12 +149,12 @@ TEST_F(StmtTest, ParsesFnParamsAndReturnType) {
     Ident@15..16
       Identifier@15..16 "y"
     Colon@16..17 ":"
-    NamedType@17..22
+    NamedTypeAnnotation@17..22
       Ident@17..22
         Identifier@17..22 "int32"
   RightParen@22..23 ")"
   Arrow@23..25 "->"
-  NamedType@25..30
+  NamedTypeAnnotation@25..30
     Ident@25..30
       Identifier@25..30 "int32"
   BlockStmt@30..42
@@ -179,7 +179,7 @@ TEST_F(StmtTest, ParsesFnSingleTypeParam) {
   const auto result = parseStmt(U"fn id[T](x:T)->T{return x}");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(FnStmt@0..26
+  EXPECT_EQ(R"tree(FuncStmt@0..26
   FnKw@0..2 "fn"
   Space@2..3 " "
   Ident@3..5
@@ -194,12 +194,12 @@ TEST_F(StmtTest, ParsesFnSingleTypeParam) {
     Ident@9..10
       Identifier@9..10 "x"
     Colon@10..11 ":"
-    NamedType@11..12
+    NamedTypeAnnotation@11..12
       Ident@11..12
         Identifier@11..12 "T"
   RightParen@12..13 ")"
   Arrow@13..15 "->"
-  NamedType@15..16
+  NamedTypeAnnotation@15..16
     Ident@15..16
       Identifier@15..16 "T"
   BlockStmt@16..26
@@ -219,7 +219,7 @@ TEST_F(StmtTest, ParsesFnMultipleTypeParams) {
   const auto result = parseStmt(U"fn two[T,U](a:T,b:U){return a}");
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-  EXPECT_EQ(R"tree(FnStmt@0..30
+  EXPECT_EQ(R"tree(FuncStmt@0..30
   FnKw@0..2 "fn"
   Space@2..3 " "
   Ident@3..6
@@ -238,7 +238,7 @@ TEST_F(StmtTest, ParsesFnMultipleTypeParams) {
     Ident@12..13
       Identifier@12..13 "a"
     Colon@13..14 ":"
-    NamedType@14..15
+    NamedTypeAnnotation@14..15
       Ident@14..15
         Identifier@14..15 "T"
   Comma@15..16 ","
@@ -246,7 +246,7 @@ TEST_F(StmtTest, ParsesFnMultipleTypeParams) {
     Ident@16..17
       Identifier@16..17 "b"
     Colon@17..18 ":"
-    NamedType@18..19
+    NamedTypeAnnotation@18..19
       Ident@18..19
         Identifier@18..19 "U"
   RightParen@19..20 ")"

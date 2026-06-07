@@ -163,6 +163,12 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant,
       fmt.linef("return {0}(node.getSyntax());", name);
     }
     fmt.line("}");
+    fmt.line("");
+
+    // Narrow kind for one-level dispatch over this variant's direct children.
+    fmt.linef("[[nodiscard]] {0}Kind get{0}Kind() const "
+              "{{ return to{0}Kind(getKind()); }",
+              name);
   }
   fmt.line("};");
   fmt.line("");

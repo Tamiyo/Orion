@@ -83,7 +83,7 @@ protected:
 
   /// \brief Drive the pipeline against `source` using the type-expression
   /// grammar entry. `parseType` opens its own concrete-node marker
-  /// (`NamedType` / `FuncType` / `RecordType`).
+  /// (`NamedTypeAnnotation` / `FuncTypeAnnotation` / `RecordType`).
   ParseResult parseType(std::u32string_view source) {
     return run(source, [](Parser &p) { auto _ = parser::parseType(p); });
   }

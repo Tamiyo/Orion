@@ -206,15 +206,42 @@ TEST(CompilePipelineTest, UnknownAnnotationTypeEmitsError) {
   EXPECT_NE(out.find("unknown type `bogus`"), std::string::npos) << out;
 }
 
-// Function types have no `hir::Type` yet, so they're rejected for now.
-TEST(CompilePipelineTest, FunctionTypeAnnotationUnsupported) {
+// A function-type annotation resolves to a `func` type; assigning a
+// non-function to it is a normal type mismatch.
+TEST(CompilePipelineTest, FunctionTypeAnnotationRejectsNonFunction) {
   std::string out;
   llvm::raw_string_ostream os(out);
   yuzu::compile(U"let x: (int64) -> bool = 5", opts(os));
 
-  EXPECT_NE(out.find("function types are not supported yet"),
+  EXPECT_NE(out.find("value of type `int64` is not assignable to `func`"),
             std::string::npos)
       << out;
+}
+
+// A function whose signature matches the annotation is assignable to it —
+// structurally-equal `func` types unify even though they aren't interned.
+TEST(CompilePipelineTest, FunctionTypeAnnotationAcceptsMatchingFunction) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add_one(y: int32) -> int32 { return y + 1 }\n"
+                U"let f: (int32) -> int32 = add_one",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// A function returning a function: the return annotation is itself a
+// function type, and the returned function is checked against it.
+TEST(CompilePipelineTest, FunctionReturningFunctionTypechecks) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add_one(y: int32) -> int32 { return y + 1 }\n"
+                U"fn get() -> (int32) -> int32 { return add_one }\n"
+                U"let r = get()(7)",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+  EXPECT_NE(out.find("FuncCallExpr : int32"), std::string::npos) << out;
 }
 
 //===----------------------------------------------------------------------===//
@@ -327,7 +354,7 @@ TEST(CompilePipelineTest, LowersFunctionToHir) {
                 opts(os));
 
   EXPECT_EQ(out.find("error:"), std::string::npos) << out;
-  EXPECT_NE(out.find("FnStmt"), std::string::npos) << out;
+  EXPECT_NE(out.find("FuncStmt"), std::string::npos) << out;
   EXPECT_NE(out.find("BlockStmt"), std::string::npos) << out;
   EXPECT_NE(out.find("ReturnStmt"), std::string::npos) << out;
 }
@@ -371,8 +398,107 @@ TEST(CompilePipelineTest, LowersBareReturn) {
   llvm::raw_string_ostream os(out);
   yuzu::compile(U"fn f() { return }", opts(os));
 
-  EXPECT_NE(out.find("FnStmt"), std::string::npos) << out;
+  EXPECT_NE(out.find("FuncStmt"), std::string::npos) << out;
   EXPECT_NE(out.find("ReturnStmt"), std::string::npos) << out;
+}
+
+//===----------------------------------------------------------------------===//
+// Forward references — function signatures are hoisted, so a function can
+// call a sibling declared later in the same scope.
+//===----------------------------------------------------------------------===//
+
+// `caller` refers to `callee`, which is declared below it.
+TEST(CompilePipelineTest, ForwardReferenceToLaterFunction) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn caller(x: int32) -> int32 { return callee(x) }\n"
+                U"fn callee(x: int32) -> int32 { return x }",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// Mutually recursive functions reference each other across declarations.
+TEST(CompilePipelineTest, MutuallyRecursiveFunctions) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn ping(n: int32) -> int32 { return pong(n) }\n"
+                U"fn pong(n: int32) -> int32 { return ping(n) }",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// Hoisting doesn't suppress genuine duplicate-definition errors.
+TEST(CompilePipelineTest, DuplicateFunctionNameEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() { return }\nfn f() { return }", opts(os));
+
+  EXPECT_NE(out.find("`f` is already bound"), std::string::npos) << out;
+}
+
+//===----------------------------------------------------------------------===//
+// Nested generic functions — a function declared inside another may take its
+// own type parameters and capture the enclosing function's. Each `[T]` has a
+// distinct identity, so an inner `[U]` is never confused with an outer `[T]`.
+//===----------------------------------------------------------------------===//
+
+// An inner function may reference the enclosing type parameter in its body.
+TEST(CompilePipelineTest, NestedFunctionCapturesOuterTypeParam) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn outer[T](x: T) -> T {\n"
+                U"  fn helper[U](u: U) -> U {\n"
+                U"    let z: T = x\n"
+                U"    return u\n"
+                U"  }\n"
+                U"  return x\n"
+                U"}",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// An inner function's own type parameter is distinct from the outer one:
+// returning `U` where the (captured) `T` is expected is a mismatch.
+TEST(CompilePipelineTest, NestedTypeParamDistinctFromOuter) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn outer[T](x: T) -> T {\n"
+                U"  fn inner[U](y: U) -> T { return y }\n"
+                U"  return x\n"
+                U"}",
+                opts(os));
+
+  EXPECT_NE(out.find("declared to return"), std::string::npos) << out;
+}
+
+// A nested function captures an enclosing value binding (a closure). `x` is
+// declared in `addOne` and used inside `addTwo`.
+TEST(CompilePipelineTest, NestedFunctionCapturesOuterValue) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn addOne(x: int32) {\n"
+                U"  fn addTwo() -> int32 { return x + 2 }\n"
+                U"  addTwo()\n"
+                U"}",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// Calling a locally-declared generic function works.
+TEST(CompilePipelineTest, CallsLocalGenericFunction) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn outer[T](x: T) -> T {\n"
+                U"  fn helper[U](u: U) -> U { return u }\n"
+                U"  return helper(x)\n"
+                U"}",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
 }
 
 //===----------------------------------------------------------------------===//
@@ -380,6 +506,17 @@ TEST(CompilePipelineTest, LowersBareReturn) {
 // return type. An untyped literal adapts to it; a widening coercion is OK;
 // a mismatch or out-of-range value is an error.
 //===----------------------------------------------------------------------===//
+
+// A return value that's already an error (here, an unresolved name) reports
+// once — it does not also cascade into a return-type mismatch.
+TEST(CompilePipelineTest, PoisonedReturnValueDoesNotCascade) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() { return bogus }", opts(os));
+
+  EXPECT_NE(out.find("unresolved identifier"), std::string::npos) << out;
+  EXPECT_EQ(out.find("declared to return"), std::string::npos) << out;
+}
 
 TEST(CompilePipelineTest, ReturnLiteralAdaptsToReturnType) {
   std::string out;
@@ -423,6 +560,44 @@ TEST(CompilePipelineTest, ReturnParamMatchesType) {
   yuzu::compile(U"fn f(x: int32) -> int32 { return x }", opts(os));
 
   EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+//===----------------------------------------------------------------------===//
+// Unit return type — an omitted return annotation defaults to `unit`, and
+// `unit` is a resolvable builtin type name. A bare `return` satisfies it; a
+// value `return` does not.
+//===----------------------------------------------------------------------===//
+
+// A bare `return` in a function with no annotation is fine — the return
+// type defaults to `unit`.
+TEST(CompilePipelineTest, BareReturnInInferredUnitFunctionIsOk) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() { return }", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// `unit` resolves as a builtin type name in a return annotation.
+TEST(CompilePipelineTest, ExplicitUnitReturnTypeResolves) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() -> unit { return }", opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// Returning a value from a function whose return type defaulted to `unit`
+// is a mismatch.
+TEST(CompilePipelineTest, ValueReturnFromUnitFunctionEmitsError) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f() { return 5 }", opts(os));
+
+  EXPECT_NE(out.find("returning `int64` from a function declared to return "
+                     "`unit`"),
+            std::string::npos)
+      << out;
 }
 
 //===----------------------------------------------------------------------===//
@@ -495,6 +670,19 @@ TEST(CompilePipelineTest, CallLiteralArgOutOfRangeEmitsError) {
   EXPECT_NE(out.find("out of range for `int8`"), std::string::npos) << out;
 }
 
+// An un-annotated `let` from a literal stays open: a later use pins it. So
+// `addOne(x)` with x = 5 infers x as int32 rather than defaulting to int64.
+TEST(CompilePipelineTest, UnannotatedLetLiteralPinnedByUse) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn addOne(x: int32) -> int32 { return x + 1 }\n"
+                U"let x = 5\n"
+                U"addOne(x)",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
 //===----------------------------------------------------------------------===//
 // Generics — `[T]` parameters are rigid markers in the signature; a call
 // site substitutes a fresh inference hole for each and infers it from args.
@@ -529,7 +717,7 @@ TEST(CompilePipelineTest, GenericCallInfersIntReturn) {
 
   EXPECT_EQ(out.find("error:"), std::string::npos) << out;
   EXPECT_NE(out.find("LetStmt : int64"), std::string::npos) << out;
-  EXPECT_NE(out.find("FnCallExpr : int64"), std::string::npos) << out;
+  EXPECT_NE(out.find("FuncCallExpr : int64"), std::string::npos) << out;
 }
 
 // Called with a bool, the same function infers T = bool.

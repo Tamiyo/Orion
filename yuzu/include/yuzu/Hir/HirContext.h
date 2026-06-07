@@ -29,22 +29,23 @@ using HirSourceTable = util::SideTable<HirId, ast::AstNode>;
 /// adjustment's cast op if an entry exists.
 using HirAdjustmentTable = util::SideTable<HirId, Adjustment>;
 
-/// Unresolved type annotations, keyed by the annotated node's `HirId`.
-/// Lowering records the raw `ast::TypeExpr`; `TypeInferrer` resolves it
-/// against scope (a generic `T` is only meaningful in the scoped pass).
-using HirTypeAnnotationTable = util::SideTable<HirId, ast::TypeExpr>;
-
 class HirContext final {
 public:
   explicit HirContext(diagnostics::DiagnosticsEngine &diagnostics,
                       diagnostics::SourceId sourceId)
-      : diagnostics(diagnostics), sourceId(sourceId) {}
+      : diagnostics(diagnostics), sourceId(sourceId) {
+
+    auto &typeFactory = typeContext.getTypeFactory();
+    for (const auto &[kind, name] : scalarBuiltins) {
+      const std::u32string_view interned = stringInterner.intern(name);
+      symbolTable.bindType(interned, typeFactory.getScalarTy(kind));
+    }
+  }
 
   HirBuilder &getBuilder() { return builder; }
   HirSymbolTable &getSymbolTable() { return symbolTable; }
   HirSourceTable &getSourceTable() { return sourceTable; }
   HirAdjustmentTable &getAdjustments() { return adjustments; }
-  HirTypeAnnotationTable &getTypeAnnotations() { return typeAnnotations; }
   TypeContext &getTypeContext() { return typeContext; }
   util::StringInterner &getStringInterner() { return stringInterner; }
 
@@ -97,7 +98,6 @@ private:
   HirSymbolTable symbolTable{*this};
   HirSourceTable sourceTable;
   HirAdjustmentTable adjustments;
-  HirTypeAnnotationTable typeAnnotations;
   util::StringInterner stringInterner;
   TypeContext typeContext{stringInterner};
 

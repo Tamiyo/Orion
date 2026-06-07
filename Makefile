@@ -5,7 +5,7 @@ GENERATOR := Ninja
 CC        := clang
 CXX       := clang++
 
-.PHONY: all configure build test repl clean
+.PHONY: all configure build test repl compile clean
 
 all: build
 
@@ -30,6 +30,11 @@ endif
 # the real tty for stdin/stdout.
 repl: configure
 	cmake --build $(BUILD_DIR) --target repl
+
+# Compile a single file as one unit: `make compile FILE=path/to/x.yz`.
+# Extra flags pass through ARGS, e.g. `make compile FILE=x.yz ARGS=--debug-hir`.
+compile: build
+	$(BUILD_DIR)/yuzu/tools/compile/yuzu-compile $(ARGS) $(FILE)
 
 clean:
 	rm -rf $(BUILD_DIR)

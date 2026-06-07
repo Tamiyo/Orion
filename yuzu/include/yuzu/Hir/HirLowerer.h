@@ -42,10 +42,14 @@ private:
 
   const Stmt *lowerExprStmt(ast::ExprStmt stmt);
   const LetStmt *lowerLetStmt(ast::LetStmt stmt);
-  const FnStmt *lowerFnStmt(ast::FnStmt stmt);
+  const FuncStmt *lowerFuncStmt(ast::FuncStmt stmt);
   const BlockStmt *lowerBlockStmt(ast::BlockStmt stmt);
   const ReturnStmt *lowerReturnStmt(ast::ReturnStmt stmt);
   const Param *lowerParam(ast::Param param);
+
+  const TypeAnnotation *lowerTypeAnnotation(ast::TypeAnnotation type);
+  const NamedTypeAnnotation *lowerNamedTypeAnnotation(ast::NamedTypeAnnotation type);
+  const FuncTypeAnnotation *lowerFuncTypeAnnotation(ast::FuncTypeAnnotation type);
 
   const Expr *lowerBinaryExpr(ast::BinaryExpr expr);
   const Expr *lowerUnaryExpr(ast::UnaryExpr expr);

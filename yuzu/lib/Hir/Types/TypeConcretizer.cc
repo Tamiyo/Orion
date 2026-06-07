@@ -45,7 +45,7 @@ void TypeConcretizer::visit(const HirNode *node) {
     checkLiteralRange(let->getExpr(), ctx);
   } else if (const auto *ret = ReturnStmt::cast(node); ret && ret->getExpr()) {
     checkLiteralRange(ret->getExpr(), ctx);
-  } else if (const auto *call = FnCallExpr::cast(node)) {
+  } else if (const auto *call = FuncCallExpr::cast(node)) {
     for (const Expr *arg : call->getArgs()) {
       checkLiteralRange(arg, ctx);
     }

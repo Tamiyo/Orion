@@ -18,32 +18,34 @@ using namespace yuzu::hir;
 using yuzu::diagnostics::DiagnosticsEngine;
 using yuzu::diagnostics::SourceId;
 
-const Type *typeFor(const TypeContext &i, TypeKind k) {
+const Type *typeFor(const TypeFactory &typeFactory, TypeKind k) {
   switch (k) {
   case TypeKind::Int8:
-    return i.getInt8();
+    return typeFactory.getInt8Type();
   case TypeKind::Int16:
-    return i.getInt16();
+    return typeFactory.getInt16Type();
   case TypeKind::Int32:
-    return i.getInt32();
+    return typeFactory.getInt32Type();
   case TypeKind::Int64:
-    return i.getInt64();
+    return typeFactory.getInt64Type();
   case TypeKind::UInt8:
-    return i.getUInt8();
+    return typeFactory.getUInt8Type();
   case TypeKind::UInt16:
-    return i.getUInt16();
+    return typeFactory.getUInt16Type();
   case TypeKind::UInt32:
-    return i.getUInt32();
+    return typeFactory.getUInt32Type();
   case TypeKind::UInt64:
-    return i.getUInt64();
+    return typeFactory.getUInt64Type();
   case TypeKind::Float32:
-    return i.getFloat32();
+    return typeFactory.getFloat32Type();
   case TypeKind::Float64:
-    return i.getFloat64();
+    return typeFactory.getFloat64Type();
   case TypeKind::Bool:
-    return i.getBool();
+    return typeFactory.getBoolType();
   case TypeKind::Str:
-    return i.getStr();
+    return typeFactory.getStrType();
+  case TypeKind::Unit:
+    return typeFactory.getUnitType();
   case TypeKind::Relation:
   case TypeKind::Struct:
   case TypeKind::Func:
@@ -52,7 +54,7 @@ const Type *typeFor(const TypeContext &i, TypeKind k) {
     // Compound — can't be built from a bare kind; coercion tests don't use it.
     return nullptr;
   case TypeKind::Error:
-    return i.getError();
+    return typeFactory.getErrorType();
   }
   return nullptr;
 }
@@ -68,7 +70,8 @@ protected:
   /// irrelevant.
   const Expr *typedExpr(TypeKind k) {
     const auto *expr = ctx.getBuilder().makeIntLit(0);
-    ctx.getTypeContext().bind(expr, typeFor(ctx.getTypeContext(), k));
+    ctx.getTypeContext().bind(
+        expr, typeFor(ctx.getTypeContext().getTypeFactory(), k));
     return expr;
   }
 };
@@ -202,7 +205,8 @@ TEST_F(TypeCoercionAdjustmentTest, NarrowerSignedOperandGetsCastToWider) {
       << "wider operand should not be adjusted";
 }
 
-TEST_F(TypeCoercionAdjustmentTest, AdjustmentBindsToNarrowSideRegardlessOfOrder) {
+TEST_F(TypeCoercionAdjustmentTest,
+       AdjustmentBindsToNarrowSideRegardlessOfOrder) {
   // Argument order shouldn't change which operand carries the cast —
   // it's always the narrower one.
   const auto *wide = typedExpr(TypeKind::UInt64);

@@ -176,8 +176,8 @@ const Stmt *HirLowerer::lowerStmt(ast::Stmt stmt) {
     return lowerLetStmt(*ast::LetStmt::cast(stmt));
   case ast::SyntaxKind::ExprStmt:
     return lowerExprStmt(*ast::ExprStmt::cast(stmt));
-  case ast::SyntaxKind::FnStmt:
-    return lowerFnStmt(*ast::FnStmt::cast(stmt));
+  case ast::SyntaxKind::FuncStmt:
+    return lowerFuncStmt(*ast::FuncStmt::cast(stmt));
   case ast::SyntaxKind::BlockStmt:
     return lowerBlockStmt(*ast::BlockStmt::cast(stmt));
   case ast::SyntaxKind::ReturnStmt:
@@ -210,14 +210,16 @@ const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
     return nullptr;
   }
 
-  const auto *hir = ctx.getBuilder().makeLetStmt(loweredIdent, loweredExpr);
-  ctx.getSourceTable().bind(hir->getId(), stmt);
-
-  // Defer the annotation; the type pass resolves it and checks the
-  // initializer (a `T` would not resolve here, only in the scoped pass).
-  if (const auto annotation = stmt.getType()) {
-    ctx.getTypeAnnotations().bind(hir->getId(), *annotation);
+  // The annotation (if any) lowers to a HIR type-expr; the type pass
+  // resolves it against scope and checks the initializer.
+  const TypeAnnotation *annotation = nullptr;
+  if (const auto type = stmt.getTypeAnnotation()) {
+    annotation = lowerTypeAnnotation(*type);
   }
+
+  const auto *hir =
+      ctx.getBuilder().makeLetStmt(loweredIdent, annotation, loweredExpr);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
   return hir;
 }
 
@@ -233,13 +235,77 @@ const Param *HirLowerer::lowerParam(ast::Param param) {
     return nullptr;
   }
 
-  const auto *hir = ctx.getBuilder().makeParam(loweredName);
-  ctx.getSourceTable().bind(hir->getId(), param);
-
-  // Defer the annotation; the type pass resolves it against scope.
-  if (const auto annotation = param.getType()) {
-    ctx.getTypeAnnotations().bind(hir->getId(), *annotation);
+  const TypeAnnotation *annotation = nullptr;
+  if (const auto type = param.getType()) {
+    annotation = lowerTypeAnnotation(*type);
   }
+
+  const auto *hir = ctx.getBuilder().makeParam(loweredName, annotation);
+  ctx.getSourceTable().bind(hir->getId(), param);
+  return hir;
+}
+
+const TypeAnnotation *
+HirLowerer::lowerTypeAnnotation(ast::TypeAnnotation type) {
+  switch (type.getTypeAnnotationKind()) {
+  case ast::TypeAnnotationKind::NamedTypeAnnotation:
+    return lowerNamedTypeAnnotation(*ast::NamedTypeAnnotation::cast(type));
+  case ast::TypeAnnotationKind::FuncTypeAnnotation:
+    return lowerFuncTypeAnnotation(*ast::FuncTypeAnnotation::cast(type));
+  case ast::TypeAnnotationKind::RecordType:
+    error(type, "record types are not supported yet").emit();
+    return nullptr;
+  }
+}
+
+const NamedTypeAnnotation *
+HirLowerer::lowerNamedTypeAnnotation(ast::NamedTypeAnnotation type) {
+  const auto name = type.getName();
+  if (!name) {
+    error(type, "type is missing its name").emit();
+    return nullptr;
+  }
+
+  const Ident *loweredName = lowerIdent(*name);
+  if (!loweredName) {
+    return nullptr;
+  }
+
+  std::vector<const TypeAnnotation *> args;
+  for (const ast::TypeAnnotation &arg : type.getArgs()) {
+    if (const TypeAnnotation *lowered = lowerTypeAnnotation(arg)) {
+      args.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeNamedTypeAnnotation(loweredName, args);
+  ctx.getSourceTable().bind(hir->getId(), type);
+  return hir;
+}
+
+const FuncTypeAnnotation *
+HirLowerer::lowerFuncTypeAnnotation(ast::FuncTypeAnnotation type) {
+  std::vector<const TypeAnnotation *> params;
+  if (const auto paramList = type.getParams()) {
+    for (const ast::TypeAnnotation &param : paramList->getParams()) {
+      if (const TypeAnnotation *lowered = lowerTypeAnnotation(param)) {
+        params.push_back(lowered);
+      }
+    }
+  }
+
+  const auto result = type.getResult();
+  if (!result) {
+    error(type, "function type is missing its result type").emit();
+    return nullptr;
+  }
+  const TypeAnnotation *loweredResult = lowerTypeAnnotation(*result);
+  if (!loweredResult) {
+    return nullptr;
+  }
+
+  const auto *hir = ctx.getBuilder().makeFuncTypeAnnotation(params, loweredResult);
+  ctx.getSourceTable().bind(hir->getId(), type);
   return hir;
 }
 
@@ -271,7 +337,7 @@ const ReturnStmt *HirLowerer::lowerReturnStmt(ast::ReturnStmt stmt) {
   return hir;
 }
 
-const FnStmt *HirLowerer::lowerFnStmt(ast::FnStmt stmt) {
+const FuncStmt *HirLowerer::lowerFuncStmt(ast::FuncStmt stmt) {
   const auto name = stmt.getName();
   if (!name) {
     error(stmt, "function is missing its name").emit();
@@ -308,15 +374,14 @@ const FnStmt *HirLowerer::lowerFnStmt(ast::FnStmt stmt) {
   }
   const BlockStmt *loweredBody = lowerBlockStmt(*body);
 
-  const auto *hir =
-      ctx.getBuilder().makeFnStmt(loweredName, typeParams, params, loweredBody);
-  ctx.getSourceTable().bind(hir->getId(), stmt);
-
-  // Defer the return annotation; the type pass resolves it and builds the
-  // signature.
+  const TypeAnnotation *returnType = nullptr;
   if (const auto result = stmt.getResult()) {
-    ctx.getTypeAnnotations().bind(hir->getId(), *result);
+    returnType = lowerTypeAnnotation(*result);
   }
+
+  const auto *hir = ctx.getBuilder().makeFuncStmt(loweredName, typeParams, params,
+                                                returnType, loweredBody);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
   return hir;
 }
 
@@ -456,7 +521,7 @@ const Expr *HirLowerer::lowerCallExpr(ast::CallExpr expr) {
     }
   }
 
-  const auto *hir = ctx.getBuilder().makeFnCallExpr(loweredCallee, args);
+  const auto *hir = ctx.getBuilder().makeFuncCallExpr(loweredCallee, args);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
@@ -526,7 +591,6 @@ const StringLit *HirLowerer::lowerStringLit(ast::StringLit expr) {
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
-
 
 diagnostics::DiagnosticBuilder HirLowerer::error(ast::AstNode node,
                                                  std::string message) {

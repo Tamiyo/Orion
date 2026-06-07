@@ -18,65 +18,90 @@ public:
       : stringInterner(strings) {
     // Pre-allocate primitives in the arena so getXxx() returns a stable
     // pointer with no interner hit. Placement-new each one in turn.
-    int8Ty = new (arena.Allocate<Int8Ty>()) Int8Ty();
-    int16Ty = new (arena.Allocate<Int16Ty>()) Int16Ty();
-    int32Ty = new (arena.Allocate<Int32Ty>()) Int32Ty();
-    int64Ty = new (arena.Allocate<Int64Ty>()) Int64Ty();
+    int8Type= new (arena.Allocate<Int8Type>()) Int8Type();
+    int16Type= new (arena.Allocate<Int16Type>()) Int16Type();
+    int32Type= new (arena.Allocate<Int32Type>()) Int32Type();
+    int64Type= new (arena.Allocate<Int64Type>()) Int64Type();
 
-    uint8Ty = new (arena.Allocate<UInt8Ty>()) UInt8Ty();
-    uint16Ty = new (arena.Allocate<UInt16Ty>()) UInt16Ty();
-    uint32Ty = new (arena.Allocate<UInt32Ty>()) UInt32Ty();
-    uint64Ty = new (arena.Allocate<UInt64Ty>()) UInt64Ty();
+    uint8Type= new (arena.Allocate<UInt8Type>()) UInt8Type();
+    uint16Type= new (arena.Allocate<UInt16Type>()) UInt16Type();
+    uint32Type= new (arena.Allocate<UInt32Type>()) UInt32Type();
+    uint64Type= new (arena.Allocate<UInt64Type>()) UInt64Type();
 
-    float32Ty = new (arena.Allocate<Float32Ty>()) Float32Ty();
-    float64Ty = new (arena.Allocate<Float64Ty>()) Float64Ty();
+    float32Type= new (arena.Allocate<Float32Type>()) Float32Type();
+    float64Type= new (arena.Allocate<Float64Type>()) Float64Type();
 
-    boolTy = new (arena.Allocate<BoolTy>()) BoolTy();
-    strTy = new (arena.Allocate<StrTy>()) StrTy();
-    errorTy = new (arena.Allocate<ErrorTy>()) ErrorTy();
-
-    // Register the built-in type names so `resolveNamed` can map a source
-    // spelling (`int64`, `bool`, ...) back to its type. Spellings match
-    // `asString`. Constructor types (`Relation`, ...) are intentionally
-    // absent: they take arguments and are built by the lowerer.
-    typesByName = {
-        {U"int8", int8Ty},       {U"int16", int16Ty},   {U"int32", int32Ty},
-        {U"int64", int64Ty},     {U"uint8", uint8Ty},   {U"uint16", uint16Ty},
-        {U"uint32", uint32Ty},   {U"uint64", uint64Ty}, {U"float32", float32Ty},
-        {U"float64", float64Ty}, {U"bool", boolTy},     {U"str", strTy},
-    };
+    boolType= new (arena.Allocate<BoolType>()) BoolType();
+    strType= new (arena.Allocate<StrType>()) StrType();
+    unitType= new (arena.Allocate<UnitType>()) UnitType();
+    errorType= new (arena.Allocate<ErrorType>()) ErrorType();
   }
 
   TypeFactory(const TypeFactory &) = delete;
   TypeFactory &operator=(const TypeFactory &) = delete;
 
   // Primitives — pointer-stable, no allocation per call.
-  [[nodiscard]] const Int8Ty *getInt8() const { return int8Ty; }
-  [[nodiscard]] const Int16Ty *getInt16() const { return int16Ty; }
-  [[nodiscard]] const Int32Ty *getInt32() const { return int32Ty; }
-  [[nodiscard]] const Int64Ty *getInt64() const { return int64Ty; }
+  [[nodiscard]] const Int8Type *getInt8Type() const { return int8Type; }
+  [[nodiscard]] const Int16Type *getInt16Type() const { return int16Type; }
+  [[nodiscard]] const Int32Type *getInt32Type() const { return int32Type; }
+  [[nodiscard]] const Int64Type *getInt64Type() const { return int64Type; }
 
-  [[nodiscard]] const UInt8Ty *getUInt8() const { return uint8Ty; }
-  [[nodiscard]] const UInt16Ty *getUInt16() const { return uint16Ty; }
-  [[nodiscard]] const UInt32Ty *getUInt32() const { return uint32Ty; }
-  [[nodiscard]] const UInt64Ty *getUInt64() const { return uint64Ty; }
+  [[nodiscard]] const UInt8Type *getUInt8Type() const { return uint8Type; }
+  [[nodiscard]] const UInt16Type *getUInt16Type() const { return uint16Type; }
+  [[nodiscard]] const UInt32Type *getUInt32Type() const { return uint32Type; }
+  [[nodiscard]] const UInt64Type *getUInt64Type() const { return uint64Type; }
 
-  [[nodiscard]] const Float32Ty *getFloat32() const { return float32Ty; }
-  [[nodiscard]] const Float64Ty *getFloat64() const { return float64Ty; }
+  [[nodiscard]] const Float32Type *getFloat32Type() const { return float32Type; }
+  [[nodiscard]] const Float64Type *getFloat64Type() const { return float64Type; }
 
-  [[nodiscard]] const BoolTy *getBool() const { return boolTy; }
-  [[nodiscard]] const StrTy *getStr() const { return strTy; }
-  [[nodiscard]] const ErrorTy *getError() const { return errorTy; }
+  [[nodiscard]] const BoolType *getBoolType() const { return boolType; }
+  [[nodiscard]] const StrType *getStrType() const { return strType; }
+  [[nodiscard]] const UnitType *getUnitType() const { return unitType; }
+  [[nodiscard]] const ErrorType *getErrorType() const { return errorType; }
+
+  /// The interned scalar for a builtin `TypeKind` (those in `ScalarBuiltins`).
+  [[nodiscard]] const Type *getScalarTy(TypeKind kind) const {
+    switch (kind) {
+    case TypeKind::Int8:
+      return int8Type;
+    case TypeKind::Int16:
+      return int16Type;
+    case TypeKind::Int32:
+      return int32Type;
+    case TypeKind::Int64:
+      return int64Type;
+    case TypeKind::UInt8:
+      return uint8Type;
+    case TypeKind::UInt16:
+      return uint16Type;
+    case TypeKind::UInt32:
+      return uint32Type;
+    case TypeKind::UInt64:
+      return uint64Type;
+    case TypeKind::Float32:
+      return float32Type;
+    case TypeKind::Float64:
+      return float64Type;
+    case TypeKind::Bool:
+      return boolType;
+    case TypeKind::Str:
+      return strType;
+    case TypeKind::Unit:
+      return unitType;
+    default:
+      util::yuzu_unreachable();
+    }
+  }
 
   // Compound types — hash-cons via the interner so structurally equal
   // types share one canonical pointer.
 
   /// `Relation[element]`, deduplicated by element pointer. Two calls with
   /// the same (already-interned) element return the same `RelationTy`.
-  [[nodiscard]] const RelationTy *getRelation(const Type *element) {
+  [[nodiscard]] const RelationType *getRelationType(const Type *element) {
     auto [it, inserted] = relations.try_emplace(element, nullptr);
     if (inserted) {
-      it->second = new (arena.Allocate<RelationTy>()) RelationTy(element);
+      it->second = new (arena.Allocate<RelationType>()) RelationType(element);
     }
     return it->second;
   }
@@ -84,79 +109,62 @@ public:
   /// `(params...) -> ret`. Not interned: a function signature isn't compared
   /// by pointer, so each call allocates a fresh `FuncTy` with its `params`
   /// copied into the arena.
-  const FuncTy *getFunc(llvm::ArrayRef<const Type *> params, const Type *ret) {
+  const FuncType *getFuncTy(llvm::ArrayRef<const Type *> params, const Type *ret) {
     const Type **savedParams = arena.Allocate<const Type *>(params.size());
     for (size_t i = 0; i < params.size(); ++i) {
       savedParams[i] = params[i];
     }
-    return new (arena.Allocate<FuncTy>())
-        FuncTy(llvm::ArrayRef<const Type *>(savedParams, params.size()), ret);
+    return new (arena.Allocate<FuncType>())
+        FuncType(llvm::ArrayRef<const Type *>(savedParams, params.size()), ret);
   }
 
   /// A generic type parameter `T#index`. Not interned: each declared `[T]`
   /// is a distinct marker (its identity, not its name, is what matters). The
   /// name is interned so it outlives the caller's storage.
-  const TypeParamTy *getTypeParam(uint32_t index, std::u32string_view name) {
-    return new (arena.Allocate<TypeParamTy>())
-        TypeParamTy(index, stringInterner.intern(name));
+  const TypeParamType *getTypeParamType(uint32_t index, std::u32string_view name) {
+    return new (arena.Allocate<TypeParamType>())
+        TypeParamType(index, stringInterner.intern(name));
   }
 
-  /// Fresh nominal struct, registered for `resolveNamed`. Name and fields
-  /// are interned/copied, so the caller's storage needn't outlive the call.
-  const StructTy *getStruct(std::u32string_view name,
-                            llvm::ArrayRef<Field> fields) {
-    // Get raw memory from the arena.
-    Field *savedFields = arena.Allocate<Field>(fields.size());
-
-    // Allocate the memory.
+  /// Fresh nominal struct. Name and fields are interned/copied, so the
+  /// caller's storage needn't outlive the call. Name *resolution* is the
+  /// scope's job — the caller binds the struct's name into the environment.
+  const StructType *getStructType(std::u32string_view name,
+                            llvm::ArrayRef<StructField> fields) {
+    StructField *savedFields = arena.Allocate<StructField>(fields.size());
     for (size_t i = 0; i < fields.size(); ++i) {
       savedFields[i] =
-          Field{stringInterner.intern(fields[i].name), fields[i].type};
+          StructField{stringInterner.intern(fields[i].name), fields[i].type};
     }
-
-    // Construt the type.
-    const auto *ty = new (arena.Allocate<StructTy>())
-        StructTy(stringInterner.intern(name),
-                 llvm::ArrayRef<Field>(savedFields, fields.size()));
-
-    typesByName[stringInterner.intern(name)] = ty;
-    return ty;
-  }
-
-  /// Resolve a type name to its type, or null. Constructor types like
-  /// `Relation[...]` aren't here — the lowerer builds those from their args.
-  [[nodiscard]] const Type *resolveNamed(std::u32string_view name) const {
-    const auto it = typesByName.find(name);
-    return it == typesByName.end() ? nullptr : it->second;
+    return new (arena.Allocate<StructType>())
+        StructType(stringInterner.intern(name),
+                 llvm::ArrayRef<StructField>(savedFields, fields.size()));
   }
 
 private:
   llvm::BumpPtrAllocator arena;
 
   // Interned compounds, keyed by their structural payload.
-  llvm::DenseMap<const Type *, const RelationTy *> relations;
-
-  // Atomic type names (built-ins + declared structs) for `resolveNamed`,
-  // keyed by interned name views.
-  llvm::DenseMap<std::u32string_view, const Type *> typesByName;
+  llvm::DenseMap<const Type *, const RelationType *> relations;
 
   // Shared string storage for struct/field names. Owned by the HIR
   // context, not the type arena, so names dedup across the whole HIR.
   util::StringInterner &stringInterner;
 
-  const Int8Ty *int8Ty;
-  const Int16Ty *int16Ty;
-  const Int32Ty *int32Ty;
-  const Int64Ty *int64Ty;
-  const UInt8Ty *uint8Ty;
-  const UInt16Ty *uint16Ty;
-  const UInt32Ty *uint32Ty;
-  const UInt64Ty *uint64Ty;
-  const Float32Ty *float32Ty;
-  const Float64Ty *float64Ty;
-  const BoolTy *boolTy;
-  const StrTy *strTy;
-  const ErrorTy *errorTy;
+  const Int8Type *int8Type;
+  const Int16Type *int16Type;
+  const Int32Type *int32Type;
+  const Int64Type *int64Type;
+  const UInt8Type *uint8Type;
+  const UInt16Type *uint16Type;
+  const UInt32Type *uint32Type;
+  const UInt64Type *uint64Type;
+  const Float32Type *float32Type;
+  const Float64Type *float64Type;
+  const BoolType *boolType;
+  const StrType *strType;
+  const UnitType *unitType;
+  const ErrorType *errorType;
 };
 
 } // namespace yuzu::hir

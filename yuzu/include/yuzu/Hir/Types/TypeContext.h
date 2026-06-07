@@ -2,6 +2,7 @@
 #define YUZU_HIR_TYPES_TYPECONTEXT_H
 
 #include "yuzu/Hir/Hir.h"
+#include "yuzu/Hir/Ops/Trait.h"
 #include "yuzu/Hir/Types/Type.h"
 #include "yuzu/Hir/Types/TypeFactory.h"
 #include "yuzu/Hir/Types/TypeUnifier.h"
@@ -13,82 +14,101 @@
 #include <string_view>
 
 namespace yuzu::hir {
-/// One handle for an HIR tree's type system: the type factory (interner),
-/// the node → type record, and the hole unifier. Composes the three so
-/// callers reach them through one object instead of juggling each.
 class TypeContext {
 public:
   explicit TypeContext(util::StringInterner &strings)
-      : i(strings), unifier(i) {}
-
-  [[nodiscard]] const Int8Ty *getInt8() const { return i.getInt8(); }
-  [[nodiscard]] const Int16Ty *getInt16() const { return i.getInt16(); }
-  [[nodiscard]] const Int32Ty *getInt32() const { return i.getInt32(); }
-  [[nodiscard]] const Int64Ty *getInt64() const { return i.getInt64(); }
-  [[nodiscard]] const UInt8Ty *getUInt8() const { return i.getUInt8(); }
-  [[nodiscard]] const UInt16Ty *getUInt16() const { return i.getUInt16(); }
-  [[nodiscard]] const UInt32Ty *getUInt32() const { return i.getUInt32(); }
-  [[nodiscard]] const UInt64Ty *getUInt64() const { return i.getUInt64(); }
-  [[nodiscard]] const Float32Ty *getFloat32() const { return i.getFloat32(); }
-  [[nodiscard]] const Float64Ty *getFloat64() const { return i.getFloat64(); }
-  [[nodiscard]] const BoolTy *getBool() const { return i.getBool(); }
-  [[nodiscard]] const StrTy *getStr() const { return i.getStr(); }
-  [[nodiscard]] const ErrorTy *getError() const { return i.getError(); }
-
-  [[nodiscard]] const RelationTy *getRelation(const Type *element) {
-    return i.getRelation(element);
+      : typeFactory(strings), unifier(typeFactory) {
+    registerBuiltinTraits();
   }
 
-  const StructTy *getStruct(std::u32string_view name,
-                            llvm::ArrayRef<Field> fields) {
-    return i.getStruct(name, fields);
-  }
-
-  const FuncTy *getFunc(llvm::ArrayRef<const Type *> params, const Type *ret) {
-    return i.getFunc(params, ret);
-  }
-
-  const TypeParamTy *getTypeParam(uint32_t index, std::u32string_view name) {
-    return i.getTypeParam(index, name);
-  }
-
-  [[nodiscard]] const Type *resolveNamed(std::u32string_view name) const {
-    return i.resolveNamed(name);
-  }
+  [[nodiscard]] TraitTable &getTraitTable() { return traits; }
+  [[nodiscard]] TypeFactory &getTypeFactory() { return typeFactory; }
 
   // Record — a node's type, which may be a hole until concretized.
   void bind(const HirNode *node, const Type *type) {
-    table.bind(node->getId(), type);
+    typeTable.bind(node->getId(), type);
   }
 
   [[nodiscard]] const Type *typeOf(const HirNode *node) const {
-    const auto *t = table.get(node->getId());
-    return t ? *t : nullptr;
+    const auto *type = typeTable.get(node->getId());
+    return type ? *type : nullptr;
   }
 
   // Solver.
-  const InferTy *hole(InferKind kind) { return unifier.makeTypeHole(kind); }
+  const InferType *makeTypeHole(InferKind kind) {
+    return unifier.makeTypeHole(kind);
+  }
 
-  bool unify(const Type *a, const Type *b) { return unifier.unify(a, b); }
+  bool unifyTypes(const Type *a, const Type *b) { return unifier.unify(a, b); }
 
-  const Type *resolve(const Type *t) { return unifier.resolve(t); }
+  const Type *resolveType(const Type *t) { return unifier.resolve(t); }
 
   /// Resolve `node`'s recorded type in place — its hole follows its fill or
   /// defaults — and return the concrete result. Null if `node` is untyped.
   const Type *concretize(const HirNode *node) {
-    const Type *t = typeOf(node);
-    if (!t) {
+    const Type *type = typeOf(node);
+    if (!type) {
       return nullptr;
     }
-    const Type *resolved = unifier.resolve(t);
+    const Type *resolved = unifier.resolve(type);
     bind(node, resolved);
     return resolved;
   }
 
 private:
-  TypeFactory i;
+  /// Register the builtin trait impls: which types support which operators.
+  /// A null result means "same type as the operand" (arithmetic, unary `-`);
+  /// a fixed result is given explicitly (comparisons/logical → bool).
+  void registerBuiltinTraits() {
+    const Type *numerics[] = {
+        typeFactory.getInt8Type(),    typeFactory.getInt16Type(),
+        typeFactory.getInt32Type(),   typeFactory.getInt64Type(),
+        typeFactory.getUInt8Type(),   typeFactory.getUInt16Type(),
+        typeFactory.getUInt32Type(),  typeFactory.getUInt64Type(),
+        typeFactory.getFloat32Type(), typeFactory.getFloat64Type()};
+
+    for (const Type *n : numerics) {
+      // Arithmetic and unary +/- preserve the operand type (null result).
+      traits.add(Trait::Add, n, nullptr);
+      traits.add(Trait::Sub, n, nullptr);
+      traits.add(Trait::Mul, n, nullptr);
+      traits.add(Trait::Div, n, nullptr);
+      traits.add(Trait::Pow, n, nullptr);
+      traits.add(Trait::Pos, n, nullptr);
+      traits.add(Trait::Neg, n, nullptr);
+      // Equality and ordering yield bool.
+      traits.add(Trait::Eq, n, typeFactory.getBoolType());
+      traits.add(Trait::Neq, n, typeFactory.getBoolType());
+      traits.add(Trait::Lt, n, typeFactory.getBoolType());
+      traits.add(Trait::Lte, n, typeFactory.getBoolType());
+      traits.add(Trait::Gt, n, typeFactory.getBoolType());
+      traits.add(Trait::Gte, n, typeFactory.getBoolType());
+    }
+
+    // str: concatenation (`+`), equality, and ordering.
+    traits.add(Trait::Add, typeFactory.getStrType(), nullptr);
+    traits.add(Trait::Eq, typeFactory.getStrType(), typeFactory.getBoolType());
+    traits.add(Trait::Neq, typeFactory.getStrType(), typeFactory.getBoolType());
+    traits.add(Trait::Lt, typeFactory.getStrType(), typeFactory.getBoolType());
+    traits.add(Trait::Lte, typeFactory.getStrType(), typeFactory.getBoolType());
+    traits.add(Trait::Gt, typeFactory.getStrType(), typeFactory.getBoolType());
+    traits.add(Trait::Gte, typeFactory.getStrType(), typeFactory.getBoolType());
+
+    // bool: logical, equality, and `not`.
+    traits.add(Trait::And, typeFactory.getBoolType(),
+               typeFactory.getBoolType());
+    traits.add(Trait::Or, typeFactory.getBoolType(), typeFactory.getBoolType());
+    traits.add(Trait::Eq, typeFactory.getBoolType(), typeFactory.getBoolType());
+    traits.add(Trait::Neq, typeFactory.getBoolType(),
+               typeFactory.getBoolType());
+    traits.add(Trait::Not, typeFactory.getBoolType(),
+               typeFactory.getBoolType());
+  }
+
+  TypeFactory typeFactory;
   TypeUnifier unifier;
-  util::SideTable<HirId, const Type *> table;
+  util::SideTable<HirId, const Type *> typeTable;
+  TraitTable traits;
 };
 } // namespace yuzu::hir
 

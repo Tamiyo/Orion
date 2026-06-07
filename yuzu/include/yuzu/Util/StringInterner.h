@@ -2,6 +2,7 @@
 #define YUZU_UTIL_STRINGINTERNER_H
 
 #include "yuzu/Util/U32StringExtensions.h" // IWYU pragma: keep
+#include "yuzu/Util/Unicode.h"
 
 #include <llvm/Support/Allocator.h>
 
@@ -18,6 +19,10 @@ public:
   StringInterner() = default;
   StringInterner(const StringInterner &) = delete;
   StringInterner &operator=(const StringInterner &) = delete;
+
+  std::u32string_view intern(std::string_view s) {
+    return intern(util::decodeUtf8(s));
+  }
 
   /// Intern `s` to a stable view. Empty strings don't allocate.
   std::u32string_view intern(std::u32string_view s) {

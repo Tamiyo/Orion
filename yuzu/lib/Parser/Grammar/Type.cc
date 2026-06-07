@@ -31,7 +31,7 @@ std::optional<CompletedMarker> parseNamedType(Parser &p) {
     p.expect(TokenKind::RightBracket);
   }
 
-  return p.complete(m, SyntaxKind::NamedType);
+  return p.complete(m, SyntaxKind::NamedTypeAnnotation);
 }
 
 /// `RecordField := Identifier ':' Type` — one `name: type` member of a
@@ -48,16 +48,17 @@ std::optional<CompletedMarker> parseRecordField(Parser &p) {
 /// two-token lookahead: `'(' Identifier ':'` starts a record field;
 /// anything else (including `()`) is a function type's parameter list.
 ///
-///   RecordType := '(' RecordField (',' RecordField)* ')'
-///   FuncType   := '(' ( Type (',' Type)* )? ')' '->' Type
+///   RecordType   := '(' RecordField (',' RecordField)* ')'
+///   FuncType     := FnTypeParams '->' Type
+///   FnTypeParams := '(' ( Type (',' Type)* )? ')'
 std::optional<CompletedMarker> parseParenType(Parser &p) {
   const bool isRecord = p.peekKind(1) == TokenKind::Identifier &&
                         p.peekKind(2) == TokenKind::Colon;
 
   const Marker m = p.start();
-  p.expect(TokenKind::LeftParen);
 
   if (isRecord) {
+    p.expect(TokenKind::LeftParen);
     parseRecordField(p);
     while (p.at(TokenKind::Comma)) {
       p.bump(); // ','
@@ -67,8 +68,10 @@ std::optional<CompletedMarker> parseParenType(Parser &p) {
     return p.complete(m, SyntaxKind::RecordType);
   }
 
-  // Function type: an optional comma-separated parameter list, then the
-  // `->` arrow and a single result type.
+  // Function type: the parenthesized parameter list is its own node so it
+  // can't be confused with the result type, then the `->` arrow and result.
+  const Marker params = p.start();
+  p.expect(TokenKind::LeftParen);
   if (!p.at(TokenKind::RightParen)) {
     parseType(p);
     while (p.at(TokenKind::Comma)) {
@@ -77,9 +80,11 @@ std::optional<CompletedMarker> parseParenType(Parser &p) {
     }
   }
   p.expect(TokenKind::RightParen);
+  const auto _ = p.complete(params, SyntaxKind::FuncTypeAnnotationParams);
+
   p.expect(TokenKind::Arrow);
   parseType(p);
-  return p.complete(m, SyntaxKind::FuncType);
+  return p.complete(m, SyntaxKind::FuncTypeAnnotation);
 }
 } // namespace
 

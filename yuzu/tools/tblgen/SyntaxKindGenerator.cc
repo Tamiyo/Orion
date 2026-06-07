@@ -60,6 +60,92 @@ bool isNestedVariant(const llvm::Record *v) {
   return v->getValueAsDef("Parent")->isSubClassOf("Variant");
 }
 
+/// A variant's direct children, in source order: concrete Nodes parented at
+/// `v`, plus sub-variants parented at `v` (each as the variant record).
+std::vector<const llvm::Record *>
+directChildren(const llvm::Record *v,
+               const std::vector<const llvm::Record *> &variants,
+               const std::vector<const llvm::Record *> &nodes) {
+  std::vector<const llvm::Record *> children;
+  for (const llvm::Record *n : nodes) {
+    if (n->getValueAsDef("Parent") == v) {
+      children.push_back(n);
+    }
+  }
+  for (const llvm::Record *sv : variants) {
+    if (sv->getValueAsDef("Parent") == v) {
+      children.push_back(sv);
+    }
+  }
+  std::sort(children.begin(), children.end(), byLoc);
+  return children;
+}
+
+/// Every concrete (non-variant) Node transitively under `v`, in source order.
+/// Used to map each leaf `SyntaxKind` back to the direct child it falls under.
+void collectLeaves(const llvm::Record *v,
+                   const std::vector<const llvm::Record *> &variants,
+                   const std::vector<const llvm::Record *> &nodes,
+                   std::vector<const llvm::Record *> &out) {
+  for (const llvm::Record *c : directChildren(v, variants, nodes)) {
+    if (c->isSubClassOf("Variant")) {
+      collectLeaves(c, variants, nodes, out);
+    } else {
+      out.push_back(c);
+    }
+  }
+}
+
+/// For each variant `V`, emit a narrow `<V>Kind` enum listing only `V`'s
+/// direct children (concrete Nodes by name, sub-variants by the variant
+/// name) plus `to<V>Kind(SyntaxKind)`. Callers dispatch one level at a time
+/// and `-Wswitch` enforces exhaustiveness — adding a direct child of `V`
+/// breaks every `switch (x.get<V>Kind())`.
+void emitVariantKind(CodeFormatter &fmt, const llvm::Record *v,
+                     const std::vector<const llvm::Record *> &variants,
+                     const std::vector<const llvm::Record *> &nodes) {
+  const std::string name = v->getName().str();
+  const std::vector<const llvm::Record *> children =
+      directChildren(v, variants, nodes);
+
+  fmt.linef("enum class {0}Kind : uint8_t {{", name);
+  {
+    auto body = fmt.block();
+    for (const llvm::Record *c : children) {
+      fmt.linef("{0},", c->getName().str());
+    }
+  }
+  fmt.line("};");
+  fmt.line("");
+
+  fmt.linef("inline {0}Kind to{0}Kind(SyntaxKind kind) {{", name);
+  {
+    auto body = fmt.block();
+    fmt.line("switch (kind) {");
+    for (const llvm::Record *c : children) {
+      const std::string childName = c->getName().str();
+      if (c->isSubClassOf("Variant")) {
+        // A sub-variant maps every leaf under it to this child.
+        std::vector<const llvm::Record *> leaves;
+        collectLeaves(c, variants, nodes, leaves);
+        for (std::size_t i = 0; i + 1 < leaves.size(); ++i) {
+          fmt.linef("case SyntaxKind::{0}:", leaves[i]->getName().str());
+        }
+        if (!leaves.empty()) {
+          fmt.linef("case SyntaxKind::{0}: return {1}Kind::{2};",
+                    leaves.back()->getName().str(), name, childName);
+        }
+      } else {
+        fmt.linef("case SyntaxKind::{0}: return {1}Kind::{0};", childName, name);
+      }
+    }
+    fmt.line("default: util::yuzu_unreachable();");
+    fmt.line("}");
+  }
+  fmt.line("}");
+  fmt.line("");
+}
+
 /// Recursively emit one variant block: `<V>_FIRST`, the variant itself,
 /// concrete Node children, every sub-variant nested inside, then
 /// `<V>_LAST`. Nested layout makes the parent's range-check `isA`
@@ -298,6 +384,12 @@ void SyntaxKindGenerator::generate(const llvm::RecordKeeper &records) {
   fmt.line("");
   emitTokenPredicates(fmt, tokens);
   emitAsString(fmt, tokens, variants, nodes);
+
+  // Per-variant narrow kind enums + `to<V>Kind`, for one-level dispatch.
+  for (const llvm::Record *v : variants) {
+    emitVariantKind(fmt, v, variants, nodes);
+  }
+
   fmt.linef("} // namespace {0}", ns);
 }
 

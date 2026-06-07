@@ -47,9 +47,9 @@ std::optional<CompletedMarker> parseParam(Parser &p) {
   return p.complete(m, SyntaxKind::Param);
 }
 
-/// `FnStmt := 'fn' Identifier ( '[' TypeParam (',' TypeParam)* ']' )?
+/// `FuncStmt := 'fn' Identifier ( '[' TypeParam (',' TypeParam)* ']' )?
 ///           '(' ( Param (',' Param)* )? ')' ( '->' Type )? BlockStmt`
-std::optional<CompletedMarker> parseFnStmt(Parser &p) {
+std::optional<CompletedMarker> parseFuncStmt(Parser &p) {
   const Marker m = p.start();
 
   p.expect(TokenKind::FnKw);
@@ -87,7 +87,7 @@ std::optional<CompletedMarker> parseFnStmt(Parser &p) {
 
   parseBlockStmt(p);
 
-  return p.complete(m, SyntaxKind::FnStmt);
+  return p.complete(m, SyntaxKind::FuncStmt);
 }
 
 /// `ReturnStmt := 'return' Expr?`
@@ -130,7 +130,7 @@ std::optional<CompletedMarker> parseExprStmt(Parser &p) {
 
 std::optional<CompletedMarker> parseStmt(Parser &p) {
   if (p.at(TokenKind::FnKw)) {
-    return parseFnStmt(p);
+    return parseFuncStmt(p);
   }
 
   if (p.at(TokenKind::LetKw)) {

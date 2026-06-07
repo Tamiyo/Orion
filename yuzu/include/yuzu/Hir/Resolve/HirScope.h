@@ -15,15 +15,18 @@ namespace yuzu::hir {
 class HirContext;
 class HirSymbolTable;
 
-enum class [[nodiscard]] HirScopeKind : uint8_t { Fn, Block };
+enum class [[nodiscard]] HirScopeKind : uint8_t { Func, Block };
 
 /// A lexical scope's bindings.
 class [[nodiscard]] HirScope {
 public:
-  using Binding = std::variant<const LetStmt *, const Param *, const FnStmt *>;
+  using Binding =
+      std::variant<const LetStmt *, const Param *, const FuncStmt *>;
+
   using LookupResult = std::optional<Binding>;
 
-  explicit HirScope(HirContext &ctx, HirScopeKind kind) : ctx(ctx), kind(kind) {}
+  explicit HirScope(HirContext &ctx, HirScopeKind kind)
+      : ctx(ctx), kind(kind) {}
 
   HirScope(const HirScope &) = delete;
   HirScope &operator=(const HirScope &) = delete;

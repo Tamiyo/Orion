@@ -78,7 +78,7 @@ def IdentExpr : Node<Expr> {
 
 /// A builtin operator applied to its arguments (`x + y`, `-x`). `op`
 /// identifies the operator; the typer runs `op->resolve` to compute the
-/// result type. Function calls are `FnCallExpr`, a distinct node.
+/// result type. Function calls are `FuncCallExpr`, a distinct node.
 def CallExpr : Node<Expr> {
     let Fields = (ins
         Custom<OpRef>:$op,
@@ -89,7 +89,7 @@ def CallExpr : Node<Expr> {
 /// A function call `callee(args)`. The callee is the expression being
 /// invoked (a function-typed value); the typer checks each argument against
 /// the callee's parameter types and takes its return type.
-def FnCallExpr : Node<Expr> {
+def FuncCallExpr : Node<Expr> {
     let Fields = (ins
         Child<Expr>:$callee,
         Children<Expr>:$args
@@ -127,6 +127,36 @@ def StringLit : Node<Literal> {
 }
 
 //===----------------------------------------------------------------------===//
+// Type expressions
+//===----------------------------------------------------------------------===//
+
+/// A written type annotation — the `int8` in `let x: int8 = …`. Mirrors
+/// `ast::TypeAnnotation` so HIR stays self-contained: the typer resolves a
+/// `TypeAnnotation` to a semantic `Type` instead of reaching back into the AST.
+/// `NamedType` and `FuncType` are modeled; record type syntax is rejected
+/// during lowering until the typer grows support.
+def TypeAnnotation : Variant<HirNode> {}
+
+/// A named type, optionally applied to type arguments (`Relation[T]`).
+/// `args` is empty for a plain name.
+def NamedTypeAnnotation : Node<TypeAnnotation> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Children<TypeAnnotation>:$args
+    );
+}
+
+/// A function type `(params...) -> result`, e.g. `(int32) -> int32`. Named
+/// `FuncType` to avoid colliding with the semantic `FuncType` (in `Type.h`)
+/// that it resolves to.
+def FuncTypeAnnotation : Node<TypeAnnotation> {
+    let Fields = (ins
+        Children<TypeAnnotation>:$params,
+        Child<TypeAnnotation>:$result
+    );
+}
+
+//===----------------------------------------------------------------------===//
 // Statements
 //===----------------------------------------------------------------------===//
 
@@ -140,21 +170,24 @@ def ExprStmt : Node<Stmt> {
     );
 }
 
-/// The binding's resolved type — the annotation when present (and checked
-/// against the initializer), otherwise inferred from it — lives in the
-/// `HirContext` type side table, keyed by this node's `HirId`.
+/// `let name [: type] = expr`. `annotation` is the written type, null when
+/// the binding is inferred from its initializer. The resolved `Type` lives
+/// in the `HirContext` type side table, keyed by this node's `HirId`.
 def LetStmt : Node<Stmt> {
     let Fields =  (ins
         Child<Ident>:$name,
+        Child<TypeAnnotation>:$typeAnnotation,
         Child<Expr>:$expr
     );
 }
 
-/// One `name: type` function parameter. The parameter's type (lowered from
-/// its annotation) lives in the type side table keyed by this node's id.
+/// One `name: type` function parameter. `annotation` is the written type
+/// (always present in well-formed source); the resolved `Type` lives in the
+/// type side table keyed by this node's id.
 def Param : Node<HirNode> {
     let Fields = (ins
-        Child<Ident>:$name
+        Child<Ident>:$name,
+        Child<TypeAnnotation>:$typeAnnotation
     );
 }
 
@@ -165,23 +198,20 @@ def BlockStmt : Node<Stmt> {
     );
 }
 
-/// `return expr` — `expr` is null for a bare `return` (unit).
+/// A return statement. The field `expr` is null for a bare `return` (unit).
 def ReturnStmt : Node<Stmt> {
     let Fields = (ins
         Child<Expr>:$expr
     );
 }
 
-/// A function declaration. `typeParams` are the generic parameters (bare
-/// names for now); each parameter's and the function's signature type live
-/// in the type side table. The declared return annotation, if any, is
-/// stored at this node's id until the typer replaces it with the full
-/// signature type.
-def FnStmt : Node<Stmt> {
+/// A function declaration.
+def FuncStmt : Node<Stmt> {
     let Fields = (ins
         Child<Ident>:$name,
         Children<Ident>:$typeParams,
         Children<Param>:$params,
+        Child<TypeAnnotation>:$returnTypeAnnotation,
         Child<BlockStmt>:$body
     );
 }

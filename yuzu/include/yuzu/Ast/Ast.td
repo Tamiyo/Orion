@@ -131,7 +131,7 @@ def ArgList : Node<AstNode> {
 }
 
 /// A function call `callee(args)`. `callee` is any expression (a bare name
-/// today; `getFn()(x)` and methods fall out for free). Operators are not
+/// today; `getFunc()(x)` and methods fall out for free). Operators are not
 /// calls here — they stay `BinaryExpr`/`UnaryExpr`.
 def CallExpr : Node<Expr> {
     let Fields = (ins
@@ -185,26 +185,34 @@ def StringLit : Node<Literal> {
 /// the semantic `hir::Type` it eventually lowers to. A variant so the
 /// different shapes (named, function, record) share one field slot, e.g.
 /// `StructField.type`.
-def TypeExpr : Variant<AstNode> {}
+def TypeAnnotation : Variant<AstNode> {}
 
 /// A named type, optionally applied to type arguments:
 /// `string`, `Employee`, `Relation[Employee]`, `List[Relation[T]]`. The
 /// `args` list is empty for a plain name; each argument is itself a
-/// `TypeExpr`, so nesting falls out for free. Value-parameterized types
+/// `TypeAnnotation`, so nesting falls out for free. Value-parameterized types
 /// like `decimal(2, 12)` are a later addition.
-def NamedType : Node<TypeExpr> {
+def NamedTypeAnnotation : Node<TypeAnnotation> {
     let Fields = (ins
         Child<Ident>:$name,
-        Children<TypeExpr>:$args
+        Children<TypeAnnotation>:$args
     );
+}
+
+/// The parenthesized parameter list of a function type: `(int, str)`. Wraps
+/// the params in their own node so they don't collide with the result — both
+/// are `TypeAnnotation`, and a bare `Children<TypeAnnotation>` on `FuncType`
+/// would otherwise sweep the result in too (cf. `ArgList`).
+def FuncTypeAnnotationParams : Node<AstNode> {
+    let Fields = (ins Children<TypeAnnotation>:$params);
 }
 
 /// A function type: `(int, str) -> bool`. Positional parameter types and a
 /// single result; `params` is empty for `() -> T`.
-def FuncType : Node<TypeExpr> {
+def FuncTypeAnnotation : Node<TypeAnnotation> {
     let Fields = (ins
-        Children<TypeExpr>:$params,
-        Child<TypeExpr>:$result
+        Child<FuncTypeAnnotationParams>:$params,
+        Child<TypeAnnotation>:$result
     );
 }
 
@@ -213,14 +221,14 @@ def FuncType : Node<TypeExpr> {
 def RecordField : Node<AstNode> {
     let Fields = (ins
         Child<Ident>:$name,
-        Child<TypeExpr>:$type
+        Child<TypeAnnotation>:$type
     );
 }
 
 /// An anonymous record type: `(sum: decimal, count: int64)`. Structural
 /// (no declared name) — used for aggregate accumulators and `select`
 /// output rows.
-def RecordType : Node<TypeExpr> {
+def RecordType : Node<TypeAnnotation> {
     let Fields = (ins
         Children<RecordField>:$fields
     );
@@ -237,7 +245,7 @@ def StructField : Node<AstNode> {
     let Fields = (ins
         Custom<Visibility>:$visibility,
         Child<Ident>:$name,
-        Child<TypeExpr>:$type
+        Child<TypeAnnotation>:$type
     );
 }
 
@@ -260,7 +268,7 @@ def ExprStmt : Node<Stmt> {
 def LetStmt : Node<Stmt> {
     let Fields = (ins
         Child<Ident>:$name,
-        Child<TypeExpr>:$type, // optional — present only when annotated
+        Child<TypeAnnotation>:$typeAnnotation, // optional — present only when annotated
         Child<Expr>:$expr
     );
 }
@@ -277,7 +285,7 @@ def TypeParam : Node<AstNode> {
 def Param : Node<AstNode> {
     let Fields = (ins
         Child<Ident>:$name,
-        Child<TypeExpr>:$type
+        Child<TypeAnnotation>:$type
     );
 }
 
@@ -299,12 +307,12 @@ def ReturnStmt : Node<Stmt> {
 /// A function declaration: `fn id[T](x: T) -> T { ... }`. `typeParams` is
 /// empty for a non-generic function; `result` is the optional return type
 /// annotation.
-def FnStmt : Node<Stmt> {
+def FuncStmt : Node<Stmt> {
     let Fields = (ins
         Child<Ident>:$name,
         Children<TypeParam>:$typeParams,
         Children<Param>:$params,
-        Child<TypeExpr>:$result, // optional
+        Child<TypeAnnotation>:$result, // optional
         Child<BlockStmt>:$body
     );
 }

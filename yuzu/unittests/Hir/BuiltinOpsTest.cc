@@ -38,32 +38,34 @@ protected:
   }
 
   const Type *typeFor(TypeKind k) {
-    auto &i = ctx.getTypeContext();
+    auto &i = ctx.getTypeContext().getTypeFactory();
     switch (k) {
     case TypeKind::Int8:
-      return i.getInt8();
+      return i.getInt8Type();
     case TypeKind::Int16:
-      return i.getInt16();
+      return i.getInt16Type();
     case TypeKind::Int32:
-      return i.getInt32();
+      return i.getInt32Type();
     case TypeKind::Int64:
-      return i.getInt64();
+      return i.getInt64Type();
     case TypeKind::UInt8:
-      return i.getUInt8();
+      return i.getUInt8Type();
     case TypeKind::UInt16:
-      return i.getUInt16();
+      return i.getUInt16Type();
     case TypeKind::UInt32:
-      return i.getUInt32();
+      return i.getUInt32Type();
     case TypeKind::UInt64:
-      return i.getUInt64();
+      return i.getUInt64Type();
     case TypeKind::Float32:
-      return i.getFloat32();
+      return i.getFloat32Type();
     case TypeKind::Float64:
-      return i.getFloat64();
+      return i.getFloat64Type();
     case TypeKind::Bool:
-      return i.getBool();
+      return i.getBoolType();
     case TypeKind::Str:
-      return i.getStr();
+      return i.getStrType();
+    case TypeKind::Unit:
+      return i.getUnitType();
     case TypeKind::Relation:
     case TypeKind::Struct:
     case TypeKind::Func:
@@ -72,7 +74,7 @@ protected:
       // Compound — can't be built from a bare kind; op tests don't use it.
       return nullptr;
     case TypeKind::Error:
-      return i.getError();
+      return i.getErrorType();
     }
     return nullptr;
   }

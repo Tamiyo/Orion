@@ -5,11 +5,13 @@
 
 #include <llvm/ADT/ArrayRef.h>
 
+#include <array>
 #include <cfloat>
 #include <cmath>
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace yuzu::hir {
 
@@ -41,12 +43,12 @@ enum class [[nodiscard]] TypeKind : uint8_t {
   Float64,
   Bool,
   Str,
+  Unit,
   Relation,
   Struct,
   Func,
   TypeParam,
   Infer,
-  //   Unit,
   //   List,
   //   Tuple,
   //   Class,
@@ -60,34 +62,37 @@ enum class [[nodiscard]] InferKind : uint8_t {
   Float,
 };
 
+/// The scalar builtin types and their source spellings — the single source
+/// of truth for these names. `asString` renders from it, and the environment
+/// seeds its root type scope from it (so `int32`/`bool`/... resolve there).
+/// Compound (`Relation`) and synthetic (`<infer>`) kinds are not here: the
+/// former are built from arguments, the latter have no source spelling.
+inline constexpr std::array<std::pair<TypeKind, std::string_view>, 13>
+    scalarBuiltins = {{
+        {TypeKind::Int8, "int8"},
+        {TypeKind::Int16, "int16"},
+        {TypeKind::Int32, "int32"},
+        {TypeKind::Int64, "int64"},
+        {TypeKind::UInt8, "uint8"},
+        {TypeKind::UInt16, "uint16"},
+        {TypeKind::UInt32, "uint32"},
+        {TypeKind::UInt64, "uint64"},
+        {TypeKind::Float32, "float32"},
+        {TypeKind::Float64, "float64"},
+        {TypeKind::Bool, "bool"},
+        {TypeKind::Str, "str"},
+        {TypeKind::Unit, "unit"},
+    }};
+
 /// Human-facing name for a `TypeKind`. Rendered into diagnostic
-/// messages — e.g. "operand has type `int`".
+/// messages — e.g. "operand has type `int32`".
 inline std::string asString(TypeKind kind) {
+  for (const auto &[k, name] : scalarBuiltins) {
+    if (k == kind) {
+      return std::string(name);
+    }
+  }
   switch (kind) {
-  case TypeKind::Int8:
-    return "int8";
-  case TypeKind::Int16:
-    return "int16";
-  case TypeKind::Int32:
-    return "int32";
-  case TypeKind::Int64:
-    return "int64";
-  case TypeKind::UInt8:
-    return "uint8";
-  case TypeKind::UInt16:
-    return "uint16";
-  case TypeKind::UInt32:
-    return "uint32";
-  case TypeKind::UInt64:
-    return "uint64";
-  case TypeKind::Float32:
-    return "float32";
-  case TypeKind::Float64:
-    return "float64";
-  case TypeKind::Bool:
-    return "bool";
-  case TypeKind::Str:
-    return "str";
   case TypeKind::Relation:
     return "relation";
   case TypeKind::Struct:
@@ -100,6 +105,8 @@ inline std::string asString(TypeKind kind) {
     return "<infer>";
   case TypeKind::Error:
     return "<error>";
+  default:
+    break;
   }
 
   util::yuzu_unreachable();
@@ -242,94 +249,100 @@ private:
     return k == TypeKind::KindValue;                                           \
   }                                                                            \
                                                                                \
-  [[nodiscard]] static const KindValue##Ty *cast(const Type *t) {              \
-    return isA(t->getKind()) ? static_cast<const KindValue##Ty *>(t)           \
+  [[nodiscard]] static const KindValue##Type *cast(const Type *t) {            \
+    return isA(t->getKind()) ? static_cast<const KindValue##Type *>(t)         \
                              : nullptr;                                        \
   }
 
-class Int8Ty final : public Type {
+class Int8Type final : public Type {
 public:
-  explicit Int8Ty() : Type(TypeKind::Int8) {}
+  explicit Int8Type() : Type(TypeKind::Int8) {}
   YUZU_TYPE_RTTI(Int8)
 };
 
-class Int16Ty final : public Type {
+class Int16Type final : public Type {
 public:
-  explicit Int16Ty() : Type(TypeKind::Int16) {}
+  explicit Int16Type() : Type(TypeKind::Int16) {}
   YUZU_TYPE_RTTI(Int16)
 };
 
-class Int32Ty final : public Type {
+class Int32Type final : public Type {
 public:
-  explicit Int32Ty() : Type(TypeKind::Int32) {}
+  explicit Int32Type() : Type(TypeKind::Int32) {}
   YUZU_TYPE_RTTI(Int32)
 };
 
-class Int64Ty final : public Type {
+class Int64Type final : public Type {
 public:
-  explicit Int64Ty() : Type(TypeKind::Int64) {}
+  explicit Int64Type() : Type(TypeKind::Int64) {}
   YUZU_TYPE_RTTI(Int64)
 };
 
-class UInt8Ty final : public Type {
+class UInt8Type final : public Type {
 public:
-  explicit UInt8Ty() : Type(TypeKind::UInt8) {}
+  explicit UInt8Type() : Type(TypeKind::UInt8) {}
   YUZU_TYPE_RTTI(UInt8)
 };
 
-class UInt16Ty final : public Type {
+class UInt16Type final : public Type {
 public:
-  explicit UInt16Ty() : Type(TypeKind::UInt16) {}
+  explicit UInt16Type() : Type(TypeKind::UInt16) {}
   YUZU_TYPE_RTTI(UInt16)
 };
 
-class UInt32Ty final : public Type {
+class UInt32Type final : public Type {
 public:
-  explicit UInt32Ty() : Type(TypeKind::UInt32) {}
+  explicit UInt32Type() : Type(TypeKind::UInt32) {}
   YUZU_TYPE_RTTI(UInt32)
 };
 
-class UInt64Ty final : public Type {
+class UInt64Type final : public Type {
 public:
-  explicit UInt64Ty() : Type(TypeKind::UInt64) {}
+  explicit UInt64Type() : Type(TypeKind::UInt64) {}
   YUZU_TYPE_RTTI(UInt64)
 };
 
-class Float32Ty final : public Type {
+class Float32Type final : public Type {
 public:
-  explicit Float32Ty() : Type(TypeKind::Float32) {}
+  explicit Float32Type() : Type(TypeKind::Float32) {}
   YUZU_TYPE_RTTI(Float32)
 };
 
-class Float64Ty final : public Type {
+class Float64Type final : public Type {
 public:
-  explicit Float64Ty() : Type(TypeKind::Float64) {}
+  explicit Float64Type() : Type(TypeKind::Float64) {}
   YUZU_TYPE_RTTI(Float64)
 };
 
-class BoolTy final : public Type {
+class BoolType final : public Type {
 public:
-  explicit BoolTy() : Type(TypeKind::Bool) {}
+  explicit BoolType() : Type(TypeKind::Bool) {}
   YUZU_TYPE_RTTI(Bool)
 };
 
-class StrTy final : public Type {
+class StrType final : public Type {
 public:
-  explicit StrTy() : Type(TypeKind::Str) {}
+  explicit StrType() : Type(TypeKind::Str) {}
   YUZU_TYPE_RTTI(Str)
 };
 
-class ErrorTy final : public Type {
+class UnitType final : public Type {
 public:
-  explicit ErrorTy() : Type(TypeKind::Error) {}
+  explicit UnitType() : Type(TypeKind::Unit) {}
+  YUZU_TYPE_RTTI(Unit)
+};
+
+class ErrorType final : public Type {
+public:
+  explicit ErrorType() : Type(TypeKind::Error) {}
   YUZU_TYPE_RTTI(Error)
 };
 
 /// `Relation[Element]` — a relation over rows of type `Element`. Interned
 /// structurally by its element.
-class RelationTy final : public Type {
+class RelationType final : public Type {
 public:
-  explicit RelationTy(const Type *element)
+  explicit RelationType(const Type *element)
       : Type(TypeKind::Relation), element(element) {}
 
   [[nodiscard]] const Type *getElement() const { return element; }
@@ -341,23 +354,23 @@ private:
 };
 
 /// A `StructTy` field: interned name + type.
-struct Field {
+struct StructField {
   std::u32string_view name;
   const Type *type;
 };
 
 /// A nominal record type — a declared `struct`.
-class StructTy final : public Type {
+class StructType final : public Type {
 public:
-  StructTy(std::u32string_view name, llvm::ArrayRef<Field> fields)
+  StructType(std::u32string_view name, llvm::ArrayRef<StructField> fields)
       : Type(TypeKind::Struct), name(name), fields(fields) {}
 
   [[nodiscard]] std::u32string_view getName() const { return name; }
-  [[nodiscard]] llvm::ArrayRef<Field> getFields() const { return fields; }
+  [[nodiscard]] llvm::ArrayRef<StructField> getFields() const { return fields; }
 
   /// Type of the field named `fieldName`, or null if there is none.
   [[nodiscard]] const Type *findField(std::u32string_view fieldName) const {
-    for (const Field &f : fields) {
+    for (const StructField &f : fields) {
       if (f.name == fieldName) {
         return f.type;
       }
@@ -369,36 +382,31 @@ public:
 
 private:
   std::u32string_view name;
-  llvm::ArrayRef<Field> fields;
+  llvm::ArrayRef<StructField> fields;
 };
 
-/// A function type `(P0, ...) -> R`. The `params` array is arena-owned. A
-/// generic signature is a template: its `[T]` params are `TypeParamTy`
-/// markers a call site instantiates.
-class FuncTy final : public Type {
+class FuncType final : public Type {
 public:
-  FuncTy(llvm::ArrayRef<const Type *> params, const Type *ret)
-      : Type(TypeKind::Func), params(params), ret(ret) {}
+  FuncType(llvm::ArrayRef<const Type *> argTypes, const Type *returnType)
+      : Type(TypeKind::Func), argTypes(argTypes), returnType(returnType) {}
 
-  [[nodiscard]] llvm::ArrayRef<const Type *> getParams() const {
-    return params;
-  }
-  [[nodiscard]] const Type *getRet() const { return ret; }
+  llvm::ArrayRef<const Type *> getArgTypes() const { return argTypes; }
+  [[nodiscard]] const Type *getReturnType() const { return returnType; }
 
   YUZU_TYPE_RTTI(Func)
 
 private:
-  llvm::ArrayRef<const Type *> params;
-  const Type *ret;
+  llvm::ArrayRef<const Type *> argTypes;
+  const Type *returnType;
 };
 
 /// A declared generic type parameter — the `T` in `fn id[T](...)`. A rigid
 /// marker, never unified: a call site substitutes a fresh hole for it.
 /// `index` is its position in `[...]`; `name` is for diagnostics.
-class TypeParamTy final : public Type {
+class TypeParamType final : public Type {
 public:
-  TypeParamTy(uint32_t index, std::u32string_view name)
-      : Type(TypeKind::TypeParam), index(index), name(name) {}
+  TypeParamType(uint32_t index, std::u32string_view name)
+      : Type(TypeKind::TypeParam), name(name), index(index) {}
 
   [[nodiscard]] uint32_t getIndex() const { return index; }
   [[nodiscard]] std::u32string_view getName() const { return name; }
@@ -406,8 +414,8 @@ public:
   YUZU_TYPE_RTTI(TypeParam)
 
 private:
-  uint32_t index;
   std::u32string_view name;
+  uint32_t index;
 };
 
 /// Identifies an inference variable within a `UnificationTable`.
@@ -417,9 +425,9 @@ enum class InferId : uint32_t {};
 /// `id` indexes the table's union-find; `flavor` restricts what it can
 /// unify with and how it defaults. Replaced by a concrete type during the
 /// solve, so it never escapes into a finished tree.
-class InferTy final : public Type {
+class InferType final : public Type {
 public:
-  InferTy(InferId id, InferKind inferKind)
+  InferType(InferId id, InferKind inferKind)
       : Type(TypeKind::Infer), id(id), inferKind(inferKind) {}
 
   [[nodiscard]] InferId getId() const { return id; }

@@ -18,10 +18,10 @@ public:
   TypeUnifier(const TypeUnifier &) = delete;
   TypeUnifier &operator=(const TypeUnifier &) = delete;
 
-  const InferTy *makeTypeHole(InferKind kind) {
+  const InferType *makeTypeHole(InferKind kind) {
     const auto id = static_cast<InferId>(filled.size());
     filled.push_back(nullptr);
-    return new (arena.Allocate<InferTy>()) InferTy(id, kind);
+    return new (arena.Allocate<InferType>()) InferType(id, kind);
   }
 
   bool unify(const Type *a, const Type *b) {
@@ -32,8 +32,8 @@ public:
       return true;
     }
 
-    const auto *ha = InferTy::cast(a);
-    const auto *hb = InferTy::cast(b);
+    const auto *ha = InferType::cast(a);
+    const auto *hb = InferType::cast(b);
 
     // two empty holes → merge their groups
     if (ha && hb) {
@@ -50,13 +50,38 @@ public:
       return fill(hb, a);
     }
 
+    // Type-parameter markers are interned by their declaration, so the same
+    // `[T]` is one pointer (already caught by `a == b` above) and distinct
+    // declarations are distinct pointers. Two markers that aren't pointer-equal
+    // denote different parameters (e.g. a nested `[U]` vs an enclosing `[T]`)
+    // and must not unify.
+    if (TypeParamType::cast(a) && TypeParamType::cast(b)) {
+      return false;
+    }
+
+    // Function types aren't interned, so structurally-equal signatures are
+    // distinct pointers — unify them component-wise (params then result).
+    const auto *fa = FuncType::cast(a);
+    const auto *fb = FuncType::cast(b);
+    if (fa && fb) {
+      if (fa->getArgTypes().size() != fb->getArgTypes().size()) {
+        return false;
+      }
+      for (size_t i = 0; i < fa->getArgTypes().size(); ++i) {
+        if (!unify(fa->getArgTypes()[i], fb->getArgTypes()[i])) {
+          return false;
+        }
+      }
+      return unify(fa->getReturnType(), fb->getReturnType());
+    }
+
     // two distinct concrete types
     return false;
   }
 
   const Type *resolve(const Type *t) {
     const auto *r = find(t);
-    const auto *hole = InferTy::cast(r);
+    const auto *hole = InferType::cast(r);
 
     if (!hole) {
       return r;
@@ -64,21 +89,21 @@ public:
 
     switch (hole->getInferKind()) {
     case InferKind::Int:
-      return types.getInt64();
+      return types.getInt64Type();
     case InferKind::Float:
-      return types.getFloat64();
+      return types.getFloat64Type();
     case InferKind::General:
-      return types.getError();
+      return types.getErrorType();
     }
   }
 
 private:
-  static uint32_t index(const InferTy *type) {
+  static uint32_t index(const InferType *type) {
     return static_cast<uint32_t>(type->getId());
   }
 
   const Type *find(const Type *t) {
-    const auto *hole = InferTy::cast(t);
+    const auto *hole = InferType::cast(t);
     if (!hole) {
       return t;
     }
@@ -94,7 +119,7 @@ private:
   }
 
   // Fill a hole with a concrete type, within its kind.
-  bool fill(const InferTy *hole, const Type *concrete) {
+  bool fill(const InferType *hole, const Type *concrete) {
     const InferKind kind = hole->getInferKind();
     const bool ok = kind == InferKind::General ||
                     (kind == InferKind::Int && concrete->isInt()) ||
@@ -109,7 +134,7 @@ private:
 
   // Merge two empty holes into one group. The root keeps the more specific
   // kind — a General hole yields to an Int/Float partner; Int vs Float clash.
-  bool merge(const InferTy *a, const InferTy *b) {
+  bool merge(const InferType *a, const InferType *b) {
     const InferKind ka = a->getInferKind();
     const InferKind kb = b->getInferKind();
     if (ka != kb && ka != InferKind::General && kb != InferKind::General) {
