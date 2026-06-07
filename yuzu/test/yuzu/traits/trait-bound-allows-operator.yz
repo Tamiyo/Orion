@@ -1,0 +1,4 @@
+// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
+fn add[T](x: T, y: T) -> T where T: Add { return x + y }
+let r = add(1, 2)
+// CHECK: FuncCallExpr : int64

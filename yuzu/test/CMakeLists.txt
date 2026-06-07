@@ -1,7 +1,9 @@
-# Lit-based golden tests for yuzu-tblgen.
+# Lit-based golden tests, run through FileCheck.
 #
-# Tests live under tools/tblgen/<Generator>/ — each `.td` file contains its
-# own `RUN:` lines and `CHECK:` directives.
+#   tools/tblgen/<Generator>/*.td   yuzu-tblgen output
+#   yuzu/*.yz                        Yuzu programs (yuzu-compile output)
+#
+# Each test file carries its own `RUN:` lines and `CHECK:` directives.
 
 find_program(FILECHECK_BIN
   NAMES FileCheck FileCheck-20
@@ -22,15 +24,15 @@ configure_file(
 )
 
 add_test(
-  NAME yuzu-tblgen-lit
+  NAME yuzu-lit
   COMMAND ${Python3_EXECUTABLE} ${LIT_PY} -sv
           "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-add_custom_target(check-yuzu-tblgen
+add_custom_target(check-yuzu-lit
   COMMAND ${Python3_EXECUTABLE} ${LIT_PY} -sv
           "${CMAKE_CURRENT_BINARY_DIR}"
-  DEPENDS yuzu-tblgen
+  DEPENDS yuzu-tblgen yuzu-compile
   USES_TERMINAL
-  COMMENT "Running yuzu-tblgen lit tests"
+  COMMENT "Running yuzu lit tests"
 )

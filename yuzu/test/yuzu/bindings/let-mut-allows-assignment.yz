@@ -1,0 +1,6 @@
+// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
+//
+// A mutable let binding allows assignment after definition.
+let mut x = 5
+x = 10
+// CHECK: AssignStmt

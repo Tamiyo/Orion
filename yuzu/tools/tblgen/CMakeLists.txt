@@ -11,6 +11,7 @@ add_executable(yuzu-tblgen
   HirPrinterGenerator.cc
   HirVisitorGenerator.cc
   SyntaxKindGenerator.cc
+  TextMateGrammarGenerator.cc
   TokenKindGenerator.cc
   YuzuGenAst.cc
 )

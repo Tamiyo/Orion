@@ -1,0 +1,3 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+fn f() -> int32 { return true }
+// CHECK: error: returning `bool` from a function declared to return `int32`

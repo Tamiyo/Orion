@@ -1,0 +1,3 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+fn add[T](x: T, y: T) -> T { return x + y }
+// CHECK: error: {{.*}}cannot be applied

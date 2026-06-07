@@ -5,6 +5,7 @@
 #include "HirPrinterGenerator.h"
 #include "HirVisitorGenerator.h"
 #include "SyntaxKindGenerator.h"
+#include "TextMateGrammarGenerator.h"
 #include "TokenKindGenerator.h"
 
 #include <llvm/Support/CommandLine.h>
@@ -23,6 +24,7 @@ enum ActionType {
   GenHirVisitorDecls,
   GenSyntaxKindDecls,
   GenTokenKindDecls,
+  GenTextMateGrammar,
 };
 } // namespace
 
@@ -43,7 +45,9 @@ static llvm::cl::opt<ActionType> action(
     llvm::cl::values(clEnumValN(GenSyntaxKindDecls, "gen-syntax-kind-decls",
                                 "Generate SyntaxKind declarations")),
     llvm::cl::values(clEnumValN(GenTokenKindDecls, "gen-token-kind-decls",
-                                "Generate TokenKind declarations")));
+                                "Generate TokenKind declarations")),
+    llvm::cl::values(clEnumValN(GenTextMateGrammar, "gen-textmate-grammar",
+                                "Generate the TextMate grammar (JSON)")));
 
 static bool YuzuTableGenMain(llvm::raw_ostream &os,
                              const llvm::RecordKeeper &records) {
@@ -71,6 +75,9 @@ static bool YuzuTableGenMain(llvm::raw_ostream &os,
     break;
   case GenTokenKindDecls:
     yuzu::tools::TokenKindGenerator(os).run(records);
+    break;
+  case GenTextMateGrammar:
+    yuzu::tools::TextMateGrammarGenerator(os).run(records);
     break;
   }
 

@@ -1,0 +1,8 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+//
+// An inner type parameter is distinct from the outer one.
+fn outer[T](x: T) -> T {
+  fn inner[U](y: U) -> T { return y }
+  return x
+}
+// CHECK: error: {{.*}}declared to return

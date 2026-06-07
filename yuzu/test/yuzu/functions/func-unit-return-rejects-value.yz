@@ -1,0 +1,3 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+fn f() { return 5 }
+// CHECK: error: returning `int64` from a function declared to return `unit`

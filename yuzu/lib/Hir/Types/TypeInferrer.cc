@@ -226,6 +226,56 @@ void TypeInferrer::visitLetStmt(const LetStmt *n) {
   ctx.getSymbolTable().bind(n->getName(), n);
 }
 
+void TypeInferrer::visitAssignStmt(const AssignStmt *n) {
+  auto &types = ctx.getTypeContext();
+  const Expr *target = n->getTarget();
+  const Expr *value = n->getValue();
+
+  // A poisoned target/value was already reported; don't cascade.
+  if (types.typeOf(target)->getKind() == TypeKind::Error ||
+      types.typeOf(value)->getKind() == TypeKind::Error) {
+    return;
+  }
+
+  // The target must be an assignable place: an identifier bound by `let mut`.
+  const auto *ident = IdentExpr::cast(target);
+  if (!ident) {
+    ctx.error(target, "cannot assign to this expression").emit();
+    return;
+  }
+
+  const auto binding = ctx.getSymbolTable().lookup(ident->getName());
+  const LetStmt *const *letBinding =
+      binding ? std::get_if<const LetStmt *>(&*binding) : nullptr;
+  if (!letBinding) {
+    ctx.error(target,
+              llvm::formatv("cannot assign to `{0}`, which is not a variable",
+                            util::toUtf8(ident->getName()->getName()))
+                  .str())
+        .emit();
+    return;
+  }
+
+  if ((*letBinding)->getMutability() != Mutability::Mutable) {
+    ctx.error(target,
+              llvm::formatv("cannot assign to immutable binding `{0}`; declare "
+                            "it with `let mut`",
+                            util::toUtf8(ident->getName()->getName()))
+                  .str())
+        .emit();
+    return;
+  }
+
+  // The value must be assignable to the binding's type.
+  if (!isAssignable(value, types.typeOf(target))) {
+    ctx.error(n, llvm::formatv("value of type `{0}` is not assignable to `{1}`",
+                               asString(types.typeOf(value)->getKind()),
+                               asString(types.typeOf(target)->getKind()))
+                     .str())
+        .emit();
+  }
+}
+
 void TypeInferrer::traverseRoot(const Root *n) { hoistAndWalk(n->getStmts()); }
 
 void TypeInferrer::traverseBlockStmt(const BlockStmt *n) {

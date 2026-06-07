@@ -1,0 +1,5 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+//
+// A non-coercible annotation is a type error.
+let x: str = 5
+// CHECK: error: {{.*}}is not assignable to `str`

@@ -28,6 +28,7 @@ public:
   void visitCallExpr(const CallExpr *n);
   void visitFuncCallExpr(const FuncCallExpr *n);
   void visitLetStmt(const LetStmt *n);
+  void visitAssignStmt(const AssignStmt *n);
   void visitReturnStmt(const ReturnStmt *n);
 
   // Hoist function signatures before walking bodies, so a function can refer

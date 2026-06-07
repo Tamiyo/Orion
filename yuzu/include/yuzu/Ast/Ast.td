@@ -29,6 +29,13 @@ def Visibility : Enum<"uint8_t"> {
     ];
 }
 
+def Mutability : Enum<"uint8_t"> {
+    let Cases = [
+        EnumCase<"Mutable">,
+        EnumCase<"Immutable">,
+    ];
+}
+
 /// A binary operator.
 def BinOp : Enum<"uint8_t"> {
     let Cases = [
@@ -268,8 +275,19 @@ def ExprStmt : Node<Stmt> {
 def LetStmt : Node<Stmt> {
     let Fields = (ins
         Child<Ident>:$name,
+        Custom<Mutability>:$mutability, 
         Child<TypeAnnotation>:$typeAnnotation, // optional — present only when annotated
         Child<Expr>:$expr
+    );
+}
+
+/// An assignment `target = value`. `target` is any expression; the typer
+/// checks it's an assignable (mutable) place. Distinct from `let`, which
+/// introduces a binding.
+def AssignStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Expr>:$target,
+        Child<Expr>:$value
     );
 }
 

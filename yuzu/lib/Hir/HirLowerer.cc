@@ -176,6 +176,8 @@ const Stmt *HirLowerer::lowerStmt(ast::Stmt stmt) {
     return lowerLetStmt(*ast::LetStmt::cast(stmt));
   case ast::SyntaxKind::ExprStmt:
     return lowerExprStmt(*ast::ExprStmt::cast(stmt));
+  case ast::SyntaxKind::AssignStmt:
+    return lowerAssignStmt(*ast::AssignStmt::cast(stmt));
   case ast::SyntaxKind::FuncStmt:
     return lowerFuncStmt(*ast::FuncStmt::cast(stmt));
   case ast::SyntaxKind::BlockStmt:
@@ -217,8 +219,12 @@ const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
     annotation = lowerTypeAnnotation(*type);
   }
 
-  const auto *hir =
-      ctx.getBuilder().makeLetStmt(loweredIdent, annotation, loweredExpr);
+  const Mutability mutability =
+      stmt.getMutability() == ast::Mutability::Mutable ? Mutability::Mutable
+                                                       : Mutability::Immutable;
+
+  const auto *hir = ctx.getBuilder().makeLetStmt(loweredIdent, mutability,
+                                                 annotation, loweredExpr);
   ctx.getSourceTable().bind(hir->getId(), stmt);
   return hir;
 }
@@ -445,6 +451,33 @@ const Stmt *HirLowerer::lowerExprStmt(ast::ExprStmt stmt) {
   }
 
   const auto *hir = ctx.getBuilder().makeExprStmt(loweredExpr);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
+  return hir;
+}
+
+const Stmt *HirLowerer::lowerAssignStmt(ast::AssignStmt stmt) {
+  const auto target = stmt.getTarget();
+  if (!target) {
+    error(stmt, "assignment is missing its target").emit();
+    return nullptr;
+  }
+  const Expr *loweredTarget = lowerExpr(*target);
+  if (!loweredTarget) {
+    return nullptr;
+  }
+
+  const auto value = stmt.getValue();
+  if (!value) {
+    error(stmt, "assignment is missing its value").emit();
+    return nullptr;
+  }
+  const Expr *loweredValue = lowerExpr(*value);
+  if (!loweredValue) {
+    return nullptr;
+  }
+
+  const auto *hir =
+      ctx.getBuilder().makeAssignStmt(loweredTarget, loweredValue);
   ctx.getSourceTable().bind(hir->getId(), stmt);
   return hir;
 }

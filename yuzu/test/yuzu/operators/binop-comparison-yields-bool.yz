@@ -1,0 +1,3 @@
+// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
+let r = 1 < 2
+// CHECK: CallExpr : bool

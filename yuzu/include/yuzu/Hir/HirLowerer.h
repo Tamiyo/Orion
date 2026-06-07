@@ -41,6 +41,7 @@ private:
   const Ident *lowerIdent(ast::Ident ident);
 
   const Stmt *lowerExprStmt(ast::ExprStmt stmt);
+  const Stmt *lowerAssignStmt(ast::AssignStmt stmt);
   const LetStmt *lowerLetStmt(ast::LetStmt stmt);
   const FuncStmt *lowerFuncStmt(ast::FuncStmt stmt);
   const BlockStmt *lowerBlockStmt(ast::BlockStmt stmt);

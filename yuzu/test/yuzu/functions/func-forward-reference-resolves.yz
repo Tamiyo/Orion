@@ -1,0 +1,4 @@
+// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
+fn caller(x: int32) -> int32 { return callee(x) }
+fn callee(x: int32) -> int32 { return x }
+// CHECK: FuncStmt

@@ -139,6 +139,11 @@ std::optional<CompletedMarker> parseLetStmt(Parser &p) {
   const Marker m = p.start();
   p.expect(TokenKind::LetKw);
 
+  // Optional `mut`: `let mut x = ...` binds a mutable variable.
+  if (p.at(TokenKind::MutKw)) {
+    p.bump(); // 'mut'
+  }
+
   const auto _ = parseIdent(p);
 
   // Optional type annotation: `let x: int = ...`.
@@ -152,9 +157,18 @@ std::optional<CompletedMarker> parseLetStmt(Parser &p) {
   return p.complete(m, SyntaxKind::LetStmt);
 }
 
+/// A statement that starts with an expression: either a bare expression
+/// (`f(x)`) or an assignment (`x = 5`) when an `=` follows it.
 std::optional<CompletedMarker> parseExprStmt(Parser &p) {
   const Marker m = p.start();
   auto _ = parseExpr(p);
+
+  if (p.at(TokenKind::Eq)) {
+    p.bump(); // '='
+    parseExpr(p);
+    return p.complete(m, SyntaxKind::AssignStmt);
+  }
+
   return p.complete(m, SyntaxKind::ExprStmt);
 }
 } // namespace

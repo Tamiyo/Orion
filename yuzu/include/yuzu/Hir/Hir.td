@@ -34,6 +34,22 @@ def OpRef : Native<"const yuzu::hir::Op *"> { let IsTrivial = 1; }
 /// threads it through every constructor instead of special-casing it.
 def Id : Native<"yuzu::hir::HirId"> { let IsTrivial = 1; }
 
+def Visibility : Enum<"uint8_t"> {
+    let Cases = [
+        EnumCase<"Public">,
+        EnumCase<"Protected">,
+        EnumCase<"Internal">,
+        EnumCase<"Private">,
+    ];
+}
+
+def Mutability : Enum<"uint8_t"> {
+    let Cases = [
+        EnumCase<"Mutable">,
+        EnumCase<"Immutable">,
+    ];
+}
+
 //===----------------------------------------------------------------------===//
 // Root
 //===----------------------------------------------------------------------===//
@@ -176,8 +192,18 @@ def ExprStmt : Node<Stmt> {
 def LetStmt : Node<Stmt> {
     let Fields =  (ins
         Child<Ident>:$name,
+        Custom<Mutability>:$mutability,
         Child<TypeAnnotation>:$typeAnnotation,
         Child<Expr>:$expr
+    );
+}
+
+/// `target = value`. The typer checks `target` is an assignable place bound
+/// to a mutable `let`.
+def AssignStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Expr>:$target,
+        Child<Expr>:$value
     );
 }
 

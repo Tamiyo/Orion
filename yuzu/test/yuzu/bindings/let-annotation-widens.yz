@@ -1,0 +1,6 @@
+// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
+//
+// A wider annotation is accepted; the initializer is cast to it.
+let x: float64 = 5
+// CHECK: LetStmt : float64
+// CHECK: cast float64

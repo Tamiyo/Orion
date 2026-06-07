@@ -1,0 +1,5 @@
+// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
+fn add_one(y: int32) -> int32 { return y + 1 }
+fn get() -> (int32) -> int32 { return add_one }
+let r = get()(7)
+// CHECK: FuncCallExpr : int32

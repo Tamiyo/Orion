@@ -24,4 +24,16 @@ std::optional<StringView> Ident::getName() const {
   return std::nullopt;
 }
 
+// `mutability` is a `Custom<Mutability>` field, so the codegen leaves it for
+// us: a binding is `Mutable` when the source spells `let mut`, otherwise the
+// default `Immutable` (never absent, but the accessor shape is optional).
+std::optional<Mutability> LetStmt::getMutability() const {
+  for (const auto &e : node.getChildrenWithTokens()) {
+    if (e.isToken() && e.getToken().getKind() == SyntaxKind::MutKw) {
+      return Mutability::Mutable;
+    }
+  }
+  return Mutability::Immutable;
+}
+
 } // namespace yuzu::ast

@@ -9,7 +9,7 @@ CLANG_FORMAT := clang-format
 # Hand-written C++ sources (generated *.inc live under $(BUILD_DIR), excluded).
 CXX_SOURCES := $(shell find yuzu \( -name '*.cc' -o -name '*.h' \))
 
-.PHONY: all configure build test repl compile format format-check clean
+.PHONY: all configure build test repl compile format format-check grammar clean
 
 all: build
 
@@ -47,6 +47,15 @@ format:
 # Report files that aren't formatted (non-zero exit if any), without editing.
 format-check:
 	$(CLANG_FORMAT) --dry-run --Werror $(CXX_SOURCES)
+
+# Regenerate the VS Code TextMate grammar from the lexer's TokenKind.td.
+# Builds only yuzu-tblgen, so it works even while the rest of the tree is
+# mid-change.
+grammar: configure
+	cmake --build $(BUILD_DIR) --target yuzu-tblgen
+	$(BUILD_DIR)/yuzu/tools/tblgen/yuzu-tblgen -gen-textmate-grammar \
+		-I yuzu/include yuzu/include/yuzu/Lexer/TokenKind.td \
+		> editors/vscode/syntaxes/yuzu.tmLanguage.json
 
 clean:
 	rm -rf $(BUILD_DIR)
