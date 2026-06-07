@@ -38,6 +38,27 @@ std::optional<CompletedMarker> parseTypeParam(Parser &p) {
   return p.complete(m, SyntaxKind::TypeParam);
 }
 
+/// `TraitRef := Identifier` — a trait named in a bound.
+std::optional<CompletedMarker> parseTraitRef(Parser &p) {
+  const Marker m = p.start();
+  const auto _ = parseIdent(p);
+  return p.complete(m, SyntaxKind::TraitRef);
+}
+
+/// `TypeBound := Identifier ':' TraitRef ('+' TraitRef)*` — one `where`
+/// clause, e.g. `T: Add + Eq`.
+std::optional<CompletedMarker> parseTypeBound(Parser &p) {
+  const Marker m = p.start();
+  const auto _ = parseIdent(p);
+  p.expect(TokenKind::Colon);
+  parseTraitRef(p);
+  while (p.at(TokenKind::Plus)) {
+    p.bump(); // '+'
+    parseTraitRef(p);
+  }
+  return p.complete(m, SyntaxKind::TypeBound);
+}
+
 /// `Param := Identifier ':' Type` — one `name: type` function parameter.
 std::optional<CompletedMarker> parseParam(Parser &p) {
   const Marker m = p.start();
@@ -83,6 +104,16 @@ std::optional<CompletedMarker> parseFuncStmt(Parser &p) {
   if (p.at(TokenKind::Arrow)) {
     p.bump(); // '->'
     parseType(p);
+  }
+
+  // Optional `where` clause: `where T: Add, U: Eq`.
+  if (p.at(TokenKind::WhereKw)) {
+    p.bump(); // 'where'
+    parseTypeBound(p);
+    while (p.at(TokenKind::Comma)) {
+      p.bump(); // ','
+      parseTypeBound(p);
+    }
   }
 
   parseBlockStmt(p);

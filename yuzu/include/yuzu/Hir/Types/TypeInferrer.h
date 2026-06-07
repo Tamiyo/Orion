@@ -8,6 +8,9 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/SmallVector.h>
+
+#include <string_view>
 
 namespace yuzu::hir {
 /// Post-order walk that types every node (literals → holes, idents → their
@@ -52,6 +55,11 @@ private:
   /// type side table. Returns the signature type.
   const FuncType *resolveFuncType(const FuncStmt *n);
 
+  /// Process the `where` clause: register each bound trait as implemented by
+  /// its type-parameter marker (so the body's operators resolve) and record
+  /// the bounds for call-site checking. Type params must already be in scope.
+  void resolveTraitBounds(const FuncStmt *funcStmt);
+
   /// The semantic type a written annotation denotes, resolved against scope;
   /// diagnostics anchor at `node`.
   const Type *resolveTypeAnnotation(const TypeAnnotation *type,
@@ -84,6 +92,11 @@ private:
   // Type-parameter markers interned by their declaration node, so each `[T]`
   // has one stable identity across signature resolution and body checking.
   llvm::DenseMap<const Ident *, const TypeParamType *> typeParamMarkers;
+
+  // The trait bounds of each generic marker (`where T: Add`), used to check at
+  // a call site that the instantiating type actually implements them.
+  llvm::DenseMap<const TypeParamType *, llvm::SmallVector<std::u32string_view>>
+      markerBounds;
 
   // Declared return type of the function being typed, null outside one.
   // Saved/restored across nested functions in `traverseFuncStmt`.

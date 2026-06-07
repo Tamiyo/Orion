@@ -205,13 +205,27 @@ def ReturnStmt : Node<Stmt> {
     );
 }
 
-/// A function declaration.
+/// A trait named in a bound (`Add` in `where T: Add`).
+def TraitRef : Node<HirNode> {
+    let Fields = (ins Child<Ident>:$name);
+}
+
+/// One `where` clause: `subject: trait (+ trait)*`, e.g. `T: Add + Eq`.
+def TypeBound : Node<HirNode> {
+    let Fields = (ins
+        Child<Ident>:$subject,
+        Children<TraitRef>:$traits
+    );
+}
+
+/// A function declaration. `bounds` is the `where` clause (empty if absent).
 def FuncStmt : Node<Stmt> {
     let Fields = (ins
         Child<Ident>:$name,
         Children<Ident>:$typeParams,
         Children<Param>:$params,
         Child<TypeAnnotation>:$returnTypeAnnotation,
+        Children<TypeBound>:$bounds,
         Child<BlockStmt>:$body
     );
 }

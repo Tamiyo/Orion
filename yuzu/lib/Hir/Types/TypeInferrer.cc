@@ -134,6 +134,27 @@ void TypeInferrer::visitFuncCallExpr(const FuncCallExpr *funcCallExpr) {
     }
   }
 
+  // Discharge `where` bounds: the type each marker was instantiated to must
+  // implement the traits the bound promised.
+  auto &registry = types.getTraitRegistry();
+  for (const auto &[markerType, holeType] : subst) {
+    const auto it = markerBounds.find(TypeParamType::cast(markerType));
+    if (it == markerBounds.end()) {
+      continue;
+    }
+    const Type *concrete = types.resolveType(holeType);
+    for (const std::u32string_view trait : it->second) {
+      if (!registry.lookupImpl(trait, concrete)) {
+        ctx.error(funcCallExpr,
+                  llvm::formatv("`{0}` does not implement `{1}`",
+                                asString(concrete->getKind()),
+                                util::toUtf8(trait))
+                      .str())
+            .emit();
+      }
+    }
+  }
+
   // Leave the return as a (possibly open) hole so an annotation can pin it.
   types.bind(funcCallExpr, substituteType(funcType->getReturnType(), subst));
 }
@@ -261,6 +282,37 @@ const TypeParamType *TypeInferrer::markerFor(const Ident *decl,
   return it->second;
 }
 
+void TypeInferrer::resolveTraitBounds(const FuncStmt *funcStmt) {
+  auto &symbols = ctx.getSymbolTable();
+  auto &registry = ctx.getTypeContext().getTraitRegistry();
+
+  for (const TypeBound *bound : funcStmt->getBounds()) {
+    const std::u32string_view subject = bound->getSubject()->getName();
+    const auto *marker = TypeParamType::cast(symbols.lookupType(subject));
+    if (!marker) {
+      ctx.error(bound, llvm::formatv("`{0}` is not a type parameter of this "
+                                     "function",
+                                     util::toUtf8(subject))
+                           .str())
+          .emit();
+      continue;
+    }
+
+    for (const TraitRef *traitRef : bound->getTraits()) {
+      const std::u32string_view trait = traitRef->getName()->getName();
+      if (!registry.isRegistered(trait)) {
+        ctx.error(traitRef,
+                  llvm::formatv("unknown trait `{0}`", util::toUtf8(trait))
+                      .str())
+            .emit();
+        continue;
+      }
+      registry.registerImpl(trait, marker);
+      markerBounds[marker].push_back(trait);
+    }
+  }
+}
+
 const FuncType *TypeInferrer::resolveFuncType(const FuncStmt *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
@@ -273,6 +325,11 @@ const FuncType *TypeInferrer::resolveFuncType(const FuncStmt *n) {
     symbols.bindType(typeParam->getName(),
                      markerFor(typeParam, static_cast<uint32_t>(i)));
   }
+
+  // `where` bounds — record each named trait as implemented by the marker, so
+  // an operator on a bound `T` resolves; the call site later checks the
+  // instantiating type really implements it.
+  resolveTraitBounds(n);
 
   // Parameters — resolve each annotation, binding its type and name.
   std::vector<const Type *> paramTypes;

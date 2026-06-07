@@ -274,10 +274,27 @@ def LetStmt : Node<Stmt> {
 }
 
 /// A generic type parameter at a declaration site: the `T` in `fn id[T]`.
-/// A bare name for now; bounds (`T: Comparable`) are a later field.
+/// Bounds are written separately in the `where` clause.
 def TypeParam : Node<AstNode> {
     let Fields = (ins
         Child<Ident>:$name
+    );
+}
+
+/// A trait named in a bound, e.g. the `Add` in `where T: Add`. Wraps an
+/// `Ident` in its own node so a bound's trait list doesn't collide with its
+/// subject (both would otherwise be `Ident` children).
+def TraitRef : Node<AstNode> {
+    let Fields = (ins
+        Child<Ident>:$name
+    );
+}
+
+/// One clause of a `where`: `subject: trait (+ trait)*`, e.g. `T: Add + Eq`.
+def TypeBound : Node<AstNode> {
+    let Fields = (ins
+        Child<Ident>:$subject,
+        Children<TraitRef>:$traits
     );
 }
 
@@ -304,15 +321,16 @@ def ReturnStmt : Node<Stmt> {
     );
 }
 
-/// A function declaration: `fn id[T](x: T) -> T { ... }`. `typeParams` is
-/// empty for a non-generic function; `result` is the optional return type
-/// annotation.
+/// A function declaration: `fn id[T](x: T) -> T where T: Add { ... }`.
+/// `typeParams` is empty for a non-generic function; `result` is the optional
+/// return annotation; `bounds` is the optional `where` clause.
 def FuncStmt : Node<Stmt> {
     let Fields = (ins
         Child<Ident>:$name,
         Children<TypeParam>:$typeParams,
         Children<Param>:$params,
         Child<TypeAnnotation>:$result, // optional
+        Children<TypeBound>:$bounds,
         Child<BlockStmt>:$body
     );
 }

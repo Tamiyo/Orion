@@ -502,6 +502,73 @@ TEST(CompilePipelineTest, CallsLocalGenericFunction) {
 }
 
 //===----------------------------------------------------------------------===//
+// Trait bounds — a `where T: Trait` clause lets an operator be used on a
+// generic `T` in the body; the call site checks the instantiating type
+// actually implements the trait.
+//===----------------------------------------------------------------------===//
+
+// A bound permits the operator on `T` in the body.
+TEST(CompilePipelineTest, TraitBoundPermitsOperatorOnTypeParam) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add[T](x: T, y: T) -> T where T: Add { return x + y }",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// Without the bound, the operator on `T` is rejected.
+TEST(CompilePipelineTest, OperatorOnUnboundedTypeParamErrors) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add[T](x: T, y: T) -> T { return x + y }", opts(os));
+
+  EXPECT_NE(out.find("cannot be applied"), std::string::npos) << out;
+}
+
+// A comparison bound yields `bool`.
+TEST(CompilePipelineTest, EqBoundYieldsBool) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn eq[T](x: T, y: T) -> bool where T: Eq { return x == y }",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// An unknown trait name in a bound is reported.
+TEST(CompilePipelineTest, UnknownTraitInBoundErrors) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn f[T](x: T, y: T) -> T where T: Bogus { return x + y }",
+                opts(os));
+
+  EXPECT_NE(out.find("unknown trait `Bogus`"), std::string::npos) << out;
+}
+
+// Calling with a type that implements the bound is accepted.
+TEST(CompilePipelineTest, CallSatisfyingTraitBoundIsAccepted) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add[T](x: T, y: T) -> T where T: Add { return x + y }\n"
+                U"let a = add(1, 2)",
+                opts(os));
+
+  EXPECT_EQ(out.find("error:"), std::string::npos) << out;
+}
+
+// Calling with a type that doesn't implement the bound is rejected.
+TEST(CompilePipelineTest, CallViolatingTraitBoundErrors) {
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  yuzu::compile(U"fn add[T](x: T, y: T) -> T where T: Add { return x + y }\n"
+                U"let a = add(true, false)",
+                opts(os));
+
+  EXPECT_NE(out.find("does not implement `Add`"), std::string::npos) << out;
+}
+
+//===----------------------------------------------------------------------===//
 // Return-type checking — a `return expr` must be assignable to the declared
 // return type. An untyped literal adapts to it; a widening coercion is OK;
 // a mismatch or out-of-range value is an error.

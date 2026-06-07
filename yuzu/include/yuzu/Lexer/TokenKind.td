@@ -107,6 +107,7 @@ let IsKeyword = 1 in {
   def NotKw : Token<["not"]>;
   def OrKw : Token<["or"]>;
   def ReturnKw : Token<["return"]>;
+  def WhereKw : Token<["where"]>;
 }
 
 // Misc

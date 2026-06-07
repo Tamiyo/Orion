@@ -46,6 +46,8 @@ private:
   const BlockStmt *lowerBlockStmt(ast::BlockStmt stmt);
   const ReturnStmt *lowerReturnStmt(ast::ReturnStmt stmt);
   const Param *lowerParam(ast::Param param);
+  const TypeBound *lowerTypeBound(ast::TypeBound typeBound);
+  const TraitRef *lowerTraitRef(ast::TraitRef traitRef);
 
   const TypeAnnotation *lowerTypeAnnotation(ast::TypeAnnotation type);
   const NamedTypeAnnotation *lowerNamedTypeAnnotation(ast::NamedTypeAnnotation type);

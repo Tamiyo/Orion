@@ -21,7 +21,7 @@ public:
     registerBuiltinTraits();
   }
 
-  [[nodiscard]] TraitTable &getTraitTable() { return traits; }
+  [[nodiscard]] TraitRegistry &getTraitRegistry() { return traits; }
   [[nodiscard]] TypeFactory &getTypeFactory() { return typeFactory; }
 
   // Record — a node's type, which may be a hole until concretized.
@@ -60,55 +60,50 @@ private:
   /// A null result means "same type as the operand" (arithmetic, unary `-`);
   /// a fixed result is given explicitly (comparisons/logical → bool).
   void registerBuiltinTraits() {
+    const Type *boolType = typeFactory.getBoolType();
+
+    // Declare each operator trait and the result it yields over Self: null
+    // means Self (arithmetic), `bool` for comparison/logical.
+    for (std::u32string_view t :
+         {U"Add", U"Sub", U"Mul", U"Div", U"Pow", U"Pos", U"Neg"}) {
+      traits.registerTrait(t, nullptr);
+    }
+    for (std::u32string_view t :
+         {U"Eq", U"Neq", U"Lt", U"Lte", U"Gt", U"Gte", U"And", U"Or", U"Not"}) {
+      traits.registerTrait(t, boolType);
+    }
+
+    // Numerics: arithmetic, unary +/-, equality, and ordering.
     const Type *numerics[] = {
         typeFactory.getInt8Type(),    typeFactory.getInt16Type(),
         typeFactory.getInt32Type(),   typeFactory.getInt64Type(),
         typeFactory.getUInt8Type(),   typeFactory.getUInt16Type(),
         typeFactory.getUInt32Type(),  typeFactory.getUInt64Type(),
         typeFactory.getFloat32Type(), typeFactory.getFloat64Type()};
-
     for (const Type *n : numerics) {
-      // Arithmetic and unary +/- preserve the operand type (null result).
-      traits.add(Trait::Add, n, nullptr);
-      traits.add(Trait::Sub, n, nullptr);
-      traits.add(Trait::Mul, n, nullptr);
-      traits.add(Trait::Div, n, nullptr);
-      traits.add(Trait::Pow, n, nullptr);
-      traits.add(Trait::Pos, n, nullptr);
-      traits.add(Trait::Neg, n, nullptr);
-      // Equality and ordering yield bool.
-      traits.add(Trait::Eq, n, typeFactory.getBoolType());
-      traits.add(Trait::Neq, n, typeFactory.getBoolType());
-      traits.add(Trait::Lt, n, typeFactory.getBoolType());
-      traits.add(Trait::Lte, n, typeFactory.getBoolType());
-      traits.add(Trait::Gt, n, typeFactory.getBoolType());
-      traits.add(Trait::Gte, n, typeFactory.getBoolType());
+      for (std::u32string_view t :
+           {U"Add", U"Sub", U"Mul", U"Div", U"Pow", U"Pos", U"Neg", U"Eq",
+            U"Neq", U"Lt", U"Lte", U"Gt", U"Gte"}) {
+        traits.registerImpl(t, n);
+      }
     }
 
     // str: concatenation (`+`), equality, and ordering.
-    traits.add(Trait::Add, typeFactory.getStrType(), nullptr);
-    traits.add(Trait::Eq, typeFactory.getStrType(), typeFactory.getBoolType());
-    traits.add(Trait::Neq, typeFactory.getStrType(), typeFactory.getBoolType());
-    traits.add(Trait::Lt, typeFactory.getStrType(), typeFactory.getBoolType());
-    traits.add(Trait::Lte, typeFactory.getStrType(), typeFactory.getBoolType());
-    traits.add(Trait::Gt, typeFactory.getStrType(), typeFactory.getBoolType());
-    traits.add(Trait::Gte, typeFactory.getStrType(), typeFactory.getBoolType());
+    for (std::u32string_view t :
+         {U"Add", U"Eq", U"Neq", U"Lt", U"Lte", U"Gt", U"Gte"}) {
+      traits.registerImpl(t, typeFactory.getStrType());
+    }
 
     // bool: logical, equality, and `not`.
-    traits.add(Trait::And, typeFactory.getBoolType(),
-               typeFactory.getBoolType());
-    traits.add(Trait::Or, typeFactory.getBoolType(), typeFactory.getBoolType());
-    traits.add(Trait::Eq, typeFactory.getBoolType(), typeFactory.getBoolType());
-    traits.add(Trait::Neq, typeFactory.getBoolType(),
-               typeFactory.getBoolType());
-    traits.add(Trait::Not, typeFactory.getBoolType(),
-               typeFactory.getBoolType());
+    for (std::u32string_view t : {U"And", U"Or", U"Not", U"Eq", U"Neq"}) {
+      traits.registerImpl(t, boolType);
+    }
   }
 
   TypeFactory typeFactory;
   TypeUnifier unifier;
   util::SideTable<HirId, const Type *> typeTable;
-  TraitTable traits;
+  TraitRegistry traits;
 };
 } // namespace yuzu::hir
 

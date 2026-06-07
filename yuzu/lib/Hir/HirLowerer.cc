@@ -337,6 +337,44 @@ const ReturnStmt *HirLowerer::lowerReturnStmt(ast::ReturnStmt stmt) {
   return hir;
 }
 
+const TraitRef *HirLowerer::lowerTraitRef(ast::TraitRef traitRef) {
+  const auto name = traitRef.getName();
+  if (!name) {
+    error(traitRef, "trait bound is missing its name").emit();
+    return nullptr;
+  }
+  const Ident *loweredName = lowerIdent(*name);
+  if (!loweredName) {
+    return nullptr;
+  }
+  const auto *hir = ctx.getBuilder().makeTraitRef(loweredName);
+  ctx.getSourceTable().bind(hir->getId(), traitRef);
+  return hir;
+}
+
+const TypeBound *HirLowerer::lowerTypeBound(ast::TypeBound typeBound) {
+  const auto subject = typeBound.getSubject();
+  if (!subject) {
+    error(typeBound, "bound is missing its type parameter").emit();
+    return nullptr;
+  }
+  const Ident *loweredSubject = lowerIdent(*subject);
+  if (!loweredSubject) {
+    return nullptr;
+  }
+
+  std::vector<const TraitRef *> traits;
+  for (const ast::TraitRef &traitRef : typeBound.getTraits()) {
+    if (const TraitRef *lowered = lowerTraitRef(traitRef)) {
+      traits.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeTypeBound(loweredSubject, traits);
+  ctx.getSourceTable().bind(hir->getId(), typeBound);
+  return hir;
+}
+
 const FuncStmt *HirLowerer::lowerFuncStmt(ast::FuncStmt stmt) {
   const auto name = stmt.getName();
   if (!name) {
@@ -379,8 +417,15 @@ const FuncStmt *HirLowerer::lowerFuncStmt(ast::FuncStmt stmt) {
     returnType = lowerTypeAnnotation(*result);
   }
 
-  const auto *hir = ctx.getBuilder().makeFuncStmt(loweredName, typeParams, params,
-                                                returnType, loweredBody);
+  std::vector<const TypeBound *> bounds;
+  for (const ast::TypeBound &bound : stmt.getBounds()) {
+    if (const TypeBound *lowered = lowerTypeBound(bound)) {
+      bounds.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeFuncStmt(
+      loweredName, typeParams, params, returnType, bounds, loweredBody);
   ctx.getSourceTable().bind(hir->getId(), stmt);
   return hir;
 }

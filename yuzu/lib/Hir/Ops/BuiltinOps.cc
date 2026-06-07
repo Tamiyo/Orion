@@ -53,7 +53,7 @@ const Type *unsupportedUnaryOperand(llvm::ArrayRef<const Expr *> args,
 /// A null table result means "same as the operand" (so `5 + 5` keeps its open
 /// hole); a fixed result (e.g. `bool` for comparisons) is returned as-is.
 const Type *resolveBinaryTrait(llvm::ArrayRef<const Expr *> args,
-                               HirContext &ctx, Trait trait,
+                               HirContext &ctx, std::u32string_view trait,
                                llvm::StringRef symbol) {
   auto &types = ctx.getTypeContext();
 
@@ -64,22 +64,22 @@ const Type *resolveBinaryTrait(llvm::ArrayRef<const Expr *> args,
 
   // A hole looks up under its default type, but the op still yields the hole.
   const auto result =
-      types.getTraitTable().lookup(trait, types.resolveType(common));
+      types.getTraitRegistry().lookupImpl(trait, types.resolveType(common));
   if (!result) {
     return unsupportedOperands(args, ctx, symbol);
   }
   return *result != nullptr ? *result : common;
 }
 
-/// Shared unary resolve: consult the trait table for the operand's type.
+/// Shared unary resolve: consult the trait registry for the operand's type.
 const Type *resolveUnaryTrait(llvm::ArrayRef<const Expr *> args,
-                              HirContext &ctx, Trait trait,
+                              HirContext &ctx, std::u32string_view trait,
                               llvm::StringRef symbol) {
   auto &types = ctx.getTypeContext();
   const Type *operand = types.typeOf(args[0]);
 
   const auto result =
-      types.getTraitTable().lookup(trait, types.resolveType(operand));
+      types.getTraitRegistry().lookupImpl(trait, types.resolveType(operand));
   if (!result) {
     return unsupportedUnaryOperand(args, ctx, symbol);
   }
@@ -103,82 +103,82 @@ void resolveOperandTypes(llvm::ArrayRef<const Expr *> args, HirContext &ctx) {
 
 const Type *AddOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Add, "+");
+  return resolveBinaryTrait(args, ctx, U"Add", "+");
 }
 
 const Type *SubOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Sub, "-");
+  return resolveBinaryTrait(args, ctx, U"Sub", "-");
 }
 
 const Type *MulOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Mul, "*");
+  return resolveBinaryTrait(args, ctx, U"Mul", "*");
 }
 
 const Type *DivOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Div, "/");
+  return resolveBinaryTrait(args, ctx, U"Div", "/");
 }
 
 const Type *PowOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Pow, "**");
+  return resolveBinaryTrait(args, ctx, U"Pow", "**");
 }
 
 const Type *AndOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::And, "and");
+  return resolveBinaryTrait(args, ctx, U"And", "and");
 }
 
 const Type *OrOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Or, "or");
+  return resolveBinaryTrait(args, ctx, U"Or", "or");
 }
 
 const Type *EqOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Eq, "==");
+  return resolveBinaryTrait(args, ctx, U"Eq", "==");
 }
 
 const Type *NeqOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Neq, "!=");
+  return resolveBinaryTrait(args, ctx, U"Neq", "!=");
 }
 
 const Type *LtOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Lt, "<");
+  return resolveBinaryTrait(args, ctx, U"Lt", "<");
 }
 
 const Type *LteOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Lte, "<=");
+  return resolveBinaryTrait(args, ctx, U"Lte", "<=");
 }
 
 const Type *GtOp::resolve(llvm::ArrayRef<const Expr *> args,
                           HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Gt, ">");
+  return resolveBinaryTrait(args, ctx, U"Gt", ">");
 }
 
 const Type *GteOp::resolve(llvm::ArrayRef<const Expr *> args,
                            HirContext &ctx) const {
-  return resolveBinaryTrait(args, ctx, Trait::Gte, ">=");
+  return resolveBinaryTrait(args, ctx, U"Gte", ">=");
 }
 
 const Type *UnaryPosOp::resolve(llvm::ArrayRef<const Expr *> args,
                                 HirContext &ctx) const {
-  return resolveUnaryTrait(args, ctx, Trait::Pos, "+");
+  return resolveUnaryTrait(args, ctx, U"Pos", "+");
 }
 
 const Type *UnaryNegOp::resolve(llvm::ArrayRef<const Expr *> args,
                                 HirContext &ctx) const {
-  return resolveUnaryTrait(args, ctx, Trait::Neg, "-");
+  return resolveUnaryTrait(args, ctx, U"Neg", "-");
 }
 
 const Type *UnaryNotOp::resolve(llvm::ArrayRef<const Expr *> args,
                                 HirContext &ctx) const {
-  return resolveUnaryTrait(args, ctx, Trait::Not, "not");
+  return resolveUnaryTrait(args, ctx, U"Not", "not");
 }
 
 //===----------------------------------------------------------------------===//

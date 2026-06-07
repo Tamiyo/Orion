@@ -20,6 +20,7 @@ const std::u32string notKeyword = U"not";
 const std::u32string orKeyword = U"or";
 const std::u32string returnKeyword = U"return";
 const std::u32string trueKeyword = U"true";
+const std::u32string whereKeyword = U"where";
 }; // namespace
 
 std::optional<Token> Lexer::getNextToken() {
@@ -326,6 +327,10 @@ std::optional<Token> Lexer::getNextToken() {
 
     if (ident == trueKeyword) {
       return createToken(start, TokenKind::BooleanLiteral);
+    }
+
+    if (ident == whereKeyword) {
+      return createToken(start, TokenKind::WhereKw);
     }
 
     return createToken(start, TokenKind::Identifier);
