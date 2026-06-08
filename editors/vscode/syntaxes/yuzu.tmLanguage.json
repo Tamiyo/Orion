@@ -58,7 +58,7 @@
     "keywords": {
       "patterns": [
         {
-          "match": "\\b(and|fn|in|let|mut|not|or|return|where)\\b",
+          "match": "\\b(and|as|fn|from|in|let|mut|not|or|return|select|struct|table|where)\\b",
           "name": "keyword.control.yuzu"
         },
         {
@@ -90,7 +90,7 @@
     "operators": {
       "patterns": [
         {
-          "match": "(->|==|>=|<=|!=|\\*\\*|<<|>>|=|>|<|-|\\+|\\/|\\*)",
+          "match": "(==|>>|>=|<<|<=|->|!=|\\|>|\\*\\*|-|\\*|\\/|\\+|<|>|=|\\.)",
           "name": "keyword.operator.yuzu"
         }
       ]

@@ -135,20 +135,20 @@ void TextMateGrammarGenerator::run(const llvm::RecordKeeper &records) {
   appendRegexLiteral(numberPatterns, tokens, "IntegerLiteral");
 
   Array keywordPatterns;
-  keywordPatterns.push_back(pattern("keyword.control.yuzu", keywordAlternation));
+  keywordPatterns.push_back(
+      pattern("keyword.control.yuzu", keywordAlternation));
   if (const TokenInfo *boolean = findToken(tokens, "BooleanLiteral");
       boolean != nullptr && !boolean->values.empty()) {
-    keywordPatterns.push_back(pattern("constant.language.boolean.yuzu",
-                                      "\\b(" + join(boolean->values, '|') +
-                                          ")\\b"));
+    keywordPatterns.push_back(
+        pattern("constant.language.boolean.yuzu",
+                "\\b(" + join(boolean->values, '|') + ")\\b"));
   }
 
   Object repository;
   repository["comments"] = Object{
       // The `//` line comment is lexer-special (the `Comment` token's regex
       // is empty), so it isn't derived from a token value.
-      {"patterns",
-       Array{pattern("comment.line.double-slash.yuzu", "//.*$")}}};
+      {"patterns", Array{pattern("comment.line.double-slash.yuzu", "//.*$")}}};
   repository["strings"] = Object{{"patterns", std::move(stringPatterns)}};
   repository["numbers"] = Object{{"patterns", std::move(numberPatterns)}};
   repository["function-declaration"] = Object{
@@ -188,10 +188,11 @@ void TextMateGrammarGenerator::run(const llvm::RecordKeeper &records) {
                     "master/tmlanguage.json";
   root["name"] = "Yuzu";
   root["scopeName"] = "source.yuzu";
-  root["patterns"] = Array{
-      include("#comments"),  include("#strings"),       include("#numbers"),
-      include("#function-declaration"), include("#keywords"),
-      include("#types"),     include("#function-call"), include("#operators")};
+  root["patterns"] =
+      Array{include("#comments"),      include("#strings"),
+            include("#numbers"),       include("#function-declaration"),
+            include("#keywords"),      include("#types"),
+            include("#function-call"), include("#operators")};
   root["repository"] = std::move(repository);
 
   os << llvm::formatv("{0:2}", Value(std::move(root))) << "\n";

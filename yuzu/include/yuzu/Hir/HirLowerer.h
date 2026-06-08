@@ -44,6 +44,9 @@ private:
   const Stmt *lowerAssignStmt(ast::AssignStmt stmt);
   const LetStmt *lowerLetStmt(ast::LetStmt stmt);
   const FuncStmt *lowerFuncStmt(ast::FuncStmt stmt);
+  const Stmt *lowerStructStmt(ast::StructStmt stmt);
+  const StructFieldDecl *lowerStructFieldDecl(ast::StructFieldDecl field);
+  const Stmt *lowerTableStmt(ast::TableStmt stmt);
   const BlockStmt *lowerBlockStmt(ast::BlockStmt stmt);
   const ReturnStmt *lowerReturnStmt(ast::ReturnStmt stmt);
   const Param *lowerParam(ast::Param param);
@@ -61,6 +64,12 @@ private:
   const Expr *lowerParenExpr(ast::ParenExpr expr);
   const Expr *lowerCallExpr(ast::CallExpr expr);
   const IdentExpr *lowerIdentExpr(ast::IdentExpr expr);
+  const Expr *lowerFromExpr(ast::FromExpr expr);
+  const Expr *lowerSelectExpr(ast::SelectExpr expr);
+  const SelectItem *lowerSelectItem(ast::SelectItem item);
+  const Expr *lowerStructLitExpr(ast::StructLitExpr expr);
+  const StructLitField *lowerStructLitField(ast::StructLitField field);
+  const Expr *lowerFieldAccessExpr(ast::FieldAccessExpr expr);
 
   const Literal *lowerLiteralExpr(ast::Literal expr);
   const BoolLit *lowerBoolLit(ast::BoolLit expr);

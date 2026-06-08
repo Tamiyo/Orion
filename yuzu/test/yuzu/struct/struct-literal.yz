@@ -1,0 +1,11 @@
+// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
+//
+// A struct literal `Name { field: value, ... }` constructs a struct value; its
+// type is the named struct, and its fields are accessible (`bob.name : str`).
+struct Employee { id: int32, name: str }
+let bob = Employee { id: 1, name: "Bob" }
+let who = bob.name
+// CHECK:      StructLitExpr : struct
+// CHECK:        StructLitField
+// CHECK:        StructLitField
+// CHECK:      FieldAccessExpr : str

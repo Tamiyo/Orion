@@ -20,8 +20,11 @@ enum class [[nodiscard]] HirScopeKind : uint8_t { Func, Block };
 /// A lexical scope's bindings.
 class [[nodiscard]] HirScope {
 public:
-  using Binding =
-      std::variant<const LetStmt *, const Param *, const FuncStmt *>;
+  // `const Ident *` is a query row alias (`from t e` binds `e`); its row type
+  // lives in the type side table keyed by that `Ident`, so it resolves through
+  // the same `typeOf(decl)` path as a `let`/param.
+  using Binding = std::variant<const LetStmt *, const Param *, const FuncStmt *,
+                               const Ident *>;
 
   using LookupResult = std::optional<Binding>;
 
@@ -57,9 +60,22 @@ public:
     return it == types.end() ? nullptr : it->second;
   }
 
+  // Table namespace: relations registered by `table` declarations. Kept apart
+  // from the value namespace so a table is reachable only from a query's
+  // `from`, never as an ordinary host value.
+  void bindTable(std::u32string_view name, const RelationType *relation) {
+    tables[name] = relation;
+  }
+
+  const RelationType *lookupTable(std::u32string_view name) const {
+    const auto it = tables.find(name);
+    return it == tables.end() ? nullptr : it->second;
+  }
+
 private:
   llvm::DenseMap<std::u32string_view, Binding> bindings;
   llvm::DenseMap<std::u32string_view, const Type *> types;
+  llvm::DenseMap<std::u32string_view, const RelationType *> tables;
   HirContext &ctx;
   HirScopeKind kind;
 };

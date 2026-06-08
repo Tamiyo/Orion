@@ -54,6 +54,21 @@ public:
     return nullptr;
   }
 
+  /// Register a relation as a table in the current (innermost) scope.
+  void bindTable(std::u32string_view name, const RelationType *relation) {
+    scopes.back().bindTable(name, relation);
+  }
+
+  /// First table bound to `name`, innermost scope outward; null if unbound.
+  const RelationType *lookupTable(std::u32string_view name) const {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+      if (const RelationType *relation = it->lookupTable(name)) {
+        return relation;
+      }
+    }
+    return nullptr;
+  }
+
 private:
   // Only `HirScopeGuard` pops, on its own destruction — keeping the pop
   // off the scope's own destructor avoids mutating `scopes` mid-teardown.

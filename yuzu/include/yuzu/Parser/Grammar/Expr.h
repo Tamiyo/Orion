@@ -12,6 +12,10 @@ parseExprBindingPower(Parser &p, const size_t minimumBindingPower);
 
 std::optional<CompletedMarker> parseIdentExpr(Parser &p);
 
+/// A pipe query (`from … |> …`). Only valid in value positions (standalone
+/// statement, `let`/assignment RHS) — not as a general subexpression.
+std::optional<CompletedMarker> parseQuery(Parser &p);
+
 inline std::optional<CompletedMarker> parseExpr(Parser &p) {
   return parseExprBindingPower(p, 0);
 }

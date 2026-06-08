@@ -135,6 +135,67 @@ std::optional<CompletedMarker> parseReturnStmt(Parser &p) {
   return p.complete(m, SyntaxKind::ReturnStmt);
 }
 
+/// `StructFieldDecl := Identifier ':' Type` — one `name: type` member.
+std::optional<CompletedMarker> parseStructFieldDecl(Parser &p) {
+  const Marker m = p.start();
+  const auto _ = parseIdent(p);
+  p.expect(TokenKind::Colon);
+  parseType(p);
+  return p.complete(m, SyntaxKind::StructFieldDecl);
+}
+
+/// `'{' ( StructFieldDecl (',' StructFieldDecl)* ','? )? '}'` — a
+/// brace-delimited field list, shared by `struct` bodies and inline table
+/// schemas.
+void parseStructFieldList(Parser &p) {
+  p.expect(TokenKind::LeftCurly);
+  if (!p.at(TokenKind::RightCurly)) {
+    parseStructFieldDecl(p);
+    while (p.at(TokenKind::Comma)) {
+      p.bump(); // ','
+      if (p.at(TokenKind::RightCurly)) {
+        break; // trailing comma
+      }
+      parseStructFieldDecl(p);
+    }
+  }
+  p.expect(TokenKind::RightCurly);
+}
+
+/// `StructStmt := 'struct' Identifier '{' StructFieldDecl* '}'`
+std::optional<CompletedMarker> parseStructStmt(Parser &p) {
+  const Marker m = p.start();
+  p.expect(TokenKind::StructKw);
+  const auto _ = parseIdent(p); // name
+  parseStructFieldList(p);
+  return p.complete(m, SyntaxKind::StructStmt);
+}
+
+/// `TableStmt := 'table' Identifier '=' ( Identifier | '{' StructFieldDecl* '}'
+/// )` The RHS is the row schema — a declared struct name, or an inline struct.
+std::optional<CompletedMarker> parseTableStmt(Parser &p) {
+  const Marker m = p.start();
+  p.expect(TokenKind::TableKw);
+  const auto _ = parseIdent(p); // table name
+  p.expect(TokenKind::Eq);
+  if (p.at(TokenKind::LeftCurly)) {
+    parseStructFieldList(p); // inline rows
+  } else {
+    [[maybe_unused]] const auto rowStruct = parseIdent(p); // named struct rows
+  }
+  return p.complete(m, SyntaxKind::TableStmt);
+}
+
+/// A value position — the RHS of a `let` or an assignment. Accepts a pipe
+/// query (`from … |> …`) or an ordinary expression. Keeping queries out of
+/// `parseExpr` means a relation literal can't appear inside a scalar context.
+std::optional<CompletedMarker> parseValue(Parser &p) {
+  if (p.at(TokenKind::FromKw)) {
+    return parseQuery(p);
+  }
+  return parseExpr(p);
+}
+
 std::optional<CompletedMarker> parseLetStmt(Parser &p) {
   const Marker m = p.start();
   p.expect(TokenKind::LetKw);
@@ -153,7 +214,7 @@ std::optional<CompletedMarker> parseLetStmt(Parser &p) {
   }
 
   p.expect(TokenKind::Eq);
-  parseExpr(p);
+  parseValue(p);
   return p.complete(m, SyntaxKind::LetStmt);
 }
 
@@ -161,11 +222,19 @@ std::optional<CompletedMarker> parseLetStmt(Parser &p) {
 /// (`f(x)`) or an assignment (`x = 5`) when an `=` follows it.
 std::optional<CompletedMarker> parseExprStmt(Parser &p) {
   const Marker m = p.start();
+
+  // A standalone query statement: `from … |> …` on its own. A query is not an
+  // lvalue, so there is no assignment to check for.
+  if (p.at(TokenKind::FromKw)) {
+    parseQuery(p);
+    return p.complete(m, SyntaxKind::ExprStmt);
+  }
+
   auto _ = parseExpr(p);
 
   if (p.at(TokenKind::Eq)) {
-    p.bump(); // '='
-    parseExpr(p);
+    p.bump();      // '='
+    parseValue(p); // RHS may be a query or an ordinary expression.
     return p.complete(m, SyntaxKind::AssignStmt);
   }
 
@@ -184,6 +253,14 @@ std::optional<CompletedMarker> parseStmt(Parser &p) {
 
   if (p.at(TokenKind::ReturnKw)) {
     return parseReturnStmt(p);
+  }
+
+  if (p.at(TokenKind::StructKw)) {
+    return parseStructStmt(p);
+  }
+
+  if (p.at(TokenKind::TableKw)) {
+    return parseTableStmt(p);
   }
 
   return parseExprStmt(p);

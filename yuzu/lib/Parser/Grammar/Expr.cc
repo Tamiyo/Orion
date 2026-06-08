@@ -173,6 +173,35 @@ std::optional<CompletedMarker> parseLiteralExpr(Parser &p) {
   return p.complete(m, astKind);
 }
 
+/// `StructLitField := Identifier ':' Expr` — one `name: value` initializer.
+std::optional<CompletedMarker> parseStructLitField(Parser &p) {
+  const Marker m = p.start();
+  const auto _ = parseIdent(p); // field name
+  p.expect(TokenKind::Colon);
+  parseExpr(p); // value
+  return p.complete(m, SyntaxKind::StructLitField);
+}
+
+/// `StructLitExpr := Identifier '{' ( StructLitField (',' StructLitField)* ','?
+/// )? '}'` — a struct literal like `Employee { id: 1, name: "Bob" }`.
+std::optional<CompletedMarker> parseStructLitExpr(Parser &p) {
+  const Marker m = p.start();
+  const auto _ = parseIdent(p); // struct type name
+  p.expect(TokenKind::LeftCurly);
+  if (!p.at(TokenKind::RightCurly)) {
+    parseStructLitField(p);
+    while (p.at(TokenKind::Comma)) {
+      p.bump(); // ','
+      if (p.at(TokenKind::RightCurly)) {
+        break; // trailing comma
+      }
+      parseStructLitField(p);
+    }
+  }
+  p.expect(TokenKind::RightCurly);
+  return p.complete(m, SyntaxKind::StructLitExpr);
+}
+
 std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
   const Marker m = p.start();
 
@@ -212,6 +241,23 @@ std::optional<CompletedMarker> parseUnaryExpr(Parser &p) {
   return p.complete(m, SyntaxKind::UnaryExpr);
 }
 
+/// `from <relation> [as] <alias>` — the pipe source. The alias is optional and
+/// may be written with or without `as` (`from t e` or `from t as e`).
+std::optional<CompletedMarker> parseFromExpr(Parser &p) {
+  const Marker m = p.start();
+  p.expect(TokenKind::FromKw);
+  const auto _ = parseIdent(p); // relation
+
+  if (p.at(TokenKind::AsKw)) {
+    p.bump(); // 'as'
+    [[maybe_unused]] const auto alias = parseIdent(p);
+  } else if (p.at(TokenKind::Identifier)) {
+    [[maybe_unused]] const auto alias = parseIdent(p); // bare alias
+  }
+
+  return p.complete(m, SyntaxKind::FromExpr);
+}
+
 std::optional<CompletedMarker> parseLhs(Parser &p) {
   const auto kind = p.peekKind();
   if (!kind.has_value()) {
@@ -233,6 +279,10 @@ std::optional<CompletedMarker> parseLhs(Parser &p) {
     return parseLiteralExpr(p);
 
   case TokenKind::Identifier:
+    // `Name { ... }` is a struct literal; a bare `Name` is an identifier.
+    if (p.peekKind(1) == TokenKind::LeftCurly) {
+      return parseStructLitExpr(p);
+    }
     return parseIdentExpr(p);
 
   case TokenKind::LeftParen:
@@ -267,6 +317,50 @@ std::optional<CompletedMarker> parseArgList(Parser &p) {
   return p.complete(m, SyntaxKind::ArgList);
 }
 
+/// `<expr> [as <alias>]` — one projected column of a `select` stage.
+std::optional<CompletedMarker> parseSelectItem(Parser &p) {
+  const Marker m = p.start();
+  parseExprBindingPower(p, 0); // the row expression
+
+  if (p.at(TokenKind::AsKw)) {
+    p.bump(); // 'as'
+    [[maybe_unused]] const auto alias = parseIdent(p);
+  }
+
+  return p.complete(m, SyntaxKind::SelectItem);
+}
+
+/// `select <item> (',' <item>)*` — the projection list of a `|> select` stage.
+void parseSelectStage(Parser &p) {
+  p.expect(TokenKind::SelectKw);
+  parseSelectItem(p);
+  while (p.at(TokenKind::Comma)) {
+    p.bump(); // ','
+    parseSelectItem(p);
+  }
+}
+
+/// A pipe query: `from <rel> [as] <alias> ( |> <stage> )*`. A query is *not* a
+/// general subexpression — it's parsed only in value positions (a standalone
+/// statement, or a `let`/assignment RHS) so a relation can't be wedged into a
+/// scalar context like `(from t |> select x) + 1`. Each `|>` stage wraps the
+/// running relation, so stages nest left-to-right.
+std::optional<CompletedMarker> parseQuery(Parser &p) {
+  std::optional<CompletedMarker> query = parseFromExpr(p);
+  if (!query.has_value()) {
+    return std::nullopt;
+  }
+
+  while (p.at(TokenKind::Pipe)) {
+    const auto [marker, _] = p.precede(*query);
+    p.bump(); // '|>'
+    parseSelectStage(p);
+    query.emplace(p.complete(marker, SyntaxKind::SelectExpr));
+  }
+
+  return query;
+}
+
 std::optional<CompletedMarker>
 parseExprBindingPower(Parser &p, const size_t minimumBindingPower) {
   std::optional<CompletedMarker> parsedLhs = parseLhs(p);
@@ -282,6 +376,16 @@ parseExprBindingPower(Parser &p, const size_t minimumBindingPower) {
       const auto [marker, _] = p.precede(*parsedLhs);
       parseArgList(p);
       parsedLhs.emplace(p.complete(marker, SyntaxKind::CallExpr));
+      continue;
+    }
+
+    // Postfix field access: `lhs.field`. Binds as tightly as a call, attaching
+    // to the immediate LHS and wrapping into a `FieldAccessExpr`.
+    if (p.at(TokenKind::Dot)) {
+      const auto [marker, _] = p.precede(*parsedLhs);
+      p.bump(); // '.'
+      [[maybe_unused]] const auto field = parseIdent(p);
+      parsedLhs.emplace(p.complete(marker, SyntaxKind::FieldAccessExpr));
       continue;
     }
 

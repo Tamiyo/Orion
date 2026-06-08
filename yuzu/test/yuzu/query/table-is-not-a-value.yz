@@ -1,0 +1,8 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+//
+// A table is relational-only: it lives in the table namespace, not the value
+// namespace, so referencing it as a host value is an error.
+struct E { id: int32 }
+table t = E
+let x = t
+// CHECK: error: `t` is a table; query it with `from`

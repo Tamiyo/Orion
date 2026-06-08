@@ -1,0 +1,7 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+//
+// Selecting a column the row struct doesn't have is a type error.
+struct E { id: int32 }
+table t = E
+let r = from t e |> select e.missing
+// CHECK: error: struct `E` has no field `missing`

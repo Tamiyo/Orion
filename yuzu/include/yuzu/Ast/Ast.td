@@ -155,6 +155,63 @@ def ParenExpr : Node<Expr> {
     let Fields = (ins Child<Expr>:$expr);
 }
 
+//===----------------------------------------------------------------------===//
+// Query expressions
+//===----------------------------------------------------------------------===//
+//
+// A relation is an ordinary expression of type `Relation[T]`, written in pipe
+// syntax: `from <rel> [as] <alias> |> select <expr> [as] <alias>, ...`. The
+// stages nest — `from X e |> select ...` parses to `SelectExpr(FromExpr(X,e))`.
+
+/// The pipe source: `from <relation> [as] <alias>`. `alias` is optional.
+def FromExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Ident>:$relation,
+        Child<Ident>:$alias
+    );
+}
+
+/// One projected column: `<expr> [as <alias>]`. `alias` is optional.
+def SelectItem : Node<AstNode> {
+    let Fields = (ins
+        Child<Expr>:$expr,
+        Child<Ident>:$alias
+    );
+}
+
+/// A `|> select <items>` stage applied to an input relation.
+def SelectExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<SelectItem>:$items
+    );
+}
+
+/// Field access: `base.field` (e.g. a struct field or a query row column).
+def FieldAccessExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$base,
+        Child<Ident>:$field
+    );
+}
+
+/// One `name: value` initializer of a struct literal.
+def StructLitField : Node<AstNode> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Child<Expr>:$value
+    );
+}
+
+/// A struct literal: `Employee { id: 1, name: "Bob" }`. `name` is the struct
+/// type; each field initializes a declared field by name.
+def StructLitExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Children<StructLitField>:$fields
+    );
+}
+
 /// A literal expression. Currently always a number; the literal value lives
 /// on the syntax token, not in the AST.
 def Literal : Variant<Expr> {}
@@ -248,20 +305,33 @@ def RecordType : Node<TypeAnnotation> {
 /// Top-level variant for statements.
 def Stmt : Variant<AstNode> {}
 
-def StructField : Node<AstNode> {
+/// One `name: type` field of a struct. (Visibility / trait bounds are
+/// deferred — re-added when the access-control design lands.)
+def StructFieldDecl : Node<AstNode> {
     let Fields = (ins
-        Custom<Visibility>:$visibility,
         Child<Ident>:$name,
         Child<TypeAnnotation>:$type
     );
 }
 
+/// A nominal struct declaration: `struct Employee { id: int32, name: str }`.
 def StructStmt : Node<Stmt> {
     let Fields = (ins
-        Custom<Visibility>:$visibility,
-        Child<Ident>:$bound, // optional
         Child<Ident>:$name,
-        Children<StructField>:$fields
+        Children<StructFieldDecl>:$fields
+    );
+}
+
+/// A table declaration registering a relation in the schema:
+/// `table employees = Employee` (named struct rows) or
+/// `table events = { user_id: int32, ts: int64 }` (inline rows). Exactly one of
+/// `rowStruct` / `inlineFields` is present. `name` is the table; `rowStruct` (a
+/// Child<Ident>) is positionally second so the table name always wins index 0.
+def TableStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Child<Ident>:$rowStruct,
+        Children<StructFieldDecl>:$inlineFields
     );
 }
 

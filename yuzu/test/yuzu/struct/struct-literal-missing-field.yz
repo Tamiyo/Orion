@@ -1,0 +1,6 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+//
+// A struct literal must initialize every declared field.
+struct Employee { id: int32, name: str }
+let bob = Employee { id: 1 }
+// CHECK: error: missing field `name` in `Employee` literal

@@ -11,14 +11,19 @@
 namespace yuzu::lexer {
 namespace {
 const std::u32string andKeyword = U"and";
+const std::u32string asKeyword = U"as";
 const std::u32string falseKeyword = U"false";
 const std::u32string fnKeyword = U"fn";
+const std::u32string fromKeyword = U"from";
 const std::u32string inKeyword = U"in";
 const std::u32string letKeyword = U"let";
 const std::u32string mutKeyword = U"mut";
 const std::u32string notKeyword = U"not";
 const std::u32string orKeyword = U"or";
 const std::u32string returnKeyword = U"return";
+const std::u32string selectKeyword = U"select";
+const std::u32string structKeyword = U"struct";
+const std::u32string tableKeyword = U"table";
 const std::u32string trueKeyword = U"true";
 const std::u32string whereKeyword = U"where";
 }; // namespace
@@ -166,7 +171,7 @@ std::optional<Token> Lexer::getNextToken() {
     return createToken(start, TokenKind::Slash);
   }
   case U'.': {
-    // Leading-dot float: `.5`, `.123e-7`. A standalone `.` is unknown.
+    // Leading-dot float: `.5`, `.123e-7`. Otherwise a `.` is field access.
     if (current + 1 < source.end() && atDigit(current + 1)) {
       bump(); // .
       bumpWhile(atDecimalChar);
@@ -174,7 +179,7 @@ std::optional<Token> Lexer::getNextToken() {
       return createToken(start, TokenKind::FloatLiteral);
     }
     bump();
-    return createToken(start, TokenKind::Error);
+    return createToken(start, TokenKind::Dot);
   }
   case U'<': {
     if (peek(1) == U'<') {
@@ -204,6 +209,15 @@ std::optional<Token> Lexer::getNextToken() {
 
     bump();
     return createToken(start, TokenKind::Gt);
+  }
+  case U'|': {
+    // The query pipe `|>`; a bare `|` is not yet a token.
+    if (peek(1) == U'>') {
+      bump(2);
+      return createToken(start, TokenKind::Pipe);
+    }
+    bump();
+    return createToken(start, TokenKind::Error);
   }
   };
 
@@ -293,6 +307,10 @@ std::optional<Token> Lexer::getNextToken() {
       return createToken(start, TokenKind::AndKw);
     }
 
+    if (ident == asKeyword) {
+      return createToken(start, TokenKind::AsKw);
+    }
+
     if (ident == falseKeyword) {
       return createToken(start, TokenKind::BooleanLiteral);
     }
@@ -301,8 +319,24 @@ std::optional<Token> Lexer::getNextToken() {
       return createToken(start, TokenKind::FnKw);
     }
 
+    if (ident == fromKeyword) {
+      return createToken(start, TokenKind::FromKw);
+    }
+
     if (ident == inKeyword) {
       return createToken(start, TokenKind::InKw);
+    }
+
+    if (ident == selectKeyword) {
+      return createToken(start, TokenKind::SelectKw);
+    }
+
+    if (ident == structKeyword) {
+      return createToken(start, TokenKind::StructKw);
+    }
+
+    if (ident == tableKeyword) {
+      return createToken(start, TokenKind::TableKw);
     }
 
     if (ident == orKeyword) {

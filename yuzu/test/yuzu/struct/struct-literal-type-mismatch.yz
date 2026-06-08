@@ -1,0 +1,6 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+//
+// A field's value must be assignable to that field's declared type.
+struct Employee { id: int32, name: str }
+let bob = Employee { id: "oops", name: "Bob" }
+// CHECK: error: value of type `str` is not assignable to field `id` of type `int32`

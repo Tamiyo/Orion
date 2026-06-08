@@ -8,6 +8,7 @@
 #include "yuzu/Hir/Types/TypeCoercion.h"
 #include "yuzu/Util/Unicode.h"
 
+#include <llvm/ADT/STLExtras.h>
 #include <llvm/Support/FormatVariadic.h>
 
 #include <type_traits>
@@ -45,7 +46,15 @@ void TypeInferrer::visitIdentExpr(const IdentExpr *n) {
   const auto lookupResult = ctx.getSymbolTable().lookup(n->getName());
 
   if (!lookupResult) {
-    ctx.error(n, "unresolved identifier").emit();
+    // A table is reachable only from a query's `from`, never as a host value.
+    if (ctx.getSymbolTable().lookupTable(n->getName()->getName())) {
+      ctx.error(n, llvm::formatv("`{0}` is a table; query it with `from`",
+                                 util::toUtf8(n->getName()->getName()))
+                       .str())
+          .emit();
+    } else {
+      ctx.error(n, "unresolved identifier").emit();
+    }
     types.bind(n, typeFactory.getErrorType());
     return;
   }
@@ -286,7 +295,22 @@ void TypeInferrer::traverseBlockStmt(const BlockStmt *n) {
 void TypeInferrer::hoistAndWalk(llvm::ArrayRef<const Stmt *> stmts) {
   auto &symbols = ctx.getSymbolTable();
 
-  // Pass 1: bind every function's name so a body can reference siblings
+  // Pass 1a: register structs as named types — before tables/functions that may
+  // reference them. (Cross-struct forward references are resolved in order.)
+  for (const Stmt *stmt : stmts) {
+    if (const auto *structStmt = StructStmt::cast(stmt)) {
+      registerStruct(structStmt);
+    }
+  }
+
+  // Pass 1b: register tables (rows reference the structs above).
+  for (const Stmt *stmt : stmts) {
+    if (const auto *tableStmt = TableStmt::cast(stmt)) {
+      registerTable(tableStmt);
+    }
+  }
+
+  // Pass 1c: bind every function's name so a body can reference siblings
   // declared later in the same scope. Signatures resolve lazily on first use
   // (`signatureOf`), so declaration order doesn't matter.
   for (const Stmt *stmt : stmts) {
@@ -299,6 +323,57 @@ void TypeInferrer::hoistAndWalk(llvm::ArrayRef<const Stmt *> stmts) {
   for (const Stmt *stmt : stmts) {
     visit(stmt);
   }
+}
+
+void TypeInferrer::registerStruct(const StructStmt *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+  auto &symbols = ctx.getSymbolTable();
+
+  std::vector<StructField> fields;
+  fields.reserve(n->getFields().size());
+  for (const StructFieldDecl *field : n->getFields()) {
+    const Type *fieldType = resolveTypeAnnotation(field->getType(), field);
+    fields.push_back(StructField{field->getName()->getName(), fieldType});
+  }
+
+  const StructType *structType =
+      typeFactory.getStructType(n->getName()->getName(), fields);
+  symbols.bindType(n->getName()->getName(), structType);
+  types.bind(n, structType);
+}
+
+void TypeInferrer::registerTable(const TableStmt *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+  auto &symbols = ctx.getSymbolTable();
+
+  const StructType *row = nullptr;
+  if (const Ident *rowStruct = n->getRowStruct()) {
+    // Named form: the rows are a declared struct.
+    const Type *named = symbols.lookupType(rowStruct->getName());
+    row = named ? StructType::cast(named) : nullptr;
+    if (!row) {
+      ctx.error(n, llvm::formatv("`{0}` is not a struct",
+                                 util::toUtf8(rowStruct->getName()))
+                       .str())
+          .emit();
+      return;
+    }
+  } else {
+    // Inline form: an anonymous struct named after the table.
+    std::vector<StructField> fields;
+    fields.reserve(n->getInlineFields().size());
+    for (const StructFieldDecl *field : n->getInlineFields()) {
+      const Type *fieldType = resolveTypeAnnotation(field->getType(), field);
+      fields.push_back(StructField{field->getName()->getName(), fieldType});
+    }
+    row = typeFactory.getStructType(n->getName()->getName(), fields);
+  }
+
+  const RelationType *relation = typeFactory.getRelationType(row);
+  symbols.bindTable(n->getName()->getName(), relation);
+  types.bind(n, relation);
 }
 
 const FuncType *TypeInferrer::signatureOf(const FuncStmt *n) {
@@ -433,6 +508,208 @@ void TypeInferrer::traverseFuncStmt(const FuncStmt *n) {
       funcType ? funcType->getReturnType() : typeFactory.getErrorType();
   visit(n->getBody());
   expectedReturn = prevExpectedReturn;
+}
+
+// A query root pushes one row scope that spans every stage, then types the
+// query bottom-up via `inferQuery` (manual recursion, so the `from` alias
+// stays visible through the `select`).
+void TypeInferrer::traverseFromExpr(const FromExpr *n) {
+  const HirScopeGuard guard =
+      ctx.getSymbolTable().pushScope(HirScopeKind::Block);
+  inferQuery(n);
+}
+void TypeInferrer::traverseSelectExpr(const SelectExpr *n) {
+  const HirScopeGuard guard =
+      ctx.getSymbolTable().pushScope(HirScopeKind::Block);
+  inferQuery(n);
+}
+
+const Type *TypeInferrer::inferQuery(const Expr *query) {
+  if (const auto *from = FromExpr::cast(query)) {
+    return inferFromExpr(from);
+  }
+  if (const auto *select = SelectExpr::cast(query)) {
+    return inferSelectExpr(select);
+  }
+  // The parser only ever builds `from`/`select` in query position.
+  const Type *error = ctx.getTypeContext().getTypeFactory().getErrorType();
+  ctx.getTypeContext().bind(query, error);
+  return error;
+}
+
+const Type *TypeInferrer::inferFromExpr(const FromExpr *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+  auto &symbols = ctx.getSymbolTable();
+
+  const Ident *relation = n->getRelation();
+  const RelationType *rel =
+      relation ? symbols.lookupTable(relation->getName()) : nullptr;
+  if (!rel) {
+    ctx.error(n, llvm::formatv("`{0}` is not a table",
+                               relation ? util::toUtf8(relation->getName())
+                                        : std::string("?"))
+                     .str())
+        .emit();
+    types.bind(n, typeFactory.getErrorType());
+    return typeFactory.getErrorType();
+  }
+
+  // Bind the row alias to the relation's element type so later stages can
+  // reference its columns. It resolves through the value namespace's
+  // `typeOf(decl)` path (the alias `Ident` is the binding).
+  if (const Ident *alias = n->getAlias()) {
+    types.bind(alias, rel->getElement());
+    symbols.bind(alias, alias);
+  }
+
+  types.bind(n, rel);
+  return rel;
+}
+
+const Type *TypeInferrer::inferSelectExpr(const SelectExpr *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  // Type the input relation first — that binds the row alias into scope.
+  const Type *inputType =
+      n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
+  if (inputType->getKind() == TypeKind::Error) {
+    types.bind(n, typeFactory.getErrorType());
+    return typeFactory.getErrorType();
+  }
+
+  // Each item is a row expression over the alias; type it and contribute a
+  // column to the output row struct.
+  std::vector<StructField> outFields;
+  outFields.reserve(n->getItems().size());
+  for (const SelectItem *item : n->getItems()) {
+    const Expr *itemExpr = item->getExpr();
+    if (itemExpr == nullptr) {
+      continue;
+    }
+    visit(itemExpr); // types `e.id` etc. against the bound alias
+
+    // Column name: the `as` alias, else the field/ident name, else anonymous.
+    std::u32string_view colName;
+    if (const Ident *alias = item->getAlias()) {
+      colName = alias->getName();
+    } else if (const auto *fa = FieldAccessExpr::cast(itemExpr)) {
+      colName = fa->getField()->getName();
+    } else if (const auto *id = IdentExpr::cast(itemExpr)) {
+      colName = id->getName()->getName();
+    }
+    outFields.push_back(StructField{colName, types.typeOf(itemExpr)});
+  }
+
+  const StructType *outRow = typeFactory.getStructType(U"", outFields);
+  const RelationType *outRel = typeFactory.getRelationType(outRow);
+  types.bind(n, outRel);
+  return outRel;
+}
+
+void TypeInferrer::visitFieldAccessExpr(const FieldAccessExpr *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  const Type *baseType = types.typeOf(n->getBase());
+  if (baseType->getKind() == TypeKind::Error) {
+    types.bind(n, typeFactory.getErrorType());
+    return;
+  }
+
+  const auto *structType = StructType::cast(baseType);
+  if (!structType) {
+    ctx.error(n, llvm::formatv("type `{0}` has no fields",
+                               asString(baseType->getKind()))
+                     .str())
+        .emit();
+    types.bind(n, typeFactory.getErrorType());
+    return;
+  }
+
+  const std::u32string_view field = n->getField()->getName();
+  const Type *fieldType = structType->findField(field);
+  if (!fieldType) {
+    ctx.error(n, llvm::formatv("struct `{0}` has no field `{1}`",
+                               util::toUtf8(structType->getName()),
+                               util::toUtf8(field))
+                     .str())
+        .emit();
+    types.bind(n, typeFactory.getErrorType());
+    return;
+  }
+
+  types.bind(n, fieldType);
+}
+
+void TypeInferrer::visitStructLitExpr(const StructLitExpr *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  // The type name must resolve to a known struct.
+  const std::u32string_view name = n->getName()->getName();
+  const Type *type = ctx.getSymbolTable().lookupType(name);
+  const auto *structType = type ? StructType::cast(type) : nullptr;
+  if (!structType) {
+    ctx.error(n,
+              llvm::formatv("`{0}` is not a struct", util::toUtf8(name)).str())
+        .emit();
+    types.bind(n, typeFactory.getErrorType());
+    return;
+  }
+
+  // Each initializer must name a declared field (no duplicates) and supply an
+  // assignable value; every declared field must be initialized exactly once.
+  llvm::SmallVector<std::u32string_view> seen;
+  for (const StructLitField *field : n->getFields()) {
+    const std::u32string_view fieldName = field->getName()->getName();
+    const Type *fieldType = structType->findField(fieldName);
+    if (!fieldType) {
+      ctx.error(field,
+                llvm::formatv("struct `{0}` has no field `{1}`",
+                              util::toUtf8(name), util::toUtf8(fieldName))
+                    .str())
+          .emit();
+      continue;
+    }
+
+    if (llvm::is_contained(seen, fieldName)) {
+      ctx.error(field,
+                llvm::formatv("field `{0}` is initialized more than once",
+                              util::toUtf8(fieldName))
+                    .str())
+          .emit();
+      continue;
+    }
+
+    seen.push_back(fieldName);
+
+    if (!isAssignable(field->getValue(), fieldType)) {
+      ctx.error(
+             field->getValue(),
+             llvm::formatv(
+                 "value of type `{0}` is not assignable to field `{1}` of type "
+                 "`{2}`",
+                 asString(types.typeOf(field->getValue())->getKind()),
+                 util::toUtf8(fieldName),
+                 asString(types.resolveType(fieldType)->getKind()))
+                 .str())
+          .emit();
+    }
+  }
+
+  for (const StructField &declared : structType->getFields()) {
+    if (!llvm::is_contained(seen, declared.name)) {
+      ctx.error(n,
+                llvm::formatv("missing field `{0}` in `{1}` literal",
+                              util::toUtf8(declared.name), util::toUtf8(name))
+                    .str())
+          .emit();
+    }
+  }
+
+  types.bind(n, structType);
 }
 
 void TypeInferrer::visitReturnStmt(const ReturnStmt *returnStmt) {

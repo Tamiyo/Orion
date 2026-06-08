@@ -172,18 +172,30 @@ const IdentExpr *HirLowerer::lowerIdentExpr(ast::IdentExpr identExpr) {
 
 const Stmt *HirLowerer::lowerStmt(ast::Stmt stmt) {
   switch (stmt.getKind()) {
-  case ast::SyntaxKind::LetStmt:
-    return lowerLetStmt(*ast::LetStmt::cast(stmt));
-  case ast::SyntaxKind::ExprStmt:
-    return lowerExprStmt(*ast::ExprStmt::cast(stmt));
-  case ast::SyntaxKind::AssignStmt:
-    return lowerAssignStmt(*ast::AssignStmt::cast(stmt));
+  // Declarations
+  case ast::SyntaxKind::StructStmt:
+    return lowerStructStmt(*ast::StructStmt::cast(stmt));
+  case ast::SyntaxKind::TableStmt:
+    return lowerTableStmt(*ast::TableStmt::cast(stmt));
   case ast::SyntaxKind::FuncStmt:
     return lowerFuncStmt(*ast::FuncStmt::cast(stmt));
+
+  // Bindings
+  case ast::SyntaxKind::LetStmt:
+    return lowerLetStmt(*ast::LetStmt::cast(stmt));
+  case ast::SyntaxKind::AssignStmt:
+    return lowerAssignStmt(*ast::AssignStmt::cast(stmt));
+
+  // Control flow
   case ast::SyntaxKind::BlockStmt:
     return lowerBlockStmt(*ast::BlockStmt::cast(stmt));
   case ast::SyntaxKind::ReturnStmt:
     return lowerReturnStmt(*ast::ReturnStmt::cast(stmt));
+
+  // Expression statement
+  case ast::SyntaxKind::ExprStmt:
+    return lowerExprStmt(*ast::ExprStmt::cast(stmt));
+
   default:
     util::yuzu_unreachable();
   }
@@ -219,9 +231,9 @@ const LetStmt *HirLowerer::lowerLetStmt(ast::LetStmt stmt) {
     annotation = lowerTypeAnnotation(*type);
   }
 
-  const Mutability mutability =
-      stmt.getMutability() == ast::Mutability::Mutable ? Mutability::Mutable
-                                                       : Mutability::Immutable;
+  const Mutability mutability = stmt.getMutability() == ast::Mutability::Mutable
+                                    ? Mutability::Mutable
+                                    : Mutability::Immutable;
 
   const auto *hir = ctx.getBuilder().makeLetStmt(loweredIdent, mutability,
                                                  annotation, loweredExpr);
@@ -484,21 +496,39 @@ const Stmt *HirLowerer::lowerAssignStmt(ast::AssignStmt stmt) {
 
 const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
   switch (expr.getKind()) {
+  // Literals
+  case ast::SyntaxKind::BoolLit:
+  case ast::SyntaxKind::IntLit:
+  case ast::SyntaxKind::FloatLit:
+  case ast::SyntaxKind::StringLit:
+    return lowerLiteralExpr(*ast::Literal::cast(expr));
+
+  // Operators
   case ast::SyntaxKind::BinaryExpr:
     return lowerBinaryExpr(*ast::BinaryExpr::cast(expr));
   case ast::SyntaxKind::UnaryExpr:
     return lowerUnaryExpr(*ast::UnaryExpr::cast(expr));
   case ast::SyntaxKind::ParenExpr:
     return lowerParenExpr(*ast::ParenExpr::cast(expr));
+
+  // Names and calls
   case ast::SyntaxKind::IdentExpr:
     return lowerIdentExpr(*ast::IdentExpr::cast(expr));
   case ast::SyntaxKind::CallExpr:
     return lowerCallExpr(*ast::CallExpr::cast(expr));
-  case ast::SyntaxKind::BoolLit:
-  case ast::SyntaxKind::IntLit:
-  case ast::SyntaxKind::FloatLit:
-  case ast::SyntaxKind::StringLit:
-    return lowerLiteralExpr(*ast::Literal::cast(expr));
+
+  // Structs
+  case ast::SyntaxKind::StructLitExpr:
+    return lowerStructLitExpr(*ast::StructLitExpr::cast(expr));
+  case ast::SyntaxKind::FieldAccessExpr:
+    return lowerFieldAccessExpr(*ast::FieldAccessExpr::cast(expr));
+
+  // Queries
+  case ast::SyntaxKind::FromExpr:
+    return lowerFromExpr(*ast::FromExpr::cast(expr));
+  case ast::SyntaxKind::SelectExpr:
+    return lowerSelectExpr(*ast::SelectExpr::cast(expr));
+
   default:
     util::yuzu_unreachable();
   }
@@ -602,6 +632,209 @@ const Expr *HirLowerer::lowerCallExpr(ast::CallExpr expr) {
 
   const auto *hir = ctx.getBuilder().makeFuncCallExpr(loweredCallee, args);
   ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
+
+const Expr *HirLowerer::lowerFromExpr(ast::FromExpr expr) {
+  const auto relation = expr.getRelation();
+  if (!relation) {
+    error(expr, "`from` is missing its relation").emit();
+    return nullptr;
+  }
+  const Ident *loweredRelation = lowerIdent(*relation);
+  if (!loweredRelation) {
+    return nullptr;
+  }
+
+  // The alias is optional (`from t` vs `from t e`).
+  const Ident *loweredAlias = nullptr;
+  if (const auto alias = expr.getAlias()) {
+    loweredAlias = lowerIdent(*alias);
+  }
+
+  const auto *hir =
+      ctx.getBuilder().makeFromExpr(loweredRelation, loweredAlias);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
+
+const SelectItem *HirLowerer::lowerSelectItem(ast::SelectItem item) {
+  const auto astExpr = item.getExpr();
+  if (!astExpr) {
+    error(item, "select item is missing its expression").emit();
+    return nullptr;
+  }
+  const Expr *loweredExpr = lowerExpr(*astExpr);
+  if (!loweredExpr) {
+    return nullptr;
+  }
+
+  const Ident *loweredAlias = nullptr;
+  if (const auto alias = item.getAlias()) {
+    loweredAlias = lowerIdent(*alias);
+  }
+
+  const auto *hir = ctx.getBuilder().makeSelectItem(loweredExpr, loweredAlias);
+  ctx.getSourceTable().bind(hir->getId(), item);
+  return hir;
+}
+
+const Expr *HirLowerer::lowerSelectExpr(ast::SelectExpr expr) {
+  const auto input = expr.getInput();
+  if (!input) {
+    error(expr, "`select` is missing its input relation").emit();
+    return nullptr;
+  }
+  const Expr *loweredInput = lowerExpr(*input);
+  if (!loweredInput) {
+    return nullptr;
+  }
+
+  std::vector<const SelectItem *> items;
+  for (const ast::SelectItem item : expr.getItems()) {
+    if (const SelectItem *lowered = lowerSelectItem(item)) {
+      items.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeSelectExpr(loweredInput, items);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
+
+const Expr *HirLowerer::lowerFieldAccessExpr(ast::FieldAccessExpr expr) {
+  const auto base = expr.getBase();
+  const auto field = expr.getField();
+  if (!base || !field) {
+    error(expr, "field access is incomplete").emit();
+    return nullptr;
+  }
+  const Expr *loweredBase = lowerExpr(*base);
+  const Ident *loweredField = lowerIdent(*field);
+  if (!loweredBase || !loweredField) {
+    return nullptr;
+  }
+
+  const auto *hir =
+      ctx.getBuilder().makeFieldAccessExpr(loweredBase, loweredField);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
+
+const StructLitField *
+HirLowerer::lowerStructLitField(ast::StructLitField field) {
+  const auto name = field.getName();
+  const auto value = field.getValue();
+  if (!name || !value) {
+    error(field, "struct field initializer is incomplete").emit();
+    return nullptr;
+  }
+  const Ident *loweredName = lowerIdent(*name);
+  const Expr *loweredValue = lowerExpr(*value);
+  if (!loweredName || !loweredValue) {
+    return nullptr;
+  }
+
+  const auto *hir =
+      ctx.getBuilder().makeStructLitField(loweredName, loweredValue);
+  ctx.getSourceTable().bind(hir->getId(), field);
+  return hir;
+}
+
+const Expr *HirLowerer::lowerStructLitExpr(ast::StructLitExpr expr) {
+  const auto name = expr.getName();
+  if (!name) {
+    error(expr, "struct literal is missing its type name").emit();
+    return nullptr;
+  }
+  const Ident *loweredName = lowerIdent(*name);
+  if (!loweredName) {
+    return nullptr;
+  }
+
+  std::vector<const StructLitField *> fields;
+  for (const ast::StructLitField field : expr.getFields()) {
+    if (const StructLitField *lowered = lowerStructLitField(field)) {
+      fields.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeStructLitExpr(loweredName, fields);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
+
+const StructFieldDecl *
+HirLowerer::lowerStructFieldDecl(ast::StructFieldDecl field) {
+  const auto name = field.getName();
+  const auto type = field.getType();
+  if (!name || !type) {
+    error(field, "struct field is incomplete").emit();
+    return nullptr;
+  }
+  const Ident *loweredName = lowerIdent(*name);
+  const TypeAnnotation *loweredType = lowerTypeAnnotation(*type);
+  if (!loweredName || !loweredType) {
+    return nullptr;
+  }
+
+  const auto *hir =
+      ctx.getBuilder().makeStructFieldDecl(loweredName, loweredType);
+  ctx.getSourceTable().bind(hir->getId(), field);
+  return hir;
+}
+
+const Stmt *HirLowerer::lowerStructStmt(ast::StructStmt stmt) {
+  const auto name = stmt.getName();
+  if (!name) {
+    error(stmt, "struct is missing its name").emit();
+    return nullptr;
+  }
+  const Ident *loweredName = lowerIdent(*name);
+  if (!loweredName) {
+    return nullptr;
+  }
+
+  std::vector<const StructFieldDecl *> fields;
+  for (const ast::StructFieldDecl field : stmt.getFields()) {
+    if (const StructFieldDecl *lowered = lowerStructFieldDecl(field)) {
+      fields.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeStructStmt(loweredName, fields);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
+  return hir;
+}
+
+const Stmt *HirLowerer::lowerTableStmt(ast::TableStmt stmt) {
+  const auto name = stmt.getName();
+  if (!name) {
+    error(stmt, "table is missing its name").emit();
+    return nullptr;
+  }
+  const Ident *loweredName = lowerIdent(*name);
+  if (!loweredName) {
+    return nullptr;
+  }
+
+  // Named form (`= Employee`) carries a row-struct ident; inline form
+  // (`= { ... }`) carries the fields instead. Exactly one is present.
+  const Ident *loweredRowStruct = nullptr;
+  if (const auto rowStruct = stmt.getRowStruct()) {
+    loweredRowStruct = lowerIdent(*rowStruct);
+  }
+
+  std::vector<const StructFieldDecl *> inlineFields;
+  for (const ast::StructFieldDecl field : stmt.getInlineFields()) {
+    if (const StructFieldDecl *lowered = lowerStructFieldDecl(field)) {
+      inlineFields.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeTableStmt(
+      loweredName, loweredRowStruct, inlineFields);
+  ctx.getSourceTable().bind(hir->getId(), stmt);
   return hir;
 }
 

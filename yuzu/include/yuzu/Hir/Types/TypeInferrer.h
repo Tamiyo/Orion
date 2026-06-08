@@ -25,8 +25,10 @@ public:
   void visitIntLit(const IntLit *n);
   void visitFloatLit(const FloatLit *n);
   void visitIdentExpr(const IdentExpr *n);
+  void visitStructLitExpr(const StructLitExpr *n);
   void visitCallExpr(const CallExpr *n);
   void visitFuncCallExpr(const FuncCallExpr *n);
+  void visitFieldAccessExpr(const FieldAccessExpr *n);
   void visitLetStmt(const LetStmt *n);
   void visitAssignStmt(const AssignStmt *n);
   void visitReturnStmt(const ReturnStmt *n);
@@ -39,11 +41,30 @@ public:
   // Override traversal so params bind into the fn scope before the body types.
   void traverseFuncStmt(const FuncStmt *n);
 
+  // A query (`from … |> select …`) is typed as its own pass: a row scope is
+  // pushed, the `from` resolves a table and binds the row alias, and each
+  // `select` item types against that alias. So both query roots take over
+  // traversal rather than letting the generic walk type the row exprs.
+  void traverseFromExpr(const FromExpr *n);
+  void traverseSelectExpr(const SelectExpr *n);
+
 private:
-  /// Type and bind every `FuncStmt` directly in `stmts` (name + signature)
-  /// before walking any statement, then walk them. The two passes give
-  /// sibling functions forward visibility.
+  /// Hoist declarations (structs → tables → functions) so the bodies that
+  /// follow can reference any of them regardless of order, then walk/type each
+  /// statement.
   void hoistAndWalk(llvm::ArrayRef<const Stmt *> stmts);
+
+  /// Build the struct's `StructType` and bind its name into the type namespace.
+  void registerStruct(const StructStmt *n);
+  /// Resolve the table's row struct, make `Relation[Row]`, and register it in
+  /// the table namespace (relational-only — never the value namespace).
+  void registerTable(const TableStmt *n);
+
+  /// Type a query expression, returning its `Relation[T]`. Recurses manually
+  /// (not via the visitor) so the row scope spans `from` through `select`.
+  const Type *inferQuery(const Expr *query);
+  const Type *inferFromExpr(const FromExpr *n);
+  const Type *inferSelectExpr(const SelectExpr *n);
 
   /// A function's signature type, resolved on first request and memoized in
   /// the type side table. This is the lazy "query" that powers forward

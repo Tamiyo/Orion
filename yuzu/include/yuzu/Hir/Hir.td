@@ -112,6 +112,62 @@ def FuncCallExpr : Node<Expr> {
     );
 }
 
+//===----------------------------------------------------------------------===//
+// Query expressions
+//===----------------------------------------------------------------------===//
+//
+// A relation is an ordinary `Expr` of type `Relation[T]`. The pipe stages nest:
+// `from X e |> select ...` lowers to `SelectExpr(FromExpr(X, e), [...])`.
+// Relational correctness is a typing concern, not a distinct node tree.
+
+/// The pipe source: `from <relation> [as] <alias>`. `alias` is null when omitted.
+def FromExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Ident>:$relation,
+        Child<Ident>:$alias
+    );
+}
+
+/// One projected column: the row expression and its optional output name.
+def SelectItem : Node<HirNode> {
+    let Fields = (ins
+        Child<Expr>:$expr,
+        Child<Ident>:$alias
+    );
+}
+
+/// A `select` stage applied to an input relation.
+def SelectExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<SelectItem>:$items
+    );
+}
+
+/// Field access: `base.field` (a struct field or a query row column).
+def FieldAccessExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$base,
+        Child<Ident>:$field
+    );
+}
+
+/// One `name: value` initializer of a struct literal.
+def StructLitField : Node<HirNode> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Child<Expr>:$value
+    );
+}
+
+/// A struct literal: `Employee { id: 1, name: "Bob" }`.
+def StructLitExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Children<StructLitField>:$fields
+    );
+}
+
 /// A literal expression. Currently always a number; the literal value
 /// is intentionally not stored here yet (a `Custom<Number>` field will
 /// land once the literal type lives in the schema).
@@ -183,6 +239,33 @@ def Stmt : Variant<HirNode> {}
 def ExprStmt : Node<Stmt> {
     let Fields = (ins
         Child<Expr>:$expr
+    );
+}
+
+/// One `name: type` field of a struct.
+def StructFieldDecl : Node<HirNode> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Child<TypeAnnotation>:$type
+    );
+}
+
+/// A nominal struct declaration: `struct Employee { id: int32, name: str }`.
+def StructStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Children<StructFieldDecl>:$fields
+    );
+}
+
+/// A table registering a relation in the schema: `table employees = Employee`
+/// (named) or `table events = { user_id: int32, ts: int64 }` (inline). Exactly
+/// one of `rowStruct` / `inlineFields` is present.
+def TableStmt : Node<Stmt> {
+    let Fields = (ins
+        Child<Ident>:$name,
+        Child<Ident>:$rowStruct,
+        Children<StructFieldDecl>:$inlineFields
     );
 }
 
