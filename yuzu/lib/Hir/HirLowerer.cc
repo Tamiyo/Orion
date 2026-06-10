@@ -518,16 +518,16 @@ const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
     return lowerCallExpr(*ast::CallExpr::cast(expr));
 
   // Structs
-  case ast::SyntaxKind::StructLitExpr:
-    return lowerStructLitExpr(*ast::StructLitExpr::cast(expr));
+  case ast::SyntaxKind::StructExpr:
+    return lowerStructExpr(*ast::StructExpr::cast(expr));
   case ast::SyntaxKind::FieldAccessExpr:
     return lowerFieldAccessExpr(*ast::FieldAccessExpr::cast(expr));
 
   // Queries
   case ast::SyntaxKind::FromExpr:
-    return lowerFromExpr(*ast::FromExpr::cast(expr));
+    return lowerFromRel(*ast::FromExpr::cast(expr));
   case ast::SyntaxKind::SelectExpr:
-    return lowerSelectExpr(*ast::SelectExpr::cast(expr));
+    return lowerSelectRel(*ast::SelectExpr::cast(expr));
 
   default:
     util::yuzu_unreachable();
@@ -635,7 +635,7 @@ const Expr *HirLowerer::lowerCallExpr(ast::CallExpr expr) {
   return hir;
 }
 
-const Expr *HirLowerer::lowerFromExpr(ast::FromExpr expr) {
+const Expr *HirLowerer::lowerFromRel(ast::FromExpr expr) {
   const auto relation = expr.getRelation();
   if (!relation) {
     error(expr, "`from` is missing its relation").emit();
@@ -652,8 +652,7 @@ const Expr *HirLowerer::lowerFromExpr(ast::FromExpr expr) {
     loweredAlias = lowerIdent(*alias);
   }
 
-  const auto *hir =
-      ctx.getBuilder().makeFromExpr(loweredRelation, loweredAlias);
+  const auto *hir = ctx.getBuilder().makeFromRel(loweredRelation, loweredAlias);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
@@ -679,7 +678,7 @@ const SelectItem *HirLowerer::lowerSelectItem(ast::SelectItem item) {
   return hir;
 }
 
-const Expr *HirLowerer::lowerSelectExpr(ast::SelectExpr expr) {
+const Expr *HirLowerer::lowerSelectRel(ast::SelectExpr expr) {
   const auto input = expr.getInput();
   if (!input) {
     error(expr, "`select` is missing its input relation").emit();
@@ -697,7 +696,7 @@ const Expr *HirLowerer::lowerSelectExpr(ast::SelectExpr expr) {
     }
   }
 
-  const auto *hir = ctx.getBuilder().makeSelectExpr(loweredInput, items);
+  const auto *hir = ctx.getBuilder().makeSelectRel(loweredInput, items);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
@@ -722,8 +721,8 @@ const Expr *HirLowerer::lowerFieldAccessExpr(ast::FieldAccessExpr expr) {
   return hir;
 }
 
-const StructLitField *
-HirLowerer::lowerStructLitField(ast::StructLitField field) {
+const StructFieldInit *
+HirLowerer::lowerStructFieldInit(ast::StructFieldInit field) {
   const auto name = field.getName();
   const auto value = field.getValue();
   if (!name || !value) {
@@ -737,12 +736,12 @@ HirLowerer::lowerStructLitField(ast::StructLitField field) {
   }
 
   const auto *hir =
-      ctx.getBuilder().makeStructLitField(loweredName, loweredValue);
+      ctx.getBuilder().makeStructFieldInit(loweredName, loweredValue);
   ctx.getSourceTable().bind(hir->getId(), field);
   return hir;
 }
 
-const Expr *HirLowerer::lowerStructLitExpr(ast::StructLitExpr expr) {
+const Expr *HirLowerer::lowerStructExpr(ast::StructExpr expr) {
   const auto name = expr.getName();
   if (!name) {
     error(expr, "struct literal is missing its type name").emit();
@@ -753,14 +752,14 @@ const Expr *HirLowerer::lowerStructLitExpr(ast::StructLitExpr expr) {
     return nullptr;
   }
 
-  std::vector<const StructLitField *> fields;
-  for (const ast::StructLitField field : expr.getFields()) {
-    if (const StructLitField *lowered = lowerStructLitField(field)) {
+  std::vector<const StructFieldInit *> fields;
+  for (const ast::StructFieldInit field : expr.getFields()) {
+    if (const StructFieldInit *lowered = lowerStructFieldInit(field)) {
       fields.push_back(lowered);
     }
   }
 
-  const auto *hir = ctx.getBuilder().makeStructLitExpr(loweredName, fields);
+  const auto *hir = ctx.getBuilder().makeStructExpr(loweredName, fields);
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }

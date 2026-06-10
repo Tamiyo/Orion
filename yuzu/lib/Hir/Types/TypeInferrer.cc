@@ -514,23 +514,23 @@ void TypeInferrer::traverseFuncStmt(const FuncStmt *n) {
 // A query root pushes one row scope that spans every stage, then types the
 // query bottom-up via `inferQuery` (manual recursion, so the `from` alias
 // stays visible through the `select`).
-void TypeInferrer::traverseFromExpr(const FromExpr *n) {
+void TypeInferrer::traverseFromRel(const FromRel *n) {
   const HirScopeGuard guard =
       ctx.getSymbolTable().pushScope(HirScopeKind::Block);
   inferQuery(n);
 }
-void TypeInferrer::traverseSelectExpr(const SelectExpr *n) {
+void TypeInferrer::traverseSelectRel(const SelectRel *n) {
   const HirScopeGuard guard =
       ctx.getSymbolTable().pushScope(HirScopeKind::Block);
   inferQuery(n);
 }
 
 const Type *TypeInferrer::inferQuery(const Expr *query) {
-  if (const auto *from = FromExpr::cast(query)) {
-    return inferFromExpr(from);
+  if (const auto *from = FromRel::cast(query)) {
+    return inferFromRel(from);
   }
-  if (const auto *select = SelectExpr::cast(query)) {
-    return inferSelectExpr(select);
+  if (const auto *select = SelectRel::cast(query)) {
+    return inferSelectRel(select);
   }
   // The parser only ever builds `from`/`select` in query position.
   const Type *error = ctx.getTypeContext().getTypeFactory().getErrorType();
@@ -538,7 +538,7 @@ const Type *TypeInferrer::inferQuery(const Expr *query) {
   return error;
 }
 
-const Type *TypeInferrer::inferFromExpr(const FromExpr *n) {
+const Type *TypeInferrer::inferFromRel(const FromRel *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
   auto &symbols = ctx.getSymbolTable();
@@ -568,7 +568,7 @@ const Type *TypeInferrer::inferFromExpr(const FromExpr *n) {
   return rel;
 }
 
-const Type *TypeInferrer::inferSelectExpr(const SelectExpr *n) {
+const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
 
@@ -644,7 +644,7 @@ void TypeInferrer::visitFieldAccessExpr(const FieldAccessExpr *n) {
   types.bind(n, fieldType);
 }
 
-void TypeInferrer::visitStructLitExpr(const StructLitExpr *n) {
+void TypeInferrer::visitStructExpr(const StructExpr *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
 
@@ -663,7 +663,7 @@ void TypeInferrer::visitStructLitExpr(const StructLitExpr *n) {
   // Each initializer must name a declared field (no duplicates) and supply an
   // assignable value; every declared field must be initialized exactly once.
   llvm::SmallVector<std::u32string_view> seen;
-  for (const StructLitField *field : n->getFields()) {
+  for (const StructFieldInit *field : n->getFields()) {
     const std::u32string_view fieldName = field->getName()->getName();
     const Type *fieldType = structType->findField(fieldName);
     if (!fieldType) {

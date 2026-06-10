@@ -155,13 +155,13 @@ TEST_F(QueryTest, ParsesStructLiteral) {
 
   EXPECT_TRUE(diagnostics.getDiagnostics().empty());
   EXPECT_EQ(R"(Expr@0..18
-  StructLitExpr@0..18
+  StructExpr@0..18
     Ident@0..9
       Identifier@0..8 "Employee"
       Space@8..9 " "
     LeftCurly@9..10 "{"
     Space@10..11 " "
-    StructLitField@11..17
+    StructFieldInit@11..17
       Ident@11..13
         Identifier@11..13 "id"
       Colon@13..14 ":"

@@ -117,12 +117,16 @@ def FuncCallExpr : Node<Expr> {
 // Query expressions
 //===----------------------------------------------------------------------===//
 //
-// A relation is an ordinary `Expr` of type `Relation[T]`. The pipe stages nest:
-// `from X e |> select ...` lowers to `SelectExpr(FromExpr(X, e), [...])`.
-// Relational correctness is a typing concern, not a distinct node tree.
+// A relation is an `Expr` of type `Relation[T]`. Each relational operation is a
+// `Rel` that takes an input relation and produces one; pipe stages nest:
+//   `from X e |> select a |> select b`
+//     = SelectRel(SelectRel(FromRel(X, e), [a]), [b])
+// The input is any relation-typed `Expr` — a `from`, a `let`-bound relation
+// variable, or another `Rel` — so queries compose.
+def Rel : Variant<Expr> {}
 
 /// The pipe source: `from <relation> [as] <alias>`. `alias` is null when omitted.
-def FromExpr : Node<Expr> {
+def FromRel : Node<Rel> {
     let Fields = (ins
         Child<Ident>:$relation,
         Child<Ident>:$alias
@@ -138,7 +142,7 @@ def SelectItem : Node<HirNode> {
 }
 
 /// A `select` stage applied to an input relation.
-def SelectExpr : Node<Expr> {
+def SelectRel : Node<Rel> {
     let Fields = (ins
         Child<Expr>:$input,
         Children<SelectItem>:$items
@@ -153,19 +157,20 @@ def FieldAccessExpr : Node<Expr> {
     );
 }
 
-/// One `name: value` initializer of a struct literal.
-def StructLitField : Node<HirNode> {
+/// One `name: value` field initializer of a struct expression.
+def StructFieldInit : Node<HirNode> {
     let Fields = (ins
         Child<Ident>:$name,
         Child<Expr>:$value
     );
 }
 
-/// A struct literal: `Employee { id: 1, name: "Bob" }`.
-def StructLitExpr : Node<Expr> {
+/// A struct expression: `Employee { id: 1, name: "Bob" }`. Field values are
+/// arbitrary expressions, so it is not a `Literal`.
+def StructExpr : Node<Expr> {
     let Fields = (ins
         Child<Ident>:$name,
-        Children<StructLitField>:$fields
+        Children<StructFieldInit>:$fields
     );
 }
 

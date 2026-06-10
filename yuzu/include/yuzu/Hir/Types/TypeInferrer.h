@@ -25,7 +25,7 @@ public:
   void visitIntLit(const IntLit *n);
   void visitFloatLit(const FloatLit *n);
   void visitIdentExpr(const IdentExpr *n);
-  void visitStructLitExpr(const StructLitExpr *n);
+  void visitStructExpr(const StructExpr *n);
   void visitCallExpr(const CallExpr *n);
   void visitFuncCallExpr(const FuncCallExpr *n);
   void visitFieldAccessExpr(const FieldAccessExpr *n);
@@ -45,8 +45,8 @@ public:
   // pushed, the `from` resolves a table and binds the row alias, and each
   // `select` item types against that alias. So both query roots take over
   // traversal rather than letting the generic walk type the row exprs.
-  void traverseFromExpr(const FromExpr *n);
-  void traverseSelectExpr(const SelectExpr *n);
+  void traverseFromRel(const FromRel *n);
+  void traverseSelectRel(const SelectRel *n);
 
 private:
   /// Hoist declarations (structs → tables → functions) so the bodies that
@@ -65,8 +65,8 @@ private:
   /// manually (not via the visitor) so the row scope spans `from` through
   /// `select`.
   const types::Type *inferQuery(const Expr *query);
-  const types::Type *inferFromExpr(const FromExpr *n);
-  const types::Type *inferSelectExpr(const SelectExpr *n);
+  const types::Type *inferFromRel(const FromRel *n);
+  const types::Type *inferSelectRel(const SelectRel *n);
 
   /// A function's signature type, resolved on first request and memoized in
   /// the type side table. This is the lazy "query" that powers forward

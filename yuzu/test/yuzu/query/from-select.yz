@@ -7,8 +7,8 @@ struct Employee { id: int32, name: str }
 table employees = Employee
 let r = from employees e |> select e.id as x
 // CHECK:      LetStmt : relation
-// CHECK:        SelectExpr : relation
-// CHECK-NEXT:     FromExpr : relation
+// CHECK:        SelectRel : relation
+// CHECK-NEXT:     FromRel : relation
 // CHECK:            name=employees
 // `e` is the row alias, bound to the `Employee` struct row type.
 // CHECK:          Ident : struct

@@ -173,33 +173,33 @@ std::optional<CompletedMarker> parseLiteralExpr(Parser &p) {
   return p.complete(m, astKind);
 }
 
-/// `StructLitField := Identifier ':' Expr` — one `name: value` initializer.
-std::optional<CompletedMarker> parseStructLitField(Parser &p) {
+/// `StructFieldInit := Identifier ':' Expr` — one `name: value` initializer.
+std::optional<CompletedMarker> parseStructFieldInit(Parser &p) {
   const Marker m = p.start();
   const auto _ = parseIdent(p); // field name
   p.expect(TokenKind::Colon);
   parseExpr(p); // value
-  return p.complete(m, SyntaxKind::StructLitField);
+  return p.complete(m, SyntaxKind::StructFieldInit);
 }
 
-/// `StructLitExpr := Identifier '{' ( StructLitField (',' StructLitField)* ','?
+/// `StructExpr := Identifier '{' ( StructFieldInit (',' StructFieldInit)* ','?
 /// )? '}'` — a struct literal like `Employee { id: 1, name: "Bob" }`.
-std::optional<CompletedMarker> parseStructLitExpr(Parser &p) {
+std::optional<CompletedMarker> parseStructExpr(Parser &p) {
   const Marker m = p.start();
   const auto _ = parseIdent(p); // struct type name
   p.expect(TokenKind::LeftCurly);
   if (!p.at(TokenKind::RightCurly)) {
-    parseStructLitField(p);
+    parseStructFieldInit(p);
     while (p.at(TokenKind::Comma)) {
       p.bump(); // ','
       if (p.at(TokenKind::RightCurly)) {
         break; // trailing comma
       }
-      parseStructLitField(p);
+      parseStructFieldInit(p);
     }
   }
   p.expect(TokenKind::RightCurly);
-  return p.complete(m, SyntaxKind::StructLitExpr);
+  return p.complete(m, SyntaxKind::StructExpr);
 }
 
 std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
@@ -281,7 +281,7 @@ std::optional<CompletedMarker> parseLhs(Parser &p) {
   case TokenKind::Identifier:
     // `Name { ... }` is a struct literal; a bare `Name` is an identifier.
     if (p.peekKind(1) == TokenKind::LeftCurly) {
-      return parseStructLitExpr(p);
+      return parseStructExpr(p);
     }
     return parseIdentExpr(p);
 

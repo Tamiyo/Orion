@@ -5,7 +5,7 @@
 struct Employee { id: int32, name: str }
 let bob = Employee { id: 1, name: "Bob" }
 let who = bob.name
-// CHECK:      StructLitExpr : struct
-// CHECK:        StructLitField
-// CHECK:        StructLitField
+// CHECK:      StructExpr : struct
+// CHECK:        StructFieldInit
+// CHECK:        StructFieldInit
 // CHECK:      FieldAccessExpr : str

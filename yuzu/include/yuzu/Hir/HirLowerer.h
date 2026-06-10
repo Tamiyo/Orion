@@ -64,11 +64,11 @@ private:
   const Expr *lowerParenExpr(ast::ParenExpr expr);
   const Expr *lowerCallExpr(ast::CallExpr expr);
   const IdentExpr *lowerIdentExpr(ast::IdentExpr expr);
-  const Expr *lowerFromExpr(ast::FromExpr expr);
-  const Expr *lowerSelectExpr(ast::SelectExpr expr);
+  const Expr *lowerFromRel(ast::FromExpr expr);
+  const Expr *lowerSelectRel(ast::SelectExpr expr);
   const SelectItem *lowerSelectItem(ast::SelectItem item);
-  const Expr *lowerStructLitExpr(ast::StructLitExpr expr);
-  const StructLitField *lowerStructLitField(ast::StructLitField field);
+  const Expr *lowerStructExpr(ast::StructExpr expr);
+  const StructFieldInit *lowerStructFieldInit(ast::StructFieldInit field);
   const Expr *lowerFieldAccessExpr(ast::FieldAccessExpr expr);
 
   const Literal *lowerLiteralExpr(ast::Literal expr);

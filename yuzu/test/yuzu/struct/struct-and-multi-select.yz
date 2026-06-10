@@ -7,6 +7,6 @@ table points = Point
 let r = from points p |> select p.x as a, p.y as b
 // CHECK: StructStmt : struct
 // CHECK:   name=Point
-// CHECK: SelectExpr : relation
+// CHECK: SelectRel : relation
 // CHECK: FieldAccessExpr : int32
 // CHECK: FieldAccessExpr : int32

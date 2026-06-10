@@ -195,20 +195,20 @@ def FieldAccessExpr : Node<Expr> {
     );
 }
 
-/// One `name: value` initializer of a struct literal.
-def StructLitField : Node<AstNode> {
+/// One `name: value` field initializer of a struct expression.
+def StructFieldInit : Node<AstNode> {
     let Fields = (ins
         Child<Ident>:$name,
         Child<Expr>:$value
     );
 }
 
-/// A struct literal: `Employee { id: 1, name: "Bob" }`. `name` is the struct
+/// A struct expression: `Employee { id: 1, name: "Bob" }`. `name` is the struct
 /// type; each field initializes a declared field by name.
-def StructLitExpr : Node<Expr> {
+def StructExpr : Node<Expr> {
     let Fields = (ins
         Child<Ident>:$name,
-        Children<StructLitField>:$fields
+        Children<StructFieldInit>:$fields
     );
 }
 
