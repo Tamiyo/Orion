@@ -6,6 +6,7 @@
 #include "utils/TreeUtils.h"
 
 #include <llvm/ADT/StringRef.h>
+#include <llvm/Support/FormatVariadic.h>
 #include <llvm/TableGen/Error.h>
 #include <llvm/TableGen/Record.h>
 
@@ -162,7 +163,8 @@ std::string formatParams(const std::vector<NamedField> &fields,
 /// `Custom<Id>:$id`) that get treated like any other field — storage,
 /// accessor, ctor param. `HirKind` is always implicit (every concrete
 /// Node pins it via its parent constructor).
-void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
+void emitBaseClass(CodeFormatter &fmt, llvm::StringRef treeName,
+                   const llvm::Record *base) {
   const std::string name = base->getName().str();
   const llvm::StringRef summary = base->getValueAsString("Summary");
   const std::vector<NamedField> ownFields = parseFields(base);
@@ -174,7 +176,8 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   fmt.line("public:");
   {
     auto body = fmt.block();
-    fmt.line("[[nodiscard]] HirKind getKind() const { return kind; }");
+    fmt.linef("[[nodiscard]] {0}Kind getKind() const {{ return kind; }",
+              treeName);
     for (const NamedField &f : ownFields) {
       const std::string accessor = "get" + capitalize(f.name);
       const std::string type = fieldRefType(f.kind);
@@ -188,7 +191,8 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
   {
     auto body = fmt.block();
     // Ctor: (HirKind kind, ...own fields). Stores kind + each own field.
-    const std::string params = formatParams(ownFields, "HirKind kind");
+    const std::string params =
+        formatParams(ownFields, llvm::formatv("{0}Kind kind", treeName).str());
     fmt.linef("{0}({1})", name, params);
     {
       auto inner = fmt.block();
@@ -200,7 +204,7 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
     }
     fmt.linef("{0}() = delete;", name);
     fmt.line("");
-    fmt.line("HirKind kind;");
+    fmt.linef("{0}Kind kind;", treeName);
     for (const NamedField &f : ownFields) {
       fmt.linef("{0} {1};", fieldStorageType(f.kind), f.name);
     }
@@ -213,7 +217,8 @@ void emitBaseClass(CodeFormatter &fmt, const llvm::Record *base) {
 /// `Expr` carrying a `Type *`) which contribute to the ctor signature
 /// alongside whatever's inherited from further up the chain. `isA` is a
 /// `HirKind` range check between the `<V>_FIRST` / `<V>_LAST` sentinels.
-void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
+void emitVariantClass(CodeFormatter &fmt, llvm::StringRef treeName,
+                      const llvm::Record *variant) {
   const std::string name = variant->getName().str();
   const std::string parentName =
       variant->getValueAsDef("Parent")->getName().str();
@@ -231,18 +236,18 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
   {
     auto body = fmt.block();
 
-    fmt.line("[[nodiscard]] static bool isA(HirKind kind) {");
+    fmt.linef("[[nodiscard]] static bool isA({0}Kind kind) {{", treeName);
     {
       auto inner = fmt.block();
-      fmt.linef("return kind > HirKind::{0}_FIRST "
-                "&& kind < HirKind::{0}_LAST;",
-                sentinel);
+      fmt.linef("return kind > {0}Kind::{1}_FIRST "
+                "&& kind < {0}Kind::{1}_LAST;",
+                treeName, sentinel);
     }
     fmt.line("}");
     fmt.line("");
 
-    fmt.linef("[[nodiscard]] static const {0} *cast(const HirNode *node) {{",
-              name);
+    fmt.linef("[[nodiscard]] static const {0} *cast(const {1}Node *node) {{",
+              name, treeName);
     {
       auto inner = fmt.block();
       fmt.line("if (!isA(node->getKind())) {");
@@ -271,7 +276,7 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
   {
     auto body = fmt.block();
     // Ctor signature: (HirKind kind, ...own, ...inherited).
-    std::string params = "HirKind kind";
+    std::string params = llvm::formatv("{0}Kind kind", treeName).str();
     for (const NamedField &f : ownFields) {
       params += ", ";
       params += fieldRefType(f.kind);
@@ -315,7 +320,8 @@ void emitVariantClass(CodeFormatter &fmt, const llvm::Record *variant) {
 /// Emit a concrete Node class. Constructor takes own fields first,
 /// then inherited (variant chain) fields last. `HirKind` is pinned
 /// from the node's own name and forwarded to the parent.
-void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
+void emitNodeClass(CodeFormatter &fmt, llvm::StringRef treeName,
+                   const llvm::Record *node) {
   const std::string name = node->getName().str();
   const std::string parentName = node->getValueAsDef("Parent")->getName().str();
   const llvm::StringRef summary = node->getValueAsString("Summary");
@@ -349,12 +355,14 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
       params += f.name;
     }
     if (ownFields.empty() && inheritedFields.empty()) {
-      fmt.linef("explicit {0}() : {1}(HirKind::{0}) {{}", name, parentName);
+      fmt.linef("explicit {0}() : {1}({2}Kind::{0}) {{}", name, parentName,
+                treeName);
     } else {
       fmt.linef("{0}({1})", name, params);
       {
         auto inner = fmt.block();
-        std::string init = parentName + "(HirKind::" + name;
+        std::string init =
+            llvm::formatv("{0}({1}Kind::{2}", parentName, treeName, name).str();
         for (const NamedField &f : inheritedFields) {
           init += ", " + f.name;
         }
@@ -367,13 +375,13 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
     }
     fmt.line("");
 
-    fmt.linef("[[nodiscard]] static bool isA(HirKind kind) "
-              "{{ return kind == HirKind::{0}; }",
-              name);
+    fmt.linef("[[nodiscard]] static bool isA({1}Kind kind) "
+              "{{ return kind == {1}Kind::{0}; }",
+              name, treeName);
     fmt.line("");
 
-    fmt.linef("[[nodiscard]] static const {0} *cast(const HirNode *node) {{",
-              name);
+    fmt.linef("[[nodiscard]] static const {0} *cast(const {1}Node *node) {{",
+              name, treeName);
     {
       auto inner = fmt.block();
       fmt.line("if (!isA(node->getKind())) {");
@@ -409,6 +417,7 @@ void emitNodeClass(CodeFormatter &fmt, const llvm::Record *node) {
 
 void HirNodeGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
+  const llvm::StringRef treeName = findTreeName(records, "Base");
   const llvm::Record *base = findBase(records);
 
   std::vector<const llvm::Record *> variants =
@@ -427,7 +436,7 @@ void HirNodeGenerator::generate(const llvm::RecordKeeper &records) {
   emitEnums(fmt, records);
 
   // Grammar root next: every Variant/Node inherits transitively from it.
-  emitBaseClass(fmt, base);
+  emitBaseClass(fmt, treeName, base);
 
   // Forward-declare every Variant and Node so accessor signatures (and
   // ArrayRef element types) can name them in either order.
@@ -442,11 +451,11 @@ void HirNodeGenerator::generate(const llvm::RecordKeeper &records) {
   }
 
   for (const llvm::Record *v : variants) {
-    emitVariantClass(fmt, v);
+    emitVariantClass(fmt, treeName, v);
   }
 
   for (const llvm::Record *n : nodes) {
-    emitNodeClass(fmt, n);
+    emitNodeClass(fmt, treeName, n);
   }
 
   fmt.linef("} // namespace {0}", ns);

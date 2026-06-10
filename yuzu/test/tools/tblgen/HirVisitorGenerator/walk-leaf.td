@@ -10,6 +10,7 @@ def Int64 : Native<"int64_t"> { let IsTrivial = 1; }
 
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let TreeName = "Hir";
 }
 
 def TestExpr : Variant<TestRoot>;

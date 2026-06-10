@@ -26,6 +26,7 @@ class Def {
 /// emitted types in.
 class Base : Def {
     string Namespace = "";
+    string TreeName = "";
     dag Fields = (ins);
 }
 

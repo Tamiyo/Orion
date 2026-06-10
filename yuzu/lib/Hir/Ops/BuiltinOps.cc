@@ -3,13 +3,14 @@
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/Ops/Trait.h"
-#include "yuzu/Hir/Types/Type.h"
 #include "yuzu/Hir/Types/TypeCoercion.h"
+#include "yuzu/Types/Type.h"
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/FormatVariadic.h>
 
 namespace yuzu::hir {
+using namespace yuzu::types;
 namespace {
 
 /// "operator can't be applied to these operands" diagnostic, anchored across

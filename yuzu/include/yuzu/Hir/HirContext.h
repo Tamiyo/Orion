@@ -36,7 +36,7 @@ public:
       : diagnostics(diagnostics), sourceId(sourceId) {
 
     auto &typeFactory = typeContext.getTypeFactory();
-    for (const auto &[kind, name] : scalarBuiltins) {
+    for (const auto &[kind, name] : types::scalarBuiltins) {
       const std::u32string_view interned = stringInterner.intern(name);
       symbolTable.bindType(interned, typeFactory.getScalarTy(kind));
     }

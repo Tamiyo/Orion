@@ -49,13 +49,13 @@ public:
     return it->second;
   }
 
-  // Type namespace (a function's `[T]` params today), separate from the value
-  // namespace so a value `T` and a type `T` don't collide.
-  void bindType(std::u32string_view name, const Type *type) {
+  // types::Type namespace (a function's `[T]` params today), separate from the
+  // value namespace so a value `T` and a type `T` don't collide.
+  void bindType(std::u32string_view name, const types::Type *type) {
     types[name] = type;
   }
 
-  const Type *lookupType(std::u32string_view name) const {
+  const types::Type *lookupType(std::u32string_view name) const {
     const auto it = types.find(name);
     return it == types.end() ? nullptr : it->second;
   }
@@ -63,19 +63,20 @@ public:
   // Table namespace: relations registered by `table` declarations. Kept apart
   // from the value namespace so a table is reachable only from a query's
   // `from`, never as an ordinary host value.
-  void bindTable(std::u32string_view name, const RelationType *relation) {
+  void bindTable(std::u32string_view name,
+                 const types::RelationType *relation) {
     tables[name] = relation;
   }
 
-  const RelationType *lookupTable(std::u32string_view name) const {
+  const types::RelationType *lookupTable(std::u32string_view name) const {
     const auto it = tables.find(name);
     return it == tables.end() ? nullptr : it->second;
   }
 
 private:
   llvm::DenseMap<std::u32string_view, Binding> bindings;
-  llvm::DenseMap<std::u32string_view, const Type *> types;
-  llvm::DenseMap<std::u32string_view, const RelationType *> tables;
+  llvm::DenseMap<std::u32string_view, const types::Type *> types;
+  llvm::DenseMap<std::u32string_view, const types::RelationType *> tables;
   HirContext &ctx;
   HirScopeKind kind;
 };

@@ -5,7 +5,7 @@
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/Ops/Op.h"
-#include "yuzu/Hir/Types/Type.h"
+#include "yuzu/Types/Type.h"
 
 #include <gtest/gtest.h>
 
@@ -15,6 +15,7 @@
 namespace {
 
 using namespace yuzu::hir;
+using namespace yuzu::types;
 using yuzu::diagnostics::DiagnosticsEngine;
 using yuzu::diagnostics::SourceId;
 

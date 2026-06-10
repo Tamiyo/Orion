@@ -1,4 +1,4 @@
-#include "yuzu/Hir/Types/Type.h"
+#include "yuzu/Types/Type.h"
 
 #include <gtest/gtest.h>
 
@@ -6,7 +6,7 @@
 
 namespace {
 
-using namespace yuzu::hir;
+using namespace yuzu::types;
 
 // `canRepresent` is overloaded on int64_t / double, so the test args are
 // spelled `int64_t{...}` and double literals to bind the intended overload

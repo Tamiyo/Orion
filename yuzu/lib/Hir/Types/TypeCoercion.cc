@@ -3,11 +3,12 @@
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/Types/Adjustment.h"
-#include "yuzu/Hir/Types/Type.h"
+#include "yuzu/Types/Type.h"
 
 #include <optional>
 
 namespace yuzu::hir {
+using namespace yuzu::types;
 namespace {
 /// Casts an expression from one type to another, recording the adjustment
 /// for later application.

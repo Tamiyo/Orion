@@ -1,7 +1,7 @@
 #ifndef YUZU_HIR_OP_OP_H
 #define YUZU_HIR_OP_OP_H
 
-#include "yuzu/Hir/Types/Type.h"
+#include "yuzu/Types/Type.h"
 
 #include <llvm/ADT/ArrayRef.h>
 
@@ -30,8 +30,8 @@ public:
   /// Called during lowering so the constructed `CallExpr` carries the
   /// right type from the start. Subclasses implement per-operator rules
   /// (overload selection, coercion checks, error diagnosis).
-  virtual const Type *resolve(llvm::ArrayRef<const Expr *> args,
-                              HirContext &ctx) const = 0;
+  virtual const types::Type *resolve(llvm::ArrayRef<const Expr *> args,
+                                     HirContext &ctx) const = 0;
 
 protected:
   explicit Op(OpKind k) : kind(k) {}

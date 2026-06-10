@@ -22,6 +22,10 @@ enum ActionType {
   GenHirNodeDecls,
   GenHirPrinterDecls,
   GenHirVisitorDecls,
+  GenAnfBuilderDecls,
+  GenAnfKindDecls,
+  GenAnfNodeDecls,
+  GenAnfVisitorDecls,
   GenSyntaxKindDecls,
   GenTokenKindDecls,
   GenTextMateGrammar,
@@ -42,6 +46,14 @@ static llvm::cl::opt<ActionType> action(
                                 "Generate HIR pretty-printer declarations")),
     llvm::cl::values(clEnumValN(GenHirVisitorDecls, "gen-hir-visitor-decls",
                                 "Generate HIR visitor declarations")),
+    llvm::cl::values(clEnumValN(GenAnfBuilderDecls, "gen-anf-builder-decls",
+                                "Generate AnfBuilder declarations")),
+    llvm::cl::values(clEnumValN(GenAnfKindDecls, "gen-anf-kind-decls",
+                                "Generate AnfKind declarations")),
+    llvm::cl::values(clEnumValN(GenAnfNodeDecls, "gen-anf-node-decls",
+                                "Generate ANF node and variant declarations")),
+    llvm::cl::values(clEnumValN(GenAnfVisitorDecls, "gen-anf-visitor-decls",
+                                "Generate ANF visitor declarations")),
     llvm::cl::values(clEnumValN(GenSyntaxKindDecls, "gen-syntax-kind-decls",
                                 "Generate SyntaxKind declarations")),
     llvm::cl::values(clEnumValN(GenTokenKindDecls, "gen-token-kind-decls",
@@ -68,6 +80,22 @@ static bool YuzuTableGenMain(llvm::raw_ostream &os,
     yuzu::tools::HirPrinterGenerator(os).run(records);
     break;
   case GenHirVisitorDecls:
+    yuzu::tools::HirVisitorGenerator(os).run(records);
+    break;
+  // The Hir* node/kind/builder/visitor generators are tree-agnostic — they read
+  // the class-name prefix from each schema's `TreeName`. ANF reuses them to
+  // emit `Anf*` outputs (only the HIR *printer* stays HIR-specific). A future
+  // cleanup could rename these generator classes to drop the `Hir` prefix.
+  case GenAnfBuilderDecls:
+    yuzu::tools::HirBuilderGenerator(os).run(records);
+    break;
+  case GenAnfKindDecls:
+    yuzu::tools::HirKindGenerator(os).run(records);
+    break;
+  case GenAnfNodeDecls:
+    yuzu::tools::HirNodeGenerator(os).run(records);
+    break;
+  case GenAnfVisitorDecls:
     yuzu::tools::HirVisitorGenerator(os).run(records);
     break;
   case GenSyntaxKindDecls:

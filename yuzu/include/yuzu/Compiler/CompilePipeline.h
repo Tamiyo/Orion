@@ -20,7 +20,6 @@ struct CompileOptions {
   bool debugLexer = true;
   bool debugAst = true;
   bool debugHir = true;
-  bool debugMlir = true;
 };
 
 /// One-shot compile. Builds fresh diagnostics + HIR state, runs the

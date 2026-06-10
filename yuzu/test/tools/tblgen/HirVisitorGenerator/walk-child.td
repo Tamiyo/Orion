@@ -14,6 +14,7 @@ def TestOp : Enum<"uint8_t"> {
 
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let TreeName = "Hir";
 }
 
 def TestExpr : Variant<TestRoot>;

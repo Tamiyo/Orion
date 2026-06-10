@@ -25,8 +25,8 @@ namespace yuzu::hir {
                                                                                \
     [[nodiscard]] std::string_view getName() const override { return Name; }   \
                                                                                \
-    const Type *resolve(llvm::ArrayRef<const Expr *> args,                     \
-                        HirContext &ctx) const override;                       \
+    const types::Type *resolve(llvm::ArrayRef<const Expr *> args,              \
+                               HirContext &ctx) const override;                \
   };
 
 YUZU_SINGLETON_OP(Add)

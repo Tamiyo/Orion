@@ -15,7 +15,6 @@ yuzu::CompileOptions opts(llvm::raw_ostream &os) {
       .debugLexer = false,
       .debugAst = false,
       .debugHir = true,
-      .debugMlir = false,
   };
 }
 

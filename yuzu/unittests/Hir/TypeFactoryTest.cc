@@ -1,13 +1,13 @@
-#include "yuzu/Hir/Types/TypeFactory.h"
+#include "yuzu/Types/TypeFactory.h"
 
-#include "yuzu/Hir/Types/Type.h"
+#include "yuzu/Types/Type.h"
 #include "yuzu/Util/StringInterner.h"
 
 #include <gtest/gtest.h>
 
 namespace {
 
-using namespace yuzu::hir;
+using namespace yuzu::types;
 
 // `TypeFactory` now depends on a `StringInterner` for name storage, so the
 // fixture owns one and constructs the interner against it.

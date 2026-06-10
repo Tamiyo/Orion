@@ -175,20 +175,21 @@ void emitBaseNodes(CodeFormatter &fmt,
 // asString(HirKind)
 //===----------------------------------------------------------------------===//
 
-void emitAsStringVariant(CodeFormatter &fmt, const Member &v) {
+void emitAsStringVariant(CodeFormatter &fmt, llvm::StringRef treeName,
+                         const Member &v) {
   const std::string name = v.record->getName().str();
   const std::string upper = llvm::StringRef(name).upper();
-  fmt.linef("case HirKind::{0}_FIRST: return \"{0}_FIRST\";", upper);
-  fmt.linef("case HirKind::{0}: return \"{0}\";", name);
+  fmt.linef("case {0}Kind::{1}_FIRST: return \"{1}_FIRST\";", treeName, upper);
+  fmt.linef("case {0}Kind::{1}: return \"{1}\";", treeName, name);
   for (const Member &c : v.children) {
     if (c.isVariant) {
-      emitAsStringVariant(fmt, c);
+      emitAsStringVariant(fmt, treeName, c);
     } else {
       const std::string n = c.record->getName().str();
-      fmt.linef("case HirKind::{0}: return \"{0}\";", n);
+      fmt.linef("case {0}Kind::{1}: return \"{1}\";", treeName, n);
     }
   }
-  fmt.linef("case HirKind::{0}_LAST: return \"{0}_LAST\";", upper);
+  fmt.linef("case {0}Kind::{1}_LAST: return \"{1}_LAST\";", treeName, upper);
 }
 
 /// Emit `asString(HirKind)`, mapping every enumerator (including the
@@ -196,15 +197,16 @@ void emitAsStringVariant(CodeFormatter &fmt, const Member &v) {
 /// Keeping sentinel cases makes the switch exhaustive without any
 /// `default:` arm, silencing `-Wswitch` regardless of how the consumer
 /// compiles.
-void emitAsString(CodeFormatter &fmt, const std::vector<Member> &roots,
+void emitAsString(CodeFormatter &fmt, llvm::StringRef treeName,
+                  const std::vector<Member> &roots,
                   const std::vector<const llvm::Record *> &nodes) {
-  fmt.line("inline std::string asString(HirKind kind) {");
+  fmt.linef("inline std::string asString({0}Kind kind) {{", treeName);
   {
     auto body = fmt.block();
     fmt.line("switch (kind) {");
 
     for (const Member &v : roots) {
-      emitAsStringVariant(fmt, v);
+      emitAsStringVariant(fmt, treeName, v);
     }
 
     std::vector<const llvm::Record *> baseNodes;
@@ -214,16 +216,17 @@ void emitAsString(CodeFormatter &fmt, const std::vector<Member> &roots,
       }
     }
     std::sort(baseNodes.begin(), baseNodes.end(), byLoc);
-    fmt.line("case HirKind::NODES_FIRST: return \"NODES_FIRST\";");
+    fmt.linef("case {0}Kind::NODES_FIRST: return \"NODES_FIRST\";", treeName);
     for (const llvm::Record *n : baseNodes) {
-      fmt.linef("case HirKind::{0}: return \"{0}\";", n->getName().str());
+      fmt.linef("case {0}Kind::{1}: return \"{1}\";", treeName,
+                n->getName().str());
     }
-    fmt.line("case HirKind::NODES_LAST: return \"NODES_LAST\";");
+    fmt.linef("case {0}Kind::NODES_LAST: return \"NODES_LAST\";", treeName);
 
-    fmt.line("case HirKind::SYSTEM_FIRST: return \"SYSTEM_FIRST\";");
-    fmt.line("case HirKind::Error: return \"Error\";");
-    fmt.line("case HirKind::Tombstone: return \"Tombstone\";");
-    fmt.line("case HirKind::SYSTEM_LAST: return \"SYSTEM_LAST\";");
+    fmt.linef("case {0}Kind::SYSTEM_FIRST: return \"SYSTEM_FIRST\";", treeName);
+    fmt.linef("case {0}Kind::Error: return \"Error\";", treeName);
+    fmt.linef("case {0}Kind::Tombstone: return \"Tombstone\";", treeName);
+    fmt.linef("case {0}Kind::SYSTEM_LAST: return \"SYSTEM_LAST\";", treeName);
     fmt.line("}");
     fmt.line("");
     fmt.line("util::yuzu_unreachable();");
@@ -241,7 +244,8 @@ void emitAsString(CodeFormatter &fmt, const std::vector<Member> &roots,
 // one level at a time and `-Wswitch` enforces exhaustiveness — adding a
 // new direct child of `V` breaks every `switch (x.getXKind())`.
 
-void emitVariantKind(CodeFormatter &fmt, const Member &v) {
+void emitVariantKind(CodeFormatter &fmt, llvm::StringRef treeName,
+                     const Member &v) {
   const std::string name = v.record->getName().str();
 
   fmt.linef("enum class {0}Kind : uint8_t {{", name);
@@ -254,7 +258,7 @@ void emitVariantKind(CodeFormatter &fmt, const Member &v) {
   fmt.line("};");
   fmt.line("");
 
-  fmt.linef("inline {0}Kind to{0}Kind(HirKind kind) {{", name);
+  fmt.linef("inline {0}Kind to{0}Kind({1}Kind kind) {{", name, treeName);
   {
     auto body = fmt.block();
     fmt.line("switch (kind) {");
@@ -265,14 +269,16 @@ void emitVariantKind(CodeFormatter &fmt, const Member &v) {
         collectLeaves(c, leaves);
         for (std::size_t i = 0; i < leaves.size(); ++i) {
           if (i + 1 < leaves.size()) {
-            fmt.linef("case HirKind::{0}:", leaves[i]->getName().str());
+            fmt.linef("case {0}Kind::{1}:", treeName,
+                      leaves[i]->getName().str());
           } else {
-            fmt.linef("case HirKind::{0}: return {1}Kind::{2};",
+            fmt.linef("case {0}Kind::{1}: return {2}Kind::{3};", treeName,
                       leaves[i]->getName().str(), name, childName);
           }
         }
       } else {
-        fmt.linef("case HirKind::{0}: return {1}Kind::{0};", childName, name);
+        fmt.linef("case {0}Kind::{1}: return {2}Kind::{1};", treeName,
+                  childName, name);
       }
     }
     fmt.line("default: util::yuzu_unreachable();");
@@ -298,14 +304,15 @@ void emitVariantKind(CodeFormatter &fmt, const Member &v) {
 
   for (const Member &c : v.children) {
     if (c.isVariant) {
-      emitVariantKind(fmt, c);
+      emitVariantKind(fmt, treeName, c);
     }
   }
 }
 
-void emitVariantKinds(CodeFormatter &fmt, const std::vector<Member> &roots) {
+void emitVariantKinds(CodeFormatter &fmt, llvm::StringRef treeName,
+                      const std::vector<Member> &roots) {
   for (const Member &v : roots) {
-    emitVariantKind(fmt, v);
+    emitVariantKind(fmt, treeName, v);
   }
 }
 
@@ -313,6 +320,7 @@ void emitVariantKinds(CodeFormatter &fmt, const std::vector<Member> &roots) {
 
 void HirKindGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
+  const llvm::StringRef treeName = findTreeName(records, "Base");
 
   const std::vector<const llvm::Record *> variants =
       records.getAllDerivedDefinitions("Variant");
@@ -329,7 +337,7 @@ void HirKindGenerator::generate(const llvm::RecordKeeper &records) {
 
   fmt.linef("namespace {0} {{", ns);
   fmt.line("");
-  fmt.linef("enum class HirKind : {0} {{", getUnderlyingType(total));
+  fmt.linef("enum class {0}Kind : {1} {{", treeName, getUnderlyingType(total));
   {
     auto body = fmt.block();
     emitVariants(fmt, roots);
@@ -343,9 +351,9 @@ void HirKindGenerator::generate(const llvm::RecordKeeper &records) {
   }
   fmt.line("};");
   fmt.line("");
-  emitAsString(fmt, roots, nodes);
+  emitAsString(fmt, treeName, roots, nodes);
   fmt.line("");
-  emitVariantKinds(fmt, roots);
+  emitVariantKinds(fmt, treeName, roots);
   fmt.linef("} // namespace {0}", ns);
 }
 

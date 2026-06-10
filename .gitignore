@@ -1,4 +1,5 @@
 # Build Directories
+.claude/
 .vscode/
 .idea/
 build/
@@ -11,5 +12,10 @@ cmake-build-debug/
 # CMake
 compile_commands.json
 .cache
+
+# Built native extension + generated stub (emitted into the package dir)
+yuzu/python/yuzu/*.so
+yuzu/python/yuzu/_ext.pyi
+__pycache__/
 
 notes/

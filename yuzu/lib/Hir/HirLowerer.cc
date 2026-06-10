@@ -717,6 +717,7 @@ const Expr *HirLowerer::lowerFieldAccessExpr(ast::FieldAccessExpr expr) {
 
   const auto *hir =
       ctx.getBuilder().makeFieldAccessExpr(loweredBase, loweredField);
+
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }

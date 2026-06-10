@@ -19,11 +19,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   less \
   libgmock-dev \
   libgtest-dev \
+  libprotobuf-dev \
   libzstd-dev \
   locales \
   lsb-release \
   ninja-build \
   pkg-config \
+  protobuf-compiler \
+  python3-dev \
   python3-pip \
   software-properties-common \
   sudo \
@@ -33,7 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   zsh \
   && locale-gen en_US.UTF-8 \
   && rm -rf /var/lib/apt/lists/* \
-  && pip3 install --break-system-packages --no-cache-dir lit
+  && pip3 install --break-system-packages --no-cache-dir lit nanobind duckdb
 
 # LLVM/MLIR from apt.llvm.org. We avoid `llvm.sh ... all` because it pulls
 # in libc++/libc++abi dev headers, which drop a `cxxabi.h` into

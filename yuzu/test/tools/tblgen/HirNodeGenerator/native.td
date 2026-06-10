@@ -11,6 +11,7 @@ def TestFloat : Native<"double"> {}
 
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let TreeName = "Hir";
 }
 
 // CHECK-DAG: using TestInt64 = int64_t;

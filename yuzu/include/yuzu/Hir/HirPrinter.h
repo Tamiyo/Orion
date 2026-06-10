@@ -4,7 +4,7 @@
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/Types/Adjustment.h" // IWYU pragma: keep (printer reads adjustments)
-#include "yuzu/Hir/Types/Type.h" // IWYU pragma: keep (printer reads type kinds)
+#include "yuzu/Types/Type.h" // IWYU pragma: keep (printer reads type kinds)
 #include "yuzu/Util/ErrorHandling.h" // IWYU pragma: keep
 #include "yuzu/Util/Unicode.h" // IWYU pragma: keep (printers use writeUtf8)
 

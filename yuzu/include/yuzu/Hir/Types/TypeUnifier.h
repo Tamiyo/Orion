@@ -1,8 +1,8 @@
 #ifndef YUZU_HIR_TYPES_TYPEUNIFIER_H
 #define YUZU_HIR_TYPES_TYPEUNIFIER_H
 
-#include "yuzu/Hir/Types/Type.h"
-#include "yuzu/Hir/Types/TypeFactory.h"
+#include "yuzu/Types/Type.h"
+#include "yuzu/Types/TypeFactory.h"
 
 #include <llvm/Support/Allocator.h>
 
@@ -13,18 +13,18 @@ namespace yuzu::hir {
 
 class TypeUnifier {
 public:
-  explicit TypeUnifier(TypeFactory &types) : types(types) {}
+  explicit TypeUnifier(types::TypeFactory &types) : types(types) {}
 
   TypeUnifier(const TypeUnifier &) = delete;
   TypeUnifier &operator=(const TypeUnifier &) = delete;
 
-  const InferType *makeTypeHole(InferKind kind) {
-    const auto id = static_cast<InferId>(filled.size());
+  const types::InferType *makeTypeHole(types::InferKind kind) {
+    const auto id = static_cast<types::InferId>(filled.size());
     filled.push_back(nullptr);
-    return new (arena.Allocate<InferType>()) InferType(id, kind);
+    return new (arena.Allocate<types::InferType>()) types::InferType(id, kind);
   }
 
-  bool unify(const Type *a, const Type *b) {
+  bool unify(const types::Type *a, const types::Type *b) {
     a = find(a);
     b = find(b);
 
@@ -32,8 +32,8 @@ public:
       return true;
     }
 
-    const auto *ha = InferType::cast(a);
-    const auto *hb = InferType::cast(b);
+    const auto *ha = types::InferType::cast(a);
+    const auto *hb = types::InferType::cast(b);
 
     // two empty holes → merge their groups
     if (ha && hb) {
@@ -50,19 +50,20 @@ public:
       return fill(hb, a);
     }
 
-    // Type-parameter markers are interned by their declaration, so the same
+    // types::Type-parameter markers are interned by their declaration, so the
+    // same
     // `[T]` is one pointer (already caught by `a == b` above) and distinct
     // declarations are distinct pointers. Two markers that aren't pointer-equal
     // denote different parameters (e.g. a nested `[U]` vs an enclosing `[T]`)
     // and must not unify.
-    if (TypeParamType::cast(a) && TypeParamType::cast(b)) {
+    if (types::TypeParamType::cast(a) && types::TypeParamType::cast(b)) {
       return false;
     }
 
     // Function types aren't interned, so structurally-equal signatures are
     // distinct pointers — unify them component-wise (params then result).
-    const auto *fa = FuncType::cast(a);
-    const auto *fb = FuncType::cast(b);
+    const auto *fa = types::FuncType::cast(a);
+    const auto *fb = types::FuncType::cast(b);
     if (fa && fb) {
       if (fa->getArgTypes().size() != fb->getArgTypes().size()) {
         return false;
@@ -79,51 +80,51 @@ public:
     return false;
   }
 
-  const Type *resolve(const Type *t) {
+  const types::Type *resolve(const types::Type *t) {
     const auto *r = find(t);
-    const auto *hole = InferType::cast(r);
+    const auto *hole = types::InferType::cast(r);
 
     if (!hole) {
       return r;
     }
 
     switch (hole->getInferKind()) {
-    case InferKind::Int:
+    case types::InferKind::Int:
       return types.getInt64Type();
-    case InferKind::Float:
+    case types::InferKind::Float:
       return types.getFloat64Type();
-    case InferKind::General:
+    case types::InferKind::General:
       return types.getErrorType();
     }
   }
 
 private:
-  static uint32_t index(const InferType *type) {
+  static uint32_t index(const types::InferType *type) {
     return static_cast<uint32_t>(type->getId());
   }
 
-  const Type *find(const Type *t) {
-    const auto *hole = InferType::cast(t);
+  const types::Type *find(const types::Type *t) {
+    const auto *hole = types::InferType::cast(t);
     if (!hole) {
       return t;
     }
 
-    const Type *filling = filled[index(hole)];
+    const types::Type *filling = filled[index(hole)];
     if (!filling) {
       return t;
     }
 
-    const Type *root = find(filling); // a hole may point at another hole
-    filled[index(hole)] = root;       // path compression
+    const types::Type *root = find(filling); // a hole may point at another hole
+    filled[index(hole)] = root;              // path compression
     return root;
   }
 
   // Fill a hole with a concrete type, within its kind.
-  bool fill(const InferType *hole, const Type *concrete) {
-    const InferKind kind = hole->getInferKind();
-    const bool ok = kind == InferKind::General ||
-                    (kind == InferKind::Int && concrete->isInt()) ||
-                    (kind == InferKind::Float && concrete->isFloat());
+  bool fill(const types::InferType *hole, const types::Type *concrete) {
+    const types::InferKind kind = hole->getInferKind();
+    const bool ok = kind == types::InferKind::General ||
+                    (kind == types::InferKind::Int && concrete->isInt()) ||
+                    (kind == types::InferKind::Float && concrete->isFloat());
     if (!ok) {
       return false;
     }
@@ -134,14 +135,15 @@ private:
 
   // Merge two empty holes into one group. The root keeps the more specific
   // kind — a General hole yields to an Int/Float partner; Int vs Float clash.
-  bool merge(const InferType *a, const InferType *b) {
-    const InferKind ka = a->getInferKind();
-    const InferKind kb = b->getInferKind();
-    if (ka != kb && ka != InferKind::General && kb != InferKind::General) {
+  bool merge(const types::InferType *a, const types::InferType *b) {
+    const types::InferKind ka = a->getInferKind();
+    const types::InferKind kb = b->getInferKind();
+    if (ka != kb && ka != types::InferKind::General &&
+        kb != types::InferKind::General) {
       return false; // Int vs Float
     }
     // Point one hole at the other so the root carries the non-General kind.
-    if (kb == InferKind::General) {
+    if (kb == types::InferKind::General) {
       filled[index(b)] = a; // b → a (a is the root)
     } else {
       filled[index(a)] = b; // a → b (b is the root)
@@ -150,8 +152,8 @@ private:
   }
 
   llvm::BumpPtrAllocator arena;
-  std::vector<const Type *> filled;
-  TypeFactory &types;
+  std::vector<const types::Type *> filled;
+  types::TypeFactory &types;
 };
 
 } // namespace yuzu::hir

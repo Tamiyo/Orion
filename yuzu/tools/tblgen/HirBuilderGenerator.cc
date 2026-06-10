@@ -171,19 +171,20 @@ void emitMakeMethod(CodeFormatter &fmt, const llvm::Record *node) {
 
 void HirBuilderGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
+  const llvm::StringRef treeName = findTreeName(records, "Base");
   std::vector<const llvm::Record *> nodes =
       records.getAllDerivedDefinitions("Node");
   std::sort(nodes.begin(), nodes.end(), byLoc);
 
   fmt.linef("namespace {0} {{", ns);
   fmt.line("");
-  fmt.line("class HirBuilder {");
+  fmt.linef("class {0}Builder {{", treeName);
   fmt.line("public:");
   {
     auto body = fmt.block();
-    fmt.line("HirBuilder() = default;");
-    fmt.line("HirBuilder(const HirBuilder &) = delete;");
-    fmt.line("HirBuilder &operator=(const HirBuilder &) = delete;");
+    fmt.linef("{0}Builder() = default;", treeName);
+    fmt.linef("{0}Builder(const {0}Builder &) = delete;", treeName);
+    fmt.linef("{0}Builder &operator=(const {0}Builder &) = delete;", treeName);
     fmt.line("");
     for (const llvm::Record *n : nodes) {
       emitMakeMethod(fmt, n);
@@ -192,7 +193,7 @@ void HirBuilderGenerator::generate(const llvm::RecordKeeper &records) {
   fmt.line("private:");
   {
     auto body = fmt.block();
-    fmt.line("HirId allocId() { return HirId{nextId++}; }");
+    fmt.linef("{0}Id allocId() {{ return {0}Id{{nextId++}; }", treeName);
     fmt.line("");
     fmt.line("uint32_t nextId = 0;");
     fmt.line("llvm::BumpPtrAllocator allocator;");

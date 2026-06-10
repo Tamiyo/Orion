@@ -60,6 +60,7 @@ def Mutability : Enum<"uint8_t"> {
 /// `Namespace` is the C++ namespace the codegen wraps emitted types in.
 def HirNode : Base {
     let Namespace = "yuzu::hir";
+    let TreeName = "Hir";
     let Fields = (ins Custom<Id>:$id);
 }
 
@@ -199,12 +200,12 @@ def StringLit : Node<Literal> {
 }
 
 //===----------------------------------------------------------------------===//
-// Type expressions
+// types::Type expressions
 //===----------------------------------------------------------------------===//
 
 /// A written type annotation — the `int8` in `let x: int8 = …`. Mirrors
 /// `ast::TypeAnnotation` so HIR stays self-contained: the typer resolves a
-/// `TypeAnnotation` to a semantic `Type` instead of reaching back into the AST.
+/// `TypeAnnotation` to a semantic `types::Type` instead of reaching back into the AST.
 /// `NamedType` and `FuncType` are modeled; record type syntax is rejected
 /// during lowering until the typer grows support.
 def TypeAnnotation : Variant<HirNode> {}
@@ -219,7 +220,7 @@ def NamedTypeAnnotation : Node<TypeAnnotation> {
 }
 
 /// A function type `(params...) -> result`, e.g. `(int32) -> int32`. Named
-/// `FuncType` to avoid colliding with the semantic `FuncType` (in `Type.h`)
+/// `FuncType` to avoid colliding with the semantic `FuncType` (in `types::Type.h`)
 /// that it resolves to.
 def FuncTypeAnnotation : Node<TypeAnnotation> {
     let Fields = (ins
@@ -270,7 +271,7 @@ def TableStmt : Node<Stmt> {
 }
 
 /// `let name [: type] = expr`. `annotation` is the written type, null when
-/// the binding is inferred from its initializer. The resolved `Type` lives
+/// the binding is inferred from its initializer. The resolved `types::Type` lives
 /// in the `HirContext` type side table, keyed by this node's `HirId`.
 def LetStmt : Node<Stmt> {
     let Fields =  (ins
@@ -291,7 +292,7 @@ def AssignStmt : Node<Stmt> {
 }
 
 /// One `name: type` function parameter. `annotation` is the written type
-/// (always present in well-formed source); the resolved `Type` lives in the
+/// (always present in well-formed source); the resolved `types::Type` lives in the
 /// type side table keyed by this node's id.
 def Param : Node<HirNode> {
     let Fields = (ins

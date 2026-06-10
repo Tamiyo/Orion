@@ -157,15 +157,15 @@ void emitVisit(CodeFormatter &fmt, const llvm::Record *node) {
 /// over `HirKind` for every concrete Node, forwarding to its own
 /// `traverseX` via `derived()`. Variants and System kinds can't appear
 /// on a concrete node so they fall through to `yuzu_unreachable`.
-void emitDispatcher(CodeFormatter &fmt,
+void emitDispatcher(CodeFormatter &fmt, llvm::StringRef treeName,
                     const std::vector<const llvm::Record *> &nodes) {
-  fmt.line("void visit(const HirNode *node) {");
+  fmt.linef("void visit(const {0}Node *node) {{", treeName);
   {
     auto body = fmt.block();
     fmt.line("switch (node->getKind()) {");
     for (const llvm::Record *n : nodes) {
       const std::string name = n->getName().str();
-      fmt.linef("case HirKind::{0}:", name);
+      fmt.linef("case {0}Kind::{1}:", treeName, name);
       fmt.linef("  return derived().traverse{0}({0}::cast(node));", name);
     }
     fmt.line("default:");
@@ -180,6 +180,7 @@ void emitDispatcher(CodeFormatter &fmt,
 
 void HirVisitorGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
+  const llvm::StringRef treeName = findTreeName(records, "Base");
 
   std::vector<const llvm::Record *> nodes =
       records.getAllDerivedDefinitions("Node");
@@ -189,11 +190,11 @@ void HirVisitorGenerator::generate(const llvm::RecordKeeper &records) {
   fmt.line("");
 
   fmt.line("template <typename Derived>");
-  fmt.line("class HirVisitor {");
+  fmt.linef("class {0}Visitor {{", treeName);
   fmt.line("public:");
   {
     auto pub = fmt.block();
-    emitDispatcher(fmt, nodes);
+    emitDispatcher(fmt, treeName, nodes);
   }
   fmt.line("");
   // Overridable hooks are protected: external code shouldn't call

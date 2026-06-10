@@ -7,6 +7,7 @@ include "yuzu/DSL/TreeBase.td"
 
 def TestRoot : Base {
   let Namespace = "custom::hir::pkg";
+  let TreeName = "Hir";
 }
 
 // CHECK:      namespace custom::hir::pkg {

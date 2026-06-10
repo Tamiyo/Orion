@@ -40,14 +40,14 @@ public:
   }
 
   /// Bind a type name (a `[T]` param) in the current (innermost) scope.
-  void bindType(std::u32string_view name, const Type *type) {
+  void bindType(std::u32string_view name, const types::Type *type) {
     scopes.back().bindType(name, type);
   }
 
   /// First type bound to `name`, innermost scope outward; null if unbound.
-  const Type *lookupType(std::u32string_view name) const {
+  const types::Type *lookupType(std::u32string_view name) const {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-      if (const Type *type = it->lookupType(name)) {
+      if (const types::Type *type = it->lookupType(name)) {
         return type;
       }
     }
@@ -55,14 +55,15 @@ public:
   }
 
   /// Register a relation as a table in the current (innermost) scope.
-  void bindTable(std::u32string_view name, const RelationType *relation) {
+  void bindTable(std::u32string_view name,
+                 const types::RelationType *relation) {
     scopes.back().bindTable(name, relation);
   }
 
   /// First table bound to `name`, innermost scope outward; null if unbound.
-  const RelationType *lookupTable(std::u32string_view name) const {
+  const types::RelationType *lookupTable(std::u32string_view name) const {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-      if (const RelationType *relation = it->lookupTable(name)) {
+      if (const types::RelationType *relation = it->lookupTable(name)) {
         return relation;
       }
     }

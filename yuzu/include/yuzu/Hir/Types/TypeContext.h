@@ -3,9 +3,9 @@
 
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/Ops/Trait.h"
-#include "yuzu/Hir/Types/Type.h"
-#include "yuzu/Hir/Types/TypeFactory.h"
 #include "yuzu/Hir/Types/TypeUnifier.h"
+#include "yuzu/Types/Type.h"
+#include "yuzu/Types/TypeFactory.h"
 #include "yuzu/Util/SideTable.h"
 #include "yuzu/Util/StringInterner.h"
 
@@ -22,35 +22,39 @@ public:
   }
 
   [[nodiscard]] TraitRegistry &getTraitRegistry() { return traits; }
-  [[nodiscard]] TypeFactory &getTypeFactory() { return typeFactory; }
+  [[nodiscard]] types::TypeFactory &getTypeFactory() { return typeFactory; }
 
   // Record — a node's type, which may be a hole until concretized.
-  void bind(const HirNode *node, const Type *type) {
+  void bind(const HirNode *node, const types::Type *type) {
     typeTable.bind(node->getId(), type);
   }
 
-  [[nodiscard]] const Type *typeOf(const HirNode *node) const {
+  [[nodiscard]] const types::Type *typeOf(const HirNode *node) const {
     const auto *type = typeTable.get(node->getId());
     return type ? *type : nullptr;
   }
 
   // Solver.
-  const InferType *makeTypeHole(InferKind kind) {
+  const types::InferType *makeTypeHole(types::InferKind kind) {
     return unifier.makeTypeHole(kind);
   }
 
-  bool unifyTypes(const Type *a, const Type *b) { return unifier.unify(a, b); }
+  bool unifyTypes(const types::Type *a, const types::Type *b) {
+    return unifier.unify(a, b);
+  }
 
-  const Type *resolveType(const Type *t) { return unifier.resolve(t); }
+  const types::Type *resolveType(const types::Type *t) {
+    return unifier.resolve(t);
+  }
 
   /// Resolve `node`'s recorded type in place — its hole follows its fill or
   /// defaults — and return the concrete result. Null if `node` is untyped.
-  const Type *concretize(const HirNode *node) {
-    const Type *type = typeOf(node);
+  const types::Type *concretize(const HirNode *node) {
+    const types::Type *type = typeOf(node);
     if (!type) {
       return nullptr;
     }
-    const Type *resolved = unifier.resolve(type);
+    const types::Type *resolved = unifier.resolve(type);
     bind(node, resolved);
     return resolved;
   }
@@ -60,7 +64,7 @@ private:
   /// A null result means "same type as the operand" (arithmetic, unary `-`);
   /// a fixed result is given explicitly (comparisons/logical → bool).
   void registerBuiltinTraits() {
-    const Type *boolType = typeFactory.getBoolType();
+    const types::Type *boolType = typeFactory.getBoolType();
 
     // Declare each operator trait and the result it yields over Self: null
     // means Self (arithmetic), `bool` for comparison/logical.
@@ -74,13 +78,13 @@ private:
     }
 
     // Numerics: arithmetic, unary +/-, equality, and ordering.
-    const Type *numerics[] = {
+    const types::Type *numerics[] = {
         typeFactory.getInt8Type(),    typeFactory.getInt16Type(),
         typeFactory.getInt32Type(),   typeFactory.getInt64Type(),
         typeFactory.getUInt8Type(),   typeFactory.getUInt16Type(),
         typeFactory.getUInt32Type(),  typeFactory.getUInt64Type(),
         typeFactory.getFloat32Type(), typeFactory.getFloat64Type()};
-    for (const Type *n : numerics) {
+    for (const types::Type *n : numerics) {
       for (std::u32string_view t :
            {U"Add", U"Sub", U"Mul", U"Div", U"Pow", U"Pos", U"Neg", U"Eq",
             U"Neq", U"Lt", U"Lte", U"Gt", U"Gte"}) {
@@ -100,9 +104,9 @@ private:
     }
   }
 
-  TypeFactory typeFactory;
+  types::TypeFactory typeFactory;
   TypeUnifier unifier;
-  util::SideTable<HirId, const Type *> typeTable;
+  util::SideTable<HirId, const types::Type *> typeTable;
   TraitRegistry traits;
 };
 } // namespace yuzu::hir

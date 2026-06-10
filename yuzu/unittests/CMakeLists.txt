@@ -13,6 +13,7 @@ function(add_yuzu_unittest test_name)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 
+add_subdirectory(Anf)
 add_subdirectory(Ast)
 add_subdirectory(Compiler)
 add_subdirectory(Diagnostics)

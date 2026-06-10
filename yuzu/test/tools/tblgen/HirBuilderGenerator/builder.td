@@ -7,6 +7,7 @@ include "yuzu/DSL/TreeBase.td"
 
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let TreeName = "Hir";
 }
 
 // CHECK-LABEL: class HirBuilder {

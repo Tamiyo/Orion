@@ -11,6 +11,7 @@ def Id : Native<"yuzu::hir::HirId"> { let IsTrivial = 1; }
 
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let TreeName = "Hir";
   let Fields = (ins Custom<Id>:$id);
 }
 

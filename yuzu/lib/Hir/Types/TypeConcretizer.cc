@@ -2,11 +2,12 @@
 
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
-#include "yuzu/Hir/Types/Type.h"
+#include "yuzu/Types/Type.h"
 
 #include <llvm/Support/FormatVariadic.h>
 
 namespace yuzu::hir {
+using namespace yuzu::types;
 namespace {
 
 /// Range-check a literal that *directly* supplies a value (not an operand of

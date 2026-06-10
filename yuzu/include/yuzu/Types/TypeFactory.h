@@ -1,7 +1,7 @@
-#ifndef YUZU_HIR_TYPES_TYPEFACTORY_H
-#define YUZU_HIR_TYPES_TYPEFACTORY_H
+#ifndef YUZU_TYPES_TYPEFACTORY_H
+#define YUZU_TYPES_TYPEFACTORY_H
 
-#include "yuzu/Hir/Types/Type.h"
+#include "yuzu/Types/Type.h"
 #include "yuzu/Util/StringInterner.h"
 
 #include <llvm/ADT/ArrayRef.h>
@@ -11,7 +11,7 @@
 #include <cstddef>
 #include <string_view>
 
-namespace yuzu::hir {
+namespace yuzu::types {
 class TypeFactory {
 public:
   explicit TypeFactory(util::StringInterner &strings)
@@ -173,6 +173,6 @@ private:
   const ErrorType *errorType;
 };
 
-} // namespace yuzu::hir
+} // namespace yuzu::types
 
 #endif // YUZU_HIR_TYPES_TYPE_CONTEXT_H

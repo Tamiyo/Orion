@@ -1,5 +1,5 @@
-#ifndef YUZU_HIR_TYPES_TYPES_H
-#define YUZU_HIR_TYPES_TYPES_H
+#ifndef YUZU_TYPES_TYPE_H
+#define YUZU_TYPES_TYPE_H
 
 #include "yuzu/Util/ErrorHandling.h"
 
@@ -13,7 +13,7 @@
 #include <string_view>
 #include <utility>
 
-namespace yuzu::hir {
+namespace yuzu::types {
 
 //===----------------------------------------------------------------------===//
 // Type hierarchy
@@ -439,6 +439,6 @@ private:
   InferId id;
   InferKind inferKind;
 };
-} // namespace yuzu::hir
+} // namespace yuzu::types
 
 #endif // YUZU_HIR_TYPES_TYPES_H

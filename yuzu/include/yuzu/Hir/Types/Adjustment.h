@@ -1,7 +1,7 @@
 #ifndef YUZU_HIR_TYPES_ADJUSTMENT_H
 #define YUZU_HIR_TYPES_ADJUSTMENT_H
 
-#include "yuzu/Hir/Types/Type.h"
+#include "yuzu/Types/Type.h"
 #include "yuzu/Util/ErrorHandling.h"
 
 #include <cstdint>
@@ -32,9 +32,9 @@ inline std::string asString(AdjustmentKind kind) {
 /// operation needed to bridge the gap.
 struct Adjustment {
   AdjustmentKind kind;
-  /// Type after the adjustment is applied. Always an interned pointer
-  /// from `TypeFactory`, so equality is `==`.
-  const Type *target;
+  /// types::Type after the adjustment is applied. Always an interned pointer
+  /// from `types::TypeFactory`, so equality is `==`.
+  const types::Type *target;
 };
 } // namespace yuzu::hir
 

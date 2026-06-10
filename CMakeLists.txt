@@ -1,36 +1,47 @@
 cmake_minimum_required(VERSION 3.20)
 project(yuzu C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+
+if (CMAKE_VERSION VERSION_LESS 3.18)
+  set(DEV_MODULE Development)
+else()
+  set(DEV_MODULE Development.Module)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-add_compile_options(-Wall -Wextra -Werror -fno-exceptions -fno-rtti)
+# Configures CMake to perform an optimized release build by default 
+# unless another build type is specified. Without this addition, 
+# binding code may run slowly and produce large binaries.
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-find_package(LLVM REQUIRED CONFIG)
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+include(RegisterLLVM)
+include(RegisterMLIR)
+include(RegisterNanobind)
 
-# MLIR ships under the same install prefix as LLVM; add it to the search
-# path so find_package(MLIR) picks up `<prefix>/lib/cmake/mlir/`.
-list(APPEND CMAKE_PREFIX_PATH "${LLVM_INSTALL_PREFIX}")
-find_package(MLIR REQUIRED CONFIG)
-message(STATUS "Found MLIR ${MLIR_PACKAGE_VERSION}")
-message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+# Third party libaries.
+find_package(Python 3.12 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
 
+register_llvm()
+register_mlir()
+register_nanobind()
+
+# C/C++
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_compile_options(-Wall -Wextra -Werror -fno-exceptions -fno-rtti)
+
+# Yuzu-related dependencies.
 include(YuzuTableGen)
-
-include_directories(SYSTEM ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})
-separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
-add_definitions(${LLVM_DEFINITIONS_LIST})
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/yuzu/include
@@ -41,9 +52,4 @@ enable_testing()
 find_package(GTest REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-add_subdirectory(yuzu/tools/tblgen)
-add_subdirectory(yuzu/lib)
-add_subdirectory(yuzu/tools/repl)
-add_subdirectory(yuzu/tools/compile)
-add_subdirectory(yuzu/unittests)
-add_subdirectory(yuzu/test)
+add_subdirectory(yuzu)

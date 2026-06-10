@@ -14,6 +14,7 @@ def TestString : Native<"std::u32string"> {}
 
 def TestRoot : Base {
   let Namespace = "test::hir";
+  let TreeName = "Hir";
   let Fields = (ins Custom<Id>:$id);
 }
 

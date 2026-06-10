@@ -4,8 +4,8 @@
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Hir/Ops/Op.h"
 #include "yuzu/Hir/Resolve/HirSymbolTable.h"
-#include "yuzu/Hir/Types/Type.h"
 #include "yuzu/Hir/Types/TypeCoercion.h"
+#include "yuzu/Types/Type.h"
 #include "yuzu/Util/Unicode.h"
 
 #include <llvm/ADT/STLExtras.h>
@@ -16,6 +16,7 @@
 #include <vector>
 
 namespace yuzu::hir {
+using namespace yuzu::types;
 
 void TypeInferrer::visitBoolLit(const BoolLit *n) {
   auto &types = ctx.getTypeContext();
