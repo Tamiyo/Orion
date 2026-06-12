@@ -205,7 +205,7 @@ def StringLit : Node<Literal> {
 }
 
 //===----------------------------------------------------------------------===//
-// types::Type expressions
+// Type expressions
 //===----------------------------------------------------------------------===//
 
 /// A written type annotation — the `int8` in `let x: int8 = …`. Mirrors
@@ -225,7 +225,7 @@ def NamedTypeAnnotation : Node<TypeAnnotation> {
 }
 
 /// A function type `(params...) -> result`, e.g. `(int32) -> int32`. Named
-/// `FuncType` to avoid colliding with the semantic `FuncType` (in `types::Type.h`)
+/// `FuncType` to avoid colliding with the semantic `FuncType` (in `Type.h`)
 /// that it resolves to.
 def FuncTypeAnnotation : Node<TypeAnnotation> {
     let Fields = (ins

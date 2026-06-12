@@ -50,7 +50,7 @@ public:
       return fill(hb, a);
     }
 
-    // types::Type-parameter markers are interned by their declaration, so the
+    // Type-parameter markers are interned by their declaration, so the
     // same
     // `[T]` is one pointer (already caught by `a == b` above) and distinct
     // declarations are distinct pointers. Two markers that aren't pointer-equal

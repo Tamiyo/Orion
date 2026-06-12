@@ -61,7 +61,7 @@ private:
   /// the table namespace (relational-only — never the value namespace).
   void registerTable(const TableStmt *n);
 
-  /// types::Type a query expression, returning its `Relation[T]`. Recurses
+  /// Type a query expression, returning its `Relation[T]`. Recurses
   /// manually (not via the visitor) so the row scope spans `from` through
   /// `select`.
   const types::Type *inferQuery(const Expr *query);
@@ -81,7 +81,7 @@ private:
 
   /// Process the `where` clause: register each bound trait as implemented by
   /// its type-parameter marker (so the body's operators resolve) and record
-  /// the bounds for call-site checking. types::Type params must already be in
+  /// the bounds for call-site checking. Type params must already be in
   /// scope.
   void resolveTraitBounds(const FuncStmt *funcStmt);
 
@@ -117,7 +117,7 @@ private:
 
   HirContext &ctx;
 
-  // types::Type-parameter markers interned by their declaration node, so each
+  // Type-parameter markers interned by their declaration node, so each
   // `[T]` has one stable identity across signature resolution and body
   // checking.
   llvm::DenseMap<const Ident *, const types::TypeParamType *> typeParamMarkers;

@@ -32,7 +32,7 @@ inline std::string asString(AdjustmentKind kind) {
 /// operation needed to bridge the gap.
 struct Adjustment {
   AdjustmentKind kind;
-  /// types::Type after the adjustment is applied. Always an interned pointer
+  /// Type after the adjustment is applied. Always an interned pointer
   /// from `types::TypeFactory`, so equality is `==`.
   const types::Type *target;
 };

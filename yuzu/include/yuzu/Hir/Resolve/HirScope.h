@@ -49,7 +49,7 @@ public:
     return it->second;
   }
 
-  // types::Type namespace (a function's `[T]` params today), separate from the
+  // Type namespace (a function's `[T]` params today), separate from the
   // value namespace so a value `T` and a type `T` don't collide.
   void bindType(std::u32string_view name, const types::Type *type) {
     types[name] = type;
