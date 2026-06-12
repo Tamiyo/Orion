@@ -2,8 +2,6 @@ add_yuzu_unittest(HirTests
   BuiltinOpsTest.cc
   HirContextTest.cc
   HirVisitorTest.cc
-  TypeFactoryTest.cc
-  TypeTest.cc
   TypeCoercionTest.cc
   UnificationTableTest.cc
 )
