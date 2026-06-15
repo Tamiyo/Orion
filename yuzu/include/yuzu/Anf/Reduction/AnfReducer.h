@@ -2,7 +2,6 @@
 #define YUZU_ANF_REDUCTION_ANFREDUCER_H
 
 #include "yuzu/Anf/Anf.h"
-#include "yuzu/Anf/AnfVisitor.h"
 
 #include <llvm/ADT/DenseMap.h>
 
@@ -13,68 +12,52 @@ namespace yuzu::anf {
 
 class AnfContext;
 
-/// Reduces an ANF program in place, iterated to a fixpoint. Built on the
-/// generated `AnfVisitor`, whose default walk reaches every binding — function
-/// bodies and query columns alike — so `visitBinding` is the only hook:
-///   - constant / copy propagation is resolved by following the
-///     `VarAtom -> Binding` back-edge at read time (`resolveAtom`), no
-///     mutation;
-///   - constant folding turns a call with constant operands into a constant via
-///     the op's `fold`, overwriting the binding's value.
-class AnfReducer final : public AnfVisitor<AnfReducer> {
+/// Reduces an ANF program by partial evaluation, rooted at the query. Each
+/// select column is evaluated under an environment mapping bindings to their
+/// already-reduced values, which fuses three transforms into one demand-driven
+/// pass:
+///   - constant folding (a call with constant operands becomes a constant);
+///   - copy / constant propagation (a name resolves to its environment value);
+///   - function inlining (a direct call evaluates the callee's body inline,
+///     parameters bound to the argument atoms).
+/// Only the lets a result genuinely needs are emitted, so dead temporaries are
+/// never created and a constant flows straight into the expression that uses
+/// it. Functions are templates consulted on demand; an uncalled one is left for
+/// dead-code elimination.
+class AnfReducer final {
 public:
   explicit AnfReducer(AnfContext &ctx) : ctx(ctx) {}
 
   void reduce(const Root *root);
 
-  /// Visitor hook: fold this binding's value when its operands are constant.
-  void visitBinding(const Binding *binding);
-
-  // Visitor hook: rebuild a query column's body, expanding direct calls inline.
-  // (Runs after the default walk, so the body's bindings are already folded.)
-  // The query is the inlining target; nested calls are expanded recursively by
-  // `inlineCall`, so source functions need no in-place rewrite.
-  void visitSelectItem(const SelectItem *item);
-
 private:
-  /// Per-inline rename state: function parameters map to the call's argument
-  /// atoms; each cloned local binding maps to its fresh copy, so a cloned
-  /// `VarAtom` points at the clone rather than the original.
-  struct InlineEnv {
-    llvm::DenseMap<const Binding *, const Atom *> substitution;
-    llvm::DenseMap<const Binding *, const Binding *> remap;
-  };
+  /// Binding -> its reduced value, for the evaluation in progress (a column, or
+  /// one inlined call). A free name (a query's row alias) is absent and passes
+  /// through unchanged.
+  using Env = llvm::DenseMap<const Binding *, const Atom *>;
 
-  /// Follow `VarAtom -> Binding -> value` to the constant or copy it ultimately
-  /// names; returns `atom` unchanged when it names a real computation, a
-  /// projection, or a parameter.
-  const Atom *resolveAtom(const Atom *atom);
+  void reduceRel(const Rel *rel);
+  void reduceSelectItem(const SelectItem *item);
 
-  /// Splice each `let x = f(args)` (direct call) in `block` open, replacing it
-  /// with the callee's body inline. Edits the block's statement list in place.
-  void inlineBlock(const BlockStmt *block);
+  /// Evaluate a statement sequence under `env`, appending the lets it needs to
+  /// `out`, and return the atom its tail (`return` / tail expression) yields.
+  const Atom *reduceBlock(const BlockStmt *block, Env &env,
+                          std::vector<const Stmt *> &out, unsigned depth);
 
-  /// Clone the callee's body for one call site into `out` (fresh names, params
-  /// substituted, nested direct calls expanded up to the depth cap) and return
-  /// the cloned return atom. Null if the call can't be inlined.
-  const Atom *inlineCall(const FuncCallExpr *call, unsigned depth,
-                         std::vector<const Stmt *> &out);
+  /// Evaluate one expression under `env` to an atom, appending any computation
+  /// lets to `out`. `depth` bounds inlining recursion.
+  const Atom *reduce(const Expr *expr, Env &env, std::vector<const Stmt *> &out,
+                     unsigned depth);
 
-  // Deep-copy a callee node, renaming through `env`.
-  const Stmt *cloneStmt(const Stmt *stmt, InlineEnv &env);
-  const Binding *cloneBinding(const Binding *binding, InlineEnv &env);
-  const Expr *cloneExpr(const Expr *expr, InlineEnv &env);
-  const Atom *cloneAtom(const Atom *atom, InlineEnv &env);
+  /// Bind `computation` to a fresh temporary appended to `out`, and return a
+  /// use of it.
+  const Atom *emit(const Expr *computation, const types::Type *type,
+                   std::vector<const Stmt *> &out);
 
-  /// A fresh `%t` ident for a cloned binding.
+  /// A fresh `%t` ident; only uniqueness matters (resolution is by pointer).
   const Ident *makeTemp();
 
   AnfContext &ctx;
-
-  /// Set when a pass rewrites something, so `reduce` knows to iterate again.
-  bool changed = false;
-
-  /// Names cloned bindings; only uniqueness matters (resolution is by pointer).
   uint32_t tempCounter = 0;
 };
 
