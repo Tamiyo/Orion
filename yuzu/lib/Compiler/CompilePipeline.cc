@@ -23,12 +23,14 @@
 #include "yuzu/Parser/Parser.h"
 #include "yuzu/Parser/TokenSink.h"
 #include "yuzu/Parser/TokenSource.h"
+#include "yuzu/Substrait/SubstraitEmitter.h"
 #include "yuzu/Syntax/SyntaxPrinter.h"
 
 #include <llvm/Support/raw_ostream.h>
 
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -115,6 +117,28 @@ const anf::Root *anfPass(const hir::Root *hirRoot,
 
   return root;
 }
+
+/// Emit the reduced ANF as a Substrait plan into the artifacts directory.
+/// A no-op unless `artifactsDir` is set; writes `<dir>/plan.substrait.json`
+/// (skipped when the program has no query, so the plan is empty).
+void codegenPass(const anf::Root *anfRoot, const CompileOptions &options) {
+  if (!options.artifactsDir) {
+    return;
+  }
+  const std::string plan = substrait::SubstraitEmitter().emit(anfRoot);
+  if (plan.empty()) {
+    return;
+  }
+  const std::string path = *options.artifactsDir + "/plan.substrait.json";
+  std::error_code ec;
+  llvm::raw_fd_ostream os(path, ec);
+  if (ec) {
+    options.out << "yuzu: cannot write " << path << ": " << ec.message()
+                << '\n';
+    return;
+  }
+  os << plan << '\n';
+}
 } // namespace
 
 namespace {
@@ -166,7 +190,7 @@ void runPipeline(std::u32string_view source, const CompileOptions &options,
     return;
   }
 
-  (void)anfRoot;
+  codegenPass(anfRoot, options);
 }
 } // namespace
 

@@ -38,6 +38,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# The core static libs are linked into the nanobind Python module (a shared
+# object), so everything must be position-independent.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options(-Wall -Wextra -Werror -fno-exceptions -fno-rtti)
 
 # Yuzu-related dependencies.

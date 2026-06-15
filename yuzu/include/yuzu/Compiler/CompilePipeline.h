@@ -9,6 +9,8 @@
 
 #include <llvm/Support/raw_ostream.h>
 
+#include <optional>
+#include <string>
 #include <string_view>
 
 namespace yuzu {
@@ -17,11 +19,15 @@ struct CompileOptions {
   llvm::raw_ostream &out = llvm::outs();
   bool execute = true;
 
-  // Debug
+  // Debug (all off by default)
   bool debugLexer = false;
   bool debugAst = false;
   bool debugHir = false;
-  bool debugAnf = true;
+  bool debugAnf = false;
+
+  // Directory to write build artifacts (the Substrait plan) into. Unset
+  // disables codegen — no JSON is written.
+  std::optional<std::string> artifactsDir = std::nullopt;
 };
 
 /// One-shot compile. Builds fresh diagnostics + HIR state, runs the

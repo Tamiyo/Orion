@@ -8,5 +8,6 @@ target_link_libraries(Yuzu PUBLIC
   YuzuHir
   YuzuLexer
   YuzuParser
+  YuzuSubstrait
   YuzuUtil
 )

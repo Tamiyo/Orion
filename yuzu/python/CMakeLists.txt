@@ -13,6 +13,9 @@ add_compile_options(-frtti -fexceptions)
 # so `import yuzu` works straight from the source tree (no install step) —
 # the built artifact is git-ignored.
 nanobind_add_module(_ext NOMINSIZE YuzuExt.cc)
+# The compiler driver (and, transitively, the Substrait emitter) backs the
+# `compile` binding.
+target_link_libraries(_ext PRIVATE Yuzu)
 set_target_properties(_ext PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/yuzu)
 

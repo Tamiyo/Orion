@@ -1,0 +1,392 @@
+#include "yuzu/Substrait/SubstraitEmitter.h"
+
+#include "yuzu/Anf/Anf.h"
+#include "yuzu/Anf/Ops/Op.h"
+#include "yuzu/Types/Type.h"
+#include "yuzu/Util/ErrorHandling.h"
+#include "yuzu/Util/Unicode.h"
+
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/FormatVariadic.h>
+#include <llvm/Support/raw_ostream.h>
+
+#include <optional>
+#include <string>
+
+namespace yuzu::substrait {
+
+using llvm::json::Array;
+using llvm::json::Object;
+using llvm::json::Value;
+
+namespace {
+
+// Substrait standard extension YAMLs (the function families DuckDB consumes).
+constexpr llvm::StringRef kArithmeticUri =
+    "https://github.com/substrait-io/substrait/blob/main/extensions/"
+    "functions_arithmetic.yaml";
+constexpr llvm::StringRef kComparisonUri =
+    "https://github.com/substrait-io/substrait/blob/main/extensions/"
+    "functions_comparison.yaml";
+constexpr llvm::StringRef kBooleanUri =
+    "https://github.com/substrait-io/substrait/blob/main/extensions/"
+    "functions_boolean.yaml";
+
+// Every type is emitted non-null for now; nullability is future work.
+constexpr llvm::StringRef kNullability = "NULLABILITY_REQUIRED";
+
+/// The Substrait type code for a scalar yuzu type (`i32`, `fp64`, ...). Used
+/// both in type objects and in function-signature suffixes.
+llvm::StringRef typeCode(const types::Type *type) {
+  switch (type->getKind()) {
+  case types::TypeKind::Int8:
+  case types::TypeKind::UInt8:
+    return "i8";
+  case types::TypeKind::Int16:
+  case types::TypeKind::UInt16:
+    return "i16";
+  case types::TypeKind::Int32:
+  case types::TypeKind::UInt32:
+    return "i32";
+  case types::TypeKind::Int64:
+  case types::TypeKind::UInt64:
+    return "i64";
+  case types::TypeKind::Float32:
+    return "fp32";
+  case types::TypeKind::Float64:
+    return "fp64";
+  case types::TypeKind::Bool:
+    return "bool";
+  case types::TypeKind::Str:
+    return "string";
+  default:
+    return "unknown";
+  }
+}
+
+/// A Substrait type object, e.g. `{"i32": {"nullability": "..._REQUIRED"}}`.
+Value emitType(const types::Type *type) {
+  return Object{{typeCode(type), Object{{"nullability", kNullability}}}};
+}
+
+/// The type carried on an ANF expression (each node stores its own).
+const types::Type *typeOf(const anf::Expr *expr) {
+  if (const auto *node = anf::VarAtom::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::FieldAtom::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::IntConst::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::FloatConst::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::BoolConst::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::StringConst::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::CallExpr::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::FuncCallExpr::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::StructExpr::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::FromRel::cast(expr)) {
+    return node->getType();
+  }
+  if (const auto *node = anf::SelectRel::cast(expr)) {
+    return node->getType();
+  }
+  return nullptr;
+}
+
+struct FunctionTarget {
+  llvm::StringRef uri;
+  llvm::StringRef base; // Substrait function name, e.g. "add".
+};
+
+/// Map an ANF builtin operator to its Substrait extension function.
+std::optional<FunctionTarget> functionTarget(llvm::StringRef op) {
+  static const llvm::DenseMap<llvm::StringRef, FunctionTarget> table = {
+      {"Add", {kArithmeticUri, "add"}},
+      {"Sub", {kArithmeticUri, "subtract"}},
+      {"Mul", {kArithmeticUri, "multiply"}},
+      {"Div", {kArithmeticUri, "divide"}},
+      {"Pow", {kArithmeticUri, "power"}},
+      {"ShiftLeft", {kArithmeticUri, "shift_left"}},
+      {"ShiftRight", {kArithmeticUri, "shift_right"}},
+      {"UnaryNeg", {kArithmeticUri, "negate"}},
+      {"Eq", {kComparisonUri, "equal"}},
+      {"Neq", {kComparisonUri, "not_equal"}},
+      {"Lt", {kComparisonUri, "lt"}},
+      {"Lte", {kComparisonUri, "lte"}},
+      {"Gt", {kComparisonUri, "gt"}},
+      {"Gte", {kComparisonUri, "gte"}},
+      {"And", {kBooleanUri, "and"}},
+      {"Or", {kBooleanUri, "or"}},
+      {"UnaryNot", {kBooleanUri, "not"}},
+  };
+  const auto it = table.find(op);
+  if (it == table.end()) {
+    return std::nullopt;
+  }
+  return it->second;
+}
+
+/// Index of `name` within a struct type's fields (the Substrait field offset),
+/// or -1 if absent.
+int structIndex(const types::Type *type, std::u32string_view name) {
+  const auto *structType = types::StructType::cast(type);
+  if (structType == nullptr) {
+    return -1;
+  }
+  int index = 0;
+  for (const types::StructField &field : structType->getFields()) {
+    if (field.name == name) {
+      return index;
+    }
+    ++index;
+  }
+  return -1;
+}
+
+/// The row struct a relation yields (`Relation[Row]` -> `Row`).
+const types::StructType *rowStruct(const types::Type *relationType) {
+  const auto *relation = types::RelationType::cast(relationType);
+  if (relation == nullptr) {
+    return nullptr;
+  }
+  return types::StructType::cast(relation->getElement());
+}
+
+} // namespace
+
+int SubstraitEmitter::registerFunction(llvm::StringRef uri,
+                                       llvm::StringRef name) {
+  const auto [it, inserted] =
+      uriAnchors.try_emplace(uri, static_cast<int>(uris.size()) + 1);
+  if (inserted) {
+    uris.push_back(uri.str());
+  }
+  const int functionAnchor = static_cast<int>(functions.size()) + 1;
+  functions.push_back({it->second, functionAnchor, name.str()});
+  return functionAnchor;
+}
+
+llvm::json::Value SubstraitEmitter::emitExtensionUris() const {
+  Array out;
+  for (std::size_t i = 0; i < uris.size(); ++i) {
+    out.push_back(Object{{"extensionUriAnchor", static_cast<int>(i) + 1},
+                         {"uri", uris[i]}});
+  }
+  return out;
+}
+
+llvm::json::Value SubstraitEmitter::emitExtensions() const {
+  Array out;
+  for (const Function &func : functions) {
+    out.push_back(Object{
+        {"extensionFunction", Object{{"extensionUriReference", func.uriAnchor},
+                                     {"functionAnchor", func.functionAnchor},
+                                     {"name", func.name}}}});
+  }
+  return out;
+}
+
+llvm::json::Value SubstraitEmitter::emitLiteral(const anf::Constant *constant) {
+  Object literal;
+  if (const auto *node = anf::IntConst::cast(constant)) {
+    // Substrait JSON encodes i64 as a string, narrower ints as numbers.
+    if (typeCode(node->getType()) == "i64") {
+      literal["i64"] = std::to_string(node->getValue());
+    } else {
+      literal[typeCode(node->getType())] =
+          static_cast<int64_t>(node->getValue());
+    }
+  } else if (const auto *node = anf::FloatConst::cast(constant)) {
+    literal[typeCode(node->getType())] = node->getValue();
+  } else if (const auto *node = anf::BoolConst::cast(constant)) {
+    literal["boolean"] = node->getValue();
+  } else if (const auto *node = anf::StringConst::cast(constant)) {
+    literal["string"] = util::toUtf8(node->getValue());
+  }
+  return Object{{"literal", std::move(literal)}};
+}
+
+llvm::json::Value SubstraitEmitter::emitSelection(const anf::FieldAtom *field) {
+  // A row field reference: its offset within the input's row struct.
+  const int index =
+      structIndex(typeOf(field->getBase()), field->getField()->getName());
+  return Object{
+      {"selection", Object{{"directReference",
+                            Object{{"structField", Object{{"field", index}}}}},
+                           {"rootReference", Object{}}}}};
+}
+
+llvm::json::Value
+SubstraitEmitter::emitScalarFunction(const anf::CallExpr *call,
+                                     const Env &env) {
+  const auto target = functionTarget(call->getOp()->getName());
+  if (!target) {
+    util::yuzu_unreachable("no Substrait mapping for ANF operator");
+  }
+
+  // Compound name carries the operand type signature, e.g. "add:i32_i32".
+  std::string name = target->base.str() + ":";
+  Array arguments;
+  bool first = true;
+  for (const anf::Atom *arg : call->getArgs()) {
+    if (!first) {
+      name += "_";
+    }
+    first = false;
+    name += typeCode(typeOf(arg)).str();
+    arguments.push_back(Object{{"value", emitExpr(arg, env)}});
+  }
+
+  const int anchor = registerFunction(target->uri, name);
+  return Object{
+      {"scalarFunction", Object{{"functionReference", anchor},
+                                {"outputType", emitType(call->getType())},
+                                {"arguments", std::move(arguments)}}}};
+}
+
+llvm::json::Value SubstraitEmitter::emitExpr(const anf::Expr *expr,
+                                             const Env &env) {
+  if (const auto *constant = anf::Constant::cast(expr)) {
+    return emitLiteral(constant);
+  }
+  if (const auto *var = anf::VarAtom::cast(expr)) {
+    // Inline the column temporary this name binds (chase the def-use edge).
+    const auto it = env.find(var->getBinding());
+    if (it != env.end()) {
+      return emitExpr(it->second, env);
+    }
+    util::yuzu_unreachable("unbound VarAtom while emitting Substrait");
+  }
+  if (const auto *field = anf::FieldAtom::cast(expr)) {
+    return emitSelection(field);
+  }
+  if (const auto *call = anf::CallExpr::cast(expr)) {
+    return emitScalarFunction(call, env);
+  }
+  util::yuzu_unreachable("unsupported expression while emitting Substrait");
+}
+
+llvm::json::Value SubstraitEmitter::emitColumn(const anf::SelectItem *item) {
+  // Inline the column's let-bindings into a single expression tree.
+  Env env;
+  const anf::Expr *tail = nullptr;
+  for (const anf::Stmt *stmt : item->getBody()->getStmts()) {
+    if (const auto *let = anf::LetStmt::cast(stmt)) {
+      env[let->getBinding()] = let->getBinding()->getValue();
+    } else if (const auto *exprStmt = anf::ExprStmt::cast(stmt)) {
+      tail = exprStmt->getValue();
+    }
+  }
+  return emitExpr(tail, env);
+}
+
+llvm::json::Value SubstraitEmitter::emitFromRel(const anf::FromRel *from) {
+  const types::StructType *row = rowStruct(from->getType());
+
+  Array names;
+  Array types;
+  if (row != nullptr) {
+    for (const types::StructField &field : row->getFields()) {
+      names.push_back(util::toUtf8(field.name));
+      types.push_back(emitType(field.type));
+    }
+  }
+
+  return Object{
+      {"read",
+       Object{{"baseSchema",
+               Object{{"names", std::move(names)},
+                      {"struct", Object{{"types", std::move(types)},
+                                        {"nullability", kNullability}}}}},
+              {"namedTable",
+               Object{{"names", Array{util::toUtf8(
+                                    from->getRelation()->getName())}}}}}}};
+}
+
+llvm::json::Value
+SubstraitEmitter::emitSelectRel(const anf::SelectRel *select) {
+  Value input = emitRel(anf::Rel::cast(select->getInput()));
+
+  // Output keeps only the projected expressions, which Substrait appends after
+  // the input's columns — so the emit mapping starts past them.
+  const types::StructType *inputRow = rowStruct(typeOf(select->getInput()));
+  const int inputColumns =
+      inputRow != nullptr ? static_cast<int>(inputRow->getFields().size()) : 0;
+
+  Array expressions;
+  Array outputMapping;
+  int output = inputColumns;
+  for (const anf::SelectItem *item : select->getItems()) {
+    expressions.push_back(emitColumn(item));
+    outputMapping.push_back(output++);
+  }
+
+  return Object{
+      {"project",
+       Object{{"common", Object{{"emit", Object{{"outputMapping",
+                                                 std::move(outputMapping)}}}}},
+              {"input", std::move(input)},
+              {"expressions", std::move(expressions)}}}};
+}
+
+llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
+  if (const auto *select = anf::SelectRel::cast(rel)) {
+    return emitSelectRel(select);
+  }
+  if (const auto *from = anf::FromRel::cast(rel)) {
+    return emitFromRel(from);
+  }
+  util::yuzu_unreachable("unsupported relation while emitting Substrait");
+}
+
+std::string SubstraitEmitter::emit(const anf::Root *root) {
+  // Find the query: the relational expression at the program's tail.
+  const anf::SelectRel *query = nullptr;
+  for (const anf::Stmt *stmt : root->getStmts()) {
+    if (const auto *exprStmt = anf::ExprStmt::cast(stmt)) {
+      if (const auto *rel = anf::Rel::cast(exprStmt->getValue())) {
+        query = anf::SelectRel::cast(rel);
+      }
+    }
+  }
+  if (query == nullptr) {
+    return "";
+  }
+
+  // Build the relation first, so function registration populates the tables.
+  Value relation = emitRel(query);
+
+  Array names;
+  for (const anf::SelectItem *item : query->getItems()) {
+    names.push_back(item->getAlias() != nullptr
+                        ? util::toUtf8(item->getAlias()->getName())
+                        : "col" + std::to_string(names.size()));
+  }
+
+  Object plan{{"extensionUris", emitExtensionUris()},
+              {"extensions", emitExtensions()},
+              {"relations",
+               Array{Object{{"root", Object{{"input", std::move(relation)},
+                                            {"names", std::move(names)}}}}}}};
+
+  std::string out;
+  llvm::raw_string_ostream os(out);
+  os << llvm::formatv("{0:2}", Value(std::move(plan)));
+  return out;
+}
+
+} // namespace yuzu::substrait

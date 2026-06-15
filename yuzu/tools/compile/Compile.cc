@@ -15,7 +15,8 @@ void usage() {
                   "  --debug-ast    dump the syntax tree\n"
                   "  --debug-hir    dump the HIR\n"
                   "  --debug-anf    dump the ANF\n"
-                  "  --debug        dump all of the above\n";
+                  "  --debug        dump all of the above\n"
+                  "  --artifacts <dir>  write the Substrait plan into <dir>\n";
 }
 } // namespace
 
@@ -44,6 +45,12 @@ int main(int argc, char **argv) {
       options.debugHir = true;
     } else if (arg == "--debug") {
       options.debugLexer = options.debugAst = options.debugHir = true;
+    } else if (arg == "--artifacts") {
+      if (i + 1 >= argc) {
+        llvm::errs() << "yuzu-compile: --artifacts needs a directory\n";
+        return 2;
+      }
+      options.artifactsDir = argv[++i];
     } else if (arg == "-h" || arg == "--help") {
       usage();
       return 0;
