@@ -575,41 +575,59 @@ const Type *TypeInferrer::inferFromRel(const FromRel *n) {
 const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
+  auto &symbols = ctx.getSymbolTable();
 
-  // Type the input relation first — that binds the row alias into scope.
-  const Type *inputType =
-      n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
-  if (inputType->getKind() == TypeKind::Error) {
-    types.bind(n, typeFactory.getErrorType());
-    return typeFactory.getErrorType();
-  }
-
-  // Each item is a row expression over the alias; type it and contribute a
-  // column to the output row struct.
   std::vector<StructField> outFields;
   outFields.reserve(n->getItems().size());
-  for (const SelectItem *item : n->getItems()) {
-    const Expr *itemExpr = item->getExpr();
-    if (itemExpr == nullptr) {
-      continue;
-    }
-    visit(itemExpr); // types `e.id` etc. against the bound alias
 
-    // Column name: the `as` alias, else the field/ident name, else anonymous.
-    std::u32string_view colName;
-    if (const Ident *alias = item->getAlias()) {
-      colName = alias->getName();
-    } else if (const auto *fa = FieldAccessExpr::cast(itemExpr)) {
-      colName = fa->getField()->getName();
-    } else if (const auto *id = IdentExpr::cast(itemExpr)) {
-      colName = id->getName()->getName();
+  // Per pipe semantics, this stage sees only its immediate input. Type the
+  // input and the items in a child scope the input populates — a `from` binds
+  // its row alias, a preceding `select` its output columns (below) — then drop
+  // it, so this stage's names aren't visible to the next one.
+  {
+    const HirScopeGuard guard = symbols.pushScope(HirScopeKind::Block);
+    const Type *inputType =
+        n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
+    if (inputType->getKind() == TypeKind::Error) {
+      types.bind(n, typeFactory.getErrorType());
+      return typeFactory.getErrorType();
     }
-    outFields.push_back(StructField{colName, types.typeOf(itemExpr)});
+
+    for (const SelectItem *item : n->getItems()) {
+      const Expr *itemExpr = item->getExpr();
+      if (itemExpr == nullptr) {
+        continue;
+      }
+      visit(itemExpr); // types `e.id` etc. against the input's columns
+
+      // Column name: the `as` alias, else the field/ident name, else anonymous.
+      std::u32string_view colName;
+      if (const Ident *alias = item->getAlias()) {
+        colName = alias->getName();
+      } else if (const auto *fa = FieldAccessExpr::cast(itemExpr)) {
+        colName = fa->getField()->getName();
+      } else if (const auto *id = IdentExpr::cast(itemExpr)) {
+        colName = id->getName()->getName();
+      }
+      outFields.push_back(StructField{colName, types.typeOf(itemExpr)});
+    }
   }
 
   const StructType *outRow = typeFactory.getStructType(U"", outFields);
   const RelationType *outRel = typeFactory.getRelationType(outRow);
   types.bind(n, outRel);
+
+  // Expose this stage's `as`-aliased columns to the consuming stage (the now
+  // current scope), so a later `select` can reference them by name. (Lowering a
+  // such a reference to a selection over this relation is still TODO.)
+  for (const SelectItem *item : n->getItems()) {
+    const Ident *alias = item->getAlias();
+    if (alias != nullptr && item->getExpr() != nullptr) {
+      types.bind(alias, types.typeOf(item->getExpr()));
+      symbols.bind(alias, alias);
+    }
+  }
+
   return outRel;
 }
 
