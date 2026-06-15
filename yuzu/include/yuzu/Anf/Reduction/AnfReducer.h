@@ -46,7 +46,8 @@ private:
 
   /// Evaluate a statement sequence under `env`, appending the lets it needs to
   /// `out`, and return the atom its tail (`return` / tail expression) yields.
-  const Atom *reduceBlock(const BlockStmt *block, Env &env,
+  /// Serves both a column `Thunk` and an inlined function `BlockStmt`.
+  const Atom *reduceBlock(llvm::ArrayRef<const Stmt *> stmts, Env &env,
                           std::vector<const Stmt *> &out, unsigned depth);
 
   /// Evaluate one expression under `env` to an atom, appending any computation

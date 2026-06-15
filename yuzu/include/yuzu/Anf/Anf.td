@@ -178,13 +178,20 @@ def FromRel : Node<Rel> {
     );
 }
 
-/// One projected column. `body` is a per-row `BlockStmt` resolving to the
-/// column's value at its tail; its `let`s are this column's temporaries (a
-/// temp-free column is a block of just the tail). `alias` names the output and
-/// is in scope for the items that follow it — lateral aliasing.
+/// A per-row computation that resolves to a single value (a column's body). A
+/// `Thunk` holds ANF statements like a `BlockStmt`, but is defined to reduce to
+/// the value its tail yields — distinct from a `BlockStmt`, which is just a
+/// statement sequence. Its `let`s are the column's temporaries; once fully
+/// reduced it collapses to one expression (inlined at Substrait emission).
+def Thunk : Node<AnfNode> {
+    let Fields = (ins Children<Stmt>:$stmts);
+}
+
+/// One projected column: a `Thunk` that yields the column value, plus an
+/// optional `alias` naming the output.
 def SelectItem : Node<AnfNode> {
     let Fields = (ins
-        Child<BlockStmt>:$body,
+        Child<Thunk>:$body,
         Child<Ident>:$alias
     );
 }

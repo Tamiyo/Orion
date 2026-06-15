@@ -99,21 +99,23 @@ void AnfReducer::reduceRel(const Rel *rel) {
 
 void AnfReducer::reduceSelectItem(const SelectItem *item) {
   // A column starts with an empty environment (its only free name is the row
-  // alias, which passes through). Evaluate the body, then cap it with its tail.
+  // alias, which passes through). Evaluate the thunk, then cap it with its
+  // tail.
   Env env;
   std::vector<const Stmt *> out;
-  const Atom *tail = reduceBlock(item->getBody(), env, out, /*depth=*/0);
+  const Atom *tail = reduceBlock(item->getBody()->getStmts(), env, out,
+                                 /*depth=*/0);
   if (tail != nullptr) {
     out.push_back(ctx.getBuilder().makeExprStmt(tail));
   }
-  const_cast<SelectItem *>(item)->setBody(ctx.getBuilder().makeBlockStmt(out));
+  const_cast<SelectItem *>(item)->setBody(ctx.getBuilder().makeThunk(out));
 }
 
-const Atom *AnfReducer::reduceBlock(const BlockStmt *block, Env &env,
-                                    std::vector<const Stmt *> &out,
+const Atom *AnfReducer::reduceBlock(llvm::ArrayRef<const Stmt *> stmts,
+                                    Env &env, std::vector<const Stmt *> &out,
                                     unsigned depth) {
   const Atom *tail = nullptr;
-  for (const Stmt *stmt : block->getStmts()) {
+  for (const Stmt *stmt : stmts) {
     if (const auto *let = LetStmt::cast(stmt)) {
       // Bind the local to its reduced value; the value is only emitted if it's
       // a real computation (otherwise it's a constant/copy folded into uses).
@@ -181,7 +183,8 @@ const Atom *AnfReducer::reduce(const Expr *expr, Env &env,
           for (std::size_t i = 0; i < params.size(); ++i) {
             callEnv[params[i]->getBinding()] = args[i];
           }
-          return reduceBlock(func->getBody(), callEnv, out, depth + 1);
+          return reduceBlock(func->getBody()->getStmts(), callEnv, out,
+                             depth + 1);
         }
       } else {
         ctx.warning(funcCall,

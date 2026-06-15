@@ -58,8 +58,8 @@ protected:
     return program;
   }
 
-  // The body of the query's first `select` column.
-  static const anf::BlockStmt *firstColumn(const anf::Root *program) {
+  // The body (a `Thunk`) of the query's first `select` column.
+  static const anf::Thunk *firstColumn(const anf::Root *program) {
     const auto *exprStmt = anf::ExprStmt::cast(program->getStmts().back());
     EXPECT_NE(exprStmt, nullptr);
     const auto *select = anf::SelectRel::cast(exprStmt->getValue());
@@ -67,8 +67,8 @@ protected:
     return select->getItems().front()->getBody();
   }
 
-  // The atom a column body yields (its tail `ExprStmt`'s value).
-  static const anf::Atom *columnTail(const anf::BlockStmt *body) {
+  // The atom a column thunk yields (its tail `ExprStmt`'s value).
+  static const anf::Atom *columnTail(const anf::Thunk *body) {
     const auto *tail = anf::ExprStmt::cast(body->getStmts().back());
     EXPECT_NE(tail, nullptr);
     return anf::Atom::cast(tail->getValue());
@@ -148,7 +148,7 @@ TEST_F(AnfReducerTest, InlinesDirectCallInQuery) {
                                             anfCtx);
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
-  const anf::BlockStmt *body = firstColumn(program);
+  const anf::Thunk *body = firstColumn(program);
   bool sawMulOverField = false;
   for (const anf::Stmt *stmt : body->getStmts()) {
     const auto *let = anf::LetStmt::cast(stmt);

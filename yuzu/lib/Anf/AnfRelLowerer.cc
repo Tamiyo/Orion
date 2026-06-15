@@ -65,7 +65,7 @@ AnfLowerer::lowerSelectItem(const hir::SelectItem *selectItem) {
 
   std::vector<const Stmt *> stmts = std::move(intermediateStmts);
   stmts.push_back(tail);
-  const auto *body = ctx.build(selectItem, &AnfBuilder::makeBlockStmt, stmts);
+  const auto *body = ctx.build(selectItem, &AnfBuilder::makeThunk, stmts);
 
   intermediateStmts = std::move(saved);
 
