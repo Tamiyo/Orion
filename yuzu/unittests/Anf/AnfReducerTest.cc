@@ -167,4 +167,24 @@ TEST_F(AnfReducerTest, InlinesDirectCallInQuery) {
   EXPECT_TRUE(sawMulOverField);
 }
 
+// A function fully inlined into the query has no callers left, so it is dropped
+// from the program as dead code.
+TEST_F(AnfReducerTest, DeletesInlinedFunction) {
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  const anf::Root *program = lowerAndReduce(UR"(
+    struct Employee { id: int32, salary: int32 }
+    table employees = Employee
+    fn bonus(s: int32) -> int32 {
+      return s * 2
+    }
+    from employees e |> select bonus(e.salary) as x
+  )",
+                                            anfCtx);
+  ASSERT_TRUE(diagnostics.getDiagnostics().empty());
+
+  for (const anf::Stmt *stmt : program->getStmts()) {
+    EXPECT_EQ(anf::FuncStmt::cast(stmt), nullptr);
+  }
+}
+
 } // namespace

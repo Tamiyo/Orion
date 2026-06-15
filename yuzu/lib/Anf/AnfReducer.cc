@@ -2,13 +2,17 @@
 
 #include "yuzu/Anf/Anf.h"
 #include "yuzu/Anf/AnfContext.h"
+#include "yuzu/Anf/AnfVisitor.h"
 #include "yuzu/Anf/Ops/Op.h"
 #include "yuzu/Util/ErrorHandling.h"
 
+#include <llvm/ADT/DenseSet.h>
 #include <llvm/ADT/SmallVector.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
+#include <vector>
 
 namespace yuzu::anf {
 
@@ -16,6 +20,24 @@ namespace {
 /// Recursion guard for inlining: a self- or mutually-recursive call expands
 /// this many levels deep, then the innermost call is left in place (warned).
 constexpr unsigned kMaxInlineDepth = 256;
+
+/// Walks a subtree gathering the functions its `FuncRef`s name, newly-found
+/// ones queued for transitive reachability.
+struct FuncRefCollector : AnfVisitor<FuncRefCollector> {
+  FuncRefCollector(llvm::DenseSet<const FuncStmt *> &live,
+                   std::vector<const FuncStmt *> &worklist)
+      : live(live), worklist(worklist) {}
+
+  void visitFuncRef(const FuncRef *ref) {
+    const FuncStmt *func = ref->getFunc();
+    if (func != nullptr && live.insert(func).second) {
+      worklist.push_back(func);
+    }
+  }
+
+  llvm::DenseSet<const FuncStmt *> &live;
+  std::vector<const FuncStmt *> &worklist;
+};
 } // namespace
 
 void AnfReducer::reduce(const Root *root) {
@@ -29,6 +51,37 @@ void AnfReducer::reduce(const Root *root) {
       }
     }
   }
+
+  eliminateDeadFunctions(root);
+}
+
+void AnfReducer::eliminateDeadFunctions(const Root *root) {
+  llvm::DenseSet<const FuncStmt *> live;
+  std::vector<const FuncStmt *> worklist;
+  FuncRefCollector collector(live, worklist);
+
+  // Seed from everything that isn't a function definition (the query), then
+  // transitively keep functions referenced by live ones.
+  for (const Stmt *stmt : root->getStmts()) {
+    if (FuncStmt::cast(stmt) == nullptr) {
+      collector.visit(stmt);
+    }
+  }
+  while (!worklist.empty()) {
+    const FuncStmt *func = worklist.back();
+    worklist.pop_back();
+    collector.visit(func->getBody());
+  }
+
+  // Erase the function definitions nothing references anymore.
+  std::vector<const Stmt *> &stmts =
+      const_cast<Root *>(root)->getStmtsMutable();
+  stmts.erase(std::remove_if(stmts.begin(), stmts.end(),
+                             [&](const Stmt *stmt) {
+                               const auto *func = FuncStmt::cast(stmt);
+                               return func != nullptr && !live.contains(func);
+                             }),
+              stmts.end());
 }
 
 void AnfReducer::reduceRel(const Rel *rel) {

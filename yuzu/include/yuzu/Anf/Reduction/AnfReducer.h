@@ -39,6 +39,11 @@ private:
   void reduceRel(const Rel *rel);
   void reduceSelectItem(const SelectItem *item);
 
+  /// Drop function definitions the reduced program no longer calls. A `FuncRef`
+  /// keeps its target alive (transitively); after full inlining the query holds
+  /// none, so every inlined function is removed.
+  void eliminateDeadFunctions(const Root *root);
+
   /// Evaluate a statement sequence under `env`, appending the lets it needs to
   /// `out`, and return the atom its tail (`return` / tail expression) yields.
   const Atom *reduceBlock(const BlockStmt *block, Env &env,
