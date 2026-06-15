@@ -8,6 +8,8 @@
 #include <llvm/TableGen/Record.h>
 
 #include <algorithm>
+#include <cctype>
+#include <set>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -21,6 +23,26 @@ namespace {
 /// declaration order. `getAllDerivedDefinitions` returns them alphabetically.
 bool byLoc(const llvm::Record *a, const llvm::Record *b) {
   return a->getLoc().front().getPointer() < b->getLoc().front().getPointer();
+}
+
+/// True when the tree opts into mutability (`Mutable` on its Base). Mutable
+/// trees store `Children` lists as builder-owned `std::vector`s so passes can
+/// splice them; immutable trees copy them into the arena as `ArrayRef`s.
+bool isMutableTree(const llvm::RecordKeeper &records) {
+  for (const llvm::Record *record : records.getAllDerivedDefinitions("Base")) {
+    if (!record->isSubClassOf("Variant")) {
+      return record->getValueAsBit("Mutable");
+    }
+  }
+  return false;
+}
+
+/// Name of the builder member owning every `Children<T>` list: e.g. `Stmt` ->
+/// `stmtLists`.
+std::string getListStorageName(llvm::StringRef elementType) {
+  std::string name = elementType.str();
+  name[0] = static_cast<char>(std::tolower(name[0]));
+  return name + "Lists";
 }
 
 //===----------------------------------------------------------------------===//
@@ -70,13 +92,19 @@ std::string paramType(const FieldKind &kind) {
       kind);
 }
 
-/// What to pass to the node's ctor. `Children<T>` is copied into the
-/// arena so the node's view outlives the caller's input array.
-std::string ctorArg(const NamedField &f) {
+/// What to pass to the node's ctor. An immutable `Children<T>` is copied into
+/// the arena so the node's view outlives the caller's input. A mutable one is
+/// moved into a builder-owned `std::vector` (stable address, spliceable), and
+/// the node gets a pointer to it.
+std::string ctorArg(const NamedField &f, bool mutableTree) {
   return std::visit(
       [&](const auto &k) -> std::string {
         using T = std::decay_t<decltype(k)>;
         if constexpr (std::is_same_v<T, Children>) {
+          if (mutableTree) {
+            return "&" + getListStorageName(k.typeName) + ".emplace_back(" +
+                   f.name + ".begin(), " + f.name + ".end())";
+          }
           return f.name + ".copy(allocator)";
         } else if constexpr (std::is_same_v<T, Child> ||
                              std::is_same_v<T, Custom> ||
@@ -118,7 +146,8 @@ bool isIdField(const NamedField &f) {
   return false;
 }
 
-void emitMakeMethod(CodeFormatter &fmt, const llvm::Record *node) {
+void emitMakeMethod(CodeFormatter &fmt, const llvm::Record *node,
+                    bool mutableTree) {
   const std::string name = node->getName().str();
   const std::vector<NamedField> ownFields = parseFields(node);
   const std::vector<NamedField> inheritedFields = gatherInheritedFields(node);
@@ -153,7 +182,7 @@ void emitMakeMethod(CodeFormatter &fmt, const llvm::Record *node) {
       if (!args.empty()) {
         args += ", ";
       }
-      args += isIdField(f) ? "allocId()" : ctorArg(f);
+      args += isIdField(f) ? "allocId()" : ctorArg(f, mutableTree);
     };
     for (const NamedField &f : ownFields) {
       appendArg(f);
@@ -172,9 +201,22 @@ void emitMakeMethod(CodeFormatter &fmt, const llvm::Record *node) {
 void HirBuilderGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
   const llvm::StringRef treeName = findTreeName(records, "Base");
+  const bool mutableTree = isMutableTree(records);
   std::vector<const llvm::Record *> nodes =
       records.getAllDerivedDefinitions("Node");
   std::sort(nodes.begin(), nodes.end(), byLoc);
+
+  // The distinct element types of every `Children<T>` list; in a mutable tree
+  // each gets a builder-owned `std::deque<std::vector<...>>` so the lists have
+  // stable addresses and are destructed with the builder.
+  std::set<std::string> listTypes;
+  for (const llvm::Record *n : nodes) {
+    for (const NamedField &f : parseFields(n)) {
+      if (const auto *c = std::get_if<Children>(&f.kind)) {
+        listTypes.insert(c->typeName);
+      }
+    }
+  }
 
   fmt.linef("namespace {0} {{", ns);
   fmt.line("");
@@ -187,7 +229,7 @@ void HirBuilderGenerator::generate(const llvm::RecordKeeper &records) {
     fmt.linef("{0}Builder &operator=(const {0}Builder &) = delete;", treeName);
     fmt.line("");
     for (const llvm::Record *n : nodes) {
-      emitMakeMethod(fmt, n);
+      emitMakeMethod(fmt, n, mutableTree);
     }
   }
   fmt.line("private:");
@@ -197,6 +239,12 @@ void HirBuilderGenerator::generate(const llvm::RecordKeeper &records) {
     fmt.line("");
     fmt.line("uint32_t nextId = 0;");
     fmt.line("llvm::BumpPtrAllocator allocator;");
+    if (mutableTree) {
+      for (const std::string &t : listTypes) {
+        fmt.linef("std::deque<std::vector<const {0} *>> {1};", t,
+                  getListStorageName(t));
+      }
+    }
   }
   fmt.line("};");
   fmt.line("");

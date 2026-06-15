@@ -26,6 +26,12 @@ public:
   AnfSourceTable &getAnfSourceTable() { return anfSourceTable; }
   AnfTempTable &getAnfTempTable() { return anfTempTable; }
 
+  /// Shared with HIR so passes that synthesize names (the lowerer's and the
+  /// reducer's `%t`s) intern into the same stable storage.
+  util::StringInterner &getStringInterner() {
+    return hirContext.getStringInterner();
+  }
+
   template <typename Method, typename... Args>
   auto build(const hir::HirNode *origin, Method method, Args &&...args) {
     auto *node = (builder.*method)(std::forward<Args>(args)...);

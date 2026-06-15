@@ -124,6 +124,23 @@ std::string fieldRefType(const FieldKind &kind) {
       kind);
 }
 
+/// True when `f` is a `Children<T>` list field.
+bool isChildrenField(const NamedField &f) {
+  return std::holds_alternative<Children>(f.kind);
+}
+
+/// The element type name of a `Children<T>` field (e.g. "Stmt").
+std::string getChildrenElementType(const NamedField &f) {
+  return std::get<Children>(f.kind).typeName;
+}
+
+/// Storage for a list field in a *mutable* tree: a pointer to a builder-owned
+/// `std::vector`, so a pass can splice it in place. (Immutable trees keep the
+/// `ArrayRef` form from `fieldStorageType`.)
+std::string getOwnedListType(const NamedField &f) {
+  return "std::vector<const " + getChildrenElementType(f) + " *> *";
+}
+
 /// Walk `record`'s `Parent` chain (excluding `record` itself) up to the
 /// Base, collecting each level's `Fields` in **innermost-to-outermost**
 /// order. So for `IntLit : Node<Literal>` where `Literal : Variant<Expr>`
@@ -332,6 +349,18 @@ void emitNodeClass(CodeFormatter &fmt, llvm::StringRef treeName,
   const std::vector<NamedField> ownFields = parseFields(node);
   const std::vector<NamedField> inheritedFields = gatherInheritedFields(node);
 
+  // In a mutable tree a `Children<T>` list is stored as a pointer to a
+  // builder-owned `std::vector` (so passes can splice it); the ctor and storage
+  // use that pointer, while the read accessor still yields an `ArrayRef`.
+  auto storageOf = [&](const NamedField &f) {
+    return mutableTree && isChildrenField(f) ? getOwnedListType(f)
+                                             : fieldStorageType(f.kind);
+  };
+  auto paramOf = [&](const NamedField &f) {
+    return mutableTree && isChildrenField(f) ? getOwnedListType(f)
+                                             : fieldRefType(f.kind);
+  };
+
   if (!summary.empty()) {
     fmt.linef("/// {0}", summary);
   }
@@ -346,7 +375,7 @@ void emitNodeClass(CodeFormatter &fmt, llvm::StringRef treeName,
       if (!params.empty()) {
         params += ", ";
       }
-      params += fieldRefType(f.kind);
+      params += paramOf(f);
       params += " ";
       params += f.name;
     }
@@ -354,7 +383,7 @@ void emitNodeClass(CodeFormatter &fmt, llvm::StringRef treeName,
       if (!params.empty()) {
         params += ", ";
       }
-      params += fieldRefType(f.kind);
+      params += paramOf(f);
       params += " ";
       params += f.name;
     }
@@ -397,8 +426,20 @@ void emitNodeClass(CodeFormatter &fmt, llvm::StringRef treeName,
 
     for (const NamedField &f : ownFields) {
       const std::string accessor = "get" + capitalize(f.name);
-      const std::string type = fieldRefType(f.kind);
       fmt.line("");
+      // A mutable list: `getX()` yields a read-only `ArrayRef` view, while
+      // `getXMutable()` exposes the builder-owned vector for in-place splicing.
+      if (mutableTree && isChildrenField(f)) {
+        const std::string elem = getChildrenElementType(f);
+        fmt.linef("[[nodiscard]] llvm::ArrayRef<const {0} *> {1}() const "
+                  "{{ return *{2}; }",
+                  elem, accessor, f.name);
+        fmt.linef("[[nodiscard]] std::vector<const {0} *> &{1}Mutable() "
+                  "{{ return *{2}; }",
+                  elem, accessor, f.name);
+        continue;
+      }
+      const std::string type = fieldRefType(f.kind);
       fmt.linef("[[nodiscard]] {0} {1}() const {{ return {2}; }", type,
                 accessor, f.name);
       if (mutableTree) {
@@ -413,7 +454,7 @@ void emitNodeClass(CodeFormatter &fmt, llvm::StringRef treeName,
     fmt.line("private:");
     auto body = fmt.block();
     for (const NamedField &f : ownFields) {
-      fmt.linef("{0} {1};", fieldStorageType(f.kind), f.name);
+      fmt.linef("{0} {1};", storageOf(f), f.name);
     }
   }
 

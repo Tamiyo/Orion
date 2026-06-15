@@ -4,9 +4,12 @@
 #include "yuzu/Anf/Ops/Op.h" // IWYU pragma: keep
 #include "yuzu/Types/Type.h" // IWYU pragma: keep
 
+#include <llvm/ADT/ArrayRef.h> // IWYU pragma: keep
+
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+#include <vector> // IWYU pragma: keep
 
 namespace yuzu::anf {
 /// Stable integer handle for an ANF node. Assigned monotonically by

@@ -150,4 +150,50 @@ TEST_F(AnfReducerTest, WarnsOnOverflow) {
   EXPECT_NE(anf::CallExpr::cast(c->getValue()), nullptr);
 }
 
+// A direct call in a query column is inlined: the callee's body is spliced in
+// (param substituted by the argument), leaving no `FuncCallExpr` behind.
+TEST_F(AnfReducerTest, InlinesDirectCallInQuery) {
+  const hir::Root *root = compile(UR"(
+    struct Employee { id: int32, salary: int32 }
+    table employees = Employee
+    fn bonus(s: int32) -> int32 {
+      return s * 2
+    }
+    from employees e |> select bonus(e.salary) as x
+  )");
+  ASSERT_TRUE(diagnostics.getDiagnostics().empty());
+
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfLowerer lowerer{anfCtx, hirCtx, diagnostics, sourceId};
+  const anf::Root *program = lowerer.lowerRoot(root);
+  anf::AnfReducer(anfCtx).reduce(program);
+  ASSERT_TRUE(diagnostics.getDiagnostics().empty());
+
+  const auto *exprStmt = anf::ExprStmt::cast(program->getStmts().back());
+  ASSERT_NE(exprStmt, nullptr);
+  const auto *select = anf::SelectRel::cast(exprStmt->getValue());
+  ASSERT_NE(select, nullptr);
+  ASSERT_EQ(select->getItems().size(), 1u);
+  const auto *body = select->getItems().front()->getBody();
+
+  // No call survives, and the multiply reads `e.salary` directly (param
+  // substituted by the argument atom).
+  bool sawMulOverField = false;
+  for (const anf::Stmt *stmt : body->getStmts()) {
+    const auto *let = anf::LetStmt::cast(stmt);
+    if (let == nullptr) {
+      continue;
+    }
+    const anf::Expr *value = let->getBinding()->getValue();
+    EXPECT_EQ(anf::FuncCallExpr::cast(value), nullptr);
+    if (const auto *call = anf::CallExpr::cast(value)) {
+      if (!call->getArgs().empty() &&
+          anf::FieldAtom::cast(call->getArgs().front()) != nullptr) {
+        sawMulOverField = true;
+      }
+    }
+  }
+  EXPECT_TRUE(sawMulOverField);
+}
+
 } // namespace
