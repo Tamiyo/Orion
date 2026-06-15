@@ -1,6 +1,7 @@
 #ifndef YUZU_COMPILER_COMPILE_PIPELINE_H
 #define YUZU_COMPILER_COMPILE_PIPELINE_H
 
+#include "yuzu/Anf/AnfContext.h"
 #include "yuzu/Diagnostics/DiagnosticPrinter.h"
 #include "yuzu/Diagnostics/DiagnosticsEngine.h"
 #include "yuzu/Diagnostics/SourceMap.h"
@@ -17,9 +18,10 @@ struct CompileOptions {
   bool execute = true;
 
   // Debug
-  bool debugLexer = true;
-  bool debugAst = true;
-  bool debugHir = true;
+  bool debugLexer = false;
+  bool debugAst = false;
+  bool debugHir = false;
+  bool debugAnf = true;
 };
 
 /// One-shot compile. Builds fresh diagnostics + HIR state, runs the
@@ -57,6 +59,7 @@ private:
   // `compile` call rebinds it via `hirCtx.setSourceId` before any
   // span is produced.
   hir::HirContext hirCtx;
+  anf::AnfContext anfCtx;
 };
 } // namespace yuzu
 

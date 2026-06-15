@@ -2,6 +2,7 @@
 #define YUZU_HIR_RESOLVE_HIRSCOPE_H
 
 #include "yuzu/Hir/Hir.h"
+#include "yuzu/Hir/Resolve/Binding.h"
 #include "yuzu/Util/U32StringExtensions.h" // IWYU pragma: keep
 
 #include <llvm/ADT/DenseMap.h>
@@ -9,7 +10,6 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
-#include <variant>
 
 namespace yuzu::hir {
 class HirContext;
@@ -20,12 +20,6 @@ enum class [[nodiscard]] HirScopeKind : uint8_t { Func, Block };
 /// A lexical scope's bindings.
 class [[nodiscard]] HirScope {
 public:
-  // `const Ident *` is a query row alias (`from t e` binds `e`); its row type
-  // lives in the type side table keyed by that `Ident`, so it resolves through
-  // the same `typeOf(decl)` path as a `let`/param.
-  using Binding = std::variant<const LetStmt *, const Param *, const FuncStmt *,
-                               const Ident *>;
-
   using LookupResult = std::optional<Binding>;
 
   explicit HirScope(HirContext &ctx, HirScopeKind kind)
@@ -38,7 +32,7 @@ public:
 
   HirScopeKind getKind() const { return kind; }
 
-  // Value namespace: `let`/`param`/`fn` declarations.
+  /// Bind an ident to its declaration.
   void bind(const Ident *ident, Binding decl);
 
   LookupResult lookup(const Ident *ident) const {

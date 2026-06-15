@@ -218,7 +218,7 @@ void emitBaseClass(CodeFormatter &fmt, llvm::StringRef treeName,
 /// alongside whatever's inherited from further up the chain. `isA` is a
 /// `HirKind` range check between the `<V>_FIRST` / `<V>_LAST` sentinels.
 void emitVariantClass(CodeFormatter &fmt, llvm::StringRef treeName,
-                      const llvm::Record *variant) {
+                      const llvm::Record *variant, bool mutableTree) {
   const std::string name = variant->getName().str();
   const std::string parentName =
       variant->getValueAsDef("Parent")->getName().str();
@@ -269,6 +269,10 @@ void emitVariantClass(CodeFormatter &fmt, llvm::StringRef treeName,
       fmt.line("");
       fmt.linef("[[nodiscard]] {0} {1}() const {{ return {2}; }", type,
                 accessor, f.name);
+      if (mutableTree) {
+        fmt.linef("void set{0}({1} value) {{ this->{2} = value; }",
+                  capitalize(f.name), type, f.name);
+      }
     }
   }
   fmt.line("");
@@ -321,7 +325,7 @@ void emitVariantClass(CodeFormatter &fmt, llvm::StringRef treeName,
 /// then inherited (variant chain) fields last. `HirKind` is pinned
 /// from the node's own name and forwarded to the parent.
 void emitNodeClass(CodeFormatter &fmt, llvm::StringRef treeName,
-                   const llvm::Record *node) {
+                   const llvm::Record *node, bool mutableTree) {
   const std::string name = node->getName().str();
   const std::string parentName = node->getValueAsDef("Parent")->getName().str();
   const llvm::StringRef summary = node->getValueAsString("Summary");
@@ -397,6 +401,10 @@ void emitNodeClass(CodeFormatter &fmt, llvm::StringRef treeName,
       fmt.line("");
       fmt.linef("[[nodiscard]] {0} {1}() const {{ return {2}; }", type,
                 accessor, f.name);
+      if (mutableTree) {
+        fmt.linef("void set{0}({1} value) {{ this->{2} = value; }",
+                  capitalize(f.name), type, f.name);
+      }
     }
   }
 
@@ -419,6 +427,7 @@ void HirNodeGenerator::generate(const llvm::RecordKeeper &records) {
   const std::string ns = findNamespace(records, "Base");
   const llvm::StringRef treeName = findTreeName(records, "Base");
   const llvm::Record *base = findBase(records);
+  const bool mutableTree = base->getValueAsBit("Mutable");
 
   std::vector<const llvm::Record *> variants =
       records.getAllDerivedDefinitions("Variant");
@@ -451,11 +460,11 @@ void HirNodeGenerator::generate(const llvm::RecordKeeper &records) {
   }
 
   for (const llvm::Record *v : variants) {
-    emitVariantClass(fmt, treeName, v);
+    emitVariantClass(fmt, treeName, v, mutableTree);
   }
 
   for (const llvm::Record *n : nodes) {
-    emitNodeClass(fmt, treeName, n);
+    emitNodeClass(fmt, treeName, n, mutableTree);
   }
 
   fmt.linef("} // namespace {0}", ns);

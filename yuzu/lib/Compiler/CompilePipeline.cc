@@ -1,5 +1,10 @@
 #include "yuzu/Compiler/CompilePipeline.h"
 
+#include "yuzu/Anf/Anf.h"
+#include "yuzu/Anf/AnfContext.h"
+#include "yuzu/Anf/AnfLowerer.h"
+#include "yuzu/Anf/AnfPrinter.h"
+#include "yuzu/Anf/Reduction/AnfReducer.h"
 #include "yuzu/Ast/Ast.h"
 #include "yuzu/Diagnostics/DiagnosticPrinter.h"
 #include "yuzu/Diagnostics/DiagnosticsEngine.h"
@@ -86,6 +91,30 @@ const hir::Root *hirPass(ast::SyntaxNode syntaxRoot,
 
   return root;
 }
+
+const anf::Root *anfPass(const hir::Root *hirRoot,
+                         const CompileOptions &options,
+                         diagnostics::SourceId sourceId,
+                         diagnostics::DiagnosticsEngine &diagnostics,
+                         anf::AnfContext &anfCtx, hir::HirContext &hirCtx) {
+  anf::AnfLowerer lowerer(anfCtx, hirCtx, diagnostics, sourceId);
+  const anf::Root *root = lowerer.lowerRoot(hirRoot);
+
+  if (options.debugAnf) {
+    options.out << "=== anf ===\n"
+                << anf::AnfPrinter::printToString(root) << '\n';
+  }
+
+  anf::AnfReducer reducer(anfCtx);
+  reducer.reduce(root);
+
+  if (options.debugAnf) {
+    options.out << "=== anf after reduction ===\n"
+                << anf::AnfPrinter::printToString(root) << '\n';
+  }
+
+  return root;
+}
 } // namespace
 
 namespace {
@@ -110,7 +139,7 @@ void runPipeline(std::u32string_view source, const CompileOptions &options,
                  diagnostics::SourceId sourceId,
                  diagnostics::DiagnosticsEngine &diagnostics,
                  const diagnostics::DiagnosticPrinter &printer,
-                 hir::HirContext &hirCtx) {
+                 hir::HirContext &hirCtx, anf::AnfContext &anfCtx) {
   const auto tokens = lexerPass(source, options);
   if (diagnostics.hasErrors()) {
     flushDiagnostics(diagnostics, printer, options.out);
@@ -130,8 +159,14 @@ void runPipeline(std::u32string_view source, const CompileOptions &options,
     return;
   }
 
-  (void)hirRoot;
-  // codegenPass(hirRoot, hirCtx, diagnostics, sourceId, options);
+  const auto anfRoot =
+      anfPass(hirRoot, options, sourceId, diagnostics, anfCtx, hirCtx);
+  if (diagnostics.hasErrors()) {
+    flushDiagnostics(diagnostics, printer, options.out);
+    return;
+  }
+
+  (void)anfRoot;
 }
 } // namespace
 
@@ -150,15 +185,17 @@ void compile(std::u32string_view source, CompileOptions options) {
   // outlive every consumer of `hirRoot` (the HIR printer, codegen,
   // source-map lookups).
   hir::HirContext hirCtx(diagnostics, sourceId);
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
 
-  runPipeline(source, options, sourceId, diagnostics, printer, hirCtx);
+  runPipeline(source, options, sourceId, diagnostics, printer, hirCtx, anfCtx);
 }
 
 Session::Session(CompileOptions options)
     : options(options), sources(), diagnostics(), printer(sources),
       // SourceId is a placeholder; every `compile` call rebinds it
       // via `hirCtx.setSourceId` before any span is produced.
-      hirCtx(diagnostics, diagnostics::SourceId{}) {}
+      hirCtx(diagnostics, diagnostics::SourceId{}),
+      anfCtx(diagnostics, diagnostics::SourceId{}, hirCtx) {}
 
 void Session::compile(std::u32string_view source) {
   // Each input is registered as a fresh entry in the shared source
@@ -170,7 +207,7 @@ void Session::compile(std::u32string_view source) {
       "<repl:" + std::to_string(++lineCounter) + ">", std::u32string(source));
   hirCtx.setSourceId(sourceId);
 
-  runPipeline(source, options, sourceId, diagnostics, printer, hirCtx);
+  runPipeline(source, options, sourceId, diagnostics, printer, hirCtx, anfCtx);
 
   // Drop diagnostics from this input so the next one starts clean —
   // `hasErrors()` on the next compile should reflect only what that

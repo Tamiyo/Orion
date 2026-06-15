@@ -1,7 +1,7 @@
 #ifndef YUZU_ANF_ANF_H
 #define YUZU_ANF_ANF_H
 
-#include "yuzu/Hir/Ops/Op.h" // IWYU pragma: keep
+#include "yuzu/Anf/Ops/Op.h" // IWYU pragma: keep
 #include "yuzu/Types/Type.h" // IWYU pragma: keep
 
 #include <cstdint>
@@ -18,6 +18,12 @@ enum class AnfId : uint32_t {};
 /// construction, etc.
 inline constexpr AnfId InvalidAnfId{
     std::numeric_limits<std::underlying_type_t<AnfId>>::max()};
+
+/// Forward-declared so the generated `BindingRef` / `FuncStmtRef` aliases (the
+/// `VarAtom` -> def and `FuncRef` -> callee back-edges) resolve; the full
+/// definitions land in the generated header below.
+class Binding;
+class FuncStmt;
 } // namespace yuzu::anf
 
 // Generated AnfKind enum + asString. Emits its own `namespace yuzu::anf { ...

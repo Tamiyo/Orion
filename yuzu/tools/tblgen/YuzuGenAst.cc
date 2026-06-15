@@ -1,3 +1,4 @@
+#include "AnfPrinterGenerator.h"
 #include "AstNodeGenerator.h"
 #include "HirBuilderGenerator.h"
 #include "HirKindGenerator.h"
@@ -25,6 +26,7 @@ enum ActionType {
   GenAnfBuilderDecls,
   GenAnfKindDecls,
   GenAnfNodeDecls,
+  GenAnfPrinterDecls,
   GenAnfVisitorDecls,
   GenSyntaxKindDecls,
   GenTokenKindDecls,
@@ -52,6 +54,8 @@ static llvm::cl::opt<ActionType> action(
                                 "Generate AnfKind declarations")),
     llvm::cl::values(clEnumValN(GenAnfNodeDecls, "gen-anf-node-decls",
                                 "Generate ANF node and variant declarations")),
+    llvm::cl::values(clEnumValN(GenAnfPrinterDecls, "gen-anf-printer-decls",
+                                "Generate ANF pretty-printer declarations")),
     llvm::cl::values(clEnumValN(GenAnfVisitorDecls, "gen-anf-visitor-decls",
                                 "Generate ANF visitor declarations")),
     llvm::cl::values(clEnumValN(GenSyntaxKindDecls, "gen-syntax-kind-decls",
@@ -94,6 +98,11 @@ static bool YuzuTableGenMain(llvm::raw_ostream &os,
     break;
   case GenAnfNodeDecls:
     yuzu::tools::HirNodeGenerator(os).run(records);
+    break;
+  // The ANF printer is its own generator (unlike the node/kind/builder/visitor
+  // generators it reuses): ANF carries types on-node, so it is context-free.
+  case GenAnfPrinterDecls:
+    yuzu::tools::AnfPrinterGenerator(os).run(records);
     break;
   case GenAnfVisitorDecls:
     yuzu::tools::HirVisitorGenerator(os).run(records);

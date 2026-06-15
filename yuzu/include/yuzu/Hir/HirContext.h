@@ -7,6 +7,7 @@
 #include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirBuilder.h"
+#include "yuzu/Hir/Resolve/Binding.h"
 #include "yuzu/Hir/Resolve/HirSymbolTable.h"
 #include "yuzu/Hir/Types/Adjustment.h"
 #include "yuzu/Hir/Types/TypeContext.h"
@@ -14,6 +15,8 @@
 #include "yuzu/Util/StringInterner.h"
 
 #include <llvm/ADT/Twine.h>
+
+#include <variant>
 
 namespace yuzu::hir {
 /// Maps each HIR node's `HirId` back to the AST view it was lowered from.
@@ -28,6 +31,11 @@ using HirSourceTable = util::SideTable<HirId, ast::AstNode>;
 /// generates the value as the expression's own type, then wraps in the
 /// adjustment's cast op if an entry exists.
 using HirAdjustmentTable = util::SideTable<HirId, Adjustment>;
+
+/// Maps each resolved name (an `Ident`'s `HirId`) to the declaration it binds
+/// to — the result of the symbol-table scope walk, recorded so later stages
+/// (ANF lowering, LSP, unused-binding checks) need not redo it.
+using HirResolutionTable = util::SideTable<HirId, Binding>;
 
 class HirContext final {
 public:
@@ -46,8 +54,27 @@ public:
   HirSymbolTable &getSymbolTable() { return symbolTable; }
   HirSourceTable &getSourceTable() { return sourceTable; }
   HirAdjustmentTable &getAdjustments() { return adjustments; }
+  HirResolutionTable &getResolutions() { return resolutions; }
   TypeContext &getTypeContext() { return typeContext; }
   util::StringInterner &getStringInterner() { return stringInterner; }
+
+  /// The declaration the name `name` resolves to, as recorded by the typer
+  /// (null if unrecorded). Unwraps the resolution variant to the decl node.
+  const HirNode *resolveIdent(const Ident *name) const {
+    const Binding *binding = resolutions.get(name->getId());
+    if (binding == nullptr) {
+      return nullptr;
+    }
+    return std::visit([](const auto *decl) -> const HirNode * { return decl; },
+                      *binding);
+  }
+
+  template <typename Method, typename... Args>
+  auto build(ast::AstNode origin, Method method, Args &&...args) {
+    auto *node = (builder.*method)(std::forward<Args>(args)...);
+    sourceTable.bind(node->getId(), origin);
+    return node;
+  }
 
   /// Rebind the source id used by `spanFor`/`error` for any HIR nodes
   /// lowered after this point.
@@ -98,6 +125,7 @@ private:
   HirSymbolTable symbolTable{*this};
   HirSourceTable sourceTable;
   HirAdjustmentTable adjustments;
+  HirResolutionTable resolutions;
   util::StringInterner stringInterner;
   TypeContext typeContext{stringInterner};
 

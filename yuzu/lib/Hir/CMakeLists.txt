@@ -5,7 +5,10 @@ yuzu_tablegen(YuzuHirPrinterInc "yuzu/Hir/HirPrinter.h.inc" -gen-hir-printer-dec
 yuzu_tablegen(YuzuHirVisitorInc "yuzu/Hir/HirVisitor.h.inc" -gen-hir-visitor-decls "yuzu/Hir/Hir.td")
 
 add_library(YuzuHir
+  HirExprLowerer.cc
   HirLowerer.cc
+  HirRelLowerer.cc
+  HirStmtLowerer.cc
   Ops/BuiltinOps.cc
   Resolve/HirScope.cc
   Resolve/HirSymbolTable.cc

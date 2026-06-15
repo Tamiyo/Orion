@@ -60,6 +60,10 @@ void TypeInferrer::visitIdentExpr(const IdentExpr *n) {
     return;
   }
 
+  // Record which declaration this name binds to, so ANF lowering (and any later
+  // pass) gets the resolution without redoing the scope walk.
+  ctx.getResolutions().bind(n->getName()->getId(), *lookupResult);
+
   // A function reference resolves its signature lazily on first use (forward
   // references); other bindings already carry a type in the side table.
   const Type *type = std::visit(

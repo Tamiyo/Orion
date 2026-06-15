@@ -14,6 +14,7 @@ void usage() {
                   "  --debug-lexer  dump the token stream\n"
                   "  --debug-ast    dump the syntax tree\n"
                   "  --debug-hir    dump the HIR\n"
+                  "  --debug-anf    dump the ANF\n"
                   "  --debug        dump all of the above\n";
 }
 } // namespace
@@ -27,6 +28,7 @@ int main(int argc, char **argv) {
       .debugLexer = false,
       .debugAst = false,
       .debugHir = false,
+      .debugAnf = false,
   };
 
   const char *path = nullptr;
@@ -34,6 +36,8 @@ int main(int argc, char **argv) {
     const std::string_view arg = argv[i];
     if (arg == "--debug-lexer") {
       options.debugLexer = true;
+    } else if (arg == "--debug-anf") {
+      options.debugAnf = true;
     } else if (arg == "--debug-ast") {
       options.debugAst = true;
     } else if (arg == "--debug-hir") {

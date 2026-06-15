@@ -11,7 +11,7 @@
 
 namespace yuzu::hir {
 
-#define YUZU_SINGLETON_OP(ClassName)                                           \
+#define YUZU_HIR_SINGLETON_OP(ClassName)                                       \
   class ClassName##Op final : public Op {                                      \
   public:                                                                      \
     static constexpr std::string_view Name = #ClassName;                       \
@@ -29,27 +29,27 @@ namespace yuzu::hir {
                                HirContext &ctx) const override;                \
   };
 
-YUZU_SINGLETON_OP(Add)
-YUZU_SINGLETON_OP(And)
-YUZU_SINGLETON_OP(Sub)
-YUZU_SINGLETON_OP(Mul)
-YUZU_SINGLETON_OP(Div)
-YUZU_SINGLETON_OP(Or)
-YUZU_SINGLETON_OP(In)
-YUZU_SINGLETON_OP(NotIn)
-YUZU_SINGLETON_OP(Pow)
-YUZU_SINGLETON_OP(Eq)
-YUZU_SINGLETON_OP(Neq)
-YUZU_SINGLETON_OP(Lt)
-YUZU_SINGLETON_OP(Lte)
-YUZU_SINGLETON_OP(Gt)
-YUZU_SINGLETON_OP(Gte)
-YUZU_SINGLETON_OP(ShiftLeft)
-YUZU_SINGLETON_OP(ShiftRight)
+YUZU_HIR_SINGLETON_OP(Add)
+YUZU_HIR_SINGLETON_OP(And)
+YUZU_HIR_SINGLETON_OP(Sub)
+YUZU_HIR_SINGLETON_OP(Mul)
+YUZU_HIR_SINGLETON_OP(Div)
+YUZU_HIR_SINGLETON_OP(Or)
+YUZU_HIR_SINGLETON_OP(In)
+YUZU_HIR_SINGLETON_OP(NotIn)
+YUZU_HIR_SINGLETON_OP(Pow)
+YUZU_HIR_SINGLETON_OP(Eq)
+YUZU_HIR_SINGLETON_OP(Neq)
+YUZU_HIR_SINGLETON_OP(Lt)
+YUZU_HIR_SINGLETON_OP(Lte)
+YUZU_HIR_SINGLETON_OP(Gt)
+YUZU_HIR_SINGLETON_OP(Gte)
+YUZU_HIR_SINGLETON_OP(ShiftLeft)
+YUZU_HIR_SINGLETON_OP(ShiftRight)
 
-YUZU_SINGLETON_OP(UnaryPos)
-YUZU_SINGLETON_OP(UnaryNeg)
-YUZU_SINGLETON_OP(UnaryNot)
+YUZU_HIR_SINGLETON_OP(UnaryPos)
+YUZU_HIR_SINGLETON_OP(UnaryNeg)
+YUZU_HIR_SINGLETON_OP(UnaryNot)
 
 } // namespace yuzu::hir
 

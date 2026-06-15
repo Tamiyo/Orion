@@ -2,6 +2,7 @@
 #define YUZU_HIR_RESOLVE_HIRSYMBOLTABLE_H
 
 #include "yuzu/Hir/Hir.h"
+#include "yuzu/Hir/Resolve/Binding.h"
 #include "yuzu/Hir/Resolve/HirScope.h"
 
 #include <deque>
@@ -24,7 +25,7 @@ public:
   /// Bind `ident`'s name to its declaration in the current (innermost)
   /// scope. Re-binding the same name in the same scope is an error (a
   /// duplicate definition); shadowing across scopes is the lookup loop's job.
-  void bind(const Ident *ident, HirScope::Binding decl) {
+  void bind(const Ident *ident, Binding decl) {
     scopes.back().bind(ident, decl);
   }
 

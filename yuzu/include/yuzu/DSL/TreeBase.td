@@ -27,6 +27,9 @@ class Def {
 class Base : Def {
     string Namespace = "";
     string TreeName = "";
+    /// When set, the node generator emits a `set<Field>` for every data field
+    /// (on `Variant`/`Node`, not the Base's identity fields). Off = immutable.
+    bit Mutable = 0;
     dag Fields = (ins);
 }
 

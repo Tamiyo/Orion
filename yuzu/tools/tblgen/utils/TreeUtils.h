@@ -91,6 +91,14 @@ struct NamedField {
   FieldKind kind;
 };
 
+/// True when `f` is a single `Child<typeName>` reference (not a list). Lets a
+/// generator special-case a particular child type — e.g. rendering a
+/// `Child<Ident>` inline rather than as a nested node.
+inline bool isChildOf(const NamedField &f, llvm::StringRef typeName) {
+  const auto *child = std::get_if<Child>(&f.kind);
+  return child != nullptr && child->typeName == typeName;
+}
+
 //===----------------------------------------------------------------------===//
 // Parsers
 //===----------------------------------------------------------------------===//
