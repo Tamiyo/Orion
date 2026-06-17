@@ -22,14 +22,14 @@ const Rel *AnfLowerer::lowerFromRel(const hir::FromRel *fromRel) {
   const auto *relation = lowerIdent(fromRel->getRelation());
   const auto *alias =
       fromRel->getAlias() ? lowerIdent(fromRel->getAlias()) : nullptr;
-  const auto *type = hirCtx.getTypeContext().typeOf(fromRel);
+  const auto *type = ctx.typeOf(fromRel);
 
   // Bind the row so columns resolve the alias the ordinary way: `e` ->
   // VarAtom(row), `e.salary` -> FieldAtom(VarAtom(row), salary). The row is an
   // input, so the binding has no defining value. HIR resolves the alias to
   // itself, so that ident is the bindingMap key.
   if (fromRel->getAlias() != nullptr) {
-    const auto *rowType = hirCtx.getTypeContext().typeOf(fromRel->getAlias());
+    const auto *rowType = ctx.typeOf(fromRel->getAlias());
     const Expr *noValue = nullptr;
     const auto *row = ctx.build(fromRel->getAlias(), &AnfBuilder::makeBinding,
                                 alias, noValue, rowType);
@@ -44,7 +44,7 @@ const Rel *AnfLowerer::lowerSelectRel(const hir::SelectRel *selectRel) {
   // Lower the input first — a `from` input registers its row binding here, so
   // the columns below can resolve the alias.
   const auto *input = lowerExpr(selectRel->getInput());
-  const auto *type = hirCtx.getTypeContext().typeOf(selectRel);
+  const auto *type = ctx.typeOf(selectRel);
 
   std::vector<const SelectItem *> items;
   items.reserve(selectRel->getItems().size());
@@ -61,8 +61,7 @@ void AnfLowerer::bindColumns(const hir::SelectRel *selectRel) {
   // Mirror a `from`'s row binding for a `select`: synthesize a row for this
   // relation's output, and map each named column to a `FieldAtom` over it. A
   // later stage's reference to the column then lowers to that selection.
-  const auto *relation =
-      types::RelationType::cast(hirCtx.getTypeContext().typeOf(selectRel));
+  const auto *relation = types::RelationType::cast(ctx.typeOf(selectRel));
   if (relation == nullptr) {
     return;
   }
@@ -88,7 +87,7 @@ void AnfLowerer::bindColumns(const hir::SelectRel *selectRel) {
       continue;
     }
 
-    const auto *columnType = hirCtx.getTypeContext().typeOf(item->getExpr());
+    const auto *columnType = ctx.typeOf(item->getExpr());
     const auto *rowAtom =
         ctx.build(name, &AnfBuilder::makeVarAtom, row, rowType);
     const auto *field = ctx.build(name, &AnfBuilder::makeFieldAtom, rowAtom,

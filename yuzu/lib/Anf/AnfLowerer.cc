@@ -2,7 +2,6 @@
 
 #include "yuzu/Anf/Anf.h"
 #include "yuzu/Hir/Hir.h"
-#include "yuzu/Hir/Ops/Op.h"
 
 #include <vector>
 
@@ -34,7 +33,7 @@ const Ident *AnfLowerer::lowerIdent(const hir::Ident *ident) {
 
 const Param *AnfLowerer::lowerParam(const hir::Param *param) {
   const auto *ident = lowerIdent(param->getName());
-  const auto *type = hirCtx.getTypeContext().typeOf(param);
+  const auto *type = ctx.typeOf(param);
 
   // Paramaters have no value by default, until default parameters are
   // available.

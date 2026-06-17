@@ -34,7 +34,8 @@ const Expr *AnfLowerer::lowerIdentExpr(const hir::IdentExpr *identExpr) {
   //
   //   let x = 5
   //   print(x)   // `x` resolves to `let x = 5` -> its VarAtom
-  return hirToAnfMap.lookup(hirCtx.resolveIdent(identExpr->getName()));
+  return hirToAnfMap.lookup(
+      ctx.getHirContext().resolveIdent(identExpr->getName()));
 }
 
 const Expr *AnfLowerer::lowerCallExpr(const hir::CallExpr *callExpr) {
@@ -47,15 +48,12 @@ const Expr *AnfLowerer::lowerCallExpr(const hir::CallExpr *callExpr) {
   }
 
   const auto *op = lowerOp(callExpr->getOp());
-  const auto *type = hirCtx.getTypeContext().typeOf(callExpr);
+  const auto *type = ctx.typeOf(callExpr);
   return ctx.build(callExpr, &AnfBuilder::makeCallExpr, op, loweredArgs, type);
 }
 
 const Expr *
 AnfLowerer::lowerFuncCallExpr(const hir::FuncCallExpr *funcCallExpr) {
-  // Lower the callee to an atom. A direct call names a function, which lowers
-  // to its `FuncRef` (so inlining can chase the target); an indirect callee
-  // lowers to whatever atom denotes it — `forceAtom` handles either.
   const auto *callee = forceAtom(funcCallExpr->getCallee());
 
   std::vector<const Atom *> loweredArgs;
@@ -63,7 +61,7 @@ AnfLowerer::lowerFuncCallExpr(const hir::FuncCallExpr *funcCallExpr) {
   for (const auto *arg : funcCallExpr->getArgs())
     loweredArgs.push_back(forceAtom(arg));
 
-  const auto *type = hirCtx.getTypeContext().typeOf(funcCallExpr);
+  const auto *type = ctx.typeOf(funcCallExpr);
   return ctx.build(funcCallExpr, &AnfBuilder::makeFuncCallExpr, callee,
                    loweredArgs, type);
 }
@@ -72,7 +70,7 @@ const Expr *
 AnfLowerer::lowerFieldAccessExpr(const hir::FieldAccessExpr *fieldAccessExpr) {
   const auto *base = forceAtom(fieldAccessExpr->getBase());
   const auto *field = lowerIdent(fieldAccessExpr->getField());
-  const auto *type = hirCtx.getTypeContext().typeOf(fieldAccessExpr);
+  const auto *type = ctx.typeOf(fieldAccessExpr);
   return ctx.build(fieldAccessExpr, &AnfBuilder::makeFieldAtom, base, field,
                    type);
 }
@@ -88,7 +86,7 @@ const Expr *AnfLowerer::lowerStructExpr(const hir::StructExpr *structExpr) {
   }
 
   const auto *name = lowerIdent(structExpr->getName());
-  const auto *type = hirCtx.getTypeContext().typeOf(structExpr);
+  const auto *type = ctx.typeOf(structExpr);
   return ctx.build(structExpr, &AnfBuilder::makeStructExpr, name, loweredFields,
                    type);
 }
@@ -108,25 +106,25 @@ const Constant *AnfLowerer::lowerLiteral(const hir::Literal *literal) {
 
 const BoolConst *AnfLowerer::lowerBoolLit(const hir::BoolLit *boolLit) {
   const auto value = boolLit->getValue();
-  const auto *type = hirCtx.getTypeContext().typeOf(boolLit);
+  const auto *type = ctx.typeOf(boolLit);
   return ctx.build(boolLit, &AnfBuilder::makeBoolConst, value, type);
 }
 
 const IntConst *AnfLowerer::lowerIntLit(const hir::IntLit *intLit) {
   const auto value = intLit->getValue();
-  const auto *type = hirCtx.getTypeContext().typeOf(intLit);
+  const auto *type = ctx.typeOf(intLit);
   return ctx.build(intLit, &AnfBuilder::makeIntConst, value, type);
 }
 
 const FloatConst *AnfLowerer::lowerFloatLit(const hir::FloatLit *floatLit) {
   const auto value = floatLit->getValue();
-  const auto *type = hirCtx.getTypeContext().typeOf(floatLit);
+  const auto *type = ctx.typeOf(floatLit);
   return ctx.build(floatLit, &AnfBuilder::makeFloatConst, value, type);
 }
 
 const StringConst *AnfLowerer::lowerStringLit(const hir::StringLit *stringLit) {
   const auto value = stringLit->getValue();
-  const auto *type = hirCtx.getTypeContext().typeOf(stringLit);
+  const auto *type = ctx.typeOf(stringLit);
   return ctx.build(stringLit, &AnfBuilder::makeStringConst, value, type);
 }
 

@@ -48,8 +48,7 @@ protected:
 
     anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
     const anf::Root *program =
-        anf::AnfLowerer{anfCtx, hirCtx, diagnostics, sourceId}.lowerRoot(
-            hirRoot);
+        anf::AnfLowerer{anfCtx, diagnostics, sourceId}.lowerRoot(hirRoot);
     anf::AnfReducer(anfCtx).reduce(program);
     EXPECT_TRUE(diagnostics.getDiagnostics().empty());
 
@@ -116,6 +115,48 @@ TEST_F(SubstraitEmitterTest, EmitsReadProjectAndScalarFunction) {
     }
   }
   EXPECT_TRUE(sawAdd);
+}
+
+// A second `select` referencing an earlier stage's column emits nested
+// projects: the outer projects a `selection` of the column the inner computed.
+TEST_F(SubstraitEmitterTest, EmitsChainedColumnReference) {
+  const std::string plan = emit(UR"(
+    struct Employee { id: int32, tenure: int32 }
+    table employees = Employee
+    from employees e |> select e.tenure + 7 as bonus |> select bonus
+  )");
+
+  auto parsed = llvm::json::parse(plan);
+  ASSERT_TRUE(static_cast<bool>(parsed)) << "plan is not valid JSON";
+  const llvm::json::Object *root =
+      (*parsed->getAsObject()->getArray("relations"))[0]
+          .getAsObject()
+          ->getObject("root");
+  ASSERT_NE(root, nullptr);
+
+  // The output column keeps its name across the stage.
+  const llvm::json::Array *names = root->getArray("names");
+  ASSERT_NE(names, nullptr);
+  ASSERT_EQ(names->size(), 1u);
+  EXPECT_EQ((*names)[0].getAsString(), "bonus");
+
+  // Outer project: its single expression is a field selection...
+  const llvm::json::Object *outer =
+      root->getObject("input")->getObject("project");
+  ASSERT_NE(outer, nullptr);
+  const llvm::json::Array *outerExprs = outer->getArray("expressions");
+  ASSERT_NE(outerExprs, nullptr);
+  ASSERT_EQ(outerExprs->size(), 1u);
+  EXPECT_NE((*outerExprs)[0].getAsObject()->getObject("selection"), nullptr);
+
+  // ...over an inner project (the `bonus` computation), over the read.
+  const llvm::json::Object *inner =
+      outer->getObject("input")->getObject("project");
+  ASSERT_NE(inner, nullptr);
+  EXPECT_NE((*inner->getArray("expressions"))[0].getAsObject()->getObject(
+                "scalarFunction"),
+            nullptr);
+  EXPECT_NE(inner->getObject("input")->getObject("read"), nullptr);
 }
 
 // No query in the program means no plan.

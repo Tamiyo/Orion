@@ -98,8 +98,8 @@ const anf::Root *anfPass(const hir::Root *hirRoot,
                          const CompileOptions &options,
                          diagnostics::SourceId sourceId,
                          diagnostics::DiagnosticsEngine &diagnostics,
-                         anf::AnfContext &anfCtx, hir::HirContext &hirCtx) {
-  anf::AnfLowerer lowerer(anfCtx, hirCtx, diagnostics, sourceId);
+                         anf::AnfContext &anfCtx) {
+  anf::AnfLowerer lowerer(anfCtx, diagnostics, sourceId);
   const anf::Root *root = lowerer.lowerRoot(hirRoot);
 
   if (options.debugAnf) {
@@ -183,8 +183,7 @@ void runPipeline(std::u32string_view source, const CompileOptions &options,
     return;
   }
 
-  const auto anfRoot =
-      anfPass(hirRoot, options, sourceId, diagnostics, anfCtx, hirCtx);
+  const auto anfRoot = anfPass(hirRoot, options, sourceId, diagnostics, anfCtx);
   if (diagnostics.hasErrors()) {
     flushDiagnostics(diagnostics, printer, options.out);
     return;

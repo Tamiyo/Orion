@@ -32,7 +32,7 @@ const Stmt *AnfLowerer::lowerStmt(const hir::Stmt *stmt) {
 const StructFieldDecl *
 AnfLowerer::lowerStructFieldDecl(const hir::StructFieldDecl *structFieldDecl) {
   const auto *name = lowerIdent(structFieldDecl->getName());
-  const auto *type = hirCtx.getTypeContext().typeOf(structFieldDecl);
+  const auto *type = ctx.typeOf(structFieldDecl);
   return ctx.build(structFieldDecl, &AnfBuilder::makeStructFieldDecl, name,
                    type);
 }
@@ -59,14 +59,14 @@ const Stmt *AnfLowerer::lowerStructStmt(const hir::StructStmt *structStmt) {
 
 const Stmt *AnfLowerer::lowerTableStmt(const hir::TableStmt *tableStmt) {
   const auto *ident = lowerIdent(tableStmt->getName());
-  const auto *type = hirCtx.getTypeContext().typeOf(tableStmt);
+  const auto *type = ctx.typeOf(tableStmt);
   return ctx.build(tableStmt, &AnfBuilder::makeTableStmt, ident, type);
 }
 
 const Stmt *AnfLowerer::lowerLetStmt(const hir::LetStmt *letStmt) {
   const auto *value = lowerExpr(letStmt->getExpr());
   const auto *ident = lowerIdent(letStmt->getName());
-  const auto *type = hirCtx.getTypeContext().typeOf(letStmt);
+  const auto *type = ctx.typeOf(letStmt);
   const auto *binding =
       ctx.build(letStmt, &AnfBuilder::makeBinding, ident, value, type);
   hirToAnfMap[letStmt] =
@@ -86,12 +86,14 @@ const Stmt *AnfLowerer::lowerAssignStmt(const hir::AssignStmt *assignStmt) {
   }
 
   const auto *ident = lowerIdent(target->getName());
-  const auto *type = hirCtx.getTypeContext().typeOf(assignStmt->getValue());
+  const auto *type = ctx.typeOf(assignStmt->getValue());
   const auto *binding =
       ctx.build(assignStmt, &AnfBuilder::makeBinding, ident, value, type);
+
   // SSA: later reads of this name (the same HIR decl) now see the new binding.
-  hirToAnfMap[hirCtx.resolveIdent(target->getName())] =
+  hirToAnfMap[ctx.getHirContext().resolveIdent(target->getName())] =
       ctx.build(assignStmt, &AnfBuilder::makeVarAtom, binding, type);
+
   return ctx.build(assignStmt, &AnfBuilder::makeLetStmt, binding);
 }
 
@@ -126,7 +128,7 @@ void AnfLowerer::hoistFuncStmt(const hir::FuncStmt *funcStmt) {
 
   // A placeholder body, filled in by `lowerFuncStmt`. The `FuncRef` points at
   // this shell, so a reference resolves even before the body is lowered.
-  const auto *returnType = hirCtx.getTypeContext().typeOf(funcStmt);
+  const auto *returnType = ctx.typeOf(funcStmt);
   const std::vector<const Stmt *> noStmts;
   const auto *body = ctx.build(funcStmt, &AnfBuilder::makeBlockStmt, noStmts);
   const auto *shell = ctx.build(funcStmt, &AnfBuilder::makeFuncStmt, name,

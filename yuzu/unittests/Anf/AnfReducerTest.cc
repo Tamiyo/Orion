@@ -52,7 +52,7 @@ protected:
                                   anf::AnfContext &anfCtx) {
     const hir::Root *root = compile(source);
     EXPECT_TRUE(diagnostics.getDiagnostics().empty());
-    anf::AnfLowerer lowerer{anfCtx, hirCtx, diagnostics, sourceId};
+    anf::AnfLowerer lowerer{anfCtx, diagnostics, sourceId};
     const anf::Root *program = lowerer.lowerRoot(root);
     anf::AnfReducer(anfCtx).reduce(program);
     return program;

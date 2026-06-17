@@ -57,7 +57,7 @@ TEST_F(AnfLowererTest, LowersScalarFunctionBody) {
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
   anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
-  anf::AnfLowerer lowerer{anfCtx, hirCtx, diagnostics, sourceId};
+  anf::AnfLowerer lowerer{anfCtx, diagnostics, sourceId};
   const anf::Root *program = lowerer.lowerRoot(root);
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
@@ -89,7 +89,7 @@ TEST_F(AnfLowererTest, LowersQuery) {
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
   anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
-  anf::AnfLowerer lowerer{anfCtx, hirCtx, diagnostics, sourceId};
+  anf::AnfLowerer lowerer{anfCtx, diagnostics, sourceId};
   const anf::Root *program = lowerer.lowerRoot(root);
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
@@ -130,7 +130,7 @@ TEST_F(AnfLowererTest, DirectCallLowersToFuncRef) {
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
   anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
-  anf::AnfLowerer lowerer{anfCtx, hirCtx, diagnostics, sourceId};
+  anf::AnfLowerer lowerer{anfCtx, diagnostics, sourceId};
   const anf::Root *program = lowerer.lowerRoot(root);
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 

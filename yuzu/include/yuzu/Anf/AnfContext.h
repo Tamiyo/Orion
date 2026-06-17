@@ -25,6 +25,7 @@ public:
   AnfBuilder &getBuilder() { return builder; }
   AnfSourceTable &getAnfSourceTable() { return anfSourceTable; }
   AnfTempTable &getAnfTempTable() { return anfTempTable; }
+  hir::HirContext &getHirContext() { return hirContext; }
 
   /// Shared with HIR so passes that synthesize names (the lowerer's and the
   /// reducer's `%t`s) intern into the same stable storage.
@@ -37,6 +38,10 @@ public:
     auto *node = (builder.*method)(std::forward<Args>(args)...);
     anfSourceTable.bind(node->getId(), origin);
     return node;
+  }
+
+  [[nodiscard]] const types::Type *typeOf(const hir::HirNode *node) const {
+    return hirContext.getTypeContext().typeOf(node);
   }
 
   /// The source span of `node`, resolved through its HIR origin. Falls back to

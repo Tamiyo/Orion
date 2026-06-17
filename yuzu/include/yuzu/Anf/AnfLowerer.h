@@ -20,10 +20,9 @@
 namespace yuzu::anf {
 class AnfLowerer final {
 public:
-  AnfLowerer(AnfContext &ctx, hir::HirContext &hir,
-             diagnostics::DiagnosticsEngine &diagnostics,
+  AnfLowerer(AnfContext &ctx, diagnostics::DiagnosticsEngine &diagnostics,
              diagnostics::SourceId source)
-      : ctx(ctx), hirCtx(hir), diagnostics(diagnostics), source(source) {}
+      : ctx(ctx), diagnostics(diagnostics), source(source) {}
 
   AnfLowerer(const AnfLowerer &) = default;
   AnfLowerer(AnfLowerer &&) = default;
@@ -82,7 +81,7 @@ private:
     if (const auto *atom = Atom::cast(lowered))
       return atom;
 
-    const auto *type = hirCtx.getTypeContext().typeOf(expr);
+    const auto *type = ctx.getHirContext().getTypeContext().typeOf(expr);
     const auto *binding =
         ctx.build(expr, &AnfBuilder::makeBinding, makeTemp(), lowered, type);
     intermediateStmts.push_back(
@@ -95,11 +94,11 @@ private:
     for (char c : std::to_string(tempCounter++)) {
       name.push_back(static_cast<char32_t>(c));
     }
-    return ctx.getBuilder().makeIdent(hirCtx.getStringInterner().intern(name));
+    return ctx.getBuilder().makeIdent(
+        ctx.getHirContext().getStringInterner().intern(name));
   }
 
   AnfContext &ctx;
-  hir::HirContext &hirCtx;
   diagnostics::DiagnosticsEngine &diagnostics;
   diagnostics::SourceId source;
 
