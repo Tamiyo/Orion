@@ -60,8 +60,9 @@ llvm::StringRef typeCode(const types::Type *type) {
   case types::TypeKind::Str:
     return "string";
   default:
-    return "unknown";
+    break;
   }
+  util::yuzu_unreachable("no Substrait type code for this yuzu type");
 }
 
 /// A Substrait type object, e.g. `{"i32": {"nullability": "..._REQUIRED"}}`.
@@ -224,6 +225,10 @@ llvm::json::Value SubstraitEmitter::emitSelection(const anf::FieldAtom *field) {
   // A row field reference: its offset within the input's row struct.
   const int index =
       structIndex(typeOf(field->getBase()), field->getField()->getName());
+  if (index < 0) {
+    util::yuzu_unreachable("field not found in row struct while emitting "
+                           "Substrait selection");
+  }
   return Object{
       {"selection", Object{{"directReference",
                             Object{{"structField", Object{{"field", index}}}}},
@@ -260,24 +265,43 @@ SubstraitEmitter::emitScalarFunction(const anf::CallExpr *call,
 
 llvm::json::Value SubstraitEmitter::emitExpr(const anf::Expr *expr,
                                              const Env &env) {
-  if (const auto *constant = anf::Constant::cast(expr)) {
-    return emitLiteral(constant);
+  switch (expr->getExprKind()) {
+  case anf::ExprKind::Atom:
+    return emitAtom(anf::Atom::cast(expr), env);
+  case anf::ExprKind::CallExpr:
+    return emitScalarFunction(anf::CallExpr::cast(expr), env);
+  case anf::ExprKind::FuncCallExpr:
+    util::yuzu_unreachable("FuncCallExpr should have been inlined before emit");
+  case anf::ExprKind::StructExpr:
+    util::yuzu_unreachable(
+        "struct literals are not yet supported in Substrait");
+  case anf::ExprKind::Rel:
+    util::yuzu_unreachable("a relation cannot appear as a column expression");
   }
-  if (const auto *var = anf::VarAtom::cast(expr)) {
+  util::yuzu_unreachable("unhandled expression kind while emitting Substrait");
+}
+
+llvm::json::Value SubstraitEmitter::emitAtom(const anf::Atom *atom,
+                                             const Env &env) {
+  switch (atom->getAtomKind()) {
+  case anf::AtomKind::Constant:
+    return emitLiteral(anf::Constant::cast(atom));
+  case anf::AtomKind::VarAtom: {
     // Inline the column temporary this name binds (chase the def-use edge).
+    const auto *var = anf::VarAtom::cast(atom);
     const auto it = env.find(var->getBinding());
-    if (it != env.end()) {
-      return emitExpr(it->second, env);
+    if (it == env.end()) {
+      util::yuzu_unreachable("unbound VarAtom while emitting Substrait");
     }
-    util::yuzu_unreachable("unbound VarAtom while emitting Substrait");
+    return emitExpr(it->second, env);
   }
-  if (const auto *field = anf::FieldAtom::cast(expr)) {
-    return emitSelection(field);
+  case anf::AtomKind::FieldAtom:
+    return emitSelection(anf::FieldAtom::cast(atom));
+  case anf::AtomKind::FuncRef:
+    util::yuzu_unreachable(
+        "a function reference cannot be emitted as a column");
   }
-  if (const auto *call = anf::CallExpr::cast(expr)) {
-    return emitScalarFunction(call, env);
-  }
-  util::yuzu_unreachable("unsupported expression while emitting Substrait");
+  util::yuzu_unreachable("unhandled atom kind while emitting Substrait");
 }
 
 llvm::json::Value SubstraitEmitter::emitColumn(const anf::SelectItem *item) {
@@ -344,13 +368,13 @@ SubstraitEmitter::emitSelectRel(const anf::SelectRel *select) {
 }
 
 llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
-  if (const auto *select = anf::SelectRel::cast(rel)) {
-    return emitSelectRel(select);
+  switch (rel->getRelKind()) {
+  case anf::RelKind::FromRel:
+    return emitFromRel(anf::FromRel::cast(rel));
+  case anf::RelKind::SelectRel:
+    return emitSelectRel(anf::SelectRel::cast(rel));
   }
-  if (const auto *from = anf::FromRel::cast(rel)) {
-    return emitFromRel(from);
-  }
-  util::yuzu_unreachable("unsupported relation while emitting Substrait");
+  util::yuzu_unreachable("unhandled relation kind while emitting Substrait");
 }
 
 std::string SubstraitEmitter::emit(const anf::Root *root) {

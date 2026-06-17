@@ -34,6 +34,7 @@ private:
   llvm::json::Value emitColumn(const anf::SelectItem *item);
 
   llvm::json::Value emitExpr(const anf::Expr *expr, const Env &env);
+  llvm::json::Value emitAtom(const anf::Atom *atom, const Env &env);
   llvm::json::Value emitLiteral(const anf::Constant *constant);
   llvm::json::Value emitScalarFunction(const anf::CallExpr *call,
                                        const Env &env);
