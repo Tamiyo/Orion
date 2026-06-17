@@ -35,6 +35,7 @@ class HirContextTest : public ::testing::Test {
 protected:
   SourceMap sources;
   DiagnosticsEngine diagnostics;
+  yuzu::util::StringInterner interner;
 
   struct Parsed {
     Root root;
@@ -92,7 +93,7 @@ TEST_F(HirContextTest, SpanForUnboundIdReturnsZeroSpanInCtxSource) {
   // An HIR node whose id was never bound to an AST origin still gets a
   // well-formed span — start == end == 0, source == ctx's source.
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const auto *lit = ctx.getBuilder().makeIntLit(0);
 
   const auto span = ctx.spanFor(lit);
@@ -105,7 +106,7 @@ TEST_F(HirContextTest, SpanForBoundNodeReturnsTightRangeOfAstOrigin) {
   // `1` sits at offsets 0..1 in `1 + 2`. After binding the HIR node's
   // id to that AST operand, `spanFor(node)` should report exactly that.
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const auto operands = operandsOf(root);
   const auto *lit = ctx.getBuilder().makeIntLit(0);
   ctx.getSourceTable().bind(lit->getId(), operands.lhs);
@@ -120,7 +121,7 @@ TEST_F(HirContextTest, SpanForHirIdAgreesWithSpanForNode) {
   // The id and node overloads must report the same span — the node
   // version is sugar over `node->getId()`.
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const auto operands = operandsOf(root);
   const auto *lit = ctx.getBuilder().makeIntLit(0);
   ctx.getSourceTable().bind(lit->getId(), operands.rhs);
@@ -138,7 +139,7 @@ TEST_F(HirContextTest, SpanForHirIdAgreesWithSpanForNode) {
 
 TEST_F(HirContextTest, SpanForEmptyArrayReturnsZeroSpan) {
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
 
   const auto span = ctx.spanFor(llvm::ArrayRef<const HirNode *>{});
   EXPECT_EQ(span.source, sourceId);
@@ -148,7 +149,7 @@ TEST_F(HirContextTest, SpanForEmptyArrayReturnsZeroSpan) {
 
 TEST_F(HirContextTest, SpanForSingleElementArrayMatchesSingleNodeSpan) {
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const auto operands = operandsOf(root);
   const auto *lit = ctx.getBuilder().makeIntLit(0);
   ctx.getSourceTable().bind(lit->getId(), operands.lhs);
@@ -165,7 +166,7 @@ TEST_F(HirContextTest, SpanForTwoElementArrayCoversFirstStartToLastEnd) {
   // `1` is at 0..1 and `2` is at 4..5. The stitched span should run
   // 0..5 — covering the operator that sits between them too.
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const auto operands = operandsOf(root);
 
   const auto *lhsHir = ctx.getBuilder().makeIntLit(1);
@@ -185,7 +186,7 @@ TEST_F(HirContextTest, SpanForArrayOfExprPointersInstantiatesTemplate) {
   // `ArrayRef<const Expr *>` (the shape op-resolves carry) works
   // without a copy. This test pins the template instantiation.
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const auto operands = operandsOf(root);
 
   const Expr *lhsHir = ctx.getBuilder().makeIntLit(1);
@@ -206,7 +207,7 @@ TEST_F(HirContextTest, SpanForArrayOfExprPointersInstantiatesTemplate) {
 
 TEST_F(HirContextTest, ErrorOnNodeRecordsDiagnosticAtNodeSpan) {
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const auto operands = operandsOf(root);
   const auto *lit = ctx.getBuilder().makeIntLit(0);
   ctx.getSourceTable().bind(lit->getId(), operands.lhs);
@@ -225,7 +226,7 @@ TEST_F(HirContextTest, ErrorOnNodeRecordsDiagnosticAtNodeSpan) {
 
 TEST_F(HirContextTest, ErrorOnArrayRecordsStitchedSpan) {
   const auto [root, sourceId] = parse(U"1 + 2");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const auto operands = operandsOf(root);
 
   const Expr *lhsHir = ctx.getBuilder().makeIntLit(1);

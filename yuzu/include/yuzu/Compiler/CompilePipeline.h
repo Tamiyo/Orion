@@ -6,6 +6,7 @@
 #include "yuzu/Diagnostics/DiagnosticsEngine.h"
 #include "yuzu/Diagnostics/SourceMap.h"
 #include "yuzu/Hir/HirContext.h"
+#include "yuzu/Util/StringInterner.h"
 
 #include <llvm/Support/raw_ostream.h>
 
@@ -61,6 +62,9 @@ private:
   diagnostics::SourceMap sources;
   diagnostics::DiagnosticsEngine diagnostics;
   diagnostics::DiagnosticPrinter printer;
+  // The single interner shared by both contexts; declared first so it
+  // outlives them.
+  util::StringInterner interner;
   // Default-constructed `SourceId` is the invalid sentinel; each
   // `compile` call rebinds it via `hirCtx.setSourceId` before any
   // span is produced.

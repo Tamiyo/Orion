@@ -29,7 +29,8 @@ protected:
   diagnostics::SourceMap sources;
   diagnostics::DiagnosticsEngine diagnostics;
   diagnostics::SourceId sourceId = sources.add("<test>", U"");
-  hir::HirContext hirCtx{diagnostics, sourceId};
+  util::StringInterner interner;
+  hir::HirContext hirCtx{diagnostics, sourceId, interner};
 
   const hir::Root *compile(std::u32string_view source) {
     auto tokens = lexer::Lexer(source).getTokens();
@@ -77,7 +78,7 @@ protected:
 
 // A constant column expression folds away entirely: `2 + 3` becomes `5`.
 TEST_F(AnfReducerTest, FoldsConstantArithmetic) {
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
   const anf::Root *program = lowerAndReduce(UR"(
     struct S { v: int32 }
     table t = S
@@ -93,7 +94,7 @@ TEST_F(AnfReducerTest, FoldsConstantArithmetic) {
 
 // Folding flows through nested constants in one pass: `(2 + 3) * 2` -> `10`.
 TEST_F(AnfReducerTest, FoldsChainedArithmetic) {
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
   const anf::Root *program = lowerAndReduce(UR"(
     struct S { v: int32 }
     table t = S
@@ -110,7 +111,7 @@ TEST_F(AnfReducerTest, FoldsChainedArithmetic) {
 // Folding a multiplication that overflows int64 warns and leaves the call in
 // place rather than baking in a wrapped value.
 TEST_F(AnfReducerTest, WarnsOnOverflow) {
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
   const anf::Root *program = lowerAndReduce(UR"(
     struct S { v: int32 }
     table t = S
@@ -136,7 +137,7 @@ TEST_F(AnfReducerTest, WarnsOnOverflow) {
 // in (parameter substituted by the argument), leaving no `FuncCallExpr` and the
 // multiply reading `e.salary` directly.
 TEST_F(AnfReducerTest, InlinesDirectCallInQuery) {
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
   const anf::Root *program = lowerAndReduce(UR"(
     struct Employee { id: int32, salary: int32 }
     table employees = Employee
@@ -170,7 +171,7 @@ TEST_F(AnfReducerTest, InlinesDirectCallInQuery) {
 // A function fully inlined into the query has no callers left, so it is dropped
 // from the program as dead code.
 TEST_F(AnfReducerTest, DeletesInlinedFunction) {
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
   const anf::Root *program = lowerAndReduce(UR"(
     struct Employee { id: int32, salary: int32 }
     table employees = Employee

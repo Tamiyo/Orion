@@ -13,8 +13,6 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseMap.h>
 
-#include <cstdint>
-#include <string>
 #include <vector>
 
 namespace yuzu::anf {
@@ -82,20 +80,11 @@ private:
       return atom;
 
     const auto *type = ctx.getHirContext().getTypeContext().typeOf(expr);
-    const auto *binding =
-        ctx.build(expr, &AnfBuilder::makeBinding, makeTemp(), lowered, type);
+    const auto *binding = ctx.build(expr, &AnfBuilder::makeBinding,
+                                    ctx.makeTemp(), lowered, type);
     intermediateStmts.push_back(
         ctx.build(expr, &AnfBuilder::makeLetStmt, binding));
     return ctx.build(expr, &AnfBuilder::makeVarAtom, binding, type);
-  }
-
-  const Ident *makeTemp() {
-    std::u32string name = U"%t";
-    for (char c : std::to_string(tempCounter++)) {
-      name.push_back(static_cast<char32_t>(c));
-    }
-    return ctx.getBuilder().makeIdent(
-        ctx.getHirContext().getStringInterner().intern(name));
   }
 
   AnfContext &ctx;
@@ -107,8 +96,6 @@ private:
 
   /// Tracks temporary statements introduced by lowering.
   std::vector<const Stmt *> intermediateStmts;
-
-  uint32_t tempCounter = 0;
 };
 
 } // namespace yuzu::anf

@@ -39,9 +39,11 @@ using HirResolutionTable = util::SideTable<HirId, Binding>;
 
 class HirContext final {
 public:
-  explicit HirContext(diagnostics::DiagnosticsEngine &diagnostics,
-                      diagnostics::SourceId sourceId)
-      : diagnostics(diagnostics), sourceId(sourceId) {
+  HirContext(diagnostics::DiagnosticsEngine &diagnostics,
+             diagnostics::SourceId sourceId,
+             util::StringInterner &stringInterner)
+      : stringInterner(stringInterner), diagnostics(diagnostics),
+        sourceId(sourceId) {
 
     auto &typeFactory = typeContext.getTypeFactory();
     for (const auto &[kind, name] : types::scalarBuiltins) {
@@ -126,7 +128,7 @@ private:
   HirSourceTable sourceTable;
   HirAdjustmentTable adjustments;
   HirResolutionTable resolutions;
-  util::StringInterner stringInterner;
+  util::StringInterner &stringInterner;
   TypeContext typeContext{stringInterner};
 
   diagnostics::DiagnosticsEngine &diagnostics;

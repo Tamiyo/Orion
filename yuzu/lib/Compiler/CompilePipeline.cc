@@ -206,9 +206,11 @@ void compile(std::u32string_view source, CompileOptions options) {
 
   // `hirCtx` owns the arena that backs the lowered HIR tree; it must
   // outlive every consumer of `hirRoot` (the HIR printer, codegen,
-  // source-map lookups).
-  hir::HirContext hirCtx(diagnostics, sourceId);
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  // source-map lookups). The interner is shared by both contexts and
+  // must outlive them.
+  util::StringInterner interner;
+  hir::HirContext hirCtx(diagnostics, sourceId, interner);
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
 
   runPipeline(source, options, sourceId, diagnostics, printer, hirCtx, anfCtx);
 }
@@ -217,8 +219,8 @@ Session::Session(CompileOptions options)
     : options(options), sources(), diagnostics(), printer(sources),
       // SourceId is a placeholder; every `compile` call rebinds it
       // via `hirCtx.setSourceId` before any span is produced.
-      hirCtx(diagnostics, diagnostics::SourceId{}),
-      anfCtx(diagnostics, diagnostics::SourceId{}, hirCtx) {}
+      hirCtx(diagnostics, diagnostics::SourceId{}, interner),
+      anfCtx(diagnostics, diagnostics::SourceId{}, hirCtx, interner) {}
 
 void Session::compile(std::u32string_view source) {
   // Each input is registered as a fresh entry in the shared source

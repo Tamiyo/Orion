@@ -22,7 +22,8 @@ using yuzu::diagnostics::SourceId;
 class BuiltinOpsTest : public ::testing::Test {
 protected:
   DiagnosticsEngine diagnostics;
-  HirContext ctx{diagnostics, SourceId{}};
+  yuzu::util::StringInterner interner;
+  HirContext ctx{diagnostics, SourceId{}, interner};
 
   /// Build a typed `Expr` whose `getType()` returns the requested
   /// primitive. Resolves only read `arg->getType()`, so using `IntLit`

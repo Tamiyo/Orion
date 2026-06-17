@@ -32,7 +32,8 @@ protected:
   diagnostics::SourceMap sources;
   diagnostics::DiagnosticsEngine diagnostics;
   diagnostics::SourceId sourceId = sources.add("<test>", U"");
-  hir::HirContext hirCtx{diagnostics, sourceId};
+  util::StringInterner interner;
+  hir::HirContext hirCtx{diagnostics, sourceId, interner};
 
   std::string emit(std::u32string_view source) {
     auto tokens = lexer::Lexer(source).getTokens();
@@ -46,7 +47,7 @@ protected:
                                    .lower(ast::Root{syntaxRoot});
     hir::TypeResolver(hirCtx).resolve(hirRoot);
 
-    anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+    anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
     const anf::Root *program =
         anf::AnfLowerer{anfCtx, diagnostics, sourceId}.lowerRoot(hirRoot);
     anf::AnfReducer(anfCtx).reduce(program);

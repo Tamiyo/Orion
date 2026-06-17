@@ -25,7 +25,8 @@ protected:
   diagnostics::SourceMap sources;
   diagnostics::DiagnosticsEngine diagnostics;
   diagnostics::SourceId sourceId = sources.add("<test>", U"");
-  hir::HirContext hirCtx{diagnostics, sourceId};
+  util::StringInterner interner;
+  hir::HirContext hirCtx{diagnostics, sourceId, interner};
 
   const hir::Root *compile(std::u32string_view source) {
     auto tokens = lexer::Lexer(source).getTokens();
@@ -56,7 +57,7 @@ TEST_F(AnfLowererTest, LowersScalarFunctionBody) {
   )");
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
   anf::AnfLowerer lowerer{anfCtx, diagnostics, sourceId};
   const anf::Root *program = lowerer.lowerRoot(root);
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
@@ -88,7 +89,7 @@ TEST_F(AnfLowererTest, LowersQuery) {
   )");
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
   anf::AnfLowerer lowerer{anfCtx, diagnostics, sourceId};
   const anf::Root *program = lowerer.lowerRoot(root);
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
@@ -129,7 +130,7 @@ TEST_F(AnfLowererTest, DirectCallLowersToFuncRef) {
   )");
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());
 
-  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx};
+  anf::AnfContext anfCtx{diagnostics, sourceId, hirCtx, interner};
   anf::AnfLowerer lowerer{anfCtx, diagnostics, sourceId};
   const anf::Root *program = lowerer.lowerRoot(root);
   ASSERT_TRUE(diagnostics.getDiagnostics().empty());

@@ -23,6 +23,7 @@ class HirVisitorTest : public ::testing::Test {
 protected:
   SourceMap sources;
   DiagnosticsEngine diagnostics;
+  yuzu::util::StringInterner interner;
 
   /// Hand-built fixture: `Root(stmts = [ExprStmt(IntLit), ExprStmt(IntLit)])`.
   /// All three stmt-level nodes share the same arena via `ctx.getBuilder()`,
@@ -68,7 +69,7 @@ TEST_F(HirVisitorTest, DefaultTraverseIsPostOrder) {
   // Root → ExprStmt → IntLit → (post-order back up). Two stmts means two
   // (IntLit, ExprStmt) pairs before the Root visit fires.
   const auto sourceId = sources.add("<test>", U"");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const Tree t = build(ctx);
 
   Recorder r;
@@ -92,7 +93,7 @@ public:
 
 TEST_F(HirVisitorTest, VisitOverrideCountsLeavesWithoutCustomWalk) {
   const auto sourceId = sources.add("<test>", U"");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const Tree t = build(ctx);
 
   IntCounter c;
@@ -121,7 +122,7 @@ public:
 
 TEST_F(HirVisitorTest, WalkOverrideSkipsChildren) {
   const auto sourceId = sources.add("<test>", U"");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const Tree t = build(ctx);
 
   PruneStmts p;
@@ -154,7 +155,7 @@ public:
 
 TEST_F(HirVisitorTest, TraverseOverrideSwapsOrder) {
   const auto sourceId = sources.add("<test>", U"");
-  HirContext ctx{diagnostics, sourceId};
+  HirContext ctx{diagnostics, sourceId, interner};
   const Tree t = build(ctx);
 
   PreOrderRoot p;

@@ -67,8 +67,8 @@ void AnfLowerer::bindColumns(const hir::SelectRel *selectRel) {
   }
   const auto *rowType = relation->getElement();
   const Expr *noValue = nullptr;
-  const auto *row = ctx.build(selectRel, &AnfBuilder::makeBinding, makeTemp(),
-                              noValue, rowType);
+  const auto *row = ctx.build(selectRel, &AnfBuilder::makeBinding,
+                              ctx.makeTemp(), noValue, rowType);
 
   for (const auto *item : selectRel->getItems()) {
     if (item->getExpr() == nullptr) {

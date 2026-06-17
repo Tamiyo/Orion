@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <string>
 #include <vector>
 
 namespace yuzu::anf {
@@ -74,8 +73,7 @@ void AnfReducer::eliminateDeadFunctions(const Root *root) {
   }
 
   // Erase the function definitions nothing references anymore.
-  std::vector<const Stmt *> &stmts =
-      const_cast<Root *>(root)->getStmtsMutable();
+  std::vector<const Stmt *> &stmts = mutate(root)->getStmtsMutable();
   stmts.erase(std::remove_if(stmts.begin(), stmts.end(),
                              [&](const Stmt *stmt) {
                                const auto *func = FuncStmt::cast(stmt);
@@ -85,10 +83,16 @@ void AnfReducer::eliminateDeadFunctions(const Root *root) {
 }
 
 void AnfReducer::reduceRel(const Rel *rel) {
-  const auto *select = SelectRel::cast(rel);
-  if (select == nullptr) {
-    return; // `FromRel` is the pipe source; nothing to reduce.
+  switch (rel->getRelKind()) {
+  case RelKind::FromRel:
+    // The pipe source; nothing to reduce.
+    return;
+  case RelKind::SelectRel:
+    return reduceSelectRel(SelectRel::cast(rel));
   }
+}
+
+void AnfReducer::reduceSelectRel(const SelectRel *select) {
   if (const auto *input = Rel::cast(select->getInput())) {
     reduceRel(input);
   }
@@ -99,134 +103,143 @@ void AnfReducer::reduceRel(const Rel *rel) {
 
 void AnfReducer::reduceSelectItem(const SelectItem *item) {
   // A column starts with an empty environment (its only free name is the row
-  // alias, which passes through). Evaluate the thunk, then cap it with its
-  // tail.
+  // alias, which passes through) and a fresh emit buffer. Evaluate the thunk,
+  // then cap it with its tail.
+  intermediateStmts.clear();
   Env env;
-  std::vector<const Stmt *> out;
-  const Atom *tail = reduceBlock(item->getBody()->getStmts(), env, out,
-                                 /*depth=*/0);
+  const Atom *tail = reduceBlock(item->getBody()->getStmts(), env, /*depth=*/0);
   if (tail != nullptr) {
-    out.push_back(ctx.getBuilder().makeExprStmt(tail));
+    intermediateStmts.push_back(ctx.getBuilder().makeExprStmt(tail));
   }
-  const_cast<SelectItem *>(item)->setBody(ctx.getBuilder().makeThunk(out));
+  mutate(item)->setBody(ctx.getBuilder().makeThunk(intermediateStmts));
 }
 
 const Atom *AnfReducer::reduceBlock(llvm::ArrayRef<const Stmt *> stmts,
-                                    Env &env, std::vector<const Stmt *> &out,
-                                    unsigned depth) {
+                                    Env &env, unsigned depth) {
   const Atom *tail = nullptr;
   for (const Stmt *stmt : stmts) {
     if (const auto *let = LetStmt::cast(stmt)) {
       // Bind the local to its reduced value; the value is only emitted if it's
       // a real computation (otherwise it's a constant/copy folded into uses).
       env[let->getBinding()] =
-          reduce(let->getBinding()->getValue(), env, out, depth);
+          reduce(let->getBinding()->getValue(), env, depth);
     } else if (const auto *ret = ReturnStmt::cast(stmt)) {
-      tail = ret->getValue() != nullptr
-                 ? reduce(ret->getValue(), env, out, depth)
-                 : nullptr;
+      tail = ret->getValue() != nullptr ? reduce(ret->getValue(), env, depth)
+                                        : nullptr;
     } else if (const auto *exprStmt = ExprStmt::cast(stmt)) {
-      tail = reduce(exprStmt->getValue(), env, out, depth);
+      tail = reduce(exprStmt->getValue(), env, depth);
     }
   }
   return tail;
 }
 
-const Atom *AnfReducer::reduce(const Expr *expr, Env &env,
-                               std::vector<const Stmt *> &out, unsigned depth) {
-  // Trivial atoms: a constant is itself; a name resolves through the
-  // environment (its reduced value), or passes through if free.
-  if (const auto *constant = Constant::cast(expr)) {
-    return constant;
+const Atom *AnfReducer::reduce(const Expr *expr, Env &env, unsigned depth) {
+  switch (expr->getExprKind()) {
+  case ExprKind::Atom:
+    return reduceAtom(Atom::cast(expr), env, depth);
+  case ExprKind::CallExpr:
+    return reduceCallExpr(CallExpr::cast(expr), env, depth);
+  case ExprKind::FuncCallExpr:
+    return reduceFuncCallExpr(FuncCallExpr::cast(expr), env, depth);
+  case ExprKind::StructExpr:
+    return reduceStructExpr(StructExpr::cast(expr), env, depth);
+  case ExprKind::Rel:
+    util::yuzu_unreachable("a relational expression cannot appear in a column");
   }
-  if (const auto *ref = FuncRef::cast(expr)) {
-    return ref;
-  }
-  if (const auto *var = VarAtom::cast(expr)) {
+}
+
+const Atom *AnfReducer::reduceAtom(const Atom *atom, Env &env, unsigned depth) {
+  switch (atom->getAtomKind()) {
+  case AtomKind::Constant:
+    // A constant evaluates to itself.
+    return Constant::cast(atom);
+  case AtomKind::FuncRef:
+    // A function reference passes through unchanged.
+    return FuncRef::cast(atom);
+  case AtomKind::VarAtom: {
+    // A name resolves to its reduced value, or passes through if it is free
+    // (the query's row alias).
+    const auto *var = VarAtom::cast(atom);
     const auto it = env.find(var->getBinding());
     return it != env.end() ? it->second : var;
   }
-  if (const auto *field = FieldAtom::cast(expr)) {
-    const Atom *base = reduce(field->getBase(), env, out, depth);
+  case AtomKind::FieldAtom: {
+    // A field access reduces its base, then rebuilds against the result.
+    const auto *field = FieldAtom::cast(atom);
+    const Atom *base = reduce(field->getBase(), env, depth);
     return ctx.getBuilder().makeFieldAtom(base, field->getField(),
                                           field->getType());
   }
+  }
+}
 
-  // A builtin call: reduce operands, fold if they're all constant, else emit.
-  if (const auto *call = CallExpr::cast(expr)) {
-    llvm::SmallVector<const Atom *, 4> args;
-    for (const Atom *arg : call->getArgs()) {
-      args.push_back(reduce(arg, env, out, depth));
-    }
-    if (const Constant *folded =
-            call->getOp()->fold(args, ctx, call->getType())) {
-      return folded;
-    }
-    return emit(
-        ctx.getBuilder().makeCallExpr(call->getOp(), args, call->getType()),
-        call->getType(), out);
+const Atom *AnfReducer::reduceCallExpr(const CallExpr *call, Env &env,
+                                       unsigned depth) {
+  llvm::SmallVector<const Atom *, 4> args;
+  for (const Atom *arg : call->getArgs()) {
+    args.push_back(reduce(arg, env, depth));
   }
 
-  // A function call: a direct call evaluates the callee's body inline; an
-  // indirect or depth-capped call is kept.
-  if (const auto *funcCall = FuncCallExpr::cast(expr)) {
-    llvm::SmallVector<const Atom *, 4> args;
-    for (const Atom *arg : funcCall->getArgs()) {
-      args.push_back(reduce(arg, env, out, depth));
-    }
-    if (const auto *ref = FuncRef::cast(funcCall->getCallee())) {
-      if (depth < kMaxInlineDepth) {
-        const FuncStmt *func = ref->getFunc();
-        const auto params = func->getParams();
-        if (params.size() == args.size()) {
-          Env callEnv;
-          for (std::size_t i = 0; i < params.size(); ++i) {
-            callEnv[params[i]->getBinding()] = args[i];
-          }
-          return reduceBlock(func->getBody()->getStmts(), callEnv, out,
-                             depth + 1);
-        }
-      } else {
-        ctx.warning(funcCall,
-                    "inlining depth limit reached; call left in place")
-            .emit();
+  if (const Constant *folded =
+          call->getOp()->fold(args, ctx, call->getType())) {
+    return folded;
+  }
+
+  return bindToTemp(
+      ctx.getBuilder().makeCallExpr(call->getOp(), args, call->getType()),
+      call->getType());
+}
+
+const Atom *AnfReducer::reduceFuncCallExpr(const FuncCallExpr *call, Env &env,
+                                           unsigned depth) {
+  llvm::SmallVector<const Atom *, 4> args;
+  for (const Atom *arg : call->getArgs()) {
+    args.push_back(reduce(arg, env, depth));
+  }
+
+  // A direct call to a known function is inlined: its body is evaluated under
+  // an environment binding the parameters to the argument atoms. An indirect
+  // call, an arity mismatch, or a call past the depth limit is kept in place.
+  if (const auto *ref = FuncRef::cast(call->getCallee())) {
+    const FuncStmt *func = ref->getFunc();
+    if (depth >= kMaxInlineDepth) {
+      ctx.warning(call, "inlining depth limit reached; call left in place")
+          .emit();
+    } else if (const auto params = func->getParams();
+               params.size() == args.size()) {
+      Env callEnv;
+      for (std::size_t i = 0; i < params.size(); ++i) {
+        callEnv[params[i]->getBinding()] = args[i];
       }
+      return reduceBlock(func->getBody()->getStmts(), callEnv, depth + 1);
     }
-    const Atom *callee = reduce(funcCall->getCallee(), env, out, depth);
-    return emit(
-        ctx.getBuilder().makeFuncCallExpr(callee, args, funcCall->getType()),
-        funcCall->getType(), out);
   }
 
-  // A struct literal: reduce field values, then emit the construction.
-  if (const auto *structExpr = StructExpr::cast(expr)) {
-    llvm::SmallVector<const StructFieldInit *, 4> fields;
-    for (const auto *field : structExpr->getFields()) {
-      fields.push_back(ctx.getBuilder().makeStructFieldInit(
-          field->getName(), reduce(field->getValue(), env, out, depth)));
-    }
-    return emit(ctx.getBuilder().makeStructExpr(structExpr->getName(), fields,
-                                                structExpr->getType()),
-                structExpr->getType(), out);
-  }
-
-  util::yuzu_unreachable("unexpected expression kind while reducing");
+  const Atom *callee = reduce(call->getCallee(), env, depth);
+  return bindToTemp(
+      ctx.getBuilder().makeFuncCallExpr(callee, args, call->getType()),
+      call->getType());
 }
 
-const Atom *AnfReducer::emit(const Expr *computation, const types::Type *type,
-                             std::vector<const Stmt *> &out) {
+const Atom *AnfReducer::reduceStructExpr(const StructExpr *expr, Env &env,
+                                         unsigned depth) {
+  llvm::SmallVector<const StructFieldInit *, 4> fields;
+  for (const auto *field : expr->getFields()) {
+    fields.push_back(ctx.getBuilder().makeStructFieldInit(
+        field->getName(), reduce(field->getValue(), env, depth)));
+  }
+
+  return bindToTemp(
+      ctx.getBuilder().makeStructExpr(expr->getName(), fields, expr->getType()),
+      expr->getType());
+}
+
+const Atom *AnfReducer::bindToTemp(const Expr *computation,
+                                   const types::Type *type) {
   const Binding *binding =
-      ctx.getBuilder().makeBinding(makeTemp(), computation, type);
-  out.push_back(ctx.getBuilder().makeLetStmt(binding));
+      ctx.getBuilder().makeBinding(ctx.makeTemp(), computation, type);
+  intermediateStmts.push_back(ctx.getBuilder().makeLetStmt(binding));
   return ctx.getBuilder().makeVarAtom(binding, type);
-}
-
-const Ident *AnfReducer::makeTemp() {
-  std::u32string name = U"%t";
-  for (char c : std::to_string(tempCounter++)) {
-    name.push_back(static_cast<char32_t>(c));
-  }
-  return ctx.getBuilder().makeIdent(ctx.getStringInterner().intern(name));
 }
 
 } // namespace yuzu::anf

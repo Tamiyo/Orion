@@ -63,7 +63,8 @@ const Type *typeFor(const TypeFactory &typeFactory, TypeKind k) {
 class TypeCoercionFixture {
 protected:
   DiagnosticsEngine diagnostics;
-  HirContext ctx{diagnostics, SourceId{}};
+  yuzu::util::StringInterner interner;
+  HirContext ctx{diagnostics, SourceId{}, interner};
 
   /// Build a typed `Expr` whose `getType()` returns the requested
   /// primitive. `coerceTypes` only looks at `getType()` and `getId()`,

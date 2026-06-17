@@ -9,8 +9,12 @@
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
 #include "yuzu/Util/SideTable.h"
+#include "yuzu/Util/StringInterner.h"
 
 #include <llvm/ADT/Twine.h>
+
+#include <cstdint>
+#include <string>
 
 namespace yuzu::anf {
 using AnfSourceTable = util::SideTable<AnfId, const hir::HirNode *>;
@@ -19,18 +23,30 @@ using AnfTempTable = util::SideTable<AnfId, const Expr *>;
 class AnfContext final {
 public:
   AnfContext(diagnostics::DiagnosticsEngine &diagnostics,
-             diagnostics::SourceId sourceId, hir::HirContext &hirContext)
-      : diagnostics(diagnostics), sourceId(sourceId), hirContext(hirContext) {}
+             diagnostics::SourceId sourceId, hir::HirContext &hirContext,
+             util::StringInterner &stringInterner)
+      : diagnostics(diagnostics), sourceId(sourceId), hirContext(hirContext),
+        stringInterner(stringInterner) {}
 
   AnfBuilder &getBuilder() { return builder; }
   AnfSourceTable &getAnfSourceTable() { return anfSourceTable; }
   AnfTempTable &getAnfTempTable() { return anfTempTable; }
   hir::HirContext &getHirContext() { return hirContext; }
 
-  /// Shared with HIR so passes that synthesize names (the lowerer's and the
-  /// reducer's `%t`s) intern into the same stable storage.
-  util::StringInterner &getStringInterner() {
-    return hirContext.getStringInterner();
+  /// The single interner shared across the pipeline, so passes that synthesize
+  /// names (the lowerer's and the reducer's `%t`s) intern into the same stable
+  /// storage that HIR uses.
+  util::StringInterner &getStringInterner() { return stringInterner; }
+
+  /// A fresh `%tN` ident, unique within this context. Resolution is by pointer,
+  /// so only uniqueness matters. Shared by the lowerer and reducer so the
+  /// temporaries they synthesize never collide.
+  const Ident *makeTemp() {
+    std::u32string name = U"%t";
+    for (char c : std::to_string(tempCounter++)) {
+      name.push_back(static_cast<char32_t>(c));
+    }
+    return builder.makeIdent(getStringInterner().intern(name));
   }
 
   template <typename Method, typename... Args>
@@ -68,6 +84,10 @@ private:
   diagnostics::DiagnosticsEngine &diagnostics;
   diagnostics::SourceId sourceId;
   hir::HirContext &hirContext;
+  util::StringInterner &stringInterner;
+
+  /// Counter behind `makeTemp`; only its monotonicity matters.
+  uint32_t tempCounter = 0;
 };
 
 } // namespace yuzu::anf

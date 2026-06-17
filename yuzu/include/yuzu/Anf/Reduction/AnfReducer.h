@@ -5,7 +5,6 @@
 
 #include <llvm/ADT/DenseMap.h>
 
-#include <cstdint>
 #include <vector>
 
 namespace yuzu::anf {
@@ -36,7 +35,10 @@ private:
   /// through unchanged.
   using Env = llvm::DenseMap<const Binding *, const Atom *>;
 
+  /// Dispatch on the relation kind: a `FromRel` is the pipe source (nothing to
+  /// reduce), a `SelectRel` recurses into its input and reduces its columns.
   void reduceRel(const Rel *rel);
+  void reduceSelectRel(const SelectRel *select);
   void reduceSelectItem(const SelectItem *item);
 
   /// Drop function definitions the reduced program no longer calls. A `FuncRef`
@@ -45,26 +47,53 @@ private:
   void eliminateDeadFunctions(const Root *root);
 
   /// Evaluate a statement sequence under `env`, appending the lets it needs to
-  /// `out`, and return the atom its tail (`return` / tail expression) yields.
-  /// Serves both a column `Thunk` and an inlined function `BlockStmt`.
+  /// the `intermediateStmts` buffer, and return the atom its tail (`return` /
+  /// tail expression) yields. Serves both a column `Thunk` and an inlined
+  /// function `BlockStmt`.
   const Atom *reduceBlock(llvm::ArrayRef<const Stmt *> stmts, Env &env,
-                          std::vector<const Stmt *> &out, unsigned depth);
+                          unsigned depth);
 
   /// Evaluate one expression under `env` to an atom, appending any computation
-  /// lets to `out`. `depth` bounds inlining recursion.
-  const Atom *reduce(const Expr *expr, Env &env, std::vector<const Stmt *> &out,
-                     unsigned depth);
+  /// lets to `intermediateStmts`. `depth` bounds inlining recursion. Dispatches
+  /// on the expression kind to the `reduce*` helper below.
+  const Atom *reduce(const Expr *expr, Env &env, unsigned depth);
 
-  /// Bind `computation` to a fresh temporary appended to `out`, and return a
-  /// use of it.
-  const Atom *emit(const Expr *computation, const types::Type *type,
-                   std::vector<const Stmt *> &out);
+  /// A trivial atom: a constant or function reference is itself, a name
+  /// resolves through `env`, a field access reduces its base.
+  const Atom *reduceAtom(const Atom *atom, Env &env, unsigned depth);
 
-  /// A fresh `%t` ident; only uniqueness matters (resolution is by pointer).
-  const Ident *makeTemp();
+  /// A builtin call: reduce the operands, then fold to a constant if it can,
+  /// else emit the call as a let.
+  const Atom *reduceCallExpr(const CallExpr *call, Env &env, unsigned depth);
+
+  /// A function call: a direct call to a known function is inlined; an indirect
+  /// or depth-capped call is emitted as a let.
+  const Atom *reduceFuncCallExpr(const FuncCallExpr *call, Env &env,
+                                 unsigned depth);
+
+  /// A struct literal: reduce each field value, then emit the construction.
+  const Atom *reduceStructExpr(const StructExpr *expr, Env &env,
+                               unsigned depth);
+
+  /// Restore the ANF invariant for a non-atomic `computation`: bind it to a
+  /// fresh temporary (a `let` appended to `intermediateStmts`) and return a
+  /// `VarAtom` referencing that name, so a caller can use it as an operand.
+  const Atom *bindToTemp(const Expr *computation, const types::Type *type);
+
+  /// Reduction rewrites the program in place. ANF nodes are handed out as const
+  /// views, so the in-place edits (capping a column with its reduced thunk,
+  /// dropping dead functions) funnel through this one `const_cast` rather than
+  /// scattering casts across the pass.
+  template <typename T> static T *mutate(const T *node) {
+    return const_cast<T *>(node);
+  }
 
   AnfContext &ctx;
-  uint32_t tempCounter = 0;
+
+  /// Lets produced while reducing the current column, in order. Reset at the
+  /// start of each column and sealed into its `Thunk`; mirrors the lowerer's
+  /// `intermediateStmts`.
+  std::vector<const Stmt *> intermediateStmts;
 };
 
 } // namespace yuzu::anf
