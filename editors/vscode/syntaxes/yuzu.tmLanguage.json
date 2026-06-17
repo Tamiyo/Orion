@@ -70,19 +70,19 @@
     "numbers": {
       "patterns": [
         {
-          "match": "0[xX][0-9a-fA-F][0-9a-fA-F_]*",
+          "match": "(?<![A-Za-z0-9_])(?:0[xX][0-9a-fA-F][0-9a-fA-F_]*)",
           "name": "constant.numeric.hex.yuzu"
         },
         {
-          "match": "0[bB][01][01_]*",
+          "match": "(?<![A-Za-z0-9_])(?:0[bB][01][01_]*)",
           "name": "constant.numeric.binary.yuzu"
         },
         {
-          "match": "([0-9][0-9_]*\\.[0-9_]*|\\.[0-9][0-9_]*)([eE][+-]?[0-9][0-9_]*)?|[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*",
+          "match": "(?<![A-Za-z0-9_])(?:([0-9][0-9_]*\\.[0-9_]*|\\.[0-9][0-9_]*)([eE][+-]?[0-9][0-9_]*)?|[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*)",
           "name": "constant.numeric.float.yuzu"
         },
         {
-          "match": "[0-9][0-9_]*",
+          "match": "(?<![A-Za-z0-9_])(?:[0-9][0-9_]*)",
           "name": "constant.numeric.integer.yuzu"
         }
       ]

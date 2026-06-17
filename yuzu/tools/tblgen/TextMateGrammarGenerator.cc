@@ -4,6 +4,7 @@
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/ADT/StringSwitch.h>
+#include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/JSON.h>
 #include <llvm/TableGen/Record.h>
@@ -73,17 +74,22 @@ const TokenInfo *findToken(const std::vector<TokenInfo> &tokens,
   return nullptr;
 }
 
-/// Append a regex literal's `.td` patterns (verbatim) to `out`, scoped per
-/// `literalScope`. The emission order of callers fixes match precedence
-/// (e.g. hex/float before a bare integer).
+/// Append a regex literal's `.td` patterns to `out`, scoped per `literalScope`
+/// and prefixed with `guard`. The emission order of callers fixes match
+/// precedence (e.g. hex/float before a bare integer).
 void appendRegexLiteral(Array &out, const std::vector<TokenInfo> &tokens,
-                        llvm::StringRef name) {
+                        llvm::StringRef name, llvm::StringRef guard = "") {
   const TokenInfo *token = findToken(tokens, name);
   if (token == nullptr) {
     return;
   }
   for (const std::string &p : token->patterns) {
-    out.push_back(pattern(literalScope(name).str(), p));
+    // Wrap in a non-capturing group so a `guard` lookbehind binds to every
+    // branch of a top-level alternation (e.g. the float pattern's `1e5` arm),
+    // not just the first.
+    std::string match =
+        guard.empty() ? p : (llvm::Twine(guard) + "(?:" + p + ")").str();
+    out.push_back(pattern(literalScope(name).str(), std::move(match)));
   }
 }
 } // namespace
@@ -128,11 +134,16 @@ void TextMateGrammarGenerator::run(const llvm::RecordKeeper &records) {
   appendRegexLiteral(stringPatterns, tokens, "StringLiteral");
 
   // Number literals: most-specific first (hex/binary/float before integer).
+  // Each is guarded with a negative lookbehind so a digit that is part of an
+  // identifier (the `1` in an alias like `c1`) isn't mis-highlighted as a
+  // number — the lexer tokenizes identifiers greedily, but a TextMate grammar
+  // matches pattern-by-pattern and would otherwise color the trailing digits.
+  constexpr llvm::StringLiteral kNumberGuard = "(?<![A-Za-z0-9_])";
   Array numberPatterns;
-  appendRegexLiteral(numberPatterns, tokens, "HexLiteral");
-  appendRegexLiteral(numberPatterns, tokens, "BinaryLiteral");
-  appendRegexLiteral(numberPatterns, tokens, "FloatLiteral");
-  appendRegexLiteral(numberPatterns, tokens, "IntegerLiteral");
+  appendRegexLiteral(numberPatterns, tokens, "HexLiteral", kNumberGuard);
+  appendRegexLiteral(numberPatterns, tokens, "BinaryLiteral", kNumberGuard);
+  appendRegexLiteral(numberPatterns, tokens, "FloatLiteral", kNumberGuard);
+  appendRegexLiteral(numberPatterns, tokens, "IntegerLiteral", kNumberGuard);
 
   Array keywordPatterns;
   keywordPatterns.push_back(
