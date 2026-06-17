@@ -42,18 +42,25 @@ public:
   const Stmt *lowerReturnStmt(const hir::ReturnStmt *returnStmt);
   const Stmt *lowerFuncStmt(const hir::FuncStmt *funcStmt);
 
+  /// Pre-create a function's shell (signature + `FuncRef`) before any body is
+  /// lowered, so a call to a function declared later still resolves.
+  void hoistFuncStmt(const hir::FuncStmt *funcStmt);
+
   const Expr *lowerExpr(const hir::Expr *expr);
   const Expr *lowerIdentExpr(const hir::IdentExpr *identExpr);
   const Expr *lowerCallExpr(const hir::CallExpr *callExpr);
   const Expr *lowerFuncCallExpr(const hir::FuncCallExpr *funcCallExpr);
   const Expr *lowerFieldAccessExpr(const hir::FieldAccessExpr *fieldAccessExpr);
   const Expr *lowerStructExpr(const hir::StructExpr *structExpr);
-  const Atom *resolveCallee(const hir::Expr *callee);
 
   const Rel *lowerRel(const hir::Rel *rel);
   const Rel *lowerFromRel(const hir::FromRel *fromRel);
   const Rel *lowerSelectRel(const hir::SelectRel *selectRel);
   const SelectItem *lowerSelectItem(const hir::SelectItem *selectItem);
+
+  /// Bind a `select`'s `as`-aliased columns into `hirToAnf` so a later stage's
+  /// reference to one lowers to a `FieldAtom` selecting it from this relation.
+  void bindColumns(const hir::SelectRel *selectRel);
 
   const Constant *lowerLiteral(const hir::Literal *literal);
   const BoolConst *lowerBoolLit(const hir::BoolLit *boolLit);
@@ -96,18 +103,10 @@ private:
   diagnostics::DiagnosticsEngine &diagnostics;
   diagnostics::SourceId source;
 
-  /// HIR declaration -> its ANF `Binding`. Written as each `let`/param lowers,
-  /// overwritten on reassignment (SSA); read to resolve `VarAtom`s. Keyed by
-  /// the decl node, so shadowing and mutation need no scope stack.
-  llvm::DenseMap<const hir::HirNode *, const Binding *> hirToAnfBindingMap;
+  /// Maps each HIR declaration to the ANF atom a reference to it lowers to.
+  llvm::DenseMap<const hir::HirNode *, const Atom *> hirToAnfMap;
 
-  /// HIR `FuncStmt` decl -> its lowered ANF `FuncStmt`. Written as each
-  /// function lowers; read by `resolveCallee` to emit a `FuncRef` for a direct
-  /// call so a later inlining pass can chase the target.
-  llvm::DenseMap<const hir::HirNode *, const FuncStmt *> hirToAnfFuncMap;
-
-  /// Temp `LetStmt`s introduced while lowering the current statement;
-  /// `lowerBlockStmt` flushes them into the block before that statement.
+  /// Tracks temporary statements introduced by lowering.
   std::vector<const Stmt *> intermediateStmts;
 
   uint32_t tempCounter = 0;

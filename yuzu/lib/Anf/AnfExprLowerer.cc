@@ -28,33 +28,13 @@ const Expr *AnfLowerer::lowerExpr(const hir::Expr *expr) {
 }
 
 const Expr *AnfLowerer::lowerIdentExpr(const hir::IdentExpr *identExpr) {
-  // Resolve an hir::Ident to the binding it corresponds to.
+  // A name lowers to whatever atom its declaration was bound to when lowered: a
+  // `VarAtom` for a `let`/param/`from`-alias, a `FuncRef` for a function, a
+  // `FieldAtom` for an earlier pipe stage's column.
   //
-  // For example:
-  // ```
-  // let x = 5
-  // print(x)
-  //       ^
-  // ```
-  //
-  // The variable `x` in `print(x)` resolves to `let x = 5`.
-  const auto *resolved = hirCtx.resolveIdent(identExpr->getName());
-
-  // Map that HIR declaration to the ANF Binding we built for it.
-  //
-  // For example:
-  // ```
-  // let x = 5
-  // print(x)
-  //       ^
-  // ```
-  // The HIR decl `let x = 5` maps to the ANF binding `x`, which this
-  // VarAtom points at.
-  const auto *binding = hirToAnfBindingMap.lookup(resolved);
-
-  // Resolve the type of the ident.
-  const auto *type = hirCtx.getTypeContext().typeOf(identExpr);
-  return ctx.build(identExpr, &AnfBuilder::makeVarAtom, binding, type);
+  //   let x = 5
+  //   print(x)   // `x` resolves to `let x = 5` -> its VarAtom
+  return hirToAnfMap.lookup(hirCtx.resolveIdent(identExpr->getName()));
 }
 
 const Expr *AnfLowerer::lowerCallExpr(const hir::CallExpr *callExpr) {
@@ -73,7 +53,10 @@ const Expr *AnfLowerer::lowerCallExpr(const hir::CallExpr *callExpr) {
 
 const Expr *
 AnfLowerer::lowerFuncCallExpr(const hir::FuncCallExpr *funcCallExpr) {
-  const auto *callee = resolveCallee(funcCallExpr->getCallee());
+  // Lower the callee to an atom. A direct call names a function, which lowers
+  // to its `FuncRef` (so inlining can chase the target); an indirect callee
+  // lowers to whatever atom denotes it — `forceAtom` handles either.
+  const auto *callee = forceAtom(funcCallExpr->getCallee());
 
   std::vector<const Atom *> loweredArgs;
   loweredArgs.reserve(funcCallExpr->getArgs().size());
@@ -83,21 +66,6 @@ AnfLowerer::lowerFuncCallExpr(const hir::FuncCallExpr *funcCallExpr) {
   const auto *type = hirCtx.getTypeContext().typeOf(funcCallExpr);
   return ctx.build(funcCallExpr, &AnfBuilder::makeFuncCallExpr, callee,
                    loweredArgs, type);
-}
-
-// A direct call `f(...)` (callee is an identifier resolving to a function we've
-// already lowered) becomes a `FuncRef` so inlining can chase the target. Any
-// other callee — an indirect call through a value, or a not-yet-lowered forward
-// reference — keeps an atom callee via `forceAtom`.
-const Atom *AnfLowerer::resolveCallee(const hir::Expr *callee) {
-  if (const auto *ident = hir::IdentExpr::cast(callee)) {
-    const auto *decl = hirCtx.resolveIdent(ident->getName());
-    if (const auto *func = hirToAnfFuncMap.lookup(decl)) {
-      const auto *type = hirCtx.getTypeContext().typeOf(callee);
-      return ctx.build(callee, &AnfBuilder::makeFuncRef, func, type);
-    }
-  }
-  return forceAtom(callee);
 }
 
 const Expr *

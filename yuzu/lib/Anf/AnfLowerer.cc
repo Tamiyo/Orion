@@ -8,6 +8,14 @@
 
 namespace yuzu::anf {
 const Root *AnfLowerer::lowerRoot(const hir::Root *root) {
+  // Hoist every function's shell first (mirroring HIR's name hoisting), so a
+  // body can call a function declared later in the program.
+  for (const auto *stmt : root->getStmts()) {
+    if (const auto *funcStmt = hir::FuncStmt::cast(stmt)) {
+      hoistFuncStmt(funcStmt);
+    }
+  }
+
   std::vector<const Stmt *> stmts;
   for (const auto *stmt : root->getStmts()) {
     const auto *lowered = lowerStmt(stmt);
@@ -34,7 +42,8 @@ const Param *AnfLowerer::lowerParam(const hir::Param *param) {
 
   const auto *binding =
       ctx.build(param, &AnfBuilder::makeBinding, ident, value, type);
-  hirToAnfBindingMap[param] = binding;
+  hirToAnfMap[param] =
+      ctx.build(param, &AnfBuilder::makeVarAtom, binding, type);
 
   return ctx.build(param, &AnfBuilder::makeParam, binding);
 }

@@ -11,7 +11,9 @@
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/Support/FormatVariadic.h>
 
+#include <string>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -579,10 +581,15 @@ const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
 
   std::vector<StructField> outFields;
   outFields.reserve(n->getItems().size());
+  // Columns a later stage can reference by name: the ident it resolves to and
+  // the column's type. Bound into the consuming scope after the child scope
+  // below is dropped.
+  std::vector<std::pair<const Ident *, const Type *>> named;
+  uint32_t anonymous = 0;
 
   // Per pipe semantics, this stage sees only its immediate input. Type the
   // input and the items in a child scope the input populates — a `from` binds
-  // its row alias, a preceding `select` its output columns (below) — then drop
+  // its row alias, a preceding `select` its named columns (below) — then drop
   // it, so this stage's names aren't visible to the next one.
   {
     const HirScopeGuard guard = symbols.pushScope(HirScopeKind::Block);
@@ -599,17 +606,37 @@ const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
         continue;
       }
       visit(itemExpr); // types `e.id` etc. against the input's columns
+      const Type *colType = types.typeOf(itemExpr);
 
-      // Column name: the `as` alias, else the field/ident name, else anonymous.
+      // The ident a downstream stage references this column by: the `as` alias,
+      // or a bare identifier column's own name. Such columns are referenceable;
+      // a field access or an unnamed expression column is not.
+      const Ident *colIdent = item->getAlias();
+      if (colIdent == nullptr) {
+        if (const auto *id = IdentExpr::cast(itemExpr)) {
+          colIdent = id->getName();
+        }
+      }
+
+      // Output column name: that ident, else a field access's field, else a
+      // generated `%gN` for an anonymous expression.
       std::u32string_view colName;
-      if (const Ident *alias = item->getAlias()) {
-        colName = alias->getName();
+      if (colIdent != nullptr) {
+        colName = colIdent->getName();
       } else if (const auto *fa = FieldAccessExpr::cast(itemExpr)) {
         colName = fa->getField()->getName();
-      } else if (const auto *id = IdentExpr::cast(itemExpr)) {
-        colName = id->getName()->getName();
+      } else {
+        std::u32string generated = U"%g";
+        for (char c : std::to_string(anonymous++)) {
+          generated.push_back(static_cast<char32_t>(c));
+        }
+        colName = ctx.getStringInterner().intern(generated);
       }
-      outFields.push_back(StructField{colName, types.typeOf(itemExpr)});
+
+      outFields.push_back(StructField{colName, colType});
+      if (colIdent != nullptr) {
+        named.push_back({colIdent, colType});
+      }
     }
   }
 
@@ -617,15 +644,11 @@ const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
   const RelationType *outRel = typeFactory.getRelationType(outRow);
   types.bind(n, outRel);
 
-  // Expose this stage's `as`-aliased columns to the consuming stage (the now
-  // current scope), so a later `select` can reference them by name. (Lowering a
-  // such a reference to a selection over this relation is still TODO.)
-  for (const SelectItem *item : n->getItems()) {
-    const Ident *alias = item->getAlias();
-    if (alias != nullptr && item->getExpr() != nullptr) {
-      types.bind(alias, types.typeOf(item->getExpr()));
-      symbols.bind(alias, alias);
-    }
+  // Expose the named columns to the consuming stage (now the current scope), so
+  // a later `select` can reference them by name.
+  for (const auto &[colIdent, colType] : named) {
+    types.bind(colIdent, colType);
+    symbols.bind(colIdent, colIdent);
   }
 
   return outRel;

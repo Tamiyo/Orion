@@ -69,7 +69,8 @@ const Stmt *AnfLowerer::lowerLetStmt(const hir::LetStmt *letStmt) {
   const auto *type = hirCtx.getTypeContext().typeOf(letStmt);
   const auto *binding =
       ctx.build(letStmt, &AnfBuilder::makeBinding, ident, value, type);
-  hirToAnfBindingMap[letStmt] = binding;
+  hirToAnfMap[letStmt] =
+      ctx.build(letStmt, &AnfBuilder::makeVarAtom, binding, type);
 
   return ctx.build(letStmt, &AnfBuilder::makeLetStmt, binding);
 }
@@ -89,7 +90,8 @@ const Stmt *AnfLowerer::lowerAssignStmt(const hir::AssignStmt *assignStmt) {
   const auto *binding =
       ctx.build(assignStmt, &AnfBuilder::makeBinding, ident, value, type);
   // SSA: later reads of this name (the same HIR decl) now see the new binding.
-  hirToAnfBindingMap[hirCtx.resolveIdent(target->getName())] = binding;
+  hirToAnfMap[hirCtx.resolveIdent(target->getName())] =
+      ctx.build(assignStmt, &AnfBuilder::makeVarAtom, binding, type);
   return ctx.build(assignStmt, &AnfBuilder::makeLetStmt, binding);
 }
 
@@ -113,24 +115,35 @@ const Stmt *AnfLowerer::lowerReturnStmt(const hir::ReturnStmt *returnStmt) {
   return ctx.build(returnStmt, &AnfBuilder::makeReturnStmt, value);
 }
 
-const Stmt *AnfLowerer::lowerFuncStmt(const hir::FuncStmt *funcStmt) {
+void AnfLowerer::hoistFuncStmt(const hir::FuncStmt *funcStmt) {
   const auto *name = lowerIdent(funcStmt->getName());
 
   std::vector<const Param *> params;
   params.reserve(funcStmt->getParams().size());
-
   for (const auto *param : funcStmt->getParams()) {
-    const auto *loweredParam = lowerParam(param);
-    params.push_back(loweredParam);
+    params.push_back(lowerParam(param));
   }
 
-  const auto *body = lowerBlockStmt(funcStmt->getBody());
+  // A placeholder body, filled in by `lowerFuncStmt`. The `FuncRef` points at
+  // this shell, so a reference resolves even before the body is lowered.
   const auto *returnType = hirCtx.getTypeContext().typeOf(funcStmt);
+  const std::vector<const Stmt *> noStmts;
+  const auto *body = ctx.build(funcStmt, &AnfBuilder::makeBlockStmt, noStmts);
+  const auto *shell = ctx.build(funcStmt, &AnfBuilder::makeFuncStmt, name,
+                                params, body, returnType);
+  hirToAnfMap[funcStmt] =
+      ctx.build(funcStmt, &AnfBuilder::makeFuncRef, shell, returnType);
+}
 
-  const auto *lowered = ctx.build(funcStmt, &AnfBuilder::makeFuncStmt, name,
-                                  params, body, returnType);
-  // Record the decl -> ANF function so a direct call can resolve a `FuncRef`.
-  hirToAnfFuncMap[funcStmt] = lowered;
-  return lowered;
+const Stmt *AnfLowerer::lowerFuncStmt(const hir::FuncStmt *funcStmt) {
+  // Top-level functions are hoisted by `lowerRoot`; a nested one (none today)
+  // is hoisted on demand. Either way, fill the shell's body now.
+  if (hirToAnfMap.lookup(funcStmt) == nullptr) {
+    hoistFuncStmt(funcStmt);
+  }
+  auto *shell = const_cast<FuncStmt *>(
+      FuncRef::cast(hirToAnfMap.lookup(funcStmt))->getFunc());
+  shell->setBody(lowerBlockStmt(funcStmt->getBody()));
+  return shell;
 }
 } // namespace yuzu::anf

@@ -370,11 +370,13 @@ std::string SubstraitEmitter::emit(const anf::Root *root) {
   // Build the relation first, so function registration populates the tables.
   Value relation = emitRel(query);
 
+  // Output column names come from the query's row type, so aliased, bare-ident,
+  // and generated (`%gN`) names all carry through.
   Array names;
-  for (const anf::SelectItem *item : query->getItems()) {
-    names.push_back(item->getAlias() != nullptr
-                        ? util::toUtf8(item->getAlias()->getName())
-                        : "col" + std::to_string(names.size()));
+  if (const types::StructType *outRow = rowStruct(typeOf(query))) {
+    for (const types::StructField &field : outRow->getFields()) {
+      names.push_back(util::toUtf8(field.name));
+    }
   }
 
   Object plan{{"extensionUris", emitExtensionUris()},
