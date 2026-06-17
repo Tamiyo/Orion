@@ -4,60 +4,58 @@
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirBuilder.h"
 #include "yuzu/Hir/HirContext.h"
-#include "yuzu/Hir/Ops/BuiltinOps.h"
-#include "yuzu/Hir/Ops/Op.h"
+#include "yuzu/Ops/BuiltinOp.h"
 
 namespace yuzu::hir {
 namespace {
-const Op *toHir(ast::BinOp op) {
+BuiltinOp toHir(ast::BinOp op) {
   switch (op) {
   case ast::BinOp::Add:
-    return AddOp::get();
+    return BuiltinOp::Add;
   case ast::BinOp::Sub:
-    return SubOp::get();
+    return BuiltinOp::Sub;
   case ast::BinOp::Mul:
-    return MulOp::get();
+    return BuiltinOp::Mul;
   case ast::BinOp::Div:
-    return DivOp::get();
+    return BuiltinOp::Div;
   case ast::BinOp::And:
-    return AndOp::get();
+    return BuiltinOp::And;
   case ast::BinOp::Or:
-    return OrOp::get();
+    return BuiltinOp::Or;
   case ast::BinOp::In:
-    return InOp::get();
+    return BuiltinOp::In;
   case ast::BinOp::NotIn:
-    return NotInOp::get();
+    return BuiltinOp::NotIn;
   case ast::BinOp::Pow:
-    return PowOp::get();
+    return BuiltinOp::Pow;
   case ast::BinOp::Eq:
-    return EqOp::get();
+    return BuiltinOp::Eq;
   case ast::BinOp::Neq:
-    return NeqOp::get();
+    return BuiltinOp::Neq;
   case ast::BinOp::Lt:
-    return LtOp::get();
+    return BuiltinOp::Lt;
   case ast::BinOp::Lte:
-    return LteOp::get();
+    return BuiltinOp::Lte;
   case ast::BinOp::Gt:
-    return GtOp::get();
+    return BuiltinOp::Gt;
   case ast::BinOp::Gte:
-    return GteOp::get();
+    return BuiltinOp::Gte;
   case ast::BinOp::ShiftLeft:
-    return ShiftLeftOp::get();
+    return BuiltinOp::ShiftLeft;
   case ast::BinOp::ShiftRight:
-    return ShiftRightOp::get();
-    break;
+    return BuiltinOp::ShiftRight;
   }
   util::yuzu_unreachable();
 }
 
-const Op *toHir(ast::UnaryOp op) {
+BuiltinOp toHir(ast::UnaryOp op) {
   switch (op) {
   case ast::UnaryOp::Pos:
-    return UnaryPosOp::get();
+    return BuiltinOp::UnaryPos;
   case ast::UnaryOp::Neg:
-    return UnaryNegOp::get();
+    return BuiltinOp::UnaryNeg;
   case ast::UnaryOp::Not:
-    return UnaryNotOp::get();
+    return BuiltinOp::UnaryNot;
   }
   util::yuzu_unreachable();
 }

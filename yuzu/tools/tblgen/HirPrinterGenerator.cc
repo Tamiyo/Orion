@@ -84,15 +84,9 @@ void emitField(CodeFormatter &fmt, const NamedField &f,
               fmt.linef("util::writeUtf8(os, {0});", getter);
               return;
             }
-            if (nativeName == "const yuzu::hir::Op *") {
-              // An `Op *` may be null (a function call's `CallExpr` carries a
-              // callee instead), so guard before dereferencing.
-              fmt.linef("if ({0} != nullptr) {{", getter);
-              {
-                auto body = fmt.block();
-                fmt.linef("os << \"{0}=\" << {1}->getName();", f.name, getter);
-              }
-              fmt.line("}");
+            if (nativeName == "yuzu::BuiltinOp") {
+              // A `BuiltinOp` is a value (an enum); print its stable name.
+              fmt.linef("os << \"{0}=\" << name({1});", f.name, getter);
               return;
             }
             fmt.linef("os << \"{0}=\" << {1};", f.name, getter);

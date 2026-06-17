@@ -28,7 +28,7 @@ def Float64 : Native<"double"> { let IsTrivial = 1; }
 // HIR strings are interned (`util::StringInterner`), so nodes hold a
 // stable, trivially-copyable view rather than owning a `std::u32string`.
 def String : Native<"std::u32string_view"> { let IsTrivial = 1; }
-def OpRef : Native<"const yuzu::hir::Op *"> { let IsTrivial = 1; }
+def OpRef : Native<"yuzu::BuiltinOp"> { let IsTrivial = 1; }
 
 /// Universal HIR-node id. Declared as a schema Field so the generator
 /// threads it through every constructor instead of special-casing it.

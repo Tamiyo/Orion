@@ -3,7 +3,7 @@
 #include "yuzu/Anf/Anf.h"
 #include "yuzu/Anf/AnfContext.h"
 #include "yuzu/Anf/AnfVisitor.h"
-#include "yuzu/Anf/Ops/Op.h"
+#include "yuzu/Anf/Ops/OpFold.h"
 #include "yuzu/Util/ErrorHandling.h"
 
 #include <llvm/ADT/DenseSet.h>
@@ -181,7 +181,7 @@ const Atom *AnfReducer::reduceCallExpr(const CallExpr *call, Env &env,
   }
 
   if (const Constant *folded =
-          call->getOp()->fold(args, ctx, call->getType())) {
+          fold(call->getOp(), args, ctx, call->getType())) {
     return folded;
   }
 

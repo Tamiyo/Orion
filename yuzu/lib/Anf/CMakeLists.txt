@@ -7,15 +7,16 @@ yuzu_tablegen(YuzuAnfBuilderInc "yuzu/Anf/AnfBuilder.h.inc" -gen-anf-builder-dec
 yuzu_tablegen(YuzuAnfVisitorInc "yuzu/Anf/AnfVisitor.h.inc" -gen-anf-visitor-decls "yuzu/Anf/Anf.td")
 yuzu_tablegen(YuzuAnfPrinterInc "yuzu/Anf/AnfPrinter.h.inc" -gen-anf-printer-decls "yuzu/Anf/Anf.td")
 
-# ANF has its own operators (header-only `Ops/BuiltinOps.h`); it links HIR
-# because the lowerer reads HIR nodes and both share the type system.
+# ANF shares the `BuiltinOp` enum with HIR (`yuzu/Ops/BuiltinOp.h`) and adds its
+# own constant-folding (`Ops/OpFold.cc`); it links HIR because the lowerer reads
+# HIR nodes and both share the type system.
 add_library(YuzuAnf
   AnfExprLowerer.cc
   AnfLowerer.cc
   AnfReducer.cc
   AnfRelLowerer.cc
   AnfStmtLowerer.cc
-  BuiltinOps.cc
+  Ops/OpFold.cc
 )
 add_dependencies(YuzuAnf
   YuzuAnfKindInc YuzuAnfInc YuzuAnfBuilderInc YuzuAnfVisitorInc YuzuAnfPrinterInc)

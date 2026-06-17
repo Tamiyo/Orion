@@ -1,8 +1,8 @@
 #ifndef YUZU_ANF_ANF_H
 #define YUZU_ANF_ANF_H
 
-#include "yuzu/Anf/Ops/Op.h" // IWYU pragma: keep
-#include "yuzu/Types/Type.h" // IWYU pragma: keep
+#include "yuzu/Ops/BuiltinOp.h" // IWYU pragma: keep
+#include "yuzu/Types/Type.h"    // IWYU pragma: keep
 
 #include <llvm/ADT/ArrayRef.h> // IWYU pragma: keep
 

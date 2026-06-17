@@ -32,8 +32,8 @@ def String : Native<"std::u32string_view"> { let IsTrivial = 1; }
 /// Resolved semantic type, carried on every `Expr`.
 def TypeRef : Native<"const yuzu::types::Type *"> { let IsTrivial = 1; }
 
-/// Builtin operator descriptor (ANF's own; see `Anf/Ops/BuiltinOps.h`).
-def OpRef : Native<"const yuzu::anf::Op *"> { let IsTrivial = 1; }
+/// Builtin operator, shared with HIR (see `yuzu/Ops/BuiltinOp.h`).
+def OpRef : Native<"yuzu::BuiltinOp"> { let IsTrivial = 1; }
 
 /// A non-owning back-edge from a `VarAtom` use to the `Binding` it reads. The
 /// binding is owned by its block / param list, not by the use.

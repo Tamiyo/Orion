@@ -1,8 +1,9 @@
-#include "yuzu/Anf/Ops/BuiltinOps.h"
+#include "yuzu/Anf/Ops/OpFold.h"
 
 #include "yuzu/Anf/Anf.h"
 #include "yuzu/Anf/AnfContext.h"
 #include "yuzu/Anf/Reduction/AnfConstants.h"
+#include "yuzu/Util/ErrorHandling.h"
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/ADT/Twine.h>
@@ -10,7 +11,7 @@
 #include <cmath>
 #include <cstdint>
 
-// Each op's `fold` takes the operands it was called with — already resolved to
+// Each op's fold takes the operands it was called with — already resolved to
 // their defining constants by the reducer — and branches on what the left and
 // right operands actually are (`isInt`, `isFloat`, ...). An unhandled
 // combination, or a non-constant operand, returns null: "can't fold". Adding a
@@ -44,10 +45,8 @@ const Constant *emitOverflowWarning(AnfContext &ctx, const Atom *anchor,
   return nullptr;
 }
 
-} // namespace
-
-const Constant *AddOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
+const Constant *foldAdd(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                        const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -68,8 +67,8 @@ const Constant *AddOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *SubOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
+const Constant *foldSub(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                        const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -90,8 +89,8 @@ const Constant *SubOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *MulOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
+const Constant *foldMul(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                        const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -112,8 +111,8 @@ const Constant *MulOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *DivOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
+const Constant *foldDiv(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                        const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -134,8 +133,8 @@ const Constant *DivOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *PowOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
+const Constant *foldPow(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                        const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -162,8 +161,8 @@ const Constant *PowOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *EqOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                           const Type *type) const {
+const Constant *foldEq(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                       const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -183,8 +182,8 @@ const Constant *EqOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *LtOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                           const Type *type) const {
+const Constant *foldLt(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                       const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -200,8 +199,8 @@ const Constant *LtOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *GtOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                           const Type *type) const {
+const Constant *foldGt(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                       const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -217,26 +216,8 @@ const Constant *GtOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-// a != b  <=>  !(a == b)
-const Constant *NeqOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
-  return negate(EqOp::get()->fold(args, ctx, type), ctx, type);
-}
-
-// a <= b  <=>  !(a > b)
-const Constant *LteOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
-  return negate(GtOp::get()->fold(args, ctx, type), ctx, type);
-}
-
-// a >= b  <=>  !(a < b)
-const Constant *GteOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
-  return negate(LtOp::get()->fold(args, ctx, type), ctx, type);
-}
-
-const Constant *AndOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                            const Type *type) const {
+const Constant *foldAnd(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                        const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -249,8 +230,8 @@ const Constant *AndOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *OrOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
-                           const Type *type) const {
+const Constant *foldOr(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                       const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -263,8 +244,8 @@ const Constant *OrOp::fold(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
   return nullptr;
 }
 
-const Constant *ShiftLeftOp::fold(llvm::ArrayRef<const Atom *> args,
-                                  AnfContext &ctx, const Type *type) const {
+const Constant *foldShiftLeft(llvm::ArrayRef<const Atom *> args,
+                              AnfContext &ctx, const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -286,8 +267,8 @@ const Constant *ShiftLeftOp::fold(llvm::ArrayRef<const Atom *> args,
   return nullptr;
 }
 
-const Constant *ShiftRightOp::fold(llvm::ArrayRef<const Atom *> args,
-                                   AnfContext &ctx, const Type *type) const {
+const Constant *foldShiftRight(llvm::ArrayRef<const Atom *> args,
+                               AnfContext &ctx, const Type *type) {
   if (args.size() != 2) {
     return nullptr;
   }
@@ -303,8 +284,8 @@ const Constant *ShiftRightOp::fold(llvm::ArrayRef<const Atom *> args,
   return nullptr;
 }
 
-const Constant *UnaryPosOp::fold(llvm::ArrayRef<const Atom *> args,
-                                 AnfContext &, const Type *) const {
+const Constant *foldUnaryPos(llvm::ArrayRef<const Atom *> args, AnfContext &,
+                             const Type *) {
   if (args.size() != 1) {
     return nullptr;
   }
@@ -315,8 +296,8 @@ const Constant *UnaryPosOp::fold(llvm::ArrayRef<const Atom *> args,
   return nullptr;
 }
 
-const Constant *UnaryNegOp::fold(llvm::ArrayRef<const Atom *> args,
-                                 AnfContext &ctx, const Type *type) const {
+const Constant *foldUnaryNeg(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                             const Type *type) {
   if (args.size() != 1) {
     return nullptr;
   }
@@ -333,8 +314,8 @@ const Constant *UnaryNegOp::fold(llvm::ArrayRef<const Atom *> args,
   return nullptr;
 }
 
-const Constant *UnaryNotOp::fold(llvm::ArrayRef<const Atom *> args,
-                                 AnfContext &ctx, const Type *type) const {
+const Constant *foldUnaryNot(llvm::ArrayRef<const Atom *> args, AnfContext &ctx,
+                             const Type *type) {
   if (args.size() != 1) {
     return nullptr;
   }
@@ -344,16 +325,57 @@ const Constant *UnaryNotOp::fold(llvm::ArrayRef<const Atom *> args,
   return nullptr;
 }
 
-// `In` / `NotIn` fold once the collection operand is a constant — which needs a
-// collection-shaped `Constant` atom we don't have yet. Until then, no fold.
-const Constant *InOp::fold(llvm::ArrayRef<const Atom *>, AnfContext &,
-                           const Type *) const {
-  return nullptr;
-}
+} // namespace
 
-const Constant *NotInOp::fold(llvm::ArrayRef<const Atom *>, AnfContext &,
-                              const Type *) const {
-  return nullptr;
+const Constant *fold(BuiltinOp op, llvm::ArrayRef<const Atom *> args,
+                     AnfContext &ctx, const Type *type) {
+  switch (op) {
+  case BuiltinOp::Add:
+    return foldAdd(args, ctx, type);
+  case BuiltinOp::Sub:
+    return foldSub(args, ctx, type);
+  case BuiltinOp::Mul:
+    return foldMul(args, ctx, type);
+  case BuiltinOp::Div:
+    return foldDiv(args, ctx, type);
+  case BuiltinOp::Pow:
+    return foldPow(args, ctx, type);
+  case BuiltinOp::And:
+    return foldAnd(args, ctx, type);
+  case BuiltinOp::Or:
+    return foldOr(args, ctx, type);
+  case BuiltinOp::Eq:
+    return foldEq(args, ctx, type);
+  // a != b  <=>  !(a == b)
+  case BuiltinOp::Neq:
+    return negate(foldEq(args, ctx, type), ctx, type);
+  case BuiltinOp::Lt:
+    return foldLt(args, ctx, type);
+  // a <= b  <=>  !(a > b)
+  case BuiltinOp::Lte:
+    return negate(foldGt(args, ctx, type), ctx, type);
+  case BuiltinOp::Gt:
+    return foldGt(args, ctx, type);
+  // a >= b  <=>  !(a < b)
+  case BuiltinOp::Gte:
+    return negate(foldLt(args, ctx, type), ctx, type);
+  case BuiltinOp::ShiftLeft:
+    return foldShiftLeft(args, ctx, type);
+  case BuiltinOp::ShiftRight:
+    return foldShiftRight(args, ctx, type);
+  case BuiltinOp::UnaryPos:
+    return foldUnaryPos(args, ctx, type);
+  case BuiltinOp::UnaryNeg:
+    return foldUnaryNeg(args, ctx, type);
+  case BuiltinOp::UnaryNot:
+    return foldUnaryNot(args, ctx, type);
+  // `In` / `NotIn` fold once the collection operand is a constant — which needs
+  // a collection-shaped `Constant` atom we don't have yet. Until then, no fold.
+  case BuiltinOp::In:
+  case BuiltinOp::NotIn:
+    return nullptr;
+  }
+  util::yuzu_unreachable("unknown BuiltinOp in fold");
 }
 
 } // namespace yuzu::anf

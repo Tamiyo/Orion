@@ -3,12 +3,10 @@
 
 #include "yuzu/Anf/Anf.h"
 #include "yuzu/Anf/AnfContext.h"
-#include "yuzu/Anf/Ops/Op.h"
 #include "yuzu/Diagnostics/DiagnosticBuilder.h"
 #include "yuzu/Diagnostics/DiagnosticsEngine.h"
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
-#include "yuzu/Hir/Ops/Op.h"
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseMap.h>
@@ -69,7 +67,6 @@ public:
   lowerStructFieldDecl(const hir::StructFieldDecl *structFieldDecl);
   const Ident *lowerIdent(const hir::Ident *ident);
   const Param *lowerParam(const hir::Param *param);
-  const Op *lowerOp(const hir::Op *op);
 
 private:
   /// Lowers an HIR expression into an Atom, forcibely binding complex

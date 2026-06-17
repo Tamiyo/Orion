@@ -2,7 +2,7 @@
 
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
-#include "yuzu/Hir/Ops/Op.h"
+#include "yuzu/Hir/Ops/OpResolve.h"
 #include "yuzu/Hir/Resolve/HirSymbolTable.h"
 #include "yuzu/Hir/Types/TypeCoercion.h"
 #include "yuzu/Types/Type.h"
@@ -94,7 +94,7 @@ void TypeInferrer::visitCallExpr(const CallExpr *callExpr) {
   }
 
   const Type *resolvedType =
-      callExpr->getOp()->resolve(callExpr->getArgs(), ctx);
+      resolve(callExpr->getOp(), callExpr->getArgs(), ctx);
 
   types.bind(callExpr, resolvedType);
 }

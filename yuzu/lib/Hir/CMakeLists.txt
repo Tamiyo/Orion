@@ -9,7 +9,7 @@ add_library(YuzuHir
   HirLowerer.cc
   HirRelLowerer.cc
   HirStmtLowerer.cc
-  Ops/BuiltinOps.cc
+  Ops/OpResolve.cc
   Resolve/HirScope.cc
   Resolve/HirSymbolTable.cc
   Types/TypeResolver.cc

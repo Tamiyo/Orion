@@ -2,7 +2,6 @@
 
 #include "yuzu/Anf/Anf.h"
 #include "yuzu/Hir/Hir.h"
-#include "yuzu/Hir/Ops/Op.h"
 #include "yuzu/Util/ErrorHandling.h"
 
 #include <vector>

@@ -1,7 +1,7 @@
 #ifndef YUZU_HIR_HIR_H
 #define YUZU_HIR_HIR_H
 
-#include "yuzu/Hir/Ops/Op.h"         // IWYU pragma: keep
+#include "yuzu/Ops/BuiltinOp.h"      // IWYU pragma: keep
 #include "yuzu/Types/Type.h"         // IWYU pragma: keep
 #include "yuzu/Util/ErrorHandling.h" // IWYU pragma: keep
 

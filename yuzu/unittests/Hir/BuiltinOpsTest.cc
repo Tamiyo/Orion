@@ -1,10 +1,10 @@
-#include "yuzu/Hir/Ops/BuiltinOps.h"
+#include "yuzu/Hir/Ops/OpResolve.h"
 
 #include "yuzu/Diagnostics/DiagnosticsEngine.h"
 #include "yuzu/Diagnostics/Span.h"
 #include "yuzu/Hir/Hir.h"
 #include "yuzu/Hir/HirContext.h"
-#include "yuzu/Hir/Ops/Op.h"
+#include "yuzu/Ops/BuiltinOp.h"
 #include "yuzu/Types/Type.h"
 
 #include <gtest/gtest.h>
@@ -16,6 +16,7 @@ namespace {
 
 using namespace yuzu::hir;
 using namespace yuzu::types;
+using yuzu::BuiltinOp;
 using yuzu::diagnostics::DiagnosticsEngine;
 using yuzu::diagnostics::SourceId;
 
@@ -89,7 +90,7 @@ protected:
 
 TEST_F(BuiltinOpsTest, AddOp_IntPlusInt_ReturnsCoercedInt_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Int8, TypeKind::Int32);
-  const auto *result = AddOp::get()->resolve(args, ctx);
+  const auto *result = resolve(BuiltinOp::Add, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Int32);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -97,7 +98,7 @@ TEST_F(BuiltinOpsTest, AddOp_IntPlusInt_ReturnsCoercedInt_NoDiagnostic) {
 
 TEST_F(BuiltinOpsTest, AddOp_StrPlusStr_ReturnsStr_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Str, TypeKind::Str);
-  const auto *result = AddOp::get()->resolve(args, ctx);
+  const auto *result = resolve(BuiltinOp::Add, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Str);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -105,7 +106,7 @@ TEST_F(BuiltinOpsTest, AddOp_StrPlusStr_ReturnsStr_NoDiagnostic) {
 
 TEST_F(BuiltinOpsTest, AddOp_IntPlusStr_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Int64, TypeKind::Str);
-  const auto *result = AddOp::get()->resolve(args, ctx);
+  const auto *result = resolve(BuiltinOp::Add, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -118,7 +119,7 @@ TEST_F(BuiltinOpsTest, AddOp_IntPlusStr_ReturnsError_EmitsDiagnostic) {
 
 TEST_F(BuiltinOpsTest, SubOp_StrPlusStr_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Str, TypeKind::Str);
-  const auto *result = SubOp::get()->resolve(args, ctx);
+  const auto *result = resolve(BuiltinOp::Sub, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -131,7 +132,7 @@ TEST_F(BuiltinOpsTest, SubOp_StrPlusStr_ReturnsError_EmitsDiagnostic) {
 
 struct OpCase {
   std::string name;
-  const Op *op;
+  BuiltinOp op;
   std::string symbol;
 };
 
@@ -140,7 +141,7 @@ class BuiltinOpsParam : public BuiltinOpsTest,
 
 TEST_P(BuiltinOpsParam, IntPlusFloat_PromotesToFloat) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Float32);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Float32);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -148,7 +149,7 @@ TEST_P(BuiltinOpsParam, IntPlusFloat_PromotesToFloat) {
 
 TEST_P(BuiltinOpsParam, MixedSignSameWidth_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Int8, TypeKind::UInt8);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -156,7 +157,7 @@ TEST_P(BuiltinOpsParam, MixedSignSameWidth_ReturnsError_EmitsDiagnostic) {
 
 TEST_P(BuiltinOpsParam, BoolPlusInt_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Bool, TypeKind::Int64);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -168,7 +169,7 @@ TEST_P(BuiltinOpsParam, BoolPlusInt_ReturnsError_EmitsDiagnostic) {
 // evolve.
 TEST_P(BuiltinOpsParam, FailureDiagnostic_MentionsOperatorSymbol) {
   const auto args = argsOf(TypeKind::Bool, TypeKind::Int64);
-  (void)GetParam().op->resolve(args, ctx);
+  (void)resolve(GetParam().op, args, ctx);
   ASSERT_EQ(diagnostics.getErrorCount(), 1u);
   const auto &msg = diagnostics.getDiagnostics()[0].message;
   EXPECT_NE(msg.find(GetParam().symbol), std::string::npos)
@@ -176,11 +177,11 @@ TEST_P(BuiltinOpsParam, FailureDiagnostic_MentionsOperatorSymbol) {
 }
 
 INSTANTIATE_TEST_SUITE_P(AllArithmeticOps, BuiltinOpsParam,
-                         ::testing::Values(OpCase{"Add", AddOp::get(), "+"},
-                                           OpCase{"Sub", SubOp::get(), "-"},
-                                           OpCase{"Mul", MulOp::get(), "*"},
-                                           OpCase{"Div", DivOp::get(), "/"},
-                                           OpCase{"Pow", PowOp::get(), "**"}),
+                         ::testing::Values(OpCase{"Add", BuiltinOp::Add, "+"},
+                                           OpCase{"Sub", BuiltinOp::Sub, "-"},
+                                           OpCase{"Mul", BuiltinOp::Mul, "*"},
+                                           OpCase{"Div", BuiltinOp::Div, "/"},
+                                           OpCase{"Pow", BuiltinOp::Pow, "**"}),
                          [](const auto &info) { return info.param.name; });
 
 //===----------------------------------------------------------------------===//
@@ -192,7 +193,7 @@ class LogicalOpsParam : public BuiltinOpsTest,
 
 TEST_P(LogicalOpsParam, BoolAndBool_ReturnsBool_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Bool, TypeKind::Bool);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -200,7 +201,7 @@ TEST_P(LogicalOpsParam, BoolAndBool_ReturnsBool_NoDiagnostic) {
 
 TEST_P(LogicalOpsParam, OneNonBoolOperand_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Bool);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -208,7 +209,7 @@ TEST_P(LogicalOpsParam, OneNonBoolOperand_ReturnsError_EmitsDiagnostic) {
 
 TEST_P(LogicalOpsParam, FailureDiagnostic_MentionsOperatorSymbol) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Int32);
-  (void)GetParam().op->resolve(args, ctx);
+  (void)resolve(GetParam().op, args, ctx);
   ASSERT_EQ(diagnostics.getErrorCount(), 1u);
   const auto &msg = diagnostics.getDiagnostics()[0].message;
   EXPECT_NE(msg.find(GetParam().symbol), std::string::npos)
@@ -216,8 +217,8 @@ TEST_P(LogicalOpsParam, FailureDiagnostic_MentionsOperatorSymbol) {
 }
 
 INSTANTIATE_TEST_SUITE_P(AllLogicalOps, LogicalOpsParam,
-                         ::testing::Values(OpCase{"And", AndOp::get(), "and"},
-                                           OpCase{"Or", OrOp::get(), "or"}),
+                         ::testing::Values(OpCase{"And", BuiltinOp::And, "and"},
+                                           OpCase{"Or", BuiltinOp::Or, "or"}),
                          [](const auto &info) { return info.param.name; });
 
 //===----------------------------------------------------------------------===//
@@ -230,7 +231,7 @@ class MembershipOpsParam : public BuiltinOpsTest,
 
 TEST_P(MembershipOpsParam, StrInStr_ReturnsBool_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Str, TypeKind::Str);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -238,7 +239,7 @@ TEST_P(MembershipOpsParam, StrInStr_ReturnsBool_NoDiagnostic) {
 
 TEST_P(MembershipOpsParam, IntInInt_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Int32);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -246,15 +247,15 @@ TEST_P(MembershipOpsParam, IntInInt_ReturnsError_EmitsDiagnostic) {
 
 TEST_P(MembershipOpsParam, StrInInt_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Str, TypeKind::Int32);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
 }
 
 INSTANTIATE_TEST_SUITE_P(AllMembershipOps, MembershipOpsParam,
-                         ::testing::Values(OpCase{"In", InOp::get(), "in"},
-                                           OpCase{"NotIn", NotInOp::get(),
+                         ::testing::Values(OpCase{"In", BuiltinOp::In, "in"},
+                                           OpCase{"NotIn", BuiltinOp::NotIn,
                                                   "not in"}),
                          [](const auto &info) { return info.param.name; });
 
@@ -268,7 +269,7 @@ class EqualityOpsParam : public BuiltinOpsTest,
 
 TEST_P(EqualityOpsParam, IntEqInt_ReturnsBool_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Int32);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -276,7 +277,7 @@ TEST_P(EqualityOpsParam, IntEqInt_ReturnsBool_NoDiagnostic) {
 
 TEST_P(EqualityOpsParam, BoolEqBool_ReturnsBool_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Bool, TypeKind::Bool);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -284,7 +285,7 @@ TEST_P(EqualityOpsParam, BoolEqBool_ReturnsBool_NoDiagnostic) {
 
 TEST_P(EqualityOpsParam, StrEqStr_ReturnsBool_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Str, TypeKind::Str);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -292,7 +293,7 @@ TEST_P(EqualityOpsParam, StrEqStr_ReturnsBool_NoDiagnostic) {
 
 TEST_P(EqualityOpsParam, IntEqFloat_CoercesAndReturnsBool) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Float64);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -300,7 +301,7 @@ TEST_P(EqualityOpsParam, IntEqFloat_CoercesAndReturnsBool) {
 
 TEST_P(EqualityOpsParam, IntEqStr_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Str);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -310,15 +311,15 @@ TEST_P(EqualityOpsParam, IntEqStr_ReturnsError_EmitsDiagnostic) {
 // reports it as inapplicable — matches the arithmetic family's behaviour.
 TEST_P(EqualityOpsParam, MixedSignSameWidth_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Int8, TypeKind::UInt8);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
 }
 
 INSTANTIATE_TEST_SUITE_P(AllEqualityOps, EqualityOpsParam,
-                         ::testing::Values(OpCase{"Eq", EqOp::get(), "=="},
-                                           OpCase{"Neq", NeqOp::get(), "!="}),
+                         ::testing::Values(OpCase{"Eq", BuiltinOp::Eq, "=="},
+                                           OpCase{"Neq", BuiltinOp::Neq, "!="}),
                          [](const auto &info) { return info.param.name; });
 
 //===----------------------------------------------------------------------===//
@@ -331,7 +332,7 @@ class OrderingOpsParam : public BuiltinOpsTest,
 
 TEST_P(OrderingOpsParam, IntCmpInt_ReturnsBool_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Int32);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -339,7 +340,7 @@ TEST_P(OrderingOpsParam, IntCmpInt_ReturnsBool_NoDiagnostic) {
 
 TEST_P(OrderingOpsParam, IntCmpFloat_CoercesAndReturnsBool) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Float32);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -347,7 +348,7 @@ TEST_P(OrderingOpsParam, IntCmpFloat_CoercesAndReturnsBool) {
 
 TEST_P(OrderingOpsParam, StrCmpStr_ReturnsBool_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Str, TypeKind::Str);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Bool);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -355,7 +356,7 @@ TEST_P(OrderingOpsParam, StrCmpStr_ReturnsBool_NoDiagnostic) {
 
 TEST_P(OrderingOpsParam, BoolCmpBool_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Bool, TypeKind::Bool);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -363,17 +364,17 @@ TEST_P(OrderingOpsParam, BoolCmpBool_ReturnsError_EmitsDiagnostic) {
 
 TEST_P(OrderingOpsParam, IntCmpStr_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Str);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
 }
 
 INSTANTIATE_TEST_SUITE_P(AllOrderingOps, OrderingOpsParam,
-                         ::testing::Values(OpCase{"Lt", LtOp::get(), "<"},
-                                           OpCase{"Lte", LteOp::get(), "<="},
-                                           OpCase{"Gt", GtOp::get(), ">"},
-                                           OpCase{"Gte", GteOp::get(), ">="}),
+                         ::testing::Values(OpCase{"Lt", BuiltinOp::Lt, "<"},
+                                           OpCase{"Lte", BuiltinOp::Lte, "<="},
+                                           OpCase{"Gt", BuiltinOp::Gt, ">"},
+                                           OpCase{"Gte", BuiltinOp::Gte, ">="}),
                          [](const auto &info) { return info.param.name; });
 
 //===----------------------------------------------------------------------===//
@@ -387,7 +388,7 @@ class ShiftOpsParam : public BuiltinOpsTest,
 
 TEST_P(ShiftOpsParam, IntShiftInt_ReturnsLhsType_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Int8);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Int32);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -395,7 +396,7 @@ TEST_P(ShiftOpsParam, IntShiftInt_ReturnsLhsType_NoDiagnostic) {
 
 TEST_P(ShiftOpsParam, UIntShiftUInt_ReturnsLhsType_NoDiagnostic) {
   const auto args = argsOf(TypeKind::UInt16, TypeKind::UInt8);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::UInt16);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -406,7 +407,7 @@ TEST_P(ShiftOpsParam, UIntShiftUInt_ReturnsLhsType_NoDiagnostic) {
 // the arithmetic family's "mixed sign refuses to coerce" rule.
 TEST_P(ShiftOpsParam, MixedSignOperands_ReturnsLhsType_NoDiagnostic) {
   const auto args = argsOf(TypeKind::Int8, TypeKind::UInt8);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Int8);
   EXPECT_EQ(diagnostics.getErrorCount(), 0u);
@@ -414,7 +415,7 @@ TEST_P(ShiftOpsParam, MixedSignOperands_ReturnsLhsType_NoDiagnostic) {
 
 TEST_P(ShiftOpsParam, FloatLhs_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Float32, TypeKind::Int32);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -422,7 +423,7 @@ TEST_P(ShiftOpsParam, FloatLhs_ReturnsError_EmitsDiagnostic) {
 
 TEST_P(ShiftOpsParam, FloatRhs_ReturnsError_EmitsDiagnostic) {
   const auto args = argsOf(TypeKind::Int32, TypeKind::Float32);
-  const auto *result = GetParam().op->resolve(args, ctx);
+  const auto *result = resolve(GetParam().op, args, ctx);
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->getKind(), TypeKind::Error);
   EXPECT_EQ(diagnostics.getErrorCount(), 1u);
@@ -430,35 +431,35 @@ TEST_P(ShiftOpsParam, FloatRhs_ReturnsError_EmitsDiagnostic) {
 
 INSTANTIATE_TEST_SUITE_P(
     AllShiftOps, ShiftOpsParam,
-    ::testing::Values(OpCase{"ShiftLeft", ShiftLeftOp::get(), "<<"},
-                      OpCase{"ShiftRight", ShiftRightOp::get(), ">>"}),
+    ::testing::Values(OpCase{"ShiftLeft", BuiltinOp::ShiftLeft, "<<"},
+                      OpCase{"ShiftRight", BuiltinOp::ShiftRight, ">>"}),
     [](const auto &info) { return info.param.name; });
 
 //===----------------------------------------------------------------------===//
-// Op::getName — the polymorphic accessor used by the printer.
+// name(BuiltinOp) — the stable spelling used by the printers.
 //===----------------------------------------------------------------------===//
 
-TEST(BuiltinOpsNameTest, EachSingletonReportsItsClassName) {
-  EXPECT_EQ(AddOp::get()->getName(), "Add");
-  EXPECT_EQ(SubOp::get()->getName(), "Sub");
-  EXPECT_EQ(MulOp::get()->getName(), "Mul");
-  EXPECT_EQ(DivOp::get()->getName(), "Div");
-  EXPECT_EQ(PowOp::get()->getName(), "Pow");
-  EXPECT_EQ(AndOp::get()->getName(), "And");
-  EXPECT_EQ(OrOp::get()->getName(), "Or");
-  EXPECT_EQ(InOp::get()->getName(), "In");
-  EXPECT_EQ(NotInOp::get()->getName(), "NotIn");
-  EXPECT_EQ(EqOp::get()->getName(), "Eq");
-  EXPECT_EQ(NeqOp::get()->getName(), "Neq");
-  EXPECT_EQ(LtOp::get()->getName(), "Lt");
-  EXPECT_EQ(LteOp::get()->getName(), "Lte");
-  EXPECT_EQ(GtOp::get()->getName(), "Gt");
-  EXPECT_EQ(GteOp::get()->getName(), "Gte");
-  EXPECT_EQ(ShiftLeftOp::get()->getName(), "ShiftLeft");
-  EXPECT_EQ(ShiftRightOp::get()->getName(), "ShiftRight");
-  EXPECT_EQ(UnaryPosOp::get()->getName(), "UnaryPos");
-  EXPECT_EQ(UnaryNegOp::get()->getName(), "UnaryNeg");
-  EXPECT_EQ(UnaryNotOp::get()->getName(), "UnaryNot");
+TEST(BuiltinOpsNameTest, EachOpReportsItsName) {
+  EXPECT_EQ(name(BuiltinOp::Add), "Add");
+  EXPECT_EQ(name(BuiltinOp::Sub), "Sub");
+  EXPECT_EQ(name(BuiltinOp::Mul), "Mul");
+  EXPECT_EQ(name(BuiltinOp::Div), "Div");
+  EXPECT_EQ(name(BuiltinOp::Pow), "Pow");
+  EXPECT_EQ(name(BuiltinOp::And), "And");
+  EXPECT_EQ(name(BuiltinOp::Or), "Or");
+  EXPECT_EQ(name(BuiltinOp::In), "In");
+  EXPECT_EQ(name(BuiltinOp::NotIn), "NotIn");
+  EXPECT_EQ(name(BuiltinOp::Eq), "Eq");
+  EXPECT_EQ(name(BuiltinOp::Neq), "Neq");
+  EXPECT_EQ(name(BuiltinOp::Lt), "Lt");
+  EXPECT_EQ(name(BuiltinOp::Lte), "Lte");
+  EXPECT_EQ(name(BuiltinOp::Gt), "Gt");
+  EXPECT_EQ(name(BuiltinOp::Gte), "Gte");
+  EXPECT_EQ(name(BuiltinOp::ShiftLeft), "ShiftLeft");
+  EXPECT_EQ(name(BuiltinOp::ShiftRight), "ShiftRight");
+  EXPECT_EQ(name(BuiltinOp::UnaryPos), "UnaryPos");
+  EXPECT_EQ(name(BuiltinOp::UnaryNeg), "UnaryNeg");
+  EXPECT_EQ(name(BuiltinOp::UnaryNot), "UnaryNot");
 }
 
 //===----------------------------------------------------------------------===//
@@ -467,35 +468,35 @@ TEST(BuiltinOpsNameTest, EachSingletonReportsItsClassName) {
 
 TEST_F(BuiltinOpsTest, UnaryNegPreservesNumericType) {
   const std::array<const Expr *, 1> i = {typedExpr(TypeKind::Int32)};
-  EXPECT_EQ(UnaryNegOp::get()->resolve(i, ctx)->getKind(), TypeKind::Int32);
+  EXPECT_EQ(resolve(BuiltinOp::UnaryNeg, i, ctx)->getKind(), TypeKind::Int32);
 
   const std::array<const Expr *, 1> f = {typedExpr(TypeKind::Float64)};
-  EXPECT_EQ(UnaryNegOp::get()->resolve(f, ctx)->getKind(), TypeKind::Float64);
+  EXPECT_EQ(resolve(BuiltinOp::UnaryNeg, f, ctx)->getKind(), TypeKind::Float64);
 }
 
 TEST_F(BuiltinOpsTest, UnaryNegRejectsNonNumeric) {
   const std::array<const Expr *, 1> b = {typedExpr(TypeKind::Bool)};
-  EXPECT_EQ(UnaryNegOp::get()->resolve(b, ctx)->getKind(), TypeKind::Error);
+  EXPECT_EQ(resolve(BuiltinOp::UnaryNeg, b, ctx)->getKind(), TypeKind::Error);
 }
 
 TEST_F(BuiltinOpsTest, UnaryPosPreservesNumericType) {
   const std::array<const Expr *, 1> u = {typedExpr(TypeKind::UInt16)};
-  EXPECT_EQ(UnaryPosOp::get()->resolve(u, ctx)->getKind(), TypeKind::UInt16);
+  EXPECT_EQ(resolve(BuiltinOp::UnaryPos, u, ctx)->getKind(), TypeKind::UInt16);
 }
 
 TEST_F(BuiltinOpsTest, UnaryPosRejectsNonNumeric) {
   const std::array<const Expr *, 1> s = {typedExpr(TypeKind::Str)};
-  EXPECT_EQ(UnaryPosOp::get()->resolve(s, ctx)->getKind(), TypeKind::Error);
+  EXPECT_EQ(resolve(BuiltinOp::UnaryPos, s, ctx)->getKind(), TypeKind::Error);
 }
 
 TEST_F(BuiltinOpsTest, UnaryNotRequiresBool) {
   const std::array<const Expr *, 1> b = {typedExpr(TypeKind::Bool)};
-  EXPECT_EQ(UnaryNotOp::get()->resolve(b, ctx)->getKind(), TypeKind::Bool);
+  EXPECT_EQ(resolve(BuiltinOp::UnaryNot, b, ctx)->getKind(), TypeKind::Bool);
 }
 
 TEST_F(BuiltinOpsTest, UnaryNotRejectsNonBool) {
   const std::array<const Expr *, 1> i = {typedExpr(TypeKind::Int32)};
-  EXPECT_EQ(UnaryNotOp::get()->resolve(i, ctx)->getKind(), TypeKind::Error);
+  EXPECT_EQ(resolve(BuiltinOp::UnaryNot, i, ctx)->getKind(), TypeKind::Error);
 }
 
 } // namespace

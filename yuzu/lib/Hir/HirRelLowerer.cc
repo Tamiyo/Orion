@@ -1,7 +1,6 @@
 #include "yuzu/Hir/HirLowerer.h"
 
 #include "yuzu/Ast/Ast.h"
-#include "yuzu/Hir/Ops/Op.h"
 
 #include <string>
 

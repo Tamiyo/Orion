@@ -1,11 +1,7 @@
 #include "yuzu/Anf/AnfLowerer.h"
 
 #include "yuzu/Anf/Anf.h"
-#include "yuzu/Anf/Ops/BuiltinOps.h"
-#include "yuzu/Anf/Ops/Op.h"
 #include "yuzu/Hir/Hir.h"
-#include "yuzu/Hir/Ops/BuiltinOps.h"
-#include "yuzu/Hir/Ops/Op.h"
 
 namespace yuzu::anf {
 const Expr *AnfLowerer::lowerExpr(const hir::Expr *expr) {
@@ -47,9 +43,11 @@ const Expr *AnfLowerer::lowerCallExpr(const hir::CallExpr *callExpr) {
     loweredArgs.push_back(atom);
   }
 
-  const auto *op = lowerOp(callExpr->getOp());
+  // The operator is shared with HIR (a `BuiltinOp`), so it carries across
+  // unchanged.
   const auto *type = ctx.typeOf(callExpr);
-  return ctx.build(callExpr, &AnfBuilder::makeCallExpr, op, loweredArgs, type);
+  return ctx.build(callExpr, &AnfBuilder::makeCallExpr, callExpr->getOp(),
+                   loweredArgs, type);
 }
 
 const Expr *
@@ -126,33 +124,6 @@ const StringConst *AnfLowerer::lowerStringLit(const hir::StringLit *stringLit) {
   const auto value = stringLit->getValue();
   const auto *type = ctx.typeOf(stringLit);
   return ctx.build(stringLit, &AnfBuilder::makeStringConst, value, type);
-}
-
-const Op *AnfLowerer::lowerOp(const hir::Op *op) {
-  static const std::unordered_map<std::string_view, const Op *> table = {
-      {hir::AddOp::Name, AddOp::get()},
-      {hir::AndOp::Name, AndOp::get()},
-      {hir::SubOp::Name, SubOp::get()},
-      {hir::MulOp::Name, MulOp::get()},
-      {hir::DivOp::Name, DivOp::get()},
-      {hir::OrOp::Name, OrOp::get()},
-      {hir::InOp::Name, InOp::get()},
-      {hir::NotInOp::Name, NotInOp::get()},
-      {hir::PowOp::Name, PowOp::get()},
-      {hir::EqOp::Name, EqOp::get()},
-      {hir::NeqOp::Name, NeqOp::get()},
-      {hir::LtOp::Name, LtOp::get()},
-      {hir::LteOp::Name, LteOp::get()},
-      {hir::GtOp::Name, GtOp::get()},
-      {hir::GteOp::Name, GteOp::get()},
-      {hir::ShiftLeftOp::Name, ShiftLeftOp::get()},
-      {hir::ShiftRightOp::Name, ShiftRightOp::get()},
-      {hir::UnaryPosOp::Name, UnaryPosOp::get()},
-      {hir::UnaryNegOp::Name, UnaryNegOp::get()},
-      {hir::UnaryNotOp::Name, UnaryNotOp::get()},
-  };
-  const auto it = table.find(op->getName());
-  return it != table.end() ? it->second : nullptr;
 }
 
 } // namespace yuzu::anf

@@ -1,7 +1,7 @@
 #include "yuzu/Substrait/SubstraitEmitter.h"
 
 #include "yuzu/Anf/Anf.h"
-#include "yuzu/Anf/Ops/Op.h"
+#include "yuzu/Ops/BuiltinOp.h"
 #include "yuzu/Types/Type.h"
 #include "yuzu/Util/ErrorHandling.h"
 #include "yuzu/Util/Unicode.h"
@@ -113,32 +113,49 @@ struct FunctionTarget {
   llvm::StringRef base; // Substrait function name, e.g. "add".
 };
 
-/// Map an ANF builtin operator to its Substrait extension function.
-std::optional<FunctionTarget> functionTarget(llvm::StringRef op) {
-  static const llvm::DenseMap<llvm::StringRef, FunctionTarget> table = {
-      {"Add", {kArithmeticUri, "add"}},
-      {"Sub", {kArithmeticUri, "subtract"}},
-      {"Mul", {kArithmeticUri, "multiply"}},
-      {"Div", {kArithmeticUri, "divide"}},
-      {"Pow", {kArithmeticUri, "power"}},
-      {"ShiftLeft", {kArithmeticUri, "shift_left"}},
-      {"ShiftRight", {kArithmeticUri, "shift_right"}},
-      {"UnaryNeg", {kArithmeticUri, "negate"}},
-      {"Eq", {kComparisonUri, "equal"}},
-      {"Neq", {kComparisonUri, "not_equal"}},
-      {"Lt", {kComparisonUri, "lt"}},
-      {"Lte", {kComparisonUri, "lte"}},
-      {"Gt", {kComparisonUri, "gt"}},
-      {"Gte", {kComparisonUri, "gte"}},
-      {"And", {kBooleanUri, "and"}},
-      {"Or", {kBooleanUri, "or"}},
-      {"UnaryNot", {kBooleanUri, "not"}},
-  };
-  const auto it = table.find(op);
-  if (it == table.end()) {
+/// Map an ANF builtin operator to its Substrait extension function. An operator
+/// with no Substrait equivalent yet (e.g. `**`, `in`, unary `+`) returns null.
+std::optional<FunctionTarget> functionTarget(BuiltinOp op) {
+  switch (op) {
+  case BuiltinOp::Add:
+    return FunctionTarget{kArithmeticUri, "add"};
+  case BuiltinOp::Sub:
+    return FunctionTarget{kArithmeticUri, "subtract"};
+  case BuiltinOp::Mul:
+    return FunctionTarget{kArithmeticUri, "multiply"};
+  case BuiltinOp::Div:
+    return FunctionTarget{kArithmeticUri, "divide"};
+  case BuiltinOp::ShiftLeft:
+    return FunctionTarget{kArithmeticUri, "shift_left"};
+  case BuiltinOp::ShiftRight:
+    return FunctionTarget{kArithmeticUri, "shift_right"};
+  case BuiltinOp::UnaryNeg:
+    return FunctionTarget{kArithmeticUri, "negate"};
+  case BuiltinOp::Eq:
+    return FunctionTarget{kComparisonUri, "equal"};
+  case BuiltinOp::Neq:
+    return FunctionTarget{kComparisonUri, "not_equal"};
+  case BuiltinOp::Lt:
+    return FunctionTarget{kComparisonUri, "lt"};
+  case BuiltinOp::Lte:
+    return FunctionTarget{kComparisonUri, "lte"};
+  case BuiltinOp::Gt:
+    return FunctionTarget{kComparisonUri, "gt"};
+  case BuiltinOp::Gte:
+    return FunctionTarget{kComparisonUri, "gte"};
+  case BuiltinOp::And:
+    return FunctionTarget{kBooleanUri, "and"};
+  case BuiltinOp::Or:
+    return FunctionTarget{kBooleanUri, "or"};
+  case BuiltinOp::UnaryNot:
+    return FunctionTarget{kBooleanUri, "not"};
+  case BuiltinOp::Pow:
+  case BuiltinOp::In:
+  case BuiltinOp::NotIn:
+  case BuiltinOp::UnaryPos:
     return std::nullopt;
   }
-  return it->second;
+  return std::nullopt;
 }
 
 /// Index of `name` within a struct type's fields (the Substrait field offset),
@@ -238,7 +255,7 @@ llvm::json::Value SubstraitEmitter::emitSelection(const anf::FieldAtom *field) {
 llvm::json::Value
 SubstraitEmitter::emitScalarFunction(const anf::CallExpr *call,
                                      const Env &env) {
-  const auto target = functionTarget(call->getOp()->getName());
+  const auto target = functionTarget(call->getOp());
   if (!target) {
     util::yuzu_unreachable("no Substrait mapping for ANF operator");
   }
