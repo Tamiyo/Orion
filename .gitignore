@@ -3,6 +3,7 @@
 .vscode/
 .idea/
 build/
+build-release/
 cmake-build-debug/
 
 # Approval Tests
