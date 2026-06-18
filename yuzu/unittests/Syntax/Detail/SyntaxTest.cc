@@ -31,10 +31,12 @@ TEST(SyntaxElementTest, SyntaxElementSizeRequirements) {
 }
 
 TEST(SyntaxDataTest, SyntaxDataSizeRequirements) {
-  // offset         = 8
-  // index          = 8
-  // parent         = 16
-  // green          = 16
-  EXPECT_EQ(56, sizeof(SyntaxData));
+  // green          = 24
+  // parent         =  8
+  // offset         =  4  (uint32)
+  // index          =  4  (uint32)
+  // rc             =  4  (uint32)
+  // padding        =  4  (align to 8)
+  EXPECT_EQ(48, sizeof(SyntaxData));
 }
 } // namespace

@@ -76,6 +76,11 @@ public:
   /// decrement or release here.
   ~SyntaxData() = default;
 
+  /// Pool-allocated through a recycling free list: a tree walk churns through
+  /// these cursors, so they don't hit the system allocator per node.
+  static void *operator new(std::size_t size);
+  static void operator delete(void *ptr) noexcept;
+
   /// \brief Get the reference count of this SyntaxData.
   ///
   /// \return The current reference count.
@@ -175,16 +180,16 @@ private:
   /// \code
   ///   print("hello world")
   /// \endcode
-  size_t offset;
+  uint32_t offset;
 
   /// The index of this 'SyntaxData' in the children of 'Parent'.
-  size_t index;
+  uint32_t index;
 
   /// Reference count for the smart pointer to manage. Stored inline to avoid
   /// a second heap allocation per SyntaxData. Non-atomic: the red tree is
   /// built and walked on a single thread, so the synchronization an atomic
   /// would add is pure overhead on the hottest path (lowering).
-  int64_t rc;
+  uint32_t rc;
 };
 
 /// \brief A node in the concrete syntax tree.
