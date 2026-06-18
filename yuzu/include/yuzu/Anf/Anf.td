@@ -64,7 +64,11 @@ def Ident : Node<AnfNode> {
 
 /// The two top categories, declared up front so each may refer to the other:
 /// an `Expr` produces a value; a `Stmt` binds, controls, or declares.
-def Expr : Variant<AnfNode> {}
+/// Every `Expr` carries its resolved semantic type; the field is declared once
+/// here and inherited by every concrete expression node (atoms, calls, rels).
+def Expr : Variant<AnfNode> {
+    let Fields = (ins Custom<TypeRef>:$type);
+}
 def Stmt : Variant<AnfNode> {}
 
 //===----------------------------------------------------------------------===//
@@ -77,55 +81,47 @@ def Atom : Variant<Expr> {}
 /// Reads a binding as a value — a direct back-edge to its `Binding`, so
 /// resolution is a pointer chase, not a name lookup.
 def VarAtom : Node<Atom> {
-    let Fields = (ins
-        Custom<BindingRef>:$binding,
-        Custom<TypeRef>:$type
-    );
+    let Fields = (ins Custom<BindingRef>:$binding);
 }
 
 /// A function named as a value — the resolved target of a direct call. Inlining
 /// chases `func` to the body; an indirect call keeps a `VarAtom` callee. The
 /// reference is non-owning (the `FuncStmt` lives in the root).
 def FuncRef : Node<Atom> {
-    let Fields = (ins
-        Custom<FuncStmtRef>:$func,
-        Custom<TypeRef>:$type
-    );
+    let Fields = (ins Custom<FuncStmtRef>:$func);
 }
 
 /// Field / column access `base.field`; chains for multipart paths.
 def FieldAtom : Node<Atom> {
     let Fields = (ins
         Child<Atom>:$base,
-        Child<Ident>:$field,
-        Custom<TypeRef>:$type
+        Child<Ident>:$field
     );
 }
 
 def Constant : Variant<Atom> {}
 
 def IntConst : Node<Constant> {
-    let Fields = (ins Custom<Int64>:$value, Custom<TypeRef>:$type);
+    let Fields = (ins Custom<Int64>:$value);
 }
 
 def FloatConst : Node<Constant> {
-    let Fields = (ins Custom<Float64>:$value, Custom<TypeRef>:$type);
+    let Fields = (ins Custom<Float64>:$value);
 }
 
 def BoolConst : Node<Constant> {
-    let Fields = (ins Custom<Bool>:$value, Custom<TypeRef>:$type);
+    let Fields = (ins Custom<Bool>:$value);
 }
 
 def StringConst : Node<Constant> {
-    let Fields = (ins Custom<String>:$value, Custom<TypeRef>:$type);
+    let Fields = (ins Custom<String>:$value);
 }
 
 /// A builtin operator applied to atomic arguments (`a + b`, `-x`).
 def CallExpr : Node<Expr> {
     let Fields = (ins
         Custom<OpRef>:$op,
-        Children<Atom>:$args,
-        Custom<TypeRef>:$type
+        Children<Atom>:$args
     );
 }
 
@@ -133,8 +129,7 @@ def CallExpr : Node<Expr> {
 def FuncCallExpr : Node<Expr> {
     let Fields = (ins
         Child<Atom>:$callee,
-        Children<Atom>:$args,
-        Custom<TypeRef>:$type
+        Children<Atom>:$args
     );
 }
 
@@ -147,8 +142,7 @@ def StructFieldInit : Node<AnfNode> {
 def StructExpr : Node<Expr> {
     let Fields = (ins
         Child<Ident>:$name,
-        Children<StructFieldInit>:$fields,
-        Custom<TypeRef>:$type
+        Children<StructFieldInit>:$fields
     );
 }
 
@@ -172,9 +166,8 @@ def Rel : Variant<Expr> {}
 /// The pipe source: `from <relation> as <alias>`.
 def FromRel : Node<Rel> {
     let Fields = (ins
-        Child<Ident>:$relation, 
-        Child<Ident>:$alias,
-        Custom<TypeRef>:$type
+        Child<Ident>:$relation,
+        Child<Ident>:$alias
     );
 }
 
@@ -202,8 +195,7 @@ def SelectItem : Node<AnfNode> {
 def SelectRel : Node<Rel> {
     let Fields = (ins
         Child<Expr>:$input,
-        Children<SelectItem>:$items,
-        Custom<TypeRef>:$type
+        Children<SelectItem>:$items
     );
 }
 

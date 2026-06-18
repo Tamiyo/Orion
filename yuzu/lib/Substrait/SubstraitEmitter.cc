@@ -70,44 +70,6 @@ Value emitType(const types::Type *type) {
   return Object{{typeCode(type), Object{{"nullability", kNullability}}}};
 }
 
-/// The type carried on an ANF expression (each node stores its own).
-const types::Type *typeOf(const anf::Expr *expr) {
-  if (const auto *node = anf::VarAtom::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::FieldAtom::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::IntConst::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::FloatConst::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::BoolConst::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::StringConst::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::CallExpr::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::FuncCallExpr::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::StructExpr::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::FromRel::cast(expr)) {
-    return node->getType();
-  }
-  if (const auto *node = anf::SelectRel::cast(expr)) {
-    return node->getType();
-  }
-  return nullptr;
-}
-
 struct FunctionTarget {
   llvm::StringRef uri;
   llvm::StringRef base; // Substrait function name, e.g. "add".
@@ -241,7 +203,7 @@ llvm::json::Value SubstraitEmitter::emitLiteral(const anf::Constant *constant) {
 llvm::json::Value SubstraitEmitter::emitSelection(const anf::FieldAtom *field) {
   // A row field reference: its offset within the input's row struct.
   const int index =
-      structIndex(typeOf(field->getBase()), field->getField()->getName());
+      structIndex(field->getBase()->getType(), field->getField()->getName());
   if (index < 0) {
     util::yuzu_unreachable("field not found in row struct while emitting "
                            "Substrait selection");
@@ -269,7 +231,7 @@ SubstraitEmitter::emitScalarFunction(const anf::CallExpr *call,
       name += "_";
     }
     first = false;
-    name += typeCode(typeOf(arg)).str();
+    name += typeCode(arg->getType()).str();
     arguments.push_back(Object{{"value", emitExpr(arg, env)}});
   }
 
@@ -364,7 +326,7 @@ SubstraitEmitter::emitSelectRel(const anf::SelectRel *select) {
 
   // Output keeps only the projected expressions, which Substrait appends after
   // the input's columns — so the emit mapping starts past them.
-  const types::StructType *inputRow = rowStruct(typeOf(select->getInput()));
+  const types::StructType *inputRow = rowStruct(select->getInput()->getType());
   const int inputColumns =
       inputRow != nullptr ? static_cast<int>(inputRow->getFields().size()) : 0;
 
@@ -414,7 +376,7 @@ std::string SubstraitEmitter::emit(const anf::Root *root) {
   // Output column names come from the query's row type, so aliased, bare-ident,
   // and generated (`%gN`) names all carry through.
   Array names;
-  if (const types::StructType *outRow = rowStruct(typeOf(query))) {
+  if (const types::StructType *outRow = rowStruct(query->getType())) {
     for (const types::StructField &field : outRow->getFields()) {
       names.push_back(util::toUtf8(field.name));
     }

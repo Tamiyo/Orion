@@ -24,13 +24,29 @@ bool byLoc(const llvm::Record *a, const llvm::Record *b) {
   return a->getLoc().front().getPointer() < b->getLoc().front().getPointer();
 }
 
-/// True when a field is the on-node resolved type (`Custom<TypeRef>`), which is
-/// rendered inline after the node name rather than as an ordinary field.
+/// True when a field is the resolved type (`Custom<TypeRef>`), which is
+/// rendered inline after the node name rather than as an ordinary field. The
+/// type is declared once on the `Expr` base and inherited, so a concrete node
+/// finds it among its inherited fields.
 bool isTypeField(const NamedField &f) {
   if (const auto *custom = std::get_if<Custom>(&f.kind)) {
     return custom->typeName == "TypeRef";
   }
   return false;
+}
+
+/// Walk `record`'s `Parent` chain (excluding `record` itself), collecting each
+/// level's `Fields`. Mirrors the node/builder generators' helper of the same
+/// name; used here to find the inherited `Expr` type field.
+std::vector<NamedField> gatherInheritedFields(const llvm::Record *record) {
+  std::vector<NamedField> out;
+  const llvm::Record *cur = record;
+  while (cur->getValue("Parent")) {
+    cur = cur->getValueAsDef("Parent");
+    const auto fields = parseFields(cur);
+    out.insert(out.end(), fields.begin(), fields.end());
+  }
+  return out;
 }
 
 /// Emit print code for a single (non-type) field. Every field begins with its
@@ -168,8 +184,12 @@ void emitPrintNode(CodeFormatter &fmt, const llvm::Record *node,
       fmt.line("}");
     }
 
-    // The on-node type, printed inline after the name (skipped when unset).
-    for (const NamedField &f : fields) {
+    // The resolved type, printed inline after the name (skipped when unset).
+    // It lives on the `Expr` base, so look through inherited fields too.
+    std::vector<NamedField> typeSearch = fields;
+    const std::vector<NamedField> inherited = gatherInheritedFields(node);
+    typeSearch.insert(typeSearch.end(), inherited.begin(), inherited.end());
+    for (const NamedField &f : typeSearch) {
       if (!isTypeField(f)) {
         continue;
       }
@@ -178,6 +198,7 @@ void emitPrintNode(CodeFormatter &fmt, const llvm::Record *node,
       fmt.linef("  os << \" : \" << yuzu::types::asString({0}->getKind());",
                 getter);
       fmt.line("}");
+      break;
     }
 
     for (const NamedField &f : fields) {
