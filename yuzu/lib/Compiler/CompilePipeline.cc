@@ -101,16 +101,22 @@ std::vector<lexer::Token> lexerPass(std::u32string_view source,
   return tokens;
 }
 
-ast::SyntaxNode parserPass(const std::vector<lexer::Token> &tokens,
-                           const CompileOptions &options,
-                           diagnostics::SourceId sourceId,
-                           diagnostics::DiagnosticsEngine &diagnostics) {
+// Run the recursive-descent parser, producing the flat event stream.
+std::vector<parser::Event>
+parseEventsPass(const std::vector<lexer::Token> &tokens) {
   auto parser = parser::Parser(parser::TokenSource(tokens));
   parser::parseRoot(parser);
+  return std::move(parser).finish();
+}
 
-  std::vector<parser::Event> events = std::move(parser).finish();
-  auto sink = parser::TokenSink(std::move(tokens), std::move(events),
-                                diagnostics, sourceId);
+// Replay the events into a green tree and wrap it as the red syntax root.
+ast::SyntaxNode buildTreePass(const std::vector<lexer::Token> &tokens,
+                              std::vector<parser::Event> events,
+                              const CompileOptions &options,
+                              diagnostics::SourceId sourceId,
+                              diagnostics::DiagnosticsEngine &diagnostics) {
+  auto sink = parser::TokenSink(std::vector<lexer::Token>(tokens),
+                                std::move(events), diagnostics, sourceId);
   parser::TokenSink::Result sinkResult = sink.finish();
 
   const auto syntaxRoot = ast::SyntaxNode::createRoot(sinkResult.green);
@@ -124,22 +130,24 @@ ast::SyntaxNode parserPass(const std::vector<lexer::Token> &tokens,
   return syntaxRoot;
 }
 
-const hir::Root *hirPass(ast::SyntaxNode syntaxRoot,
-                         const CompileOptions &options,
-                         diagnostics::SourceId sourceId,
-                         diagnostics::DiagnosticsEngine &diagnostics,
-                         hir::HirContext &ctx) {
+// Lower the syntax tree to (untyped) HIR.
+const hir::Root *hirLowerPass(ast::SyntaxNode syntaxRoot,
+                              diagnostics::SourceId sourceId,
+                              diagnostics::DiagnosticsEngine &diagnostics,
+                              hir::HirContext &ctx) {
   hir::HirLowerer lowerer(ctx, diagnostics, sourceId);
-  const hir::Root *root = lowerer.lower(ast::Root{syntaxRoot});
+  return lowerer.lower(ast::Root{syntaxRoot});
+}
 
+// Infer + concretize types over the HIR (the type-resolution pass).
+void typeResolvePass(const hir::Root *root, const CompileOptions &options,
+                     hir::HirContext &ctx) {
   hir::TypeResolver(ctx).resolve(root);
 
   if (options.debugHir) {
     options.out << "=== hir ===\n"
                 << hir::HirPrinter::printToString(ctx, root) << '\n';
   }
-
-  return root;
 }
 
 const anf::Root *anfLowerPass(const hir::Root *hirRoot,
@@ -223,17 +231,26 @@ void runPipeline(std::u32string_view source, const CompileOptions &options,
     return;
   }
 
-  const auto syntaxRoot = timer.time("parse", [&] {
-    return parserPass(tokens, options, sourceId, diagnostics);
+  auto events = timer.time("parse", [&] { return parseEventsPass(tokens); });
+  const auto syntaxRoot = timer.time("build-tree", [&] {
+    return buildTreePass(tokens, std::move(events), options, sourceId,
+                         diagnostics);
   });
   if (diagnostics.hasErrors()) {
     flushDiagnostics(diagnostics, printer, options.out);
     return;
   }
 
-  const auto *hirRoot = timer.time("hir", [&] {
-    return hirPass(syntaxRoot, options, sourceId, diagnostics, hirCtx);
+  const auto *hirRoot = timer.time("hir-lower", [&] {
+    return hirLowerPass(syntaxRoot, sourceId, diagnostics, hirCtx);
   });
+  if (diagnostics.hasErrors()) {
+    flushDiagnostics(diagnostics, printer, options.out);
+    return;
+  }
+
+  timer.time("type-resolve",
+             [&] { typeResolvePass(hirRoot, options, hirCtx); });
   if (diagnostics.hasErrors()) {
     flushDiagnostics(diagnostics, printer, options.out);
     return;
