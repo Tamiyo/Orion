@@ -3,12 +3,33 @@
 #include "yuzu/Syntax/Green/Green.h"
 #include "yuzu/Util/ErrorHandling.h"
 
+#include <llvm/Support/Allocator.h>
+#include <llvm/Support/RecyclingAllocator.h>
+
+#include <cassert>
 #include <cstddef>
 #include <iterator>
 #include <optional>
 #include <variant>
 
 namespace yuzu::syntax::detail {
+namespace {
+/// Recycling pool for the transient `SyntaxData` cursors a tree walk churns
+/// through. Thread-local, matching the single-thread assumption behind `rc`.
+thread_local llvm::RecyclingAllocator<llvm::BumpPtrAllocator, SyntaxData>
+    gSyntaxDataPool;
+} // namespace
+
+void *SyntaxData::operator new(std::size_t size) {
+  assert(size == sizeof(SyntaxData) && "unexpected SyntaxData allocation size");
+  (void)size;
+  return gSyntaxDataPool.Allocate();
+}
+
+void SyntaxData::operator delete(void *ptr) noexcept {
+  gSyntaxDataPool.Deallocate(static_cast<SyntaxData *>(ptr));
+}
+
 /// ===============
 /// = SyntaxData =
 /// ===============
