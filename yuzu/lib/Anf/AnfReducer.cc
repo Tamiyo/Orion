@@ -27,7 +27,7 @@ struct FuncRefCollector : AnfVisitor<FuncRefCollector> {
                    std::vector<const FuncStmt *> &worklist)
       : live(live), worklist(worklist) {}
 
-  void visitFuncRef(const FuncRef *ref) {
+  void visitFuncRef(FuncRef *ref) {
     const FuncStmt *func = ref->getFunc();
     if (func != nullptr && live.insert(func).second) {
       worklist.push_back(func);
@@ -63,13 +63,13 @@ void AnfReducer::eliminateDeadFunctions(const Root *root) {
   // transitively keep functions referenced by live ones.
   for (const Stmt *stmt : root->getStmts()) {
     if (FuncStmt::cast(stmt) == nullptr) {
-      collector.visit(stmt);
+      collector.visit(mutate(stmt));
     }
   }
   while (!worklist.empty()) {
     const FuncStmt *func = worklist.back();
     worklist.pop_back();
-    collector.visit(func->getBody());
+    collector.visit(mutate(func->getBody()));
   }
 
   // Erase the function definitions nothing references anymore.
