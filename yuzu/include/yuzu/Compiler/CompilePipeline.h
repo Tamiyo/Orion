@@ -26,6 +26,9 @@ struct CompileOptions {
   bool debugHir = false;
   bool debugAnf = false;
 
+  // When set, print per-pass wall-clock timings to `out` after compiling.
+  bool timePasses = false;
+
   // Directory to write build artifacts (the Substrait plan) into. Unset
   // disables codegen — no JSON is written.
   std::optional<std::string> artifactsDir = std::nullopt;

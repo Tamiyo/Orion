@@ -26,8 +26,11 @@
 #include "yuzu/Substrait/SubstraitEmitter.h"
 #include "yuzu/Syntax/SyntaxPrinter.h"
 
+#include <llvm/ADT/ScopeExit.h>
+#include <llvm/Support/Format.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <chrono>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -36,6 +39,51 @@
 
 namespace yuzu {
 namespace {
+/// Times each compiler pass and prints an LLVM-style report when it goes out of
+/// scope (so partial timings still print if a pass fails). A no-op, and prints
+/// nothing, unless enabled.
+class PassTimer {
+public:
+  PassTimer(bool enabled, llvm::raw_ostream &out)
+      : enabled(enabled), out(out) {}
+  PassTimer(const PassTimer &) = delete;
+  PassTimer &operator=(const PassTimer &) = delete;
+  ~PassTimer() {
+    if (!enabled || timings.empty()) {
+      return;
+    }
+    double total = 0.0;
+    out << "=== compile-time report (ms) ===\n";
+    for (const auto &[name, ms] : timings) {
+      out << llvm::format("  %-12s %9.3f\n", name.c_str(), ms);
+      total += ms;
+    }
+    out << llvm::format("  %-12s %9.3f\n", "total", total);
+  }
+
+  /// Run one pass `fn` under `name`, recording its wall time, and return
+  /// whatever it returns. When disabled, just runs `fn`.
+  template <typename Fn> decltype(auto) time(llvm::StringRef name, Fn &&fn) {
+    if (!enabled) {
+      return std::forward<Fn>(fn)();
+    }
+    const auto start = std::chrono::steady_clock::now();
+    // Fires after `fn`'s result is materialized but before `time` returns, so
+    // the recorded span is exactly `fn`'s execution.
+    llvm::scope_exit record([&] {
+      const std::chrono::duration<double, std::milli> elapsed =
+          std::chrono::steady_clock::now() - start;
+      timings.emplace_back(name.str(), elapsed.count());
+    });
+    return std::forward<Fn>(fn)();
+  }
+
+private:
+  bool enabled;
+  llvm::raw_ostream &out;
+  std::vector<std::pair<std::string, double>> timings;
+};
+
 std::vector<lexer::Token> lexerPass(std::u32string_view source,
                                     const CompileOptions &options) {
   auto lexer = lexer::Lexer(source);
@@ -94,11 +142,11 @@ const hir::Root *hirPass(ast::SyntaxNode syntaxRoot,
   return root;
 }
 
-const anf::Root *anfPass(const hir::Root *hirRoot,
-                         const CompileOptions &options,
-                         diagnostics::SourceId sourceId,
-                         diagnostics::DiagnosticsEngine &diagnostics,
-                         anf::AnfContext &anfCtx) {
+const anf::Root *anfLowerPass(const hir::Root *hirRoot,
+                              const CompileOptions &options,
+                              diagnostics::SourceId sourceId,
+                              diagnostics::DiagnosticsEngine &diagnostics,
+                              anf::AnfContext &anfCtx) {
   anf::AnfLowerer lowerer(anfCtx, diagnostics, sourceId);
   const anf::Root *root = lowerer.lowerRoot(hirRoot);
 
@@ -107,15 +155,17 @@ const anf::Root *anfPass(const hir::Root *hirRoot,
                 << anf::AnfPrinter::printToString(root) << '\n';
   }
 
-  anf::AnfReducer reducer(anfCtx);
-  reducer.reduce(root);
+  return root;
+}
+
+void anfReducePass(const anf::Root *anfRoot, const CompileOptions &options,
+                   anf::AnfContext &anfCtx) {
+  anf::AnfReducer(anfCtx).reduce(anfRoot);
 
   if (options.debugAnf) {
     options.out << "=== anf after reduction ===\n"
-                << anf::AnfPrinter::printToString(root) << '\n';
+                << anf::AnfPrinter::printToString(anfRoot) << '\n';
   }
-
-  return root;
 }
 
 /// Emit the reduced ANF as a Substrait plan into the artifacts directory.
@@ -164,32 +214,46 @@ void runPipeline(std::u32string_view source, const CompileOptions &options,
                  diagnostics::DiagnosticsEngine &diagnostics,
                  const diagnostics::DiagnosticPrinter &printer,
                  hir::HirContext &hirCtx, anf::AnfContext &anfCtx) {
-  const auto tokens = lexerPass(source, options);
+  PassTimer timer(options.timePasses, options.out);
+
+  const auto tokens =
+      timer.time("lex", [&] { return lexerPass(source, options); });
   if (diagnostics.hasErrors()) {
     flushDiagnostics(diagnostics, printer, options.out);
     return;
   }
 
-  const auto syntaxRoot = parserPass(tokens, options, sourceId, diagnostics);
+  const auto syntaxRoot = timer.time("parse", [&] {
+    return parserPass(tokens, options, sourceId, diagnostics);
+  });
   if (diagnostics.hasErrors()) {
     flushDiagnostics(diagnostics, printer, options.out);
     return;
   }
 
-  const auto *hirRoot =
-      hirPass(syntaxRoot, options, sourceId, diagnostics, hirCtx);
+  const auto *hirRoot = timer.time("hir", [&] {
+    return hirPass(syntaxRoot, options, sourceId, diagnostics, hirCtx);
+  });
   if (diagnostics.hasErrors()) {
     flushDiagnostics(diagnostics, printer, options.out);
     return;
   }
 
-  const auto anfRoot = anfPass(hirRoot, options, sourceId, diagnostics, anfCtx);
+  const auto *anfRoot = timer.time("anf-lower", [&] {
+    return anfLowerPass(hirRoot, options, sourceId, diagnostics, anfCtx);
+  });
   if (diagnostics.hasErrors()) {
     flushDiagnostics(diagnostics, printer, options.out);
     return;
   }
 
-  codegenPass(anfRoot, options);
+  timer.time("anf-reduce", [&] { anfReducePass(anfRoot, options, anfCtx); });
+  if (diagnostics.hasErrors()) {
+    flushDiagnostics(diagnostics, printer, options.out);
+    return;
+  }
+
+  timer.time("codegen", [&] { codegenPass(anfRoot, options); });
 }
 } // namespace
 

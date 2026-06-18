@@ -19,6 +19,7 @@ NB_MODULE(_ext, m) {
       .def_rw("debug_ast", &yuzu::CompileOptions::debugAst)
       .def_rw("debug_hir", &yuzu::CompileOptions::debugHir)
       .def_rw("debug_anf", &yuzu::CompileOptions::debugAnf)
+      .def_rw("time_passes", &yuzu::CompileOptions::timePasses)
       .def_rw("artifacts_dir", &yuzu::CompileOptions::artifactsDir);
 
   m.def(

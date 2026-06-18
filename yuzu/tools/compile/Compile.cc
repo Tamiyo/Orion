@@ -16,6 +16,7 @@ void usage() {
                   "  --debug-hir    dump the HIR\n"
                   "  --debug-anf    dump the ANF\n"
                   "  --debug        dump all of the above\n"
+                  "  --time-passes  print per-pass wall-clock timings\n"
                   "  --artifacts <dir>  write the Substrait plan into <dir>\n";
 }
 } // namespace
@@ -45,6 +46,8 @@ int main(int argc, char **argv) {
       options.debugHir = true;
     } else if (arg == "--debug") {
       options.debugLexer = options.debugAst = options.debugHir = true;
+    } else if (arg == "--time-passes") {
+      options.timePasses = true;
     } else if (arg == "--artifacts") {
       if (i + 1 >= argc) {
         llvm::errs() << "yuzu-compile: --artifacts needs a directory\n";
