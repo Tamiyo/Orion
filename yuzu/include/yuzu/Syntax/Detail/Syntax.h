@@ -5,7 +5,6 @@
 #include "yuzu/Syntax/SyntaxKind.h"
 #include "yuzu/Util/ErrorHandling.h"
 
-#include <atomic>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -26,7 +25,7 @@ class SyntaxToken;
 /// SyntaxData is a reference-counted data structure that stores the actual
 /// data for both SyntaxNode and SyntaxToken instances. It manages the
 /// relationship between parent and child nodes, tracks position information,
-/// and handles memory management through atomic reference counting.
+/// and handles memory management through reference counting.
 ///
 /// This class is designed to be used internally by SyntaxNode and SyntaxToken
 /// and should not be instantiated directly by users.
@@ -79,16 +78,16 @@ public:
 
   /// \brief Get the reference count of this SyntaxData.
   ///
-  /// \return The current atomic reference count.
-  [[nodiscard]] int64_t getRc() const { return rc.load(); }
+  /// \return The current reference count.
+  [[nodiscard]] int64_t getRc() const { return rc; }
 
   /// \brief Increment the reference count.
-  void incRc() { rc.fetch_add(1); }
+  void incRc() { ++rc; }
 
   /// \brief Decrement the reference count.
   ///
   /// \return True if this was the last reference (count reached 0).
-  [[nodiscard]] bool decRc() { return rc.fetch_sub(1) == 1; }
+  [[nodiscard]] bool decRc() { return rc-- == 1; }
 
   /// \brief Get the green element backing this syntax data.
   ///
@@ -182,8 +181,10 @@ private:
   size_t index;
 
   /// Reference count for the smart pointer to manage. Stored inline to avoid
-  /// a second heap allocation per SyntaxData.
-  std::atomic<int64_t> rc;
+  /// a second heap allocation per SyntaxData. Non-atomic: the red tree is
+  /// built and walked on a single thread, so the synchronization an atomic
+  /// would add is pure overhead on the hottest path (lowering).
+  int64_t rc;
 };
 
 /// \brief A node in the concrete syntax tree.
@@ -299,7 +300,7 @@ public:
 
   /// \brief Get the reference count of this SyntaxNode.
   ///
-  /// \return The current atomic reference count.
+  /// \return The current reference count.
   [[nodiscard]] int64_t getRc() const { return data->getRc(); }
 
   /// \brief Get the children of this SyntaxNode.
@@ -502,7 +503,7 @@ public:
 
   /// \brief Get the reference count of this SyntaxToken.
   ///
-  /// \return The current atomic reference count.
+  /// \return The current reference count.
   [[nodiscard]] int64_t getRc() const { return data->getRc(); }
 
   /// \brief Get the next sibling node.
