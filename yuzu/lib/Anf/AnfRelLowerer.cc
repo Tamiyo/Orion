@@ -19,6 +19,8 @@ const Rel *AnfLowerer::lowerRel(const hir::Rel *rel) {
     return lowerWhereRel(hir::WhereRel::cast(rel));
   case hir::RelKind::DistinctRel:
     return lowerDistinctRel(hir::DistinctRel::cast(rel));
+  case hir::RelKind::DropRel:
+    return lowerDropRel(hir::DropRel::cast(rel));
   }
 }
 
@@ -39,8 +41,7 @@ const Rel *AnfLowerer::lowerFromRel(const hir::FromRel *fromRel) {
   // The row value the next stage's columns select from. An explicit alias is
   // also bound (so `e.salary` resolves the ordinary way); a bare `salary`
   // resolves against `currentRow` directly.
-  const auto *rel = types::RelationType::cast(type);
-  const auto *rowType = rel ? rel->getElement() : type;
+  const auto *rowType = types::RelationType::cast(type)->getElement();
   const auto *row = makeRowValue(rowType, fromRel);
   if (fromRel->getAlias() != nullptr) {
     hirToAnfMap[fromRel->getAlias()] = row;
@@ -63,8 +64,8 @@ const Rel *AnfLowerer::lowerSelectRel(const hir::SelectRel *selectRel) {
   }
 
   // Hand the next stage this select's output row.
-  const auto *rel = types::RelationType::cast(type);
-  currentRow = makeRowValue(rel ? rel->getElement() : type, selectRel);
+  currentRow =
+      makeRowValue(types::RelationType::cast(type)->getElement(), selectRel);
 
   return ctx.build(selectRel, &AnfBuilder::makeSelectRel, input, items, type);
 }
@@ -112,6 +113,24 @@ const Rel *AnfLowerer::lowerDistinctRel(const hir::DistinctRel *distinctRel) {
   const auto *input = lowerExpr(distinctRel->getInput());
   const auto *type = ctx.typeOf(distinctRel);
   return ctx.build(distinctRel, &AnfBuilder::makeDistinctRel, input, type);
+}
+
+const Rel *AnfLowerer::lowerDropRel(const hir::DropRel *dropRel) {
+  const auto *input = lowerExpr(dropRel->getInput());
+  const auto *type = ctx.typeOf(dropRel);
+
+  std::vector<const Ident *> columns;
+  columns.reserve(dropRel->getColumns().size());
+  for (const auto *column : dropRel->getColumns()) {
+    columns.push_back(lowerIdent(column));
+  }
+
+  // Drop reshapes the row (positions shift), so the next stage selects from
+  // this op's output row, not the input's.
+  currentRow =
+      makeRowValue(types::RelationType::cast(type)->getElement(), dropRel);
+
+  return ctx.build(dropRel, &AnfBuilder::makeDropRel, input, columns, type);
 }
 
 } // namespace yuzu::anf

@@ -347,6 +347,16 @@ void parseWhereClause(Parser &p) {
 /// `distinct` — the dedupe of a `|> distinct` stage (no operands).
 void parseDistinctClause(Parser &p) { p.expect(TokenKind::DistinctKw); }
 
+/// `drop <column> (',' <column>)*` — the columns a `|> drop` stage removes.
+void parseDropClause(Parser &p) {
+  p.expect(TokenKind::DropKw);
+  [[maybe_unused]] const auto first = parseIdent(p);
+  while (p.at(TokenKind::Comma)) {
+    p.bump(); // ','
+    [[maybe_unused]] const auto next = parseIdent(p);
+  }
+}
+
 /// A pipe query: `from <rel> [as] <alias> ( |> <stage> )*`. A query is *not* a
 /// general subexpression — it's parsed only in value positions (a standalone
 /// statement, or a `let`/assignment RHS) so a relation can't be wedged into a
@@ -367,6 +377,9 @@ std::optional<CompletedMarker> parseQuery(Parser &p) {
     } else if (p.at(TokenKind::DistinctKw)) {
       parseDistinctClause(p);
       query.emplace(p.complete(marker, SyntaxKind::DistinctExpr));
+    } else if (p.at(TokenKind::DropKw)) {
+      parseDropClause(p);
+      query.emplace(p.complete(marker, SyntaxKind::DropExpr));
     } else {
       // `select` is the default clause; `parseSelectClause` reports a
       // diagnostic if the keyword is missing.

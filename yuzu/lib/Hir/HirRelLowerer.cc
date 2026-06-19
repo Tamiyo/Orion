@@ -113,4 +113,27 @@ const Expr *HirLowerer::lowerDistinctRel(ast::DistinctExpr expr) {
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
+
+const Expr *HirLowerer::lowerDropRel(ast::DropExpr expr) {
+  const auto input = expr.getInput();
+  if (!input) {
+    error(expr, "`drop` is missing its input relation").emit();
+    return nullptr;
+  }
+  const Expr *loweredInput = lowerExpr(*input);
+  if (!loweredInput) {
+    return nullptr;
+  }
+
+  std::vector<const Ident *> columns;
+  for (const ast::Ident column : expr.getColumns()) {
+    if (const Ident *lowered = lowerIdent(column)) {
+      columns.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeDropRel(loweredInput, columns);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
 } // namespace yuzu::hir

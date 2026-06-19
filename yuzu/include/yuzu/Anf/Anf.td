@@ -213,6 +213,15 @@ def DistinctRel : Node<Rel> {
     let Fields = (ins Child<Expr>:$input);
 }
 
+/// A `drop` stage: remove the named columns. The output row is the input's
+/// minus those columns; emission projects the survivors positionally.
+def DropRel : Node<Rel> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<Ident>:$columns
+    );
+}
+
 //===----------------------------------------------------------------------===//
 // Statements — bindings, control flow, and declarations.
 //===----------------------------------------------------------------------===//

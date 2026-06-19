@@ -200,6 +200,14 @@ def DistinctExpr : Node<Expr> {
     let Fields = (ins Child<Expr>:$input);
 }
 
+/// A `|> drop <columns>` stage: remove the named columns from the row.
+def DropExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<Ident>:$columns
+    );
+}
+
 /// Field access: `base.field` (e.g. a struct field or a query row column).
 def FieldAccessExpr : Node<Expr> {
     let Fields = (ins

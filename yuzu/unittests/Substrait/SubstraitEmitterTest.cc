@@ -228,6 +228,45 @@ TEST_F(SubstraitEmitterTest, EmitsDistinctAsAggregate) {
   EXPECT_NE(aggregate->getObject("input")->getObject("project"), nullptr);
 }
 
+// A `|> drop` stage emits a Project that selects the surviving columns by
+// index (no expressions) — the dropped column's index is excluded.
+TEST_F(SubstraitEmitterTest, EmitsDropAsProject) {
+  const std::string plan = emit(UR"(
+    struct Employee { id: int32, tenure: int32, salary: int32 }
+    table employees = Employee
+    from employees e
+      |> select e.id as id, e.tenure as t, e.salary as s
+      |> drop t
+  )");
+
+  auto parsed = llvm::json::parse(plan);
+  ASSERT_TRUE(static_cast<bool>(parsed)) << "plan is not valid JSON";
+  const llvm::json::Object *root =
+      (*parsed->getAsObject()->getArray("relations"))[0]
+          .getAsObject()
+          ->getObject("root");
+  ASSERT_NE(root, nullptr);
+
+  // The dropped column is gone from the output.
+  const llvm::json::Array *names = root->getArray("names");
+  ASSERT_NE(names, nullptr);
+  ASSERT_EQ(names->size(), 2u);
+  EXPECT_EQ((*names)[0].getAsString(), "id");
+  EXPECT_EQ((*names)[1].getAsString(), "s");
+
+  // The drop is a pure projection: no expressions, survivors selected by index.
+  const llvm::json::Object *drop =
+      root->getObject("input")->getObject("project");
+  ASSERT_NE(drop, nullptr);
+  EXPECT_EQ(drop->getArray("expressions")->size(), 0u);
+  const llvm::json::Array *mapping =
+      drop->getObject("common")->getObject("emit")->getArray("outputMapping");
+  ASSERT_NE(mapping, nullptr);
+  ASSERT_EQ(mapping->size(), 2u);
+  EXPECT_EQ(*(*mapping)[0].getAsInteger(), 0);
+  EXPECT_EQ(*(*mapping)[1].getAsInteger(), 2);
+}
+
 // No query in the program means no plan.
 TEST_F(SubstraitEmitterTest, NoQueryEmitsEmpty) {
   EXPECT_TRUE(emit(UR"(

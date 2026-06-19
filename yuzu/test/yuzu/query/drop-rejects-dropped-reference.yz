@@ -1,0 +1,8 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+//
+// After a column is dropped it is no longer part of the row, so a later stage
+// can't reference it.
+struct Employee { id: str, salary: int32 }
+table employees = Employee
+let r = from employees e |> select e.id as id, e.salary as s |> drop s |> select s
+// CHECK: error: unresolved identifier

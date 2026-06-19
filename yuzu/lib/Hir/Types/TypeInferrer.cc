@@ -19,6 +19,13 @@
 namespace yuzu::hir {
 using namespace yuzu::types;
 
+namespace {
+// A relation's element is always its row struct.
+const StructType *rowOf(const Type *relationType) {
+  return StructType::cast(RelationType::cast(relationType)->getElement());
+}
+} // namespace
+
 void TypeInferrer::visitBoolLit(const BoolLit *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
@@ -551,6 +558,11 @@ void TypeInferrer::traverseDistinctRel(const DistinctRel *n) {
       ctx.getSymbolTable().pushScope(HirScopeKind::Block);
   inferQuery(n);
 }
+void TypeInferrer::traverseDropRel(const DropRel *n) {
+  const HirScopeGuard guard =
+      ctx.getSymbolTable().pushScope(HirScopeKind::Block);
+  inferQuery(n);
+}
 
 const Type *TypeInferrer::inferQuery(const Expr *query) {
   if (const auto *from = FromRel::cast(query)) {
@@ -564,6 +576,9 @@ const Type *TypeInferrer::inferQuery(const Expr *query) {
   }
   if (const auto *distinct = DistinctRel::cast(query)) {
     return inferDistinctRel(distinct);
+  }
+  if (const auto *drop = DropRel::cast(query)) {
+    return inferDropRel(drop);
   }
   // The parser only ever builds query rels in query position.
   const Type *error = ctx.getTypeContext().getTypeFactory().getErrorType();
@@ -625,8 +640,7 @@ const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
     }
 
     const StructType *savedRow = currentRow;
-    const auto *inputRel = RelationType::cast(inputType);
-    currentRow = inputRel ? StructType::cast(inputRel->getElement()) : nullptr;
+    currentRow = rowOf(inputType);
 
     for (const SelectItem *item : n->getItems()) {
       const Expr *itemExpr = item->getExpr();
@@ -681,8 +695,7 @@ const Type *TypeInferrer::inferWhereRel(const WhereRel *n) {
 
   if (const Expr *predicate = n->getPredicate()) {
     const StructType *savedRow = currentRow;
-    const auto *inputRel = RelationType::cast(inputType);
-    currentRow = inputRel ? StructType::cast(inputRel->getElement()) : nullptr;
+    currentRow = rowOf(inputType);
     visit(predicate);
     currentRow = savedRow;
 
@@ -718,6 +731,49 @@ const Type *TypeInferrer::inferDistinctRel(const DistinctRel *n) {
 
   types.bind(n, inputType);
   return inputType;
+}
+
+const Type *TypeInferrer::inferDropRel(const DropRel *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  const Type *inputType =
+      n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
+  if (inputType->getKind() == TypeKind::Error) {
+    types.bind(n, typeFactory.getErrorType());
+    return typeFactory.getErrorType();
+  }
+  const StructType *inputRow = rowOf(inputType);
+
+  // Each dropped name must be a column of the input.
+  for (const Ident *column : n->getColumns()) {
+    if (inputRow->findField(column->getName()) == nullptr) {
+      ctx.error(column, llvm::formatv("`drop` of unknown column `{0}`",
+                                      util::toUtf8(column->getName()))
+                            .str())
+          .emit();
+    }
+  }
+
+  // Output = input columns minus the dropped ones, order preserved.
+  std::vector<StructField> outFields;
+  for (const StructField &field : inputRow->getFields()) {
+    bool dropped = false;
+    for (const Ident *column : n->getColumns()) {
+      if (column->getName() == field.name) {
+        dropped = true;
+        break;
+      }
+    }
+    if (!dropped) {
+      outFields.push_back(field);
+    }
+  }
+
+  const StructType *outRow = typeFactory.getStructType(U"", outFields);
+  const RelationType *outRel = typeFactory.getRelationType(outRow);
+  types.bind(n, outRel);
+  return outRel;
 }
 
 void TypeInferrer::visitFieldAccessExpr(const FieldAccessExpr *n) {

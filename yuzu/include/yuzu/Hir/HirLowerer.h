@@ -68,6 +68,7 @@ private:
   const Expr *lowerSelectRel(ast::SelectExpr expr);
   const Expr *lowerWhereRel(ast::WhereExpr expr);
   const Expr *lowerDistinctRel(ast::DistinctExpr expr);
+  const Expr *lowerDropRel(ast::DropExpr expr);
   const SelectItem *lowerSelectItem(ast::SelectItem item);
   const Expr *lowerStructExpr(ast::StructExpr expr);
   const StructFieldInit *lowerStructFieldInit(ast::StructFieldInit field);

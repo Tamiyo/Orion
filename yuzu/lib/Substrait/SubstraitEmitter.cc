@@ -382,6 +382,38 @@ SubstraitEmitter::emitDistinctRel(const anf::DistinctRel *distinct) {
               {"measures", Array{}}}}};
 }
 
+llvm::json::Value SubstraitEmitter::emitDropRel(const anf::DropRel *drop) {
+  Value input = emitRel(anf::Rel::cast(drop->getInput()));
+
+  // Project the survivors: each input column whose name isn't dropped, by its
+  // input index.
+  const types::StructType *inputRow = rowStruct(drop->getInput()->getType());
+  Array outputMapping;
+  if (inputRow != nullptr) {
+    int index = 0;
+    for (const types::StructField &field : inputRow->getFields()) {
+      bool dropped = false;
+      for (const anf::Ident *column : drop->getColumns()) {
+        if (column->getName() == field.name) {
+          dropped = true;
+          break;
+        }
+      }
+      if (!dropped) {
+        outputMapping.push_back(index);
+      }
+      ++index;
+    }
+  }
+
+  return Object{
+      {"project",
+       Object{{"common", Object{{"emit", Object{{"outputMapping",
+                                                 std::move(outputMapping)}}}}},
+              {"input", std::move(input)},
+              {"expressions", Array{}}}}};
+}
+
 llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
   switch (rel->getRelKind()) {
   case anf::RelKind::FromRel:
@@ -392,6 +424,8 @@ llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
     return emitWhereRel(anf::WhereRel::cast(rel));
   case anf::RelKind::DistinctRel:
     return emitDistinctRel(anf::DistinctRel::cast(rel));
+  case anf::RelKind::DropRel:
+    return emitDropRel(anf::DropRel::cast(rel));
   }
   util::yuzu_unreachable("unhandled relation kind while emitting Substrait");
 }

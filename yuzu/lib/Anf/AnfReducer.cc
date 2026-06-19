@@ -93,6 +93,8 @@ void AnfReducer::reduceRel(const Rel *rel) {
     return reduceWhereRel(WhereRel::cast(rel));
   case RelKind::DistinctRel:
     return reduceDistinctRel(DistinctRel::cast(rel));
+  case RelKind::DropRel:
+    return reduceDropRel(DropRel::cast(rel));
   }
 }
 
@@ -114,6 +116,12 @@ void AnfReducer::reduceWhereRel(const WhereRel *where) {
 
 void AnfReducer::reduceDistinctRel(const DistinctRel *distinct) {
   if (const auto *input = Rel::cast(distinct->getInput())) {
+    reduceRel(input);
+  }
+}
+
+void AnfReducer::reduceDropRel(const DropRel *drop) {
+  if (const auto *input = Rel::cast(drop->getInput())) {
     reduceRel(input);
   }
 }
