@@ -114,6 +114,19 @@ source → tokens → syntax tree → HIR (typed) → ANF (reduced) → Substrai
 - The **Substrait** backend emits a portable JSON plan. Any Substrait-compatible
   engine can execute it; we currently run it on DuckDB via `from_substrait_json`.
 
+## Everything reduces at compile time
+
+Yuzu rests on one core constraint: **every program must fully evaluate at
+compile time** into a finite relational plan. The reducer folds constants,
+propagates copies, inlines functions, and unrolls computation until nothing
+dynamic remains — and only then emits Substrait.
+
+This means anything that *can't* be fully evaluated or unrolled — unbounded
+loops, unbounded or dynamic recursion — is rejected rather than deferred to
+runtime. The payoff is that a compiled query is a fixed plan (a DAG with no
+runtime control flow), which is exactly what Substrait expresses, and what lets
+the same query run on any engine that consumes it.
+
 ## Roadmap
 
 A guiding goal is to make relational plans **first-class, inspectable values**:
