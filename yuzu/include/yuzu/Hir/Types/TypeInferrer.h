@@ -135,6 +135,12 @@ private:
   // Declared return type of the function being typed, null outside one.
   // Saved/restored across nested functions in `traverseFuncStmt`.
   const types::Type *expectedReturn = nullptr;
+
+  // The row struct a pipe stage's column expressions resolve bare names
+  // against — the immediate input relation's row. Null outside a stage.
+  // Set/restored around each stage's expression typing. A bare name that is a
+  // field of this row resolves to that column (shadowing outer bindings).
+  const types::StructType *currentRow = nullptr;
 };
 
 } // namespace yuzu::hir

@@ -13,7 +13,6 @@
 
 #include <string>
 #include <type_traits>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -46,6 +45,18 @@ void TypeInferrer::visitFloatLit(const FloatLit *n) {
 void TypeInferrer::visitIdentExpr(const IdentExpr *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
+
+  // A bare name that names a column of the current pipe stage's input row
+  // resolves to that column, shadowing outer bindings (SQL-style). No
+  // resolution is recorded — ANF re-derives it as a field of the current row.
+  if (currentRow != nullptr) {
+    if (const Type *fieldType =
+            currentRow->findField(n->getName()->getName())) {
+      types.bind(n, fieldType);
+      return;
+    }
+  }
+
   const auto lookupResult = ctx.getSymbolTable().lookup(n->getName());
 
   if (!lookupResult) {
@@ -597,16 +608,13 @@ const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
 
   std::vector<StructField> outFields;
   outFields.reserve(n->getItems().size());
-  // Columns a later stage can reference by name: the ident it resolves to and
-  // the column's type. Bound into the consuming scope after the child scope
-  // below is dropped.
-  std::vector<std::pair<const Ident *, const Type *>> named;
   uint32_t anonymous = 0;
 
   // Per pipe semantics, this stage sees only its immediate input. Type the
-  // input and the items in a child scope the input populates — a `from` binds
-  // its row alias, a preceding `select` its named columns (below) — then drop
-  // it, so this stage's names aren't visible to the next one.
+  // input in a child scope it populates (a `from` binds its row alias), then
+  // type the items with that input's row as the current row, so bare column
+  // names resolve against it. Dropping the scope keeps the alias from leaking
+  // to the next stage.
   {
     const HirScopeGuard guard = symbols.pushScope(HirScopeKind::Block);
     const Type *inputType =
@@ -616,29 +624,26 @@ const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
       return typeFactory.getErrorType();
     }
 
+    const StructType *savedRow = currentRow;
+    const auto *inputRel = RelationType::cast(inputType);
+    currentRow = inputRel ? StructType::cast(inputRel->getElement()) : nullptr;
+
     for (const SelectItem *item : n->getItems()) {
       const Expr *itemExpr = item->getExpr();
       if (itemExpr == nullptr) {
         continue;
       }
-      visit(itemExpr); // types `e.id` etc. against the input's columns
+      visit(itemExpr); // types `e.id` / bare columns against the input row
       const Type *colType = types.typeOf(itemExpr);
 
-      // The ident a downstream stage references this column by: the `as` alias,
-      // or a bare identifier column's own name. Such columns are referenceable;
-      // a field access or an unnamed expression column is not.
-      const Ident *colIdent = item->getAlias();
-      if (colIdent == nullptr) {
-        if (const auto *id = IdentExpr::cast(itemExpr)) {
-          colIdent = id->getName();
-        }
-      }
-
-      // Output column name: that ident, else a field access's field, else a
-      // generated `%gN` for an anonymous expression.
+      // Output column name: the `as` alias, else a bare identifier's own name,
+      // else a field access's field, else a generated `%gN` for an anonymous
+      // expression column.
       std::u32string_view colName;
-      if (colIdent != nullptr) {
-        colName = colIdent->getName();
+      if (const Ident *alias = item->getAlias()) {
+        colName = alias->getName();
+      } else if (const auto *id = IdentExpr::cast(itemExpr)) {
+        colName = id->getName()->getName();
       } else if (const auto *fa = FieldAccessExpr::cast(itemExpr)) {
         colName = fa->getField()->getName();
       } else {
@@ -650,23 +655,14 @@ const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
       }
 
       outFields.push_back(StructField{colName, colType});
-      if (colIdent != nullptr) {
-        named.push_back({colIdent, colType});
-      }
     }
+
+    currentRow = savedRow;
   }
 
   const StructType *outRow = typeFactory.getStructType(U"", outFields);
   const RelationType *outRel = typeFactory.getRelationType(outRow);
   types.bind(n, outRel);
-
-  // Expose the named columns to the consuming stage (now the current scope), so
-  // a later `select` can reference them by name.
-  for (const auto &[colIdent, colType] : named) {
-    types.bind(colIdent, colType);
-    symbols.bind(colIdent, colIdent);
-  }
-
   return outRel;
 }
 
@@ -674,9 +670,8 @@ const Type *TypeInferrer::inferWhereRel(const WhereRel *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
 
-  // `where` is transparent to scoping: type the input in the current scope so
-  // its columns flow through to the consuming stage unchanged, then type the
-  // predicate against those same columns.
+  // `where` keeps the input's schema, so it doesn't change the current row for
+  // the next stage. Type the predicate against the input row.
   const Type *inputType =
       n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
   if (inputType->getKind() == TypeKind::Error) {
@@ -685,7 +680,12 @@ const Type *TypeInferrer::inferWhereRel(const WhereRel *n) {
   }
 
   if (const Expr *predicate = n->getPredicate()) {
+    const StructType *savedRow = currentRow;
+    const auto *inputRel = RelationType::cast(inputType);
+    currentRow = inputRel ? StructType::cast(inputRel->getElement()) : nullptr;
     visit(predicate);
+    currentRow = savedRow;
+
     const Type *predType = types.resolveType(types.typeOf(predicate));
     if (predType->getKind() != TypeKind::Bool &&
         predType->getKind() != TypeKind::Error) {

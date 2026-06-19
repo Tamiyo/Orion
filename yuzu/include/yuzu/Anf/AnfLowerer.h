@@ -61,9 +61,11 @@ public:
   /// the synthesized nodes attribute to for diagnostics.
   const Thunk *lowerThunk(const hir::Expr *expr, const hir::HirNode *origin);
 
-  /// Bind a `select`'s `as`-aliased columns into `hirToAnf` so a later stage's
-  /// reference to one lowers to a `FieldAtom` selecting it from this relation.
-  void bindColumns(const hir::SelectRel *selectRel);
+  /// A fresh row value (a `VarAtom` over a synthetic binding) of `rowType`,
+  /// standing for a relation's output row. Bare column references in the next
+  /// stage lower to `FieldAtom`s over it.
+  const Atom *makeRowValue(const types::Type *rowType,
+                           const hir::HirNode *origin);
 
   const Constant *lowerLiteral(const hir::Literal *literal);
   const BoolConst *lowerBoolLit(const hir::BoolLit *boolLit);
@@ -96,8 +98,15 @@ private:
   diagnostics::DiagnosticsEngine &diagnostics;
   diagnostics::SourceId source;
 
-  /// Maps each HIR declaration to the ANF atom a reference to it lowers to.
+  /// Maps each HIR declaration to the ANF atom a reference to it lowers to
+  /// (a `let`/param/function, or a `from` alias).
   llvm::DenseMap<const hir::HirNode *, const Atom *> hirToAnfMap;
+
+  /// The current pipe stage's input row value. A bare column reference lowers
+  /// to a `FieldAtom` over it (mirrors the type checker's `currentRow`). Each
+  /// relation sets this to its own output row before returning, so the next
+  /// stage sees it. Null outside a query.
+  const Atom *currentRow = nullptr;
 
   /// Tracks temporary statements introduced by lowering.
   std::vector<const Stmt *> intermediateStmts;

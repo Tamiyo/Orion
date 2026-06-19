@@ -2,6 +2,7 @@
 
 #include "yuzu/Anf/Anf.h"
 #include "yuzu/Hir/Hir.h"
+#include "yuzu/Types/Type.h"
 
 namespace yuzu::anf {
 const Expr *AnfLowerer::lowerExpr(const hir::Expr *expr) {
@@ -24,14 +25,23 @@ const Expr *AnfLowerer::lowerExpr(const hir::Expr *expr) {
 }
 
 const Expr *AnfLowerer::lowerIdentExpr(const hir::IdentExpr *identExpr) {
-  // A name lowers to whatever atom its declaration was bound to when lowered: a
-  // `VarAtom` for a `let`/param/`from`-alias, a `FuncRef` for a function, a
-  // `FieldAtom` for an earlier pipe stage's column.
+  const hir::Ident *name = identExpr->getName();
+
+  // A real binding lowers to the atom it was bound to: a `VarAtom` for a
+  // `let`/param/`from`-alias, a `FuncRef` for a function.
   //
   //   let x = 5
   //   print(x)   // `x` resolves to `let x = 5` -> its VarAtom
-  return hirToAnfMap.lookup(
-      ctx.getHirContext().resolveIdent(identExpr->getName()));
+  if (const auto *decl = ctx.getHirContext().resolveIdent(name)) {
+    return hirToAnfMap.lookup(decl);
+  }
+
+  // Otherwise it's a bare column of the current pipe stage's input row: select
+  // it from that row by name (mirrors the type checker resolving it there).
+  const auto *rowStruct = types::StructType::cast(currentRow->getType());
+  const auto *fieldType = rowStruct->findField(name->getName());
+  return ctx.build(identExpr, &AnfBuilder::makeFieldAtom, currentRow,
+                   lowerIdent(name), fieldType);
 }
 
 const Expr *AnfLowerer::lowerCallExpr(const hir::CallExpr *callExpr) {

@@ -22,31 +22,37 @@ const Rel *AnfLowerer::lowerRel(const hir::Rel *rel) {
   }
 }
 
+const Atom *AnfLowerer::makeRowValue(const types::Type *rowType,
+                                     const hir::HirNode *origin) {
+  const Expr *noValue = nullptr;
+  const auto *binding = ctx.build(origin, &AnfBuilder::makeBinding,
+                                  ctx.makeTemp(), noValue, rowType);
+  return ctx.build(origin, &AnfBuilder::makeVarAtom, binding, rowType);
+}
+
 const Rel *AnfLowerer::lowerFromRel(const hir::FromRel *fromRel) {
   const auto *relation = lowerIdent(fromRel->getRelation());
   const auto *alias =
       fromRel->getAlias() ? lowerIdent(fromRel->getAlias()) : nullptr;
   const auto *type = ctx.typeOf(fromRel);
 
-  // Bind the row so columns resolve the alias the ordinary way: `e` ->
-  // VarAtom(row), `e.salary` -> FieldAtom(VarAtom(row), salary). The row is an
-  // input, so the binding has no defining value. HIR resolves the alias to
-  // itself, so that ident is the bindingMap key.
+  // The row value the next stage's columns select from. An explicit alias is
+  // also bound (so `e.salary` resolves the ordinary way); a bare `salary`
+  // resolves against `currentRow` directly.
+  const auto *rel = types::RelationType::cast(type);
+  const auto *rowType = rel ? rel->getElement() : type;
+  const auto *row = makeRowValue(rowType, fromRel);
   if (fromRel->getAlias() != nullptr) {
-    const auto *rowType = ctx.typeOf(fromRel->getAlias());
-    const Expr *noValue = nullptr;
-    const auto *row = ctx.build(fromRel->getAlias(), &AnfBuilder::makeBinding,
-                                alias, noValue, rowType);
-    hirToAnfMap[fromRel->getAlias()] =
-        ctx.build(fromRel->getAlias(), &AnfBuilder::makeVarAtom, row, rowType);
+    hirToAnfMap[fromRel->getAlias()] = row;
   }
+  currentRow = row;
 
   return ctx.build(fromRel, &AnfBuilder::makeFromRel, relation, alias, type);
 }
 
 const Rel *AnfLowerer::lowerSelectRel(const hir::SelectRel *selectRel) {
-  // Lower the input first — a `from` input registers its row binding here, so
-  // the columns below can resolve the alias.
+  // Lower the input first; it sets `currentRow` to its output row, which the
+  // items below select their columns from.
   const auto *input = lowerExpr(selectRel->getInput());
   const auto *type = ctx.typeOf(selectRel);
 
@@ -56,48 +62,11 @@ const Rel *AnfLowerer::lowerSelectRel(const hir::SelectRel *selectRel) {
     items.push_back(lowerSelectItem(item));
   }
 
-  bindColumns(selectRel);
+  // Hand the next stage this select's output row.
+  const auto *rel = types::RelationType::cast(type);
+  currentRow = makeRowValue(rel ? rel->getElement() : type, selectRel);
 
   return ctx.build(selectRel, &AnfBuilder::makeSelectRel, input, items, type);
-}
-
-void AnfLowerer::bindColumns(const hir::SelectRel *selectRel) {
-  // Mirror a `from`'s row binding for a `select`: synthesize a row for this
-  // relation's output, and map each named column to a `FieldAtom` over it. A
-  // later stage's reference to the column then lowers to that selection.
-  const auto *relation = types::RelationType::cast(ctx.typeOf(selectRel));
-  if (relation == nullptr) {
-    return;
-  }
-  const auto *rowType = relation->getElement();
-  const Expr *noValue = nullptr;
-  const auto *row = ctx.build(selectRel, &AnfBuilder::makeBinding,
-                              ctx.makeTemp(), noValue, rowType);
-
-  for (const auto *item : selectRel->getItems()) {
-    if (item->getExpr() == nullptr) {
-      continue;
-    }
-    // The HIR ident a downstream reference resolves to: the `as` alias, or the
-    // column's own identifier when it's a bare name. An expression column with
-    // no alias is anonymous — it has no name to reference.
-    const hir::Ident *name = item->getAlias();
-    if (name == nullptr) {
-      if (const auto *ident = hir::IdentExpr::cast(item->getExpr())) {
-        name = ident->getName();
-      }
-    }
-    if (name == nullptr) {
-      continue;
-    }
-
-    const auto *columnType = ctx.typeOf(item->getExpr());
-    const auto *rowAtom =
-        ctx.build(name, &AnfBuilder::makeVarAtom, row, rowType);
-    const auto *field = ctx.build(name, &AnfBuilder::makeFieldAtom, rowAtom,
-                                  lowerIdent(name), columnType);
-    hirToAnfMap[name] = field;
-  }
 }
 
 const Thunk *AnfLowerer::lowerThunk(const hir::Expr *expr,
