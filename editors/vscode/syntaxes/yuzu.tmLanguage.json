@@ -58,7 +58,7 @@
     "keywords": {
       "patterns": [
         {
-          "match": "\\b(and|as|fn|from|in|let|mut|not|or|return|select|struct|table|where)\\b",
+          "match": "\\b(and|as|distinct|drop|extend|fn|from|in|let|mut|not|or|rename|return|select|struct|table|where)\\b",
           "name": "keyword.control.yuzu"
         },
         {
