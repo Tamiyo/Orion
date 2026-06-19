@@ -376,6 +376,17 @@ void parseRenameClause(Parser &p) {
   }
 }
 
+/// `extend <item> (',' <item>)*` — the appended columns of a `|> extend` stage.
+/// Each item is a `select`-style `<expr> [as <alias>]`.
+void parseExtendClause(Parser &p) {
+  p.expect(TokenKind::ExtendKw);
+  parseSelectItem(p);
+  while (p.at(TokenKind::Comma)) {
+    p.bump(); // ','
+    parseSelectItem(p);
+  }
+}
+
 /// A pipe query: `from <rel> [as] <alias> ( |> <stage> )*`. A query is *not* a
 /// general subexpression — it's parsed only in value positions (a standalone
 /// statement, or a `let`/assignment RHS) so a relation can't be wedged into a
@@ -402,6 +413,9 @@ std::optional<CompletedMarker> parseQuery(Parser &p) {
     } else if (p.at(TokenKind::RenameKw)) {
       parseRenameClause(p);
       query.emplace(p.complete(marker, SyntaxKind::RenameExpr));
+    } else if (p.at(TokenKind::ExtendKw)) {
+      parseExtendClause(p);
+      query.emplace(p.complete(marker, SyntaxKind::ExtendExpr));
     } else {
       // `select` is the default clause; `parseSelectClause` reports a
       // diagnostic if the keyword is missing.

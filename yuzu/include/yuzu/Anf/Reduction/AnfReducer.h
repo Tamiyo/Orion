@@ -45,6 +45,7 @@ private:
   void reduceDistinctRel(const DistinctRel *distinct);
   void reduceDropRel(const DropRel *drop);
   void reduceRenameRel(const RenameRel *rename);
+  void reduceExtendRel(const ExtendRel *extend);
 
   /// Reduce a column/predicate `Thunk`: evaluate its block, cap it with the
   /// reduced tail, and return the rebuilt thunk.

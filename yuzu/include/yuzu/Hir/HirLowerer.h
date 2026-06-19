@@ -70,6 +70,7 @@ private:
   const Expr *lowerDistinctRel(ast::DistinctExpr expr);
   const Expr *lowerDropRel(ast::DropExpr expr);
   const Expr *lowerRenameRel(ast::RenameExpr expr);
+  const Expr *lowerExtendRel(ast::ExtendExpr expr);
   const SelectItem *lowerSelectItem(ast::SelectItem item);
   const RenameItem *lowerRenameItem(ast::RenameItem item);
   const Expr *lowerStructExpr(ast::StructExpr expr);

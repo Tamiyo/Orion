@@ -177,4 +177,27 @@ const Expr *HirLowerer::lowerRenameRel(ast::RenameExpr expr) {
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
+
+const Expr *HirLowerer::lowerExtendRel(ast::ExtendExpr expr) {
+  const auto input = expr.getInput();
+  if (!input) {
+    error(expr, "`extend` is missing its input relation").emit();
+    return nullptr;
+  }
+  const Expr *loweredInput = lowerExpr(*input);
+  if (!loweredInput) {
+    return nullptr;
+  }
+
+  std::vector<const SelectItem *> items;
+  for (const ast::SelectItem item : expr.getItems()) {
+    if (const SelectItem *lowered = lowerSelectItem(item)) {
+      items.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeExtendRel(loweredInput, items);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
 } // namespace yuzu::hir

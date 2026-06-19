@@ -224,6 +224,14 @@ def RenameExpr : Node<Expr> {
     );
 }
 
+/// A `|> extend <items>` stage: append computed columns, keeping the input's.
+def ExtendExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<SelectItem>:$items
+    );
+}
+
 /// Field access: `base.field` (e.g. a struct field or a query row column).
 def FieldAccessExpr : Node<Expr> {
     let Fields = (ins

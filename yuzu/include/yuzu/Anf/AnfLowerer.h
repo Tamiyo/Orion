@@ -55,6 +55,7 @@ public:
   const Rel *lowerDistinctRel(const hir::DistinctRel *distinctRel);
   const Rel *lowerDropRel(const hir::DropRel *dropRel);
   const Rel *lowerRenameRel(const hir::RenameRel *renameRel);
+  const Rel *lowerExtendRel(const hir::ExtendRel *extendRel);
   const SelectItem *lowerSelectItem(const hir::SelectItem *selectItem);
 
   /// Lower `expr` into a `Thunk` — a per-row block whose temporaries are

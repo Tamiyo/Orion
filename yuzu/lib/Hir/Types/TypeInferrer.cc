@@ -568,6 +568,11 @@ void TypeInferrer::traverseRenameRel(const RenameRel *n) {
       ctx.getSymbolTable().pushScope(HirScopeKind::Block);
   inferQuery(n);
 }
+void TypeInferrer::traverseExtendRel(const ExtendRel *n) {
+  const HirScopeGuard guard =
+      ctx.getSymbolTable().pushScope(HirScopeKind::Block);
+  inferQuery(n);
+}
 
 const Type *TypeInferrer::inferQuery(const Expr *query) {
   if (const auto *from = FromRel::cast(query)) {
@@ -587,6 +592,9 @@ const Type *TypeInferrer::inferQuery(const Expr *query) {
   }
   if (const auto *rename = RenameRel::cast(query)) {
     return inferRenameRel(rename);
+  }
+  if (const auto *extend = ExtendRel::cast(query)) {
+    return inferExtendRel(extend);
   }
   // The parser only ever builds query rels in query position.
   const Type *error = ctx.getTypeContext().getTypeFactory().getErrorType();
@@ -819,6 +827,58 @@ const Type *TypeInferrer::inferRenameRel(const RenameRel *n) {
     }
     outFields.push_back(StructField{name, field.type});
   }
+
+  const StructType *outRow = typeFactory.getStructType(U"", outFields);
+  const RelationType *outRel = typeFactory.getRelationType(outRow);
+  types.bind(n, outRel);
+  return outRel;
+}
+
+const Type *TypeInferrer::inferExtendRel(const ExtendRel *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  const Type *inputType =
+      n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
+  if (inputType->getKind() == TypeKind::Error) {
+    types.bind(n, typeFactory.getErrorType());
+    return typeFactory.getErrorType();
+  }
+  const StructType *inputRow = rowOf(inputType);
+
+  // Keep the input's columns, then append the new ones, typed against the input
+  // row (so they can reference its columns).
+  std::vector<StructField> outFields(inputRow->getFields().begin(),
+                                     inputRow->getFields().end());
+  uint32_t anonymous = 0;
+
+  const StructType *savedRow = currentRow;
+  currentRow = inputRow;
+  for (const SelectItem *item : n->getItems()) {
+    const Expr *itemExpr = item->getExpr();
+    if (itemExpr == nullptr) {
+      continue;
+    }
+    visit(itemExpr);
+    const Type *colType = types.typeOf(itemExpr);
+
+    std::u32string_view colName;
+    if (const Ident *alias = item->getAlias()) {
+      colName = alias->getName();
+    } else if (const auto *id = IdentExpr::cast(itemExpr)) {
+      colName = id->getName()->getName();
+    } else if (const auto *fa = FieldAccessExpr::cast(itemExpr)) {
+      colName = fa->getField()->getName();
+    } else {
+      std::u32string generated = U"%g";
+      for (char c : std::to_string(anonymous++)) {
+        generated.push_back(static_cast<char32_t>(c));
+      }
+      colName = ctx.getStringInterner().intern(generated);
+    }
+    outFields.push_back(StructField{colName, colType});
+  }
+  currentRow = savedRow;
 
   const StructType *outRow = typeFactory.getStructType(U"", outFields);
   const RelationType *outRel = typeFactory.getRelationType(outRow);

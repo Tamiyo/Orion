@@ -35,6 +35,7 @@ private:
   llvm::json::Value emitDistinctRel(const anf::DistinctRel *distinct);
   llvm::json::Value emitDropRel(const anf::DropRel *drop);
   llvm::json::Value emitRenameRel(const anf::RenameRel *rename);
+  llvm::json::Value emitExtendRel(const anf::ExtendRel *extend);
   llvm::json::Value emitThunk(const anf::Thunk *thunk);
 
   llvm::json::Value emitExpr(const anf::Expr *expr, const Env &env);

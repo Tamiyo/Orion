@@ -295,6 +295,46 @@ TEST_F(SubstraitEmitterTest, EmitsRenameAsNewNames) {
   EXPECT_NE(root->getObject("input")->getObject("project"), nullptr);
 }
 
+// An `|> extend` stage emits a Project that keeps the input columns (selected
+// by index) and appends the new expression(s).
+TEST_F(SubstraitEmitterTest, EmitsExtendAsProject) {
+  const std::string plan = emit(UR"(
+    struct Employee { id: int32, tenure: int32 }
+    table employees = Employee
+    from employees e |> select e.id as id, e.tenure as t |> extend t + 1 as bonus
+  )");
+
+  auto parsed = llvm::json::parse(plan);
+  ASSERT_TRUE(static_cast<bool>(parsed)) << "plan is not valid JSON";
+  const llvm::json::Object *root =
+      (*parsed->getAsObject()->getArray("relations"))[0]
+          .getAsObject()
+          ->getObject("root");
+  ASSERT_NE(root, nullptr);
+
+  // Output is the input columns plus the new one.
+  const llvm::json::Array *names = root->getArray("names");
+  ASSERT_NE(names, nullptr);
+  ASSERT_EQ(names->size(), 3u);
+  EXPECT_EQ((*names)[2].getAsString(), "bonus");
+
+  // One new expression (the add); the mapping keeps the two input columns and
+  // appends the new one.
+  const llvm::json::Object *extend =
+      root->getObject("input")->getObject("project");
+  ASSERT_NE(extend, nullptr);
+  const llvm::json::Array *expressions = extend->getArray("expressions");
+  ASSERT_NE(expressions, nullptr);
+  ASSERT_EQ(expressions->size(), 1u);
+  EXPECT_NE((*expressions)[0].getAsObject()->getObject("scalarFunction"),
+            nullptr);
+  const llvm::json::Array *mapping =
+      extend->getObject("common")->getObject("emit")->getArray("outputMapping");
+  ASSERT_NE(mapping, nullptr);
+  ASSERT_EQ(mapping->size(), 3u);
+  EXPECT_EQ(*(*mapping)[2].getAsInteger(), 2);
+}
+
 // No query in the program means no plan.
 TEST_F(SubstraitEmitterTest, NoQueryEmitsEmpty) {
   EXPECT_TRUE(emit(UR"(

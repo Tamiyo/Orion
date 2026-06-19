@@ -189,6 +189,15 @@ def RenameRel : Node<Rel> {
     );
 }
 
+/// An `extend` stage: append computed columns. The output row is the input's
+/// columns followed by the new ones.
+def ExtendRel : Node<Rel> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<SelectItem>:$items
+    );
+}
+
 /// Field access: `base.field` (a struct field or a query row column).
 def FieldAccessExpr : Node<Expr> {
     let Fields = (ins

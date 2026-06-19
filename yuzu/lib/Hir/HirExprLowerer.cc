@@ -164,6 +164,8 @@ const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
     return lowerDropRel(*ast::DropExpr::cast(expr));
   case ast::SyntaxKind::RenameExpr:
     return lowerRenameRel(*ast::RenameExpr::cast(expr));
+  case ast::SyntaxKind::ExtendExpr:
+    return lowerExtendRel(*ast::ExtendExpr::cast(expr));
 
   default:
     util::yuzu_unreachable();

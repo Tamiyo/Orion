@@ -23,6 +23,8 @@ const Rel *AnfLowerer::lowerRel(const hir::Rel *rel) {
     return lowerDropRel(hir::DropRel::cast(rel));
   case hir::RelKind::RenameRel:
     return lowerRenameRel(hir::RenameRel::cast(rel));
+  case hir::RelKind::ExtendRel:
+    return lowerExtendRel(hir::ExtendRel::cast(rel));
   }
 }
 
@@ -145,6 +147,24 @@ const Rel *AnfLowerer::lowerRenameRel(const hir::RenameRel *renameRel) {
       makeRowValue(types::RelationType::cast(type)->getElement(), renameRel);
 
   return ctx.build(renameRel, &AnfBuilder::makeRenameRel, input, type);
+}
+
+const Rel *AnfLowerer::lowerExtendRel(const hir::ExtendRel *extendRel) {
+  // Lower the input first; the new columns select from its output row.
+  const auto *input = lowerExpr(extendRel->getInput());
+  const auto *type = ctx.typeOf(extendRel);
+
+  std::vector<const SelectItem *> items;
+  items.reserve(extendRel->getItems().size());
+  for (const auto *item : extendRel->getItems()) {
+    items.push_back(lowerSelectItem(item));
+  }
+
+  // Hand the next stage this extend's output row (input columns + new ones).
+  currentRow =
+      makeRowValue(types::RelationType::cast(type)->getElement(), extendRel);
+
+  return ctx.build(extendRel, &AnfBuilder::makeExtendRel, input, items, type);
 }
 
 } // namespace yuzu::anf

@@ -421,6 +421,35 @@ SubstraitEmitter::emitRenameRel(const anf::RenameRel *rename) {
   return emitRel(anf::Rel::cast(rename->getInput()));
 }
 
+llvm::json::Value
+SubstraitEmitter::emitExtendRel(const anf::ExtendRel *extend) {
+  Value input = emitRel(anf::Rel::cast(extend->getInput()));
+
+  // Append the new columns after the input's, and emit all of them: the input
+  // columns by index, then the new expressions.
+  const types::StructType *inputRow = rowStruct(extend->getInput()->getType());
+  const int inputColumns =
+      inputRow != nullptr ? static_cast<int>(inputRow->getFields().size()) : 0;
+
+  Array expressions;
+  Array outputMapping;
+  for (int i = 0; i < inputColumns; ++i) {
+    outputMapping.push_back(i);
+  }
+  int output = inputColumns;
+  for (const anf::SelectItem *item : extend->getItems()) {
+    expressions.push_back(emitThunk(item->getBody()));
+    outputMapping.push_back(output++);
+  }
+
+  return Object{
+      {"project",
+       Object{{"common", Object{{"emit", Object{{"outputMapping",
+                                                 std::move(outputMapping)}}}}},
+              {"input", std::move(input)},
+              {"expressions", std::move(expressions)}}}};
+}
+
 llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
   switch (rel->getRelKind()) {
   case anf::RelKind::FromRel:
@@ -435,6 +464,8 @@ llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
     return emitDropRel(anf::DropRel::cast(rel));
   case anf::RelKind::RenameRel:
     return emitRenameRel(anf::RenameRel::cast(rel));
+  case anf::RelKind::ExtendRel:
+    return emitExtendRel(anf::ExtendRel::cast(rel));
   }
   util::yuzu_unreachable("unhandled relation kind while emitting Substrait");
 }

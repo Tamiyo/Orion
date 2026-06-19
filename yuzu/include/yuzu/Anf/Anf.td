@@ -229,6 +229,15 @@ def RenameRel : Node<Rel> {
     let Fields = (ins Child<Expr>:$input);
 }
 
+/// An `extend` stage: append computed columns (each a per-row `Thunk`, like a
+/// `select` column) to the input's row.
+def ExtendRel : Node<Rel> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<SelectItem>:$items
+    );
+}
+
 //===----------------------------------------------------------------------===//
 // Statements — bindings, control flow, and declarations.
 //===----------------------------------------------------------------------===//
