@@ -146,6 +146,11 @@ def StructExpr : Node<Expr> {
     );
 }
 
+/// A list literal `[a, b, c]` over atomic elements.
+def ListExpr : Node<Expr> {
+    let Fields = (ins Children<Atom>:$elements);
+}
+
 //===----------------------------------------------------------------------===//
 // Blocks — defined here because the relational section below references
 // `BlockStmt` (a column body).

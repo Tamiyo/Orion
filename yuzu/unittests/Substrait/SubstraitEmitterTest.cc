@@ -335,6 +335,40 @@ TEST_F(SubstraitEmitterTest, EmitsExtendAsProject) {
   EXPECT_EQ(*(*mapping)[2].getAsInteger(), 2);
 }
 
+// A list literal in a column emits a Substrait list literal — every element a
+// constant, since the list is fully reduced.
+TEST_F(SubstraitEmitterTest, EmitsListLiteral) {
+  const std::string plan = emit(UR"(
+    struct E { id: int32 }
+    table es = E
+    from es e |> select [1, 2, 3] as nums
+  )");
+
+  auto parsed = llvm::json::parse(plan);
+  ASSERT_TRUE(static_cast<bool>(parsed)) << "plan is not valid JSON";
+  const llvm::json::Object *root =
+      (*parsed->getAsObject()->getArray("relations"))[0]
+          .getAsObject()
+          ->getObject("root");
+  ASSERT_NE(root, nullptr);
+
+  const llvm::json::Object *project =
+      root->getObject("input")->getObject("project");
+  ASSERT_NE(project, nullptr);
+  const llvm::json::Array *expressions = project->getArray("expressions");
+  ASSERT_NE(expressions, nullptr);
+  ASSERT_EQ(expressions->size(), 1u);
+
+  // The single projected expression is a list literal with three values.
+  const llvm::json::Array *values = (*expressions)[0]
+                                        .getAsObject()
+                                        ->getObject("literal")
+                                        ->getObject("list")
+                                        ->getArray("values");
+  ASSERT_NE(values, nullptr);
+  EXPECT_EQ(values->size(), 3u);
+}
+
 // No query in the program means no plan.
 TEST_F(SubstraitEmitterTest, NoQueryEmitsEmpty) {
   EXPECT_TRUE(emit(UR"(

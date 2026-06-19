@@ -49,7 +49,7 @@ enum class [[nodiscard]] TypeKind : uint8_t {
   Func,
   TypeParam,
   Infer,
-  //   List,
+  List,
   //   Tuple,
   //   Class,
   Error,
@@ -95,6 +95,8 @@ inline std::string asString(TypeKind kind) {
   switch (kind) {
   case TypeKind::Relation:
     return "relation";
+  case TypeKind::List:
+    return "list";
   case TypeKind::Struct:
     return "struct";
   case TypeKind::Func:
@@ -348,6 +350,20 @@ public:
   [[nodiscard]] const Type *getElement() const { return element; }
 
   YUZU_TYPE_RTTI(Relation)
+
+private:
+  const Type *element;
+};
+
+/// A homogeneous list `List[T]`, written `[a, b, c]`.
+class ListType final : public Type {
+public:
+  explicit ListType(const Type *element)
+      : Type(TypeKind::List), element(element) {}
+
+  [[nodiscard]] const Type *getElement() const { return element; }
+
+  YUZU_TYPE_RTTI(List)
 
 private:
   const Type *element;

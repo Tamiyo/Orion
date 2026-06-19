@@ -257,6 +257,11 @@ def StructExpr : Node<Expr> {
     );
 }
 
+/// A list literal `[a, b, c]` (possibly empty). All elements are expressions.
+def ListExpr : Node<Expr> {
+    let Fields = (ins Children<Expr>:$elements);
+}
+
 /// A literal expression. Currently always a number; the literal value lives
 /// on the syntax token, not in the AST.
 def Literal : Variant<Expr> {}

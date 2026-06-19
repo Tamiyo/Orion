@@ -48,6 +48,7 @@ const Type *typeFor(const TypeFactory &typeFactory, TypeKind k) {
   case TypeKind::Unit:
     return typeFactory.getUnitType();
   case TypeKind::Relation:
+  case TypeKind::List:
   case TypeKind::Struct:
   case TypeKind::Func:
   case TypeKind::TypeParam:

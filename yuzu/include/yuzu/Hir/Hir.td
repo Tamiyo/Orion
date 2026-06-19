@@ -223,6 +223,11 @@ def StructExpr : Node<Expr> {
     );
 }
 
+/// A list literal `[a, b, c]` (possibly empty).
+def ListExpr : Node<Expr> {
+    let Fields = (ins Children<Expr>:$elements);
+}
+
 /// A literal expression. Currently always a number; the literal value
 /// is intentionally not stored here yet (a `Custom<Number>` field will
 /// land once the literal type lives in the schema).

@@ -40,7 +40,9 @@ private:
 
   llvm::json::Value emitExpr(const anf::Expr *expr, const Env &env);
   llvm::json::Value emitAtom(const anf::Atom *atom, const Env &env);
+  llvm::json::Object emitLiteralValue(const anf::Constant *constant);
   llvm::json::Value emitLiteral(const anf::Constant *constant);
+  llvm::json::Value emitListExpr(const anf::ListExpr *list);
   llvm::json::Value emitScalarFunction(const anf::CallExpr *call,
                                        const Env &env);
   llvm::json::Value emitSelection(const anf::FieldAtom *field);

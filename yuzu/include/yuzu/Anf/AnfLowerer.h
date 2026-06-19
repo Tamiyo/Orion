@@ -47,6 +47,7 @@ public:
   const Expr *lowerFuncCallExpr(const hir::FuncCallExpr *funcCallExpr);
   const Expr *lowerFieldAccessExpr(const hir::FieldAccessExpr *fieldAccessExpr);
   const Expr *lowerStructExpr(const hir::StructExpr *structExpr);
+  const Expr *lowerListExpr(const hir::ListExpr *listExpr);
 
   const Rel *lowerRel(const hir::Rel *rel);
   const Rel *lowerFromRel(const hir::FromRel *fromRel);

@@ -70,6 +70,7 @@ protected:
     case TypeKind::Unit:
       return i.getUnitType();
     case TypeKind::Relation:
+    case TypeKind::List:
     case TypeKind::Struct:
     case TypeKind::Func:
     case TypeKind::TypeParam:

@@ -191,6 +191,8 @@ const Atom *AnfReducer::reduce(const Expr *expr, Env &env, unsigned depth) {
     return reduceFuncCallExpr(FuncCallExpr::cast(expr), env, depth);
   case ExprKind::StructExpr:
     return reduceStructExpr(StructExpr::cast(expr), env, depth);
+  case ExprKind::ListExpr:
+    return reduceListExpr(ListExpr::cast(expr), env, depth);
   case ExprKind::Rel:
     util::yuzu_unreachable("a relational expression cannot appear in a column");
   }
@@ -267,6 +269,17 @@ const Atom *AnfReducer::reduceFuncCallExpr(const FuncCallExpr *call, Env &env,
   return bindToTemp(
       ctx.getBuilder().makeFuncCallExpr(callee, args, call->getType()),
       call->getType());
+}
+
+const Atom *AnfReducer::reduceListExpr(const ListExpr *expr, Env &env,
+                                       unsigned depth) {
+  llvm::SmallVector<const Atom *, 4> elements;
+  for (const Atom *element : expr->getElements()) {
+    elements.push_back(reduce(element, env, depth));
+  }
+
+  return bindToTemp(ctx.getBuilder().makeListExpr(elements, expr->getType()),
+                    expr->getType());
 }
 
 const Atom *AnfReducer::reduceStructExpr(const StructExpr *expr, Env &env,

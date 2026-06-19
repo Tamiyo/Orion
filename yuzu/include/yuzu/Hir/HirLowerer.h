@@ -74,6 +74,7 @@ private:
   const SelectItem *lowerSelectItem(ast::SelectItem item);
   const RenameItem *lowerRenameItem(ast::RenameItem item);
   const Expr *lowerStructExpr(ast::StructExpr expr);
+  const Expr *lowerListExpr(ast::ListExpr expr);
   const StructFieldInit *lowerStructFieldInit(ast::StructFieldInit field);
   const Expr *lowerFieldAccessExpr(ast::FieldAccessExpr expr);
 

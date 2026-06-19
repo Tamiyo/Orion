@@ -19,6 +19,8 @@ const Expr *AnfLowerer::lowerExpr(const hir::Expr *expr) {
     return lowerFieldAccessExpr(hir::FieldAccessExpr::cast(expr));
   case hir::ExprKind::StructExpr:
     return lowerStructExpr(hir::StructExpr::cast(expr));
+  case hir::ExprKind::ListExpr:
+    return lowerListExpr(hir::ListExpr::cast(expr));
   case hir::ExprKind::Literal:
     return lowerLiteral(hir::Literal::cast(expr));
   }
@@ -81,6 +83,17 @@ AnfLowerer::lowerFieldAccessExpr(const hir::FieldAccessExpr *fieldAccessExpr) {
   const auto *type = ctx.typeOf(fieldAccessExpr);
   return ctx.build(fieldAccessExpr, &AnfBuilder::makeFieldAtom, base, field,
                    type);
+}
+
+const Expr *AnfLowerer::lowerListExpr(const hir::ListExpr *listExpr) {
+  std::vector<const Atom *> elements;
+  elements.reserve(listExpr->getElements().size());
+  for (const auto *element : listExpr->getElements()) {
+    elements.push_back(forceAtom(element));
+  }
+
+  const auto *type = ctx.typeOf(listExpr);
+  return ctx.build(listExpr, &AnfBuilder::makeListExpr, elements, type);
 }
 
 const Expr *AnfLowerer::lowerStructExpr(const hir::StructExpr *structExpr) {

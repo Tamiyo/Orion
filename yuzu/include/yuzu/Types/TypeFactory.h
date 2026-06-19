@@ -110,6 +110,16 @@ public:
     return it->second;
   }
 
+  /// `List[T]`, interned by element type so two lists of the same element are
+  /// the same `ListType`.
+  [[nodiscard]] const ListType *getListType(const Type *element) {
+    auto [it, inserted] = lists.try_emplace(element, nullptr);
+    if (inserted) {
+      it->second = new (arena.Allocate<ListType>()) ListType(element);
+    }
+    return it->second;
+  }
+
   /// `(params...) -> ret`. Not interned: a function signature isn't compared
   /// by pointer, so each call allocates a fresh `FuncTy` with its `params`
   /// copied into the arena.
@@ -152,6 +162,7 @@ private:
 
   // Interned compounds, keyed by their structural payload.
   llvm::DenseMap<const Type *, const RelationType *> relations;
+  llvm::DenseMap<const Type *, const ListType *> lists;
 
   // Shared string storage for struct/field names. Owned by the HIR
   // context, not the type arena, so names dedup across the whole HIR.

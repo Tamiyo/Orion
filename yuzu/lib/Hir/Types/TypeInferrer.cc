@@ -921,6 +921,40 @@ void TypeInferrer::visitFieldAccessExpr(const FieldAccessExpr *n) {
   types.bind(n, fieldType);
 }
 
+void TypeInferrer::visitListExpr(const ListExpr *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  const auto elements = n->getElements();
+  if (elements.empty()) {
+    // An empty list's element type is open; a later annotation can pin it.
+    types.bind(n,
+               typeFactory.getListType(types.makeTypeHole(InferKind::General)));
+    return;
+  }
+
+  // All elements must share a type. Seed with the first and unify the rest so
+  // literal holes adopt a common element type (`[1, 2]` stays an open int).
+  const Type *element = types.typeOf(elements[0]);
+  for (size_t i = 1; i < elements.size(); ++i) {
+    if (!types.unifyTypes(element, types.typeOf(elements[i]))) {
+      ctx.error(
+             elements[i],
+             llvm::formatv(
+                 "list elements must share a type: `{0}` vs `{1}`",
+                 asString(types.resolveType(element)->getKind()),
+                 asString(
+                     types.resolveType(types.typeOf(elements[i]))->getKind()))
+                 .str())
+          .emit();
+      types.bind(n, typeFactory.getListType(typeFactory.getErrorType()));
+      return;
+    }
+  }
+
+  types.bind(n, typeFactory.getListType(element));
+}
+
 void TypeInferrer::visitStructExpr(const StructExpr *n) {
   auto &types = ctx.getTypeContext();
   auto &typeFactory = types.getTypeFactory();
@@ -1061,6 +1095,18 @@ TypeInferrer::resolveNamedTypeAnnotation(const NamedTypeAnnotation *annotation,
   }
 
   const std::u32string_view name = ident->getName();
+
+  // `List[T]` is the one user-writable parameterized type.
+  if (name == U"List") {
+    const auto args = annotation->getArgs();
+    if (args.size() != 1) {
+      ctx.error(node, "`List` takes exactly one type argument").emit();
+      return types.getTypeFactory().getErrorType();
+    }
+    const Type *element = resolveTypeAnnotation(args[0], node);
+    return types.getTypeFactory().getListType(element);
+  }
+
   if (!annotation->getArgs().empty()) {
     ctx.error(node, llvm::formatv("parameterized types are not supported: "
                                   "`{0}` is not a generic type",

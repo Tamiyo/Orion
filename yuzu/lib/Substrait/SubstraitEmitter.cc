@@ -188,9 +188,11 @@ llvm::json::Value SubstraitEmitter::emitExtensions() const {
   return out;
 }
 
-llvm::json::Value SubstraitEmitter::emitLiteral(const anf::Constant *constant) {
+// The inner `Literal` object for a constant (the part inside `{"literal": …}`),
+// shared by scalar literals and list-literal elements.
+llvm::json::Object SubstraitEmitter::emitLiteralValue(const anf::Constant *c) {
   Object literal;
-  if (const auto *node = anf::IntConst::cast(constant)) {
+  if (const auto *node = anf::IntConst::cast(c)) {
     // Substrait JSON encodes i64 as a string, narrower ints as numbers.
     if (typeCode(node->getType()) == "i64") {
       literal["i64"] = std::to_string(node->getValue());
@@ -198,14 +200,33 @@ llvm::json::Value SubstraitEmitter::emitLiteral(const anf::Constant *constant) {
       literal[typeCode(node->getType())] =
           static_cast<int64_t>(node->getValue());
     }
-  } else if (const auto *node = anf::FloatConst::cast(constant)) {
+  } else if (const auto *node = anf::FloatConst::cast(c)) {
     literal[typeCode(node->getType())] = node->getValue();
-  } else if (const auto *node = anf::BoolConst::cast(constant)) {
+  } else if (const auto *node = anf::BoolConst::cast(c)) {
     literal["boolean"] = node->getValue();
-  } else if (const auto *node = anf::StringConst::cast(constant)) {
+  } else if (const auto *node = anf::StringConst::cast(c)) {
     literal["string"] = util::toUtf8(node->getValue());
   }
-  return Object{{"literal", std::move(literal)}};
+  return literal;
+}
+
+llvm::json::Value SubstraitEmitter::emitLiteral(const anf::Constant *constant) {
+  return Object{{"literal", emitLiteralValue(constant)}};
+}
+
+llvm::json::Value SubstraitEmitter::emitListExpr(const anf::ListExpr *list) {
+  // A fully-reduced list is a list literal: every element is a constant.
+  Array values;
+  for (const anf::Atom *element : list->getElements()) {
+    const auto *constant = anf::Constant::cast(element);
+    if (constant == nullptr) {
+      util::yuzu_unreachable(
+          "non-constant list element while emitting Substrait");
+    }
+    values.push_back(emitLiteralValue(constant));
+  }
+  return Object{
+      {"literal", Object{{"list", Object{{"values", std::move(values)}}}}}};
 }
 
 llvm::json::Value SubstraitEmitter::emitSelection(const anf::FieldAtom *field) {
@@ -259,6 +280,8 @@ llvm::json::Value SubstraitEmitter::emitExpr(const anf::Expr *expr,
   case anf::ExprKind::StructExpr:
     util::yuzu_unreachable(
         "struct literals are not yet supported in Substrait");
+  case anf::ExprKind::ListExpr:
+    return emitListExpr(anf::ListExpr::cast(expr));
   case anf::ExprKind::Rel:
     util::yuzu_unreachable("a relation cannot appear as a column expression");
   }

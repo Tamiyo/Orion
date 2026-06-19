@@ -202,6 +202,24 @@ std::optional<CompletedMarker> parseStructExpr(Parser &p) {
   return p.complete(m, SyntaxKind::StructExpr);
 }
 
+/// `ListExpr := '[' ( Expr (',' Expr)* ','? )? ']'` — a list literal.
+std::optional<CompletedMarker> parseListExpr(Parser &p) {
+  const Marker m = p.start();
+  p.expect(TokenKind::LeftBracket);
+  if (!p.at(TokenKind::RightBracket)) {
+    parseExpr(p);
+    while (p.at(TokenKind::Comma)) {
+      p.bump(); // ','
+      if (p.at(TokenKind::RightBracket)) {
+        break; // trailing comma
+      }
+      parseExpr(p);
+    }
+  }
+  p.expect(TokenKind::RightBracket);
+  return p.complete(m, SyntaxKind::ListExpr);
+}
+
 std::optional<CompletedMarker> parseIdentExpr(Parser &p) {
   const Marker m = p.start();
 
@@ -287,6 +305,9 @@ std::optional<CompletedMarker> parseLhs(Parser &p) {
 
   case TokenKind::LeftParen:
     return parseParenExpr(p);
+
+  case TokenKind::LeftBracket:
+    return parseListExpr(p);
 
   case TokenKind::Plus:
   case TokenKind::Minus:

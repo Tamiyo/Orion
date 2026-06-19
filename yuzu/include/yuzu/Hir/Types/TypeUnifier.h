@@ -60,6 +60,15 @@ public:
       return false;
     }
 
+    // List types are interned by element, so `List[T]` and `List[U]` are
+    // distinct pointers unless the elements are already identical — unify them
+    // through the element (so `List[<infer>]` adopts `List[int32]`).
+    const auto *la = types::ListType::cast(a);
+    const auto *lb = types::ListType::cast(b);
+    if (la && lb) {
+      return unify(la->getElement(), lb->getElement());
+    }
+
     // Function types aren't interned, so structurally-equal signatures are
     // distinct pointers — unify them component-wise (params then result).
     const auto *fa = types::FuncType::cast(a);

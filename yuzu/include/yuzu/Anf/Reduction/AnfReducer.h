@@ -85,6 +85,9 @@ private:
   const Atom *reduceStructExpr(const StructExpr *expr, Env &env,
                                unsigned depth);
 
+  /// A list literal: reduce each element, then emit the construction.
+  const Atom *reduceListExpr(const ListExpr *expr, Env &env, unsigned depth);
+
   /// Restore the ANF invariant for a non-atomic `computation`: bind it to a
   /// fresh temporary (a `let` appended to `intermediateStmts`) and return a
   /// `VarAtom` referencing that name, so a caller can use it as an operand.

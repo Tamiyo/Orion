@@ -151,6 +151,10 @@ const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
   case ast::SyntaxKind::FieldAccessExpr:
     return lowerFieldAccessExpr(*ast::FieldAccessExpr::cast(expr));
 
+  // Lists
+  case ast::SyntaxKind::ListExpr:
+    return lowerListExpr(*ast::ListExpr::cast(expr));
+
   // Queries
   case ast::SyntaxKind::FromExpr:
     return lowerFromRel(*ast::FromExpr::cast(expr));
@@ -212,6 +216,19 @@ HirLowerer::lowerStructFieldInit(ast::StructFieldInit field) {
   const auto *hir =
       ctx.getBuilder().makeStructFieldInit(loweredName, loweredValue);
   ctx.getSourceTable().bind(hir->getId(), field);
+  return hir;
+}
+
+const Expr *HirLowerer::lowerListExpr(ast::ListExpr expr) {
+  std::vector<const Expr *> elements;
+  for (const ast::Expr element : expr.getElements()) {
+    if (const Expr *lowered = lowerExpr(element)) {
+      elements.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeListExpr(elements);
+  ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
 

@@ -26,6 +26,7 @@ public:
   void visitFloatLit(const FloatLit *n);
   void visitIdentExpr(const IdentExpr *n);
   void visitStructExpr(const StructExpr *n);
+  void visitListExpr(const ListExpr *n);
   void visitCallExpr(const CallExpr *n);
   void visitFuncCallExpr(const FuncCallExpr *n);
   void visitFieldAccessExpr(const FieldAccessExpr *n);
