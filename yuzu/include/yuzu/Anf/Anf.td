@@ -222,6 +222,13 @@ def DropRel : Node<Rel> {
     );
 }
 
+/// A `rename` stage: rename columns in place. The renaming is captured entirely
+/// in the (inherited) output row type, so only the input is carried — emission
+/// delegates to it and the new names surface as the plan's output names.
+def RenameRel : Node<Rel> {
+    let Fields = (ins Child<Expr>:$input);
+}
+
 //===----------------------------------------------------------------------===//
 // Statements — bindings, control flow, and declarations.
 //===----------------------------------------------------------------------===//

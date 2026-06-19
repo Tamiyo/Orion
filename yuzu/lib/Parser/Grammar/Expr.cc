@@ -357,6 +357,25 @@ void parseDropClause(Parser &p) {
   }
 }
 
+/// `<from> as <to>` — one rename of a `|> rename` stage.
+void parseRenameItem(Parser &p) {
+  const Marker m = p.start();
+  [[maybe_unused]] const auto from = parseIdent(p);
+  p.expect(TokenKind::AsKw);
+  [[maybe_unused]] const auto to = parseIdent(p);
+  [[maybe_unused]] const auto item = p.complete(m, SyntaxKind::RenameItem);
+}
+
+/// `rename <item> (',' <item>)*` — the renames of a `|> rename` stage.
+void parseRenameClause(Parser &p) {
+  p.expect(TokenKind::RenameKw);
+  parseRenameItem(p);
+  while (p.at(TokenKind::Comma)) {
+    p.bump(); // ','
+    parseRenameItem(p);
+  }
+}
+
 /// A pipe query: `from <rel> [as] <alias> ( |> <stage> )*`. A query is *not* a
 /// general subexpression — it's parsed only in value positions (a standalone
 /// statement, or a `let`/assignment RHS) so a relation can't be wedged into a
@@ -380,6 +399,9 @@ std::optional<CompletedMarker> parseQuery(Parser &p) {
     } else if (p.at(TokenKind::DropKw)) {
       parseDropClause(p);
       query.emplace(p.complete(marker, SyntaxKind::DropExpr));
+    } else if (p.at(TokenKind::RenameKw)) {
+      parseRenameClause(p);
+      query.emplace(p.complete(marker, SyntaxKind::RenameExpr));
     } else {
       // `select` is the default clause; `parseSelectClause` reports a
       // diagnostic if the keyword is missing.

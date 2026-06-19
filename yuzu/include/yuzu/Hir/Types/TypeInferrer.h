@@ -50,6 +50,7 @@ public:
   void traverseWhereRel(const WhereRel *n);
   void traverseDistinctRel(const DistinctRel *n);
   void traverseDropRel(const DropRel *n);
+  void traverseRenameRel(const RenameRel *n);
 
 private:
   /// Hoist declarations (structs → tables → functions) so the bodies that
@@ -73,6 +74,7 @@ private:
   const types::Type *inferWhereRel(const WhereRel *n);
   const types::Type *inferDistinctRel(const DistinctRel *n);
   const types::Type *inferDropRel(const DropRel *n);
+  const types::Type *inferRenameRel(const RenameRel *n);
 
   /// A function's signature type, resolved on first request and memoized in
   /// the type side table. This is the lazy "query" that powers forward

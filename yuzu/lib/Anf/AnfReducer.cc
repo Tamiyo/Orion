@@ -95,6 +95,8 @@ void AnfReducer::reduceRel(const Rel *rel) {
     return reduceDistinctRel(DistinctRel::cast(rel));
   case RelKind::DropRel:
     return reduceDropRel(DropRel::cast(rel));
+  case RelKind::RenameRel:
+    return reduceRenameRel(RenameRel::cast(rel));
   }
 }
 
@@ -122,6 +124,12 @@ void AnfReducer::reduceDistinctRel(const DistinctRel *distinct) {
 
 void AnfReducer::reduceDropRel(const DropRel *drop) {
   if (const auto *input = Rel::cast(drop->getInput())) {
+    reduceRel(input);
+  }
+}
+
+void AnfReducer::reduceRenameRel(const RenameRel *rename) {
+  if (const auto *input = Rel::cast(rename->getInput())) {
     reduceRel(input);
   }
 }

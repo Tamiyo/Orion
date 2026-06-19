@@ -563,6 +563,11 @@ void TypeInferrer::traverseDropRel(const DropRel *n) {
       ctx.getSymbolTable().pushScope(HirScopeKind::Block);
   inferQuery(n);
 }
+void TypeInferrer::traverseRenameRel(const RenameRel *n) {
+  const HirScopeGuard guard =
+      ctx.getSymbolTable().pushScope(HirScopeKind::Block);
+  inferQuery(n);
+}
 
 const Type *TypeInferrer::inferQuery(const Expr *query) {
   if (const auto *from = FromRel::cast(query)) {
@@ -579,6 +584,9 @@ const Type *TypeInferrer::inferQuery(const Expr *query) {
   }
   if (const auto *drop = DropRel::cast(query)) {
     return inferDropRel(drop);
+  }
+  if (const auto *rename = RenameRel::cast(query)) {
+    return inferRenameRel(rename);
   }
   // The parser only ever builds query rels in query position.
   const Type *error = ctx.getTypeContext().getTypeFactory().getErrorType();
@@ -768,6 +776,48 @@ const Type *TypeInferrer::inferDropRel(const DropRel *n) {
     if (!dropped) {
       outFields.push_back(field);
     }
+  }
+
+  const StructType *outRow = typeFactory.getStructType(U"", outFields);
+  const RelationType *outRel = typeFactory.getRelationType(outRow);
+  types.bind(n, outRel);
+  return outRel;
+}
+
+const Type *TypeInferrer::inferRenameRel(const RenameRel *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  const Type *inputType =
+      n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
+  if (inputType->getKind() == TypeKind::Error) {
+    types.bind(n, typeFactory.getErrorType());
+    return typeFactory.getErrorType();
+  }
+  const StructType *inputRow = rowOf(inputType);
+
+  // Each renamed `from` must be a column of the input.
+  for (const RenameItem *item : n->getItems()) {
+    if (inputRow->findField(item->getFrom()->getName()) == nullptr) {
+      ctx.error(item->getFrom(),
+                llvm::formatv("`rename` of unknown column `{0}`",
+                              util::toUtf8(item->getFrom()->getName()))
+                    .str())
+          .emit();
+    }
+  }
+
+  // Output = input columns with renamed names substituted; positions preserved.
+  std::vector<StructField> outFields;
+  for (const StructField &field : inputRow->getFields()) {
+    std::u32string_view name = field.name;
+    for (const RenameItem *item : n->getItems()) {
+      if (item->getFrom()->getName() == field.name) {
+        name = item->getTo()->getName();
+        break;
+      }
+    }
+    outFields.push_back(StructField{name, field.type});
   }
 
   const StructType *outRow = typeFactory.getStructType(U"", outFields);

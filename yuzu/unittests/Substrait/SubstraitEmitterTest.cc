@@ -267,6 +267,34 @@ TEST_F(SubstraitEmitterTest, EmitsDropAsProject) {
   EXPECT_EQ(*(*mapping)[1].getAsInteger(), 2);
 }
 
+// A `|> rename` stage changes the output column names; it's positionally a
+// no-op, so it doesn't add a relation — the new names surface at the root.
+TEST_F(SubstraitEmitterTest, EmitsRenameAsNewNames) {
+  const std::string plan = emit(UR"(
+    struct Employee { id: int32, tenure: int32 }
+    table employees = Employee
+    from employees e |> select e.id as id, e.tenure as t |> rename t as years
+  )");
+
+  auto parsed = llvm::json::parse(plan);
+  ASSERT_TRUE(static_cast<bool>(parsed)) << "plan is not valid JSON";
+  const llvm::json::Object *root =
+      (*parsed->getAsObject()->getArray("relations"))[0]
+          .getAsObject()
+          ->getObject("root");
+  ASSERT_NE(root, nullptr);
+
+  // The renamed column carries its new name; the other is unchanged.
+  const llvm::json::Array *names = root->getArray("names");
+  ASSERT_NE(names, nullptr);
+  ASSERT_EQ(names->size(), 2u);
+  EXPECT_EQ((*names)[0].getAsString(), "id");
+  EXPECT_EQ((*names)[1].getAsString(), "years");
+
+  // Rename delegates to its input (the select), adding no relation of its own.
+  EXPECT_NE(root->getObject("input")->getObject("project"), nullptr);
+}
+
 // No query in the program means no plan.
 TEST_F(SubstraitEmitterTest, NoQueryEmitsEmpty) {
   EXPECT_TRUE(emit(UR"(

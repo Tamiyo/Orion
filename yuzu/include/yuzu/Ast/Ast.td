@@ -208,6 +208,22 @@ def DropExpr : Node<Expr> {
     );
 }
 
+/// One `<from> as <to>` rename of a `|> rename` stage.
+def RenameItem : Node<AstNode> {
+    let Fields = (ins
+        Child<Ident>:$from,
+        Child<Ident>:$to
+    );
+}
+
+/// A `|> rename <renames>` stage: rename columns, keeping their positions.
+def RenameExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<RenameItem>:$items
+    );
+}
+
 /// Field access: `base.field` (e.g. a struct field or a query row column).
 def FieldAccessExpr : Node<Expr> {
     let Fields = (ins

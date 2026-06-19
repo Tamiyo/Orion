@@ -414,6 +414,13 @@ llvm::json::Value SubstraitEmitter::emitDropRel(const anf::DropRel *drop) {
               {"expressions", Array{}}}}};
 }
 
+llvm::json::Value
+SubstraitEmitter::emitRenameRel(const anf::RenameRel *rename) {
+  // Rename is positionally a no-op: the new names live in the output row type
+  // and surface as the plan's output `names`, so emit the input directly.
+  return emitRel(anf::Rel::cast(rename->getInput()));
+}
+
 llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
   switch (rel->getRelKind()) {
   case anf::RelKind::FromRel:
@@ -426,6 +433,8 @@ llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
     return emitDistinctRel(anf::DistinctRel::cast(rel));
   case anf::RelKind::DropRel:
     return emitDropRel(anf::DropRel::cast(rel));
+  case anf::RelKind::RenameRel:
+    return emitRenameRel(anf::RenameRel::cast(rel));
   }
   util::yuzu_unreachable("unhandled relation kind while emitting Substrait");
 }

@@ -136,4 +136,45 @@ const Expr *HirLowerer::lowerDropRel(ast::DropExpr expr) {
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
+
+const RenameItem *HirLowerer::lowerRenameItem(ast::RenameItem item) {
+  const auto from = item.getFrom();
+  const auto to = item.getTo();
+  if (!from || !to) {
+    error(item, "rename item is missing its `from` or `to` name").emit();
+    return nullptr;
+  }
+  const Ident *loweredFrom = lowerIdent(*from);
+  const Ident *loweredTo = lowerIdent(*to);
+  if (!loweredFrom || !loweredTo) {
+    return nullptr;
+  }
+
+  const auto *hir = ctx.getBuilder().makeRenameItem(loweredFrom, loweredTo);
+  ctx.getSourceTable().bind(hir->getId(), item);
+  return hir;
+}
+
+const Expr *HirLowerer::lowerRenameRel(ast::RenameExpr expr) {
+  const auto input = expr.getInput();
+  if (!input) {
+    error(expr, "`rename` is missing its input relation").emit();
+    return nullptr;
+  }
+  const Expr *loweredInput = lowerExpr(*input);
+  if (!loweredInput) {
+    return nullptr;
+  }
+
+  std::vector<const RenameItem *> items;
+  for (const ast::RenameItem item : expr.getItems()) {
+    if (const RenameItem *lowered = lowerRenameItem(item)) {
+      items.push_back(lowered);
+    }
+  }
+
+  const auto *hir = ctx.getBuilder().makeRenameRel(loweredInput, items);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
 } // namespace yuzu::hir

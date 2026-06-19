@@ -21,6 +21,8 @@ const Rel *AnfLowerer::lowerRel(const hir::Rel *rel) {
     return lowerDistinctRel(hir::DistinctRel::cast(rel));
   case hir::RelKind::DropRel:
     return lowerDropRel(hir::DropRel::cast(rel));
+  case hir::RelKind::RenameRel:
+    return lowerRenameRel(hir::RenameRel::cast(rel));
   }
 }
 
@@ -131,6 +133,18 @@ const Rel *AnfLowerer::lowerDropRel(const hir::DropRel *dropRel) {
       makeRowValue(types::RelationType::cast(type)->getElement(), dropRel);
 
   return ctx.build(dropRel, &AnfBuilder::makeDropRel, input, columns, type);
+}
+
+const Rel *AnfLowerer::lowerRenameRel(const hir::RenameRel *renameRel) {
+  const auto *input = lowerExpr(renameRel->getInput());
+  const auto *type = ctx.typeOf(renameRel);
+
+  // The renaming is captured in `type` (the output row has the new names), so
+  // the next stage selects columns by their new names from this op's row.
+  currentRow =
+      makeRowValue(types::RelationType::cast(type)->getElement(), renameRel);
+
+  return ctx.build(renameRel, &AnfBuilder::makeRenameRel, input, type);
 }
 
 } // namespace yuzu::anf

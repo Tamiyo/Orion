@@ -172,6 +172,23 @@ def DropRel : Node<Rel> {
     );
 }
 
+/// One `<from> as <to>` rename.
+def RenameItem : Node<HirNode> {
+    let Fields = (ins
+        Child<Ident>:$from,
+        Child<Ident>:$to
+    );
+}
+
+/// A `rename` stage: rename columns in place. The output row is the input's
+/// with the renamed columns' names changed (positions preserved).
+def RenameRel : Node<Rel> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Children<RenameItem>:$items
+    );
+}
+
 /// Field access: `base.field` (a struct field or a query row column).
 def FieldAccessExpr : Node<Expr> {
     let Fields = (ins
