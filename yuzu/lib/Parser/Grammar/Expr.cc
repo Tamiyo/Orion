@@ -344,6 +344,9 @@ void parseWhereClause(Parser &p) {
   parseExprBindingPower(p, 0); // the predicate
 }
 
+/// `distinct` — the dedupe of a `|> distinct` stage (no operands).
+void parseDistinctClause(Parser &p) { p.expect(TokenKind::DistinctKw); }
+
 /// A pipe query: `from <rel> [as] <alias> ( |> <stage> )*`. A query is *not* a
 /// general subexpression — it's parsed only in value positions (a standalone
 /// statement, or a `let`/assignment RHS) so a relation can't be wedged into a
@@ -361,6 +364,9 @@ std::optional<CompletedMarker> parseQuery(Parser &p) {
     if (p.at(TokenKind::WhereKw)) {
       parseWhereClause(p);
       query.emplace(p.complete(marker, SyntaxKind::WhereExpr));
+    } else if (p.at(TokenKind::DistinctKw)) {
+      parseDistinctClause(p);
+      query.emplace(p.complete(marker, SyntaxKind::DistinctExpr));
     } else {
       // `select` is the default clause; `parseSelectClause` reports a
       // diagnostic if the keyword is missing.

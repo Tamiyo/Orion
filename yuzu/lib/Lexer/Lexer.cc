@@ -12,6 +12,9 @@ namespace yuzu::lexer {
 namespace {
 const std::u32string andKeyword = U"and";
 const std::u32string asKeyword = U"as";
+const std::u32string distinctKeyword = U"distinct";
+const std::u32string dropKeyword = U"drop";
+const std::u32string extendKeyword = U"extend";
 const std::u32string falseKeyword = U"false";
 const std::u32string fnKeyword = U"fn";
 const std::u32string fromKeyword = U"from";
@@ -20,6 +23,7 @@ const std::u32string letKeyword = U"let";
 const std::u32string mutKeyword = U"mut";
 const std::u32string notKeyword = U"not";
 const std::u32string orKeyword = U"or";
+const std::u32string renameKeyword = U"rename";
 const std::u32string returnKeyword = U"return";
 const std::u32string selectKeyword = U"select";
 const std::u32string structKeyword = U"struct";
@@ -365,6 +369,22 @@ std::optional<Token> Lexer::getNextToken() {
 
     if (ident == whereKeyword) {
       return createToken(start, TokenKind::WhereKw);
+    }
+
+    if (ident == distinctKeyword) {
+      return createToken(start, TokenKind::DistinctKw);
+    }
+
+    if (ident == dropKeyword) {
+      return createToken(start, TokenKind::DropKw);
+    }
+
+    if (ident == extendKeyword) {
+      return createToken(start, TokenKind::ExtendKw);
+    }
+
+    if (ident == renameKeyword) {
+      return createToken(start, TokenKind::RenameKw);
     }
 
     return createToken(start, TokenKind::Identifier);

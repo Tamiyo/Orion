@@ -107,6 +107,9 @@ let IsTrivia = 1 in {
 let IsKeyword = 1 in {
   def AndKw : Token<["and"]>;
   def AsKw : Token<["as"]>;
+  def DistinctKw : Token<["distinct"]>;
+  def DropKw : Token<["drop"]>;
+  def ExtendKw : Token<["extend"]>;
   def FnKw : Token<["fn"]>;
   def FromKw : Token<["from"]>;
   def InKw : Token<["in"]>;
@@ -114,6 +117,7 @@ let IsKeyword = 1 in {
   def MutKw : Token<["mut"]>;
   def NotKw : Token<["not"]>;
   def OrKw : Token<["or"]>;
+  def RenameKw : Token<["rename"]>;
   def ReturnKw : Token<["return"]>;
   def SelectKw : Token<["select"]>;
   def StructKw : Token<["struct"]>;

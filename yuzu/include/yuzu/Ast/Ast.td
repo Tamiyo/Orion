@@ -195,6 +195,11 @@ def WhereExpr : Node<Expr> {
     );
 }
 
+/// A `|> distinct` stage: remove duplicate rows. Same row type as the input.
+def DistinctExpr : Node<Expr> {
+    let Fields = (ins Child<Expr>:$input);
+}
+
 /// Field access: `base.field` (e.g. a struct field or a query row column).
 def FieldAccessExpr : Node<Expr> {
     let Fields = (ins

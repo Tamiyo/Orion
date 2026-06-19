@@ -17,6 +17,8 @@ const Rel *AnfLowerer::lowerRel(const hir::Rel *rel) {
     return lowerSelectRel(hir::SelectRel::cast(rel));
   case hir::RelKind::WhereRel:
     return lowerWhereRel(hir::WhereRel::cast(rel));
+  case hir::RelKind::DistinctRel:
+    return lowerDistinctRel(hir::DistinctRel::cast(rel));
   }
 }
 
@@ -133,6 +135,14 @@ const Rel *AnfLowerer::lowerWhereRel(const hir::WhereRel *whereRel) {
   const auto *predicate = lowerThunk(whereRel->getPredicate(), whereRel);
 
   return ctx.build(whereRel, &AnfBuilder::makeWhereRel, input, predicate, type);
+}
+
+const Rel *AnfLowerer::lowerDistinctRel(const hir::DistinctRel *distinctRel) {
+  // `distinct` is pass-through: the input's column bindings stay valid (dedup
+  // preserves the row positionally), so no rebinding here.
+  const auto *input = lowerExpr(distinctRel->getInput());
+  const auto *type = ctx.typeOf(distinctRel);
+  return ctx.build(distinctRel, &AnfBuilder::makeDistinctRel, input, type);
 }
 
 } // namespace yuzu::anf

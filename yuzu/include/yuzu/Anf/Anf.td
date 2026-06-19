@@ -208,6 +208,11 @@ def WhereRel : Node<Rel> {
     );
 }
 
+/// A `distinct` stage: drop duplicate rows. Same row type as the input.
+def DistinctRel : Node<Rel> {
+    let Fields = (ins Child<Expr>:$input);
+}
+
 //===----------------------------------------------------------------------===//
 // Statements — bindings, control flow, and declarations.
 //===----------------------------------------------------------------------===//

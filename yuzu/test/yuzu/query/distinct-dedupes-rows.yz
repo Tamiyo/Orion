@@ -1,0 +1,9 @@
+// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
+//
+// A `|> distinct` stage drops duplicate rows and keeps the input's row type
+// (the whole query still types as a relation).
+struct Employee { id: str, tenure: int32 }
+table employees = Employee
+let r = from employees e |> select e.tenure as t |> distinct
+// CHECK: DistinctRel : relation
+// CHECK: SelectRel : relation

@@ -42,6 +42,7 @@ private:
   void reduceSelectRel(const SelectRel *select);
   void reduceSelectItem(const SelectItem *item);
   void reduceWhereRel(const WhereRel *where);
+  void reduceDistinctRel(const DistinctRel *distinct);
 
   /// Reduce a column/predicate `Thunk`: evaluate its block, cap it with the
   /// reduced tail, and return the rebuilt thunk.

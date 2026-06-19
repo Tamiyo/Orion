@@ -70,6 +70,14 @@ Value emitType(const types::Type *type) {
   return Object{{typeCode(type), Object{{"nullability", kNullability}}}};
 }
 
+/// A Substrait field selection by column index over the current input row.
+Value selectionByIndex(int index) {
+  return Object{
+      {"selection", Object{{"directReference",
+                            Object{{"structField", Object{{"field", index}}}}},
+                           {"rootReference", Object{}}}}};
+}
+
 struct FunctionTarget {
   llvm::StringRef uri;
   llvm::StringRef base; // Substrait function name, e.g. "add".
@@ -208,10 +216,7 @@ llvm::json::Value SubstraitEmitter::emitSelection(const anf::FieldAtom *field) {
     util::yuzu_unreachable("field not found in row struct while emitting "
                            "Substrait selection");
   }
-  return Object{
-      {"selection", Object{{"directReference",
-                            Object{{"structField", Object{{"field", index}}}}},
-                           {"rootReference", Object{}}}}};
+  return selectionByIndex(index);
 }
 
 llvm::json::Value
@@ -355,6 +360,28 @@ llvm::json::Value SubstraitEmitter::emitWhereRel(const anf::WhereRel *where) {
                                   {"condition", std::move(condition)}}}};
 }
 
+llvm::json::Value
+SubstraitEmitter::emitDistinctRel(const anf::DistinctRel *distinct) {
+  // Dedup is an aggregate grouping by every column with no measures, so the
+  // output is the distinct combinations of all columns (in input order).
+  Value input = emitRel(anf::Rel::cast(distinct->getInput()));
+
+  const types::StructType *row = rowStruct(distinct->getType());
+  Array groupingExpressions;
+  if (row != nullptr) {
+    for (int i = 0; i < static_cast<int>(row->getFields().size()); ++i) {
+      groupingExpressions.push_back(selectionByIndex(i));
+    }
+  }
+
+  return Object{
+      {"aggregate",
+       Object{{"input", std::move(input)},
+              {"groupings", Array{Object{{"groupingExpressions",
+                                          std::move(groupingExpressions)}}}},
+              {"measures", Array{}}}}};
+}
+
 llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
   switch (rel->getRelKind()) {
   case anf::RelKind::FromRel:
@@ -363,6 +390,8 @@ llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
     return emitSelectRel(anf::SelectRel::cast(rel));
   case anf::RelKind::WhereRel:
     return emitWhereRel(anf::WhereRel::cast(rel));
+  case anf::RelKind::DistinctRel:
+    return emitDistinctRel(anf::DistinctRel::cast(rel));
   }
   util::yuzu_unreachable("unhandled relation kind while emitting Substrait");
 }

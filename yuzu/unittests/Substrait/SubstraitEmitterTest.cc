@@ -192,6 +192,42 @@ TEST_F(SubstraitEmitterTest, EmitsWhereAsFilter) {
   EXPECT_NE(filter->getObject("input")->getObject("project"), nullptr);
 }
 
+// A `|> distinct` stage emits an AggregateRel grouping by every column with no
+// measures, over the input; the output columns are preserved.
+TEST_F(SubstraitEmitterTest, EmitsDistinctAsAggregate) {
+  const std::string plan = emit(UR"(
+    struct Employee { id: int32, tenure: int32 }
+    table employees = Employee
+    from employees e |> select e.id as id, e.tenure as t |> distinct
+  )");
+
+  auto parsed = llvm::json::parse(plan);
+  ASSERT_TRUE(static_cast<bool>(parsed)) << "plan is not valid JSON";
+  const llvm::json::Object *root =
+      (*parsed->getAsObject()->getArray("relations"))[0]
+          .getAsObject()
+          ->getObject("root");
+  ASSERT_NE(root, nullptr);
+
+  // Both columns carry through.
+  const llvm::json::Array *names = root->getArray("names");
+  ASSERT_NE(names, nullptr);
+  ASSERT_EQ(names->size(), 2u);
+
+  // Top rel is an aggregate: one grouping over every column, no measures.
+  const llvm::json::Object *aggregate =
+      root->getObject("input")->getObject("aggregate");
+  ASSERT_NE(aggregate, nullptr);
+  const llvm::json::Array *groupings = aggregate->getArray("groupings");
+  ASSERT_NE(groupings, nullptr);
+  ASSERT_EQ(groupings->size(), 1u);
+  const llvm::json::Array *groupExprs =
+      (*groupings)[0].getAsObject()->getArray("groupingExpressions");
+  ASSERT_NE(groupExprs, nullptr);
+  EXPECT_EQ(groupExprs->size(), 2u);
+  EXPECT_NE(aggregate->getObject("input")->getObject("project"), nullptr);
+}
+
 // No query in the program means no plan.
 TEST_F(SubstraitEmitterTest, NoQueryEmitsEmpty) {
   EXPECT_TRUE(emit(UR"(

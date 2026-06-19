@@ -535,6 +535,11 @@ void TypeInferrer::traverseWhereRel(const WhereRel *n) {
       ctx.getSymbolTable().pushScope(HirScopeKind::Block);
   inferQuery(n);
 }
+void TypeInferrer::traverseDistinctRel(const DistinctRel *n) {
+  const HirScopeGuard guard =
+      ctx.getSymbolTable().pushScope(HirScopeKind::Block);
+  inferQuery(n);
+}
 
 const Type *TypeInferrer::inferQuery(const Expr *query) {
   if (const auto *from = FromRel::cast(query)) {
@@ -545,6 +550,9 @@ const Type *TypeInferrer::inferQuery(const Expr *query) {
   }
   if (const auto *where = WhereRel::cast(query)) {
     return inferWhereRel(where);
+  }
+  if (const auto *distinct = DistinctRel::cast(query)) {
+    return inferDistinctRel(distinct);
   }
   // The parser only ever builds query rels in query position.
   const Type *error = ctx.getTypeContext().getTypeFactory().getErrorType();
@@ -690,6 +698,24 @@ const Type *TypeInferrer::inferWhereRel(const WhereRel *n) {
   }
 
   // A filter doesn't change the schema — same relation type as the input.
+  types.bind(n, inputType);
+  return inputType;
+}
+
+const Type *TypeInferrer::inferDistinctRel(const DistinctRel *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  // `distinct` is transparent to scoping (like `where`): type the input in the
+  // current scope so its columns flow through unchanged. Dedup keeps the
+  // schema.
+  const Type *inputType =
+      n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
+  if (inputType->getKind() == TypeKind::Error) {
+    types.bind(n, typeFactory.getErrorType());
+    return typeFactory.getErrorType();
+  }
+
   types.bind(n, inputType);
   return inputType;
 }

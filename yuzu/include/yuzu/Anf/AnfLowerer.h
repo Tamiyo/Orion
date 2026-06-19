@@ -52,6 +52,7 @@ public:
   const Rel *lowerFromRel(const hir::FromRel *fromRel);
   const Rel *lowerSelectRel(const hir::SelectRel *selectRel);
   const Rel *lowerWhereRel(const hir::WhereRel *whereRel);
+  const Rel *lowerDistinctRel(const hir::DistinctRel *distinctRel);
   const SelectItem *lowerSelectItem(const hir::SelectItem *selectItem);
 
   /// Lower `expr` into a `Thunk` — a per-row block whose temporaries are

@@ -97,4 +97,20 @@ const Expr *HirLowerer::lowerWhereRel(ast::WhereExpr expr) {
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
+
+const Expr *HirLowerer::lowerDistinctRel(ast::DistinctExpr expr) {
+  const auto input = expr.getInput();
+  if (!input) {
+    error(expr, "`distinct` is missing its input relation").emit();
+    return nullptr;
+  }
+  const Expr *loweredInput = lowerExpr(*input);
+  if (!loweredInput) {
+    return nullptr;
+  }
+
+  const auto *hir = ctx.getBuilder().makeDistinctRel(loweredInput);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
 } // namespace yuzu::hir
