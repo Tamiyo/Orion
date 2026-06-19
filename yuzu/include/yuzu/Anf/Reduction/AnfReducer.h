@@ -36,10 +36,16 @@ private:
   using Env = llvm::DenseMap<const Binding *, const Atom *>;
 
   /// Dispatch on the relation kind: a `FromRel` is the pipe source (nothing to
-  /// reduce), a `SelectRel` recurses into its input and reduces its columns.
+  /// reduce), a `SelectRel` recurses into its input and reduces its columns, a
+  /// `WhereRel` recurses and reduces its predicate.
   void reduceRel(const Rel *rel);
   void reduceSelectRel(const SelectRel *select);
   void reduceSelectItem(const SelectItem *item);
+  void reduceWhereRel(const WhereRel *where);
+
+  /// Reduce a column/predicate `Thunk`: evaluate its block, cap it with the
+  /// reduced tail, and return the rebuilt thunk.
+  const Thunk *reduceThunk(const Thunk *body);
 
   /// Drop function definitions the reduced program no longer calls. A `FuncRef`
   /// keeps its target alive (transitively); after full inlining the query holds

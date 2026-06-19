@@ -1,0 +1,8 @@
+// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
+//
+// A `|> where` predicate must be boolean; a non-bool predicate (here a bare
+// `int32` column) is rejected.
+struct Employee { id: str, tenure: int32 }
+table employees = Employee
+let r = from employees e |> select e.tenure as t |> where t
+// CHECK: error: `where` predicate must be `bool`

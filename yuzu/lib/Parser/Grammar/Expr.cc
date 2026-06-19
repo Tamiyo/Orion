@@ -329,13 +329,19 @@ std::optional<CompletedMarker> parseSelectItem(Parser &p) {
 }
 
 /// `select <item> (',' <item>)*` — the projection list of a `|> select` stage.
-void parseSelectStage(Parser &p) {
+void parseSelectClause(Parser &p) {
   p.expect(TokenKind::SelectKw);
   parseSelectItem(p);
   while (p.at(TokenKind::Comma)) {
     p.bump(); // ','
     parseSelectItem(p);
   }
+}
+
+/// `where <predicate>` — the row filter of a `|> where` stage.
+void parseWhereClause(Parser &p) {
+  p.expect(TokenKind::WhereKw);
+  parseExprBindingPower(p, 0); // the predicate
 }
 
 /// A pipe query: `from <rel> [as] <alias> ( |> <stage> )*`. A query is *not* a
@@ -352,8 +358,15 @@ std::optional<CompletedMarker> parseQuery(Parser &p) {
   while (p.at(TokenKind::Pipe)) {
     const auto [marker, _] = p.precede(*query);
     p.bump(); // '|>'
-    parseSelectStage(p);
-    query.emplace(p.complete(marker, SyntaxKind::SelectExpr));
+    if (p.at(TokenKind::WhereKw)) {
+      parseWhereClause(p);
+      query.emplace(p.complete(marker, SyntaxKind::WhereExpr));
+    } else {
+      // `select` is the default clause; `parseSelectClause` reports a
+      // diagnostic if the keyword is missing.
+      parseSelectClause(p);
+      query.emplace(p.complete(marker, SyntaxKind::SelectExpr));
+    }
   }
 
   return query;

@@ -187,6 +187,14 @@ def SelectExpr : Node<Expr> {
     );
 }
 
+/// A `|> where <predicate>` stage: keep only the rows the predicate accepts.
+def WhereExpr : Node<Expr> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Child<Expr>:$predicate
+    );
+}
+
 /// Field access: `base.field` (e.g. a struct field or a query row column).
 def FieldAccessExpr : Node<Expr> {
     let Fields = (ins

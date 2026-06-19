@@ -156,6 +156,8 @@ const Expr *HirLowerer::lowerExpr(ast::Expr expr) {
     return lowerFromRel(*ast::FromExpr::cast(expr));
   case ast::SyntaxKind::SelectExpr:
     return lowerSelectRel(*ast::SelectExpr::cast(expr));
+  case ast::SyntaxKind::WhereExpr:
+    return lowerWhereRel(*ast::WhereExpr::cast(expr));
 
   default:
     util::yuzu_unreachable();

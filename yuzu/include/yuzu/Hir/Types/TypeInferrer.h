@@ -47,6 +47,7 @@ public:
   // traversal rather than letting the generic walk type the row exprs.
   void traverseFromRel(const FromRel *n);
   void traverseSelectRel(const SelectRel *n);
+  void traverseWhereRel(const WhereRel *n);
 
 private:
   /// Hoist declarations (structs → tables → functions) so the bodies that
@@ -67,6 +68,7 @@ private:
   const types::Type *inferQuery(const Expr *query);
   const types::Type *inferFromRel(const FromRel *n);
   const types::Type *inferSelectRel(const SelectRel *n);
+  const types::Type *inferWhereRel(const WhereRel *n);
 
   /// A function's signature type, resolved on first request and memoized in
   /// the type side table. This is the lazy "query" that powers forward

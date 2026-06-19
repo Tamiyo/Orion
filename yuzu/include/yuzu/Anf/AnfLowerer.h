@@ -51,7 +51,14 @@ public:
   const Rel *lowerRel(const hir::Rel *rel);
   const Rel *lowerFromRel(const hir::FromRel *fromRel);
   const Rel *lowerSelectRel(const hir::SelectRel *selectRel);
+  const Rel *lowerWhereRel(const hir::WhereRel *whereRel);
   const SelectItem *lowerSelectItem(const hir::SelectItem *selectItem);
+
+  /// Lower `expr` into a `Thunk` — a per-row block whose temporaries are
+  /// captured into a fresh buffer and whose tail yields the value. Used for
+  /// `select` column bodies and `where` predicates. `origin` is the HIR node
+  /// the synthesized nodes attribute to for diagnostics.
+  const Thunk *lowerThunk(const hir::Expr *expr, const hir::HirNode *origin);
 
   /// Bind a `select`'s `as`-aliased columns into `hirToAnf` so a later stage's
   /// reference to one lowers to a `FieldAtom` selecting it from this relation.

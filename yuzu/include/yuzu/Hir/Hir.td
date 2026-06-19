@@ -149,6 +149,15 @@ def SelectRel : Node<Rel> {
     );
 }
 
+/// A `where` stage: filter the input's rows by a boolean predicate. The output
+/// relation has the same row type as the input.
+def WhereRel : Node<Rel> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Child<Expr>:$predicate
+    );
+}
+
 /// Field access: `base.field` (a struct field or a query row column).
 def FieldAccessExpr : Node<Expr> {
     let Fields = (ins

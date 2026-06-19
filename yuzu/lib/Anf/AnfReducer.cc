@@ -89,6 +89,8 @@ void AnfReducer::reduceRel(const Rel *rel) {
     return;
   case RelKind::SelectRel:
     return reduceSelectRel(SelectRel::cast(rel));
+  case RelKind::WhereRel:
+    return reduceWhereRel(WhereRel::cast(rel));
   }
 }
 
@@ -101,17 +103,28 @@ void AnfReducer::reduceSelectRel(const SelectRel *select) {
   }
 }
 
-void AnfReducer::reduceSelectItem(const SelectItem *item) {
-  // A column starts with an empty environment (its only free name is the row
-  // alias, which passes through) and a fresh emit buffer. Evaluate the thunk,
-  // then cap it with its tail.
+void AnfReducer::reduceWhereRel(const WhereRel *where) {
+  if (const auto *input = Rel::cast(where->getInput())) {
+    reduceRel(input);
+  }
+  mutate(where)->setPredicate(reduceThunk(where->getPredicate()));
+}
+
+const Thunk *AnfReducer::reduceThunk(const Thunk *body) {
+  // A column/predicate starts with an empty environment (its only free name is
+  // the row alias, which passes through) and a fresh emit buffer. Evaluate the
+  // block, then cap it with its reduced tail.
   intermediateStmts.clear();
   Env env;
-  const Atom *tail = reduceBlock(item->getBody()->getStmts(), env, /*depth=*/0);
+  const Atom *tail = reduceBlock(body->getStmts(), env, /*depth=*/0);
   if (tail != nullptr) {
     intermediateStmts.push_back(ctx.getBuilder().makeExprStmt(tail));
   }
-  mutate(item)->setBody(ctx.getBuilder().makeThunk(intermediateStmts));
+  return ctx.getBuilder().makeThunk(intermediateStmts);
+}
+
+void AnfReducer::reduceSelectItem(const SelectItem *item) {
+  mutate(item)->setBody(reduceThunk(item->getBody()));
 }
 
 const Atom *AnfReducer::reduceBlock(llvm::ArrayRef<const Stmt *> stmts,

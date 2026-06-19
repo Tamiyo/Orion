@@ -70,4 +70,31 @@ const Expr *HirLowerer::lowerSelectRel(ast::SelectExpr expr) {
   ctx.getSourceTable().bind(hir->getId(), expr);
   return hir;
 }
+
+const Expr *HirLowerer::lowerWhereRel(ast::WhereExpr expr) {
+  const auto input = expr.getInput();
+  if (!input) {
+    error(expr, "`where` is missing its input relation").emit();
+    return nullptr;
+  }
+  const Expr *loweredInput = lowerExpr(*input);
+  if (!loweredInput) {
+    return nullptr;
+  }
+
+  const auto predicate = expr.getPredicate();
+  if (!predicate) {
+    error(expr, "`where` is missing its predicate").emit();
+    return nullptr;
+  }
+  const Expr *loweredPredicate = lowerExpr(*predicate);
+  if (!loweredPredicate) {
+    return nullptr;
+  }
+
+  const auto *hir =
+      ctx.getBuilder().makeWhereRel(loweredInput, loweredPredicate);
+  ctx.getSourceTable().bind(hir->getId(), expr);
+  return hir;
+}
 } // namespace yuzu::hir

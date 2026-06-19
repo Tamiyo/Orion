@@ -160,6 +160,38 @@ TEST_F(SubstraitEmitterTest, EmitsChainedColumnReference) {
   EXPECT_NE(inner->getObject("input")->getObject("read"), nullptr);
 }
 
+// A `|> where` stage emits a FilterRel over the input, with the predicate as
+// the condition; the output column names are preserved (filter keeps the row).
+TEST_F(SubstraitEmitterTest, EmitsWhereAsFilter) {
+  const std::string plan = emit(UR"(
+    struct Employee { id: int32, tenure: int32 }
+    table employees = Employee
+    from employees e |> select e.tenure as t |> where t > 10
+  )");
+
+  auto parsed = llvm::json::parse(plan);
+  ASSERT_TRUE(static_cast<bool>(parsed)) << "plan is not valid JSON";
+  const llvm::json::Object *root =
+      (*parsed->getAsObject()->getArray("relations"))[0]
+          .getAsObject()
+          ->getObject("root");
+  ASSERT_NE(root, nullptr);
+
+  // The filter preserves the input's columns.
+  const llvm::json::Array *names = root->getArray("names");
+  ASSERT_NE(names, nullptr);
+  ASSERT_EQ(names->size(), 1u);
+  EXPECT_EQ((*names)[0].getAsString(), "t");
+
+  // Top rel is a filter: a scalar-function condition over a project input.
+  const llvm::json::Object *filter =
+      root->getObject("input")->getObject("filter");
+  ASSERT_NE(filter, nullptr);
+  EXPECT_NE(filter->getObject("condition")->getObject("scalarFunction"),
+            nullptr);
+  EXPECT_NE(filter->getObject("input")->getObject("project"), nullptr);
+}
+
 // No query in the program means no plan.
 TEST_F(SubstraitEmitterTest, NoQueryEmitsEmpty) {
   EXPECT_TRUE(emit(UR"(

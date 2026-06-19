@@ -199,6 +199,15 @@ def SelectRel : Node<Rel> {
     );
 }
 
+/// A `where` stage: keep input rows for which `predicate` (a per-row `Thunk`
+/// yielding a bool) holds. The output row type equals the input's.
+def WhereRel : Node<Rel> {
+    let Fields = (ins
+        Child<Expr>:$input,
+        Child<Thunk>:$predicate
+    );
+}
+
 //===----------------------------------------------------------------------===//
 // Statements — bindings, control flow, and declarations.
 //===----------------------------------------------------------------------===//

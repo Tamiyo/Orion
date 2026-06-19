@@ -530,6 +530,11 @@ void TypeInferrer::traverseSelectRel(const SelectRel *n) {
       ctx.getSymbolTable().pushScope(HirScopeKind::Block);
   inferQuery(n);
 }
+void TypeInferrer::traverseWhereRel(const WhereRel *n) {
+  const HirScopeGuard guard =
+      ctx.getSymbolTable().pushScope(HirScopeKind::Block);
+  inferQuery(n);
+}
 
 const Type *TypeInferrer::inferQuery(const Expr *query) {
   if (const auto *from = FromRel::cast(query)) {
@@ -538,7 +543,10 @@ const Type *TypeInferrer::inferQuery(const Expr *query) {
   if (const auto *select = SelectRel::cast(query)) {
     return inferSelectRel(select);
   }
-  // The parser only ever builds `from`/`select` in query position.
+  if (const auto *where = WhereRel::cast(query)) {
+    return inferWhereRel(where);
+  }
+  // The parser only ever builds query rels in query position.
   const Type *error = ctx.getTypeContext().getTypeFactory().getErrorType();
   ctx.getTypeContext().bind(query, error);
   return error;
@@ -652,6 +660,38 @@ const Type *TypeInferrer::inferSelectRel(const SelectRel *n) {
   }
 
   return outRel;
+}
+
+const Type *TypeInferrer::inferWhereRel(const WhereRel *n) {
+  auto &types = ctx.getTypeContext();
+  auto &typeFactory = types.getTypeFactory();
+
+  // `where` is transparent to scoping: type the input in the current scope so
+  // its columns flow through to the consuming stage unchanged, then type the
+  // predicate against those same columns.
+  const Type *inputType =
+      n->getInput() ? inferQuery(n->getInput()) : typeFactory.getErrorType();
+  if (inputType->getKind() == TypeKind::Error) {
+    types.bind(n, typeFactory.getErrorType());
+    return typeFactory.getErrorType();
+  }
+
+  if (const Expr *predicate = n->getPredicate()) {
+    visit(predicate);
+    const Type *predType = types.resolveType(types.typeOf(predicate));
+    if (predType->getKind() != TypeKind::Bool &&
+        predType->getKind() != TypeKind::Error) {
+      ctx.error(predicate,
+                llvm::formatv("`where` predicate must be `bool`, found `{0}`",
+                              asString(predType->getKind()))
+                    .str())
+          .emit();
+    }
+  }
+
+  // A filter doesn't change the schema — same relation type as the input.
+  types.bind(n, inputType);
+  return inputType;
 }
 
 void TypeInferrer::visitFieldAccessExpr(const FieldAccessExpr *n) {

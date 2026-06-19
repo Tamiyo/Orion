@@ -31,7 +31,8 @@ private:
   llvm::json::Value emitRel(const anf::Rel *rel);
   llvm::json::Value emitFromRel(const anf::FromRel *from);
   llvm::json::Value emitSelectRel(const anf::SelectRel *select);
-  llvm::json::Value emitColumn(const anf::SelectItem *item);
+  llvm::json::Value emitWhereRel(const anf::WhereRel *where);
+  llvm::json::Value emitThunk(const anf::Thunk *thunk);
 
   llvm::json::Value emitExpr(const anf::Expr *expr, const Env &env);
   llvm::json::Value emitAtom(const anf::Atom *atom, const Env &env);

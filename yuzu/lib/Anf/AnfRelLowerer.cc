@@ -15,6 +15,8 @@ const Rel *AnfLowerer::lowerRel(const hir::Rel *rel) {
     return lowerFromRel(hir::FromRel::cast(rel));
   case hir::RelKind::SelectRel:
     return lowerSelectRel(hir::SelectRel::cast(rel));
+  case hir::RelKind::WhereRel:
+    return lowerWhereRel(hir::WhereRel::cast(rel));
   }
 }
 
@@ -96,25 +98,41 @@ void AnfLowerer::bindColumns(const hir::SelectRel *selectRel) {
   }
 }
 
-const SelectItem *
-AnfLowerer::lowerSelectItem(const hir::SelectItem *selectItem) {
-  // Each column is its own per-row block: temporaries land in a fresh buffer,
-  // and the block resolves to the column value at its tail.
+const Thunk *AnfLowerer::lowerThunk(const hir::Expr *expr,
+                                    const hir::HirNode *origin) {
+  // A per-row block: temporaries land in a fresh buffer, and the block resolves
+  // to the value at its tail. The caller's buffer is saved and restored.
   std::vector<const Stmt *> saved = std::move(intermediateStmts);
   intermediateStmts.clear();
 
-  const auto *value = lowerExpr(selectItem->getExpr());
-  const auto *tail = ctx.build(selectItem, &AnfBuilder::makeExprStmt, value);
+  const auto *value = lowerExpr(expr);
+  const auto *tail = ctx.build(origin, &AnfBuilder::makeExprStmt, value);
 
   std::vector<const Stmt *> stmts = std::move(intermediateStmts);
   stmts.push_back(tail);
-  const auto *body = ctx.build(selectItem, &AnfBuilder::makeThunk, stmts);
+  const auto *body = ctx.build(origin, &AnfBuilder::makeThunk, stmts);
 
   intermediateStmts = std::move(saved);
+  return body;
+}
 
+const SelectItem *
+AnfLowerer::lowerSelectItem(const hir::SelectItem *selectItem) {
+  const auto *body = lowerThunk(selectItem->getExpr(), selectItem);
   const auto *alias =
       selectItem->getAlias() ? lowerIdent(selectItem->getAlias()) : nullptr;
   return ctx.build(selectItem, &AnfBuilder::makeSelectItem, body, alias);
+}
+
+const Rel *AnfLowerer::lowerWhereRel(const hir::WhereRel *whereRel) {
+  // Lower the input first (a `from` input registers its row binding so the
+  // predicate can resolve the alias). `where` is pass-through: the input's
+  // column bindings remain valid for the next stage, so no rebinding here.
+  const auto *input = lowerExpr(whereRel->getInput());
+  const auto *type = ctx.typeOf(whereRel);
+  const auto *predicate = lowerThunk(whereRel->getPredicate(), whereRel);
+
+  return ctx.build(whereRel, &AnfBuilder::makeWhereRel, input, predicate, type);
 }
 
 } // namespace yuzu::anf

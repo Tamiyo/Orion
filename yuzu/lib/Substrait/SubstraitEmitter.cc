@@ -283,11 +283,12 @@ llvm::json::Value SubstraitEmitter::emitAtom(const anf::Atom *atom,
   util::yuzu_unreachable("unhandled atom kind while emitting Substrait");
 }
 
-llvm::json::Value SubstraitEmitter::emitColumn(const anf::SelectItem *item) {
-  // Inline the column's let-bindings into a single expression tree.
+llvm::json::Value SubstraitEmitter::emitThunk(const anf::Thunk *thunk) {
+  // Inline the thunk's let-bindings into a single expression tree (a column
+  // value or a `where` predicate).
   Env env;
   const anf::Expr *tail = nullptr;
-  for (const anf::Stmt *stmt : item->getBody()->getStmts()) {
+  for (const anf::Stmt *stmt : thunk->getStmts()) {
     if (const auto *let = anf::LetStmt::cast(stmt)) {
       env[let->getBinding()] = let->getBinding()->getValue();
     } else if (const auto *exprStmt = anf::ExprStmt::cast(stmt)) {
@@ -334,7 +335,7 @@ SubstraitEmitter::emitSelectRel(const anf::SelectRel *select) {
   Array outputMapping;
   int output = inputColumns;
   for (const anf::SelectItem *item : select->getItems()) {
-    expressions.push_back(emitColumn(item));
+    expressions.push_back(emitThunk(item->getBody()));
     outputMapping.push_back(output++);
   }
 
@@ -346,23 +347,34 @@ SubstraitEmitter::emitSelectRel(const anf::SelectRel *select) {
               {"expressions", std::move(expressions)}}}};
 }
 
+llvm::json::Value SubstraitEmitter::emitWhereRel(const anf::WhereRel *where) {
+  // A `FilterRel` preserves the input's columns, so no `emit` mapping needed.
+  Value input = emitRel(anf::Rel::cast(where->getInput()));
+  Value condition = emitThunk(where->getPredicate());
+  return Object{{"filter", Object{{"input", std::move(input)},
+                                  {"condition", std::move(condition)}}}};
+}
+
 llvm::json::Value SubstraitEmitter::emitRel(const anf::Rel *rel) {
   switch (rel->getRelKind()) {
   case anf::RelKind::FromRel:
     return emitFromRel(anf::FromRel::cast(rel));
   case anf::RelKind::SelectRel:
     return emitSelectRel(anf::SelectRel::cast(rel));
+  case anf::RelKind::WhereRel:
+    return emitWhereRel(anf::WhereRel::cast(rel));
   }
   util::yuzu_unreachable("unhandled relation kind while emitting Substrait");
 }
 
 std::string SubstraitEmitter::emit(const anf::Root *root) {
-  // Find the query: the relational expression at the program's tail.
-  const anf::SelectRel *query = nullptr;
+  // Find the query: the relational expression at the program's tail. Any rel
+  // kind can be the tail (e.g. a query ending in `where`).
+  const anf::Rel *query = nullptr;
   for (const anf::Stmt *stmt : root->getStmts()) {
     if (const auto *exprStmt = anf::ExprStmt::cast(stmt)) {
       if (const auto *rel = anf::Rel::cast(exprStmt->getValue())) {
-        query = anf::SelectRel::cast(rel);
+        query = rel;
       }
     }
   }
