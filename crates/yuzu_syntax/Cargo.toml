@@ -1,0 +1,11 @@
+[package]
+name = "yuzu_syntax"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+rowan = "0.16.1"
+
+yuzu_lexer = { path = "../yuzu_lexer" }

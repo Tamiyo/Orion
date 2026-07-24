@@ -1,9 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-//
-// A list literal `[a, b, c]` types as a `list`. `List[T]` annotates the
-// element type, and the literal's element holes adopt it (so `[10, 20]` is a
-// valid `List[int32]`). An empty list is allowed; its element type is open.
-let xs = [1, 2, 3]
-let ys: List[int32] = [10, 20]
-let zs: List[str] = []
-// CHECK: ListExpr : list

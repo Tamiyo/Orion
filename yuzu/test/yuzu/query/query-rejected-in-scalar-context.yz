@@ -1,7 +1,0 @@
-// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
-//
-// A query is only valid in a value position (a `let`/assignment RHS or a
-// standalone statement) — never as a general subexpression. Wedging one into a
-// scalar context is a parse error, not a type error.
-let r = (from employees e |> select id) + 1
-// CHECK: error: expected expression, found `from`

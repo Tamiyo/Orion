@@ -1,0 +1,21 @@
+[package]
+name = "yuzu_driver"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "yuzu"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+
+yuzu_anf = { path = "../yuzu_anf" }
+yuzu_ast = { path = "../yuzu_ast" }
+yuzu_core = { path = "../yuzu_core" }
+yuzu_diagnostics = { path = "../yuzu_diagnostics" }
+yuzu_hir = { path = "../yuzu_hir" }
+yuzu_lexer = { path = "../yuzu_lexer" }
+yuzu_parser = { path = "../yuzu_parser" }
+yuzu_substrait = { path = "../yuzu_substrait" }
+yuzu_types = { path = "../yuzu_types" }

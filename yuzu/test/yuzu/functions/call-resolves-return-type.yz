@@ -1,4 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-fn add(x: int32, y: int32) -> int32 { return x + y }
-let r = add(1, 2)
-// CHECK: FuncCallExpr : int32

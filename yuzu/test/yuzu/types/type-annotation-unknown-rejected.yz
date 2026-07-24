@@ -1,3 +1,0 @@
-// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
-let x: bogus = 5
-// CHECK: error: unknown type `bogus`

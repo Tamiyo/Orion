@@ -1,0 +1,16 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "yuzu-python"   # This will be the name on PyPI/pip
+dynamic = ["version"]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+datafusion = ["datafusion>=54"]
+
+[tool.maturin]
+module-name = "yuzu"
+features = ["pyo3/extension-module"]

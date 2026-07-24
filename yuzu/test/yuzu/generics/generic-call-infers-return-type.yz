@@ -1,4 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-fn id[T](x: T) -> T { return x }
-let a = id(5)
-// CHECK: FuncCallExpr : int64

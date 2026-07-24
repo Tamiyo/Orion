@@ -1,3 +1,0 @@
-// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
-let x: (int64) -> bool = 5
-// CHECK: error: {{.*}}is not assignable to `func`

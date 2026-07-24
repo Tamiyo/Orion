@@ -1,3 +1,0 @@
-// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
-fn f[T](x: T, y: T) -> T where T: Bogus { return x + y }
-// CHECK: error: unknown trait `Bogus`

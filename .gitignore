@@ -1,22 +1,17 @@
-# Build Directories
+# Agents
 .claude/
+
+# VSCode
 .vscode/
-.idea/
-build/
-build-release/
-cmake-build-debug/
 
-# Approval Tests
-*.received.*
-.approval_tests*
+# Build
+/target
+/debug
 
-# CMake
-compile_commands.json
-.cache
+# Rust
+**/*.rs.bk
 
-# Built native extension + generated stub (emitted into the package dir)
-yuzu/python/yuzu/*.so
-yuzu/python/yuzu/_ext.pyi
+# Python
 __pycache__/
-
-notes/
+.Python
+.venv/

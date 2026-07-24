@@ -84,6 +84,18 @@ USER ${USERNAME}
 # Oh-my-zsh — unattended so it doesn't drop into an interactive shell.
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
+# Rust via rustup — installs the stable toolchain, then adds nightly.
+# Installed as the dev user so the toolchain lives in their home (~/.cargo,
+# ~/.rustup) and bind-mount permissions line up.
+ENV RUSTUP_HOME=/home/${USERNAME}/.rustup \
+  CARGO_HOME=/home/${USERNAME}/.cargo \
+  PATH=/home/${USERNAME}/.cargo/bin:${PATH}
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+  | sh -s -- -y --no-modify-path --default-toolchain stable --profile default \
+  && rustup toolchain install nightly --profile default \
+  && rustup component add rust-src clippy rustfmt \
+  && rustup component add --toolchain nightly rust-src clippy rustfmt
+
 COPY --chown=${USERNAME}:${USERNAME} zshrc /home/${USERNAME}/.zshrc
 COPY --chown=${USERNAME}:${USERNAME} starship.toml /home/${USERNAME}/.config/starship.toml
 

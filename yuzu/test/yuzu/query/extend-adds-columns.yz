@@ -1,8 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-//
-// An `|> extend` stage appends computed columns, keeping the input's. Both the
-// kept column (`t`) and the new one (`bonus`) are referenceable downstream.
-struct Employee { id: str, tenure: int32 }
-table employees = Employee
-let r = from employees e |> select e.tenure as t |> extend t + 1 as bonus |> select t, bonus
-// CHECK: ExtendRel : relation

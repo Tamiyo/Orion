@@ -1,0 +1,21 @@
+[package]
+name = "yuzu_substrait"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+prost = "0.14"
+serde_json = "1"
+substrait = { version = "0.63", features = ["serde"] }
+
+yuzu_anf = { path = "../yuzu_anf" }
+yuzu_core = { path = "../yuzu_core" }
+yuzu_diagnostics = { path = "../yuzu_diagnostics" }
+yuzu_types = { path = "../yuzu_types" }
+
+[dev-dependencies]
+expect-test = "1"
+yuzu_ast = { path = "../yuzu_ast" }
+yuzu_hir = { path = "../yuzu_hir" }
+yuzu_lexer = { path = "../yuzu_lexer" }
+yuzu_parser = { path = "../yuzu_parser" }

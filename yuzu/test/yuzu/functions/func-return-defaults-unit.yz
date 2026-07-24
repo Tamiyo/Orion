@@ -1,5 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-//
-// An omitted return type defaults to unit; a bare return is fine.
-fn f() { return }
-// CHECK: FuncStmt

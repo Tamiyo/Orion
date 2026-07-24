@@ -1,6 +1,0 @@
-// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
-//
-// An immutable let binding (no `mut`) rejects assignment.
-let x = 5
-x = 10
-// CHECK: error: cannot assign to immutable binding `x`

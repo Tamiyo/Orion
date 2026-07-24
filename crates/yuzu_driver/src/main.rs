@@ -1,0 +1,57 @@
+use std::path::PathBuf;
+use std::process::ExitCode;
+
+use clap::Parser;
+use yuzu_driver::{CompileOptions, compile};
+
+#[derive(Parser)]
+#[command(name = "yuzu", version, about = "Compile a Yuzu source file")]
+struct Cli {
+    #[arg(help = "The source file to compile")]
+    file: PathBuf,
+
+    #[arg(long, help = "Dump the token stream")]
+    debug_tokens: bool,
+
+    #[arg(long, help = "Dump the syntax tree")]
+    debug_ast: bool,
+
+    #[arg(long, help = "Dump the HIR")]
+    debug_hir: bool,
+
+    #[arg(long, help = "Dump the ANF")]
+    debug_anf: bool,
+
+    #[arg(long, help = "Dump the reduced ANF")]
+    debug_reduce: bool,
+
+    #[arg(long, help = "Dump the Substrait plan")]
+    debug_substrait: bool,
+
+    #[arg(long, help = "Dump all of the above")]
+    debug: bool,
+}
+
+fn main() -> ExitCode {
+    let cli = Cli::parse();
+
+    let options = CompileOptions {
+        debug_tokens: cli.debug_tokens || cli.debug,
+        debug_ast: cli.debug_ast || cli.debug,
+        debug_hir: cli.debug_hir || cli.debug,
+        debug_anf: cli.debug_anf || cli.debug,
+        debug_reduce: cli.debug_reduce || cli.debug,
+        debug_substrait: cli.debug_substrait || cli.debug,
+    };
+
+    let source = match std::fs::read_to_string(&cli.file) {
+        Ok(source) => source,
+        Err(err) => {
+            eprintln!("yuzu: cannot read '{}': {err}", cli.file.display());
+            return ExitCode::FAILURE;
+        }
+    };
+
+    compile(&cli.file.display().to_string(), &source, &options);
+    ExitCode::SUCCESS
+}

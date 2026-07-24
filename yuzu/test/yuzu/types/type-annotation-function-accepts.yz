@@ -1,4 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-fn add_one(y: int32) -> int32 { return y + 1 }
-let f: (int32) -> int32 = add_one
-// CHECK: LetStmt

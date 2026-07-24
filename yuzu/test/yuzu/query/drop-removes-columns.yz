@@ -1,8 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-//
-// A `|> drop` stage removes the named columns; the survivors stay referenceable
-// downstream (here `id` after dropping `s`).
-struct Employee { id: str, tenure: int32, salary: int32 }
-table employees = Employee
-let r = from employees e |> select e.id as id, e.salary as s |> drop s |> select id
-// CHECK: DropRel : relation

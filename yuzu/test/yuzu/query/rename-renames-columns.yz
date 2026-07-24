@@ -1,8 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-//
-// A `|> rename` stage renames a column; the new name is referenceable
-// downstream and the old one is not (it no longer exists in the row).
-struct Employee { id: str, tenure: int32 }
-table employees = Employee
-let r = from employees e |> select e.tenure as t |> rename t as years |> select years
-// CHECK: RenameRel : relation

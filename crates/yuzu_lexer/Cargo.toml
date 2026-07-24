@@ -1,0 +1,8 @@
+[package]
+name = "yuzu_lexer"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+logos = "0.16.1"
+text-size = "1.1.1"

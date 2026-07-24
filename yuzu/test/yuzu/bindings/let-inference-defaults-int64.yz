@@ -1,5 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-//
-// An unannotated integer binding defaults to int64.
-let x = 5
-// CHECK: LetStmt : int64

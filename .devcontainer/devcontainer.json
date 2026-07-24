@@ -4,7 +4,7 @@
     "dockerfile": "Dockerfile"
   },
   "remoteUser": "vscode",
-  "workspaceFolder": "/workspaces/Yuzu",
+  "workspaceFolder": "/workspaces/yuzu-rust",
   "containerEnv": {
     "CC": "clang",
     "CXX": "clang++"
@@ -22,6 +22,7 @@
         "ms-python.python",
         "ms-python.vscode-pylance",
         "ms-vscode.cmake-tools",
+        "rust-lang.rust-analyzer",
         "tamasfe.even-better-toml",
         "xaver.clang-format"
       ],

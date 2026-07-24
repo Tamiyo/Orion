@@ -1,0 +1,27 @@
+use yuzu_diagnostics::{diagnostics::engine::DiagnosticsEngine, source_map::SourceId};
+use yuzu_lexer::lexer::Token;
+use yuzu_syntax::SyntaxNode;
+
+use crate::{parser::Parser, token_sink::TokenSink, token_source::TokenSource};
+
+mod grammar;
+mod parser;
+mod token_sink;
+mod token_source;
+
+pub fn parse(
+    tokens: &[Token],
+    diagnostics: &mut DiagnosticsEngine,
+    source_id: SourceId,
+) -> SyntaxNode {
+    let token_source = TokenSource::new(tokens);
+
+    let mut parser = Parser::new(token_source, source_id);
+    grammar::parse_root(&mut parser);
+    let events = parser.finish();
+
+    let token_sink = TokenSink::new(tokens, events, diagnostics);
+    let result = token_sink.finish();
+
+    SyntaxNode::new_root(result.green)
+}

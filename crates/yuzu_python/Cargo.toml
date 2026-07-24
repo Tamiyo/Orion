@@ -1,0 +1,22 @@
+[package]
+name = "yuzu_python"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "yuzu"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "stub_gen"
+path = "src/bin/stub_gen.rs"
+doc = false
+
+[dependencies]
+pyo3 = "0.29"
+pyo3-stub-gen = "0.23"
+
+yuzu_driver = { path = "../yuzu_driver" }
+
+[features]
+extension-module = ["pyo3/extension-module"]

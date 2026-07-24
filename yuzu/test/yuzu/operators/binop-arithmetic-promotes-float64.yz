@@ -1,5 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-//
-// Mixing an int and a float promotes to float64.
-let r = 1 + 2.0
-// CHECK: CallExpr : float64

@@ -1,3 +1,0 @@
-// RUN: %yuzu-compile --debug-hir %s 2>&1 | %FileCheck %s --implicit-check-not=error:
-fn eq[T](x: T, y: T) -> bool where T: Eq { return x == y }
-// CHECK: FuncStmt

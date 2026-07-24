@@ -1,5 +1,0 @@
-// RUN: %yuzu-compile %s 2>&1 | %FileCheck %s
-//
-// `+` is not defined on bool.
-let r = true + false
-// CHECK: error: {{.*}}cannot be applied
