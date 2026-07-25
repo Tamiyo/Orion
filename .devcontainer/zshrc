@@ -8,3 +8,8 @@ source $ZSH/oh-my-zsh.sh
 export EDITOR=${EDITOR:-vim}
 
 eval "$(starship init zsh)"
+
+# Activate the workspace venv when present (created by postCreateCommand).
+if [[ -f /workspaces/yuzu-rust/.venv/bin/activate ]]; then
+  source /workspaces/yuzu-rust/.venv/bin/activate
+fi
