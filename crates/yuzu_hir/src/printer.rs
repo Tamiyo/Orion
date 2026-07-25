@@ -2,13 +2,13 @@ use yuzu_core::adt::StringInterner;
 
 use crate::{HirCtx, hir::*};
 
-struct Printer<'a> {
+struct HirPrinter<'a> {
     hir: &'a HirCtx,
     interner: &'a StringInterner,
 }
 
 pub fn dump(hir: &HirCtx, interner: &StringInterner, root: &Root) -> String {
-    let printer = Printer { hir, interner };
+    let printer = HirPrinter { hir, interner };
     let mut out = String::new();
     for &stmt in root.stmts.iter() {
         printer.fmt_stmt(stmt, 0, &mut out);
@@ -18,19 +18,19 @@ pub fn dump(hir: &HirCtx, interner: &StringInterner, root: &Root) -> String {
 
 pub fn dump_stmt(hir: &HirCtx, interner: &StringInterner, id: StmtId) -> String {
     let mut out = String::new();
-    Printer { hir, interner }.fmt_stmt(id, 0, &mut out);
+    HirPrinter { hir, interner }.fmt_stmt(id, 0, &mut out);
     out
 }
 
 pub fn dump_expr(hir: &HirCtx, interner: &StringInterner, id: ExprId) -> String {
     let mut out = String::new();
-    Printer { hir, interner }.fmt_expr(id, 0, &mut out);
+    HirPrinter { hir, interner }.fmt_expr(id, 0, &mut out);
     out
 }
 
 pub fn dump_rel(hir: &HirCtx, interner: &StringInterner, id: RelId) -> String {
     let mut out = String::new();
-    Printer { hir, interner }.fmt_rel(id, 0, &mut out);
+    HirPrinter { hir, interner }.fmt_rel(id, 0, &mut out);
     out
 }
 
@@ -42,7 +42,7 @@ fn line(out: &mut String, depth: usize, text: impl AsRef<str>) {
     out.push('\n');
 }
 
-impl Printer<'_> {
+impl HirPrinter<'_> {
     fn text(&self, ident: &Ident) -> String {
         self.interner.text(ident.symbol).to_string()
     }

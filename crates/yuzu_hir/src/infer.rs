@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use yuzu_core::adt::StringInterner;
 use yuzu_diagnostics::{diagnostics::engine::DiagnosticsEngine, source_map::SourceId};
-use yuzu_types::{InferKind, Type, TypeCtx, TypeId, TypeUnifier};
+use yuzu_types::{InferKind, TypeCtx, TypeId, TypeUnifier};
 
 use crate::{ExprId, HirCtx, HirSourceMap, RelId, Root, StmtId};
 
@@ -77,10 +77,6 @@ impl<'i> InferCtx<'i> {
 
     fn fresh_var(&mut self, kind: InferKind) -> TypeId {
         self.unifier.fresh_var(kind, self.types)
-    }
-
-    fn intern_ty(&mut self, ty: Type) -> TypeId {
-        self.types.intern_ty(ty)
     }
 
     fn unify(&mut self, a: TypeId, b: TypeId) -> bool {

@@ -53,7 +53,7 @@ impl<'t, 'input> Parser<'t, 'input> {
         };
 
         self.events.push(Event::Finish);
-        CompletedMarker { pos: marker.pos }
+        CompletedMarker::new(marker.pos)
     }
 
     pub(crate) fn precede(&mut self, completed_marker: CompletedMarker) -> Marker {

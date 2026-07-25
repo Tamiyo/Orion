@@ -53,7 +53,7 @@ mod test_support {
 
 #[cfg(test)]
 mod tests {
-    use expect_test::{Expect, expect};
+    use expect_test::expect;
 
     use super::{parse_ident, parse_root};
     use crate::grammar::test_support;
