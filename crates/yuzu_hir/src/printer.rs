@@ -293,6 +293,27 @@ impl HirPrinter<'_> {
                 ),
                 None => line(out, depth, format!("From {:?}", self.text(relation))),
             },
+            Rel::Join {
+                left,
+                right,
+                kind,
+                condition,
+            } => {
+                line(out, depth, format!("Join {}", kind.keyword()));
+                self.fmt_rel(*left, depth + 1, out);
+                self.fmt_rel(*right, depth + 1, out);
+                match condition {
+                    JoinCondition::On(expr) => {
+                        line(out, depth + 1, "on:");
+                        self.fmt_expr(*expr, depth + 2, out);
+                    }
+                    JoinCondition::Using(columns) => {
+                        for column in columns.iter() {
+                            line(out, depth + 1, format!("using {:?}", self.text(column)));
+                        }
+                    }
+                }
+            }
             Rel::Select { input, items } => {
                 line(out, depth, "Select");
                 self.fmt_rel(*input, depth + 1, out);
@@ -323,11 +344,19 @@ impl HirPrinter<'_> {
                     line(
                         out,
                         depth + 1,
-                        format!(
-                            "rename {:?} -> {:?}",
-                            self.text(&item.from),
-                            self.text(&item.to)
-                        ),
+                        match &item.qualifier {
+                            Some(alias) => format!(
+                                "rename {:?}.{:?} -> {:?}",
+                                self.text(alias),
+                                self.text(&item.from),
+                                self.text(&item.to)
+                            ),
+                            None => format!(
+                                "rename {:?} -> {:?}",
+                                self.text(&item.from),
+                                self.text(&item.to)
+                            ),
+                        },
                     );
                 }
             }

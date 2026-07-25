@@ -96,7 +96,7 @@ impl AnfReducer<'_> {
     /// runtime read, as in the case with queries), a new field is minted for the reduced ANF.
     pub(crate) fn resolve_atom(&mut self, id: AtomId, env: &Environment) -> AtomId {
         match *self.anf.atom(id) {
-            Atom::Const(_) | Atom::FuncRef { .. } => id,
+            Atom::Const(_) | Atom::FuncRef { .. } | Atom::Column { .. } => id,
             Atom::Var { binding } => env.atom(binding).unwrap_or(id),
             Atom::Field { base, field, ty } => {
                 let base = self.resolve_atom(base, env);
@@ -278,7 +278,7 @@ mod tests {
     fn nested_struct_deep_projection_drops_both() {
         check(
             &format!(
-                "{TABLE}struct I {{ x: int64 }}\nstruct O {{ i: I }}\nlet inner = I {{ x: 5 }}\nlet outer = O {{ i: inner }}\nfrom t |> select outer.i.x as w"
+                "{TABLE}struct I {{ x: int64 }}\nstruct O {{ i: I }}\nlet deep = I {{ x: 5 }}\nlet outer = O {{ i: deep }}\nfrom t |> select outer.i.x as w"
             ),
             expect![[r#"
                 struct Row { a, b }
@@ -295,7 +295,7 @@ mod tests {
     fn nested_struct_whole_use_materializes_inner_first() {
         check(
             &format!(
-                "{TABLE}struct I {{ x: int64 }}\nstruct O {{ i: I }}\nlet inner = I {{ x: 5 }}\nlet outer = O {{ i: inner }}\nfrom t |> select a\nouter"
+                "{TABLE}struct I {{ x: int64 }}\nstruct O {{ i: I }}\nlet deep = I {{ x: 5 }}\nlet outer = O {{ i: deep }}\nfrom t |> select a\nouter"
             ),
             expect![[r#"
                 struct Row { a, b }
@@ -304,8 +304,8 @@ mod tests {
                 struct O { i }
                 from t
                   |> select %t0.a
-                let inner = I { x: 5i64 }
-                let outer = O { i: inner }
+                let deep = I { x: 5i64 }
+                let outer = O { i: deep }
                 outer
             "#]],
         );

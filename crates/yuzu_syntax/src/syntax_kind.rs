@@ -38,18 +38,25 @@ pub enum SyntaxKind {
     FnKw,
     ForKw,
     FromKw,
+    FullKw,
     ImplKw,
     InKw,
+    InnerKw,
+    JoinKw,
+    LeftKw,
     LetKw,
     MutKw,
     NotKw,
+    OnKw,
     OrKw,
     RenameKw,
     ReturnKw,
+    RightKw,
     SelectKw,
     StructKw,
     TableKw,
     TraitKw,
+    UsingKw,
     WhereKw,
     Identifier,
     BoolLit,
@@ -112,6 +119,9 @@ pub enum SyntaxKind {
     RenameExpr,
     RenameItem,
     ExtendExpr,
+    JoinExpr,
+    JoinOn,
+    JoinUsing,
 
     Literal,
     BoolLiteral,
@@ -159,18 +169,25 @@ impl From<TokenKind> for SyntaxKind {
             TokenKind::FnKw => Self::FnKw,
             TokenKind::ForKw => Self::ForKw,
             TokenKind::FromKw => Self::FromKw,
+            TokenKind::FullKw => Self::FullKw,
             TokenKind::ImplKw => Self::ImplKw,
             TokenKind::InKw => Self::InKw,
+            TokenKind::InnerKw => Self::InnerKw,
+            TokenKind::JoinKw => Self::JoinKw,
+            TokenKind::LeftKw => Self::LeftKw,
             TokenKind::LetKw => Self::LetKw,
             TokenKind::MutKw => Self::MutKw,
             TokenKind::NotKw => Self::NotKw,
+            TokenKind::OnKw => Self::OnKw,
             TokenKind::OrKw => Self::OrKw,
             TokenKind::RenameKw => Self::RenameKw,
             TokenKind::ReturnKw => Self::ReturnKw,
+            TokenKind::RightKw => Self::RightKw,
             TokenKind::SelectKw => Self::SelectKw,
             TokenKind::StructKw => Self::StructKw,
             TokenKind::TableKw => Self::TableKw,
             TokenKind::TraitKw => Self::TraitKw,
+            TokenKind::UsingKw => Self::UsingKw,
             TokenKind::WhereKw => Self::WhereKw,
             TokenKind::Identifier => Self::Identifier,
             TokenKind::BoolLit => Self::BoolLit,
@@ -184,6 +201,53 @@ impl From<TokenKind> for SyntaxKind {
             TokenKind::Newline => Self::Newline,
             TokenKind::Space => Self::Space,
             TokenKind::Error => Self::Error,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn join_tokens_map_to_their_own_syntax_kinds() {
+        let cases = [
+            (TokenKind::JoinKw, SyntaxKind::JoinKw),
+            (TokenKind::OnKw, SyntaxKind::OnKw),
+            (TokenKind::UsingKw, SyntaxKind::UsingKw),
+            (TokenKind::InnerKw, SyntaxKind::InnerKw),
+            (TokenKind::LeftKw, SyntaxKind::LeftKw),
+            (TokenKind::RightKw, SyntaxKind::RightKw),
+            (TokenKind::FullKw, SyntaxKind::FullKw),
+        ];
+
+        for (token, expected) in cases {
+            assert_eq!(SyntaxKind::from(token), expected, "{token:?}");
+        }
+    }
+
+    #[test]
+    fn keyword_tokens_do_not_share_a_syntax_kind() {
+        let tokens = [
+            TokenKind::JoinKw,
+            TokenKind::OnKw,
+            TokenKind::UsingKw,
+            TokenKind::InnerKw,
+            TokenKind::LeftKw,
+            TokenKind::RightKw,
+            TokenKind::FullKw,
+            TokenKind::SelectKw,
+            TokenKind::FromKw,
+            TokenKind::WhereKw,
+            TokenKind::AsKw,
+            TokenKind::InKw,
+        ];
+
+        let mut seen = Vec::new();
+        for token in tokens {
+            let kind = SyntaxKind::from(token);
+            assert!(!seen.contains(&kind), "{token:?} reuses {kind:?}");
+            seen.push(kind);
         }
     }
 }

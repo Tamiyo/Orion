@@ -72,18 +72,25 @@ mod tests {
             ("fn", TokenKind::FnKw),
             ("for", TokenKind::ForKw),
             ("from", TokenKind::FromKw),
+            ("full", TokenKind::FullKw),
             ("impl", TokenKind::ImplKw),
             ("in", TokenKind::InKw),
+            ("inner", TokenKind::InnerKw),
+            ("join", TokenKind::JoinKw),
+            ("left", TokenKind::LeftKw),
             ("let", TokenKind::LetKw),
             ("mut", TokenKind::MutKw),
             ("not", TokenKind::NotKw),
+            ("on", TokenKind::OnKw),
             ("or", TokenKind::OrKw),
             ("rename", TokenKind::RenameKw),
             ("return", TokenKind::ReturnKw),
+            ("right", TokenKind::RightKw),
             ("select", TokenKind::SelectKw),
             ("struct", TokenKind::StructKw),
             ("table", TokenKind::TableKw),
             ("trait", TokenKind::TraitKw),
+            ("using", TokenKind::UsingKw),
             ("where", TokenKind::WhereKw),
             ("true", TokenKind::BoolLit),
             ("false", TokenKind::BoolLit),
@@ -101,6 +108,13 @@ mod tests {
         assert_eq!(one("Baz123"), TokenKind::Identifier);
         assert_eq!(one("letMeIn"), TokenKind::Identifier);
         assert_eq!(one("trueish"), TokenKind::Identifier);
+        assert_eq!(one("joined"), TokenKind::Identifier);
+        assert_eq!(one("leftmost"), TokenKind::Identifier);
+        assert_eq!(one("rightward"), TokenKind::Identifier);
+        assert_eq!(one("innermost"), TokenKind::Identifier);
+        assert_eq!(one("fullness"), TokenKind::Identifier);
+        assert_eq!(one("onto"), TokenKind::Identifier);
+        assert_eq!(one("using_key"), TokenKind::Identifier);
     }
 
     #[test]

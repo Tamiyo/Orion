@@ -103,11 +103,23 @@ pub enum TokenKind {
     #[token("from", priority = 1)]
     FromKw,
 
+    #[token("full", priority = 1)]
+    FullKw,
+
     #[token("impl", priority = 1)]
     ImplKw,
 
     #[token("in", priority = 1)]
     InKw,
+
+    #[token("inner", priority = 1)]
+    InnerKw,
+
+    #[token("join", priority = 1)]
+    JoinKw,
+
+    #[token("left", priority = 1)]
+    LeftKw,
 
     #[token("let", priority = 1)]
     LetKw,
@@ -118,6 +130,9 @@ pub enum TokenKind {
     #[token("not", priority = 1)]
     NotKw,
 
+    #[token("on", priority = 1)]
+    OnKw,
+
     #[token("or", priority = 1)]
     OrKw,
 
@@ -126,6 +141,9 @@ pub enum TokenKind {
 
     #[token("return", priority = 1)]
     ReturnKw,
+
+    #[token("right", priority = 1)]
+    RightKw,
 
     #[token("select", priority = 1)]
     SelectKw,
@@ -138,6 +156,9 @@ pub enum TokenKind {
 
     #[token("trait", priority = 1)]
     TraitKw,
+
+    #[token("using", priority = 1)]
+    UsingKw,
 
     #[token("where", priority = 1)]
     WhereKw,
@@ -225,18 +246,25 @@ impl std::fmt::Display for TokenKind {
             TokenKind::FnKw => "fn",
             TokenKind::ForKw => "for",
             TokenKind::FromKw => "from",
+            TokenKind::FullKw => "full",
             TokenKind::ImplKw => "impl",
             TokenKind::InKw => "in",
+            TokenKind::InnerKw => "inner",
+            TokenKind::JoinKw => "join",
+            TokenKind::LeftKw => "left",
             TokenKind::LetKw => "let",
             TokenKind::MutKw => "mut",
             TokenKind::NotKw => "not",
+            TokenKind::OnKw => "on",
             TokenKind::OrKw => "or",
             TokenKind::RenameKw => "rename",
             TokenKind::ReturnKw => "return",
+            TokenKind::RightKw => "right",
             TokenKind::SelectKw => "select",
             TokenKind::StructKw => "struct",
             TokenKind::TableKw => "table",
             TokenKind::TraitKw => "trait",
+            TokenKind::UsingKw => "using",
             TokenKind::WhereKw => "where",
             TokenKind::Identifier => "identifier",
             TokenKind::BoolLit => "boolean literal",
@@ -295,18 +323,25 @@ mod tests {
             (TokenKind::FnKw, "fn"),
             (TokenKind::ForKw, "for"),
             (TokenKind::FromKw, "from"),
+            (TokenKind::FullKw, "full"),
             (TokenKind::ImplKw, "impl"),
             (TokenKind::InKw, "in"),
+            (TokenKind::InnerKw, "inner"),
+            (TokenKind::JoinKw, "join"),
+            (TokenKind::LeftKw, "left"),
             (TokenKind::LetKw, "let"),
             (TokenKind::MutKw, "mut"),
             (TokenKind::NotKw, "not"),
+            (TokenKind::OnKw, "on"),
             (TokenKind::OrKw, "or"),
             (TokenKind::RenameKw, "rename"),
             (TokenKind::ReturnKw, "return"),
+            (TokenKind::RightKw, "right"),
             (TokenKind::SelectKw, "select"),
             (TokenKind::StructKw, "struct"),
             (TokenKind::TableKw, "table"),
             (TokenKind::TraitKw, "trait"),
+            (TokenKind::UsingKw, "using"),
             (TokenKind::WhereKw, "where"),
             (TokenKind::Identifier, "identifier"),
             (TokenKind::BoolLit, "boolean literal"),

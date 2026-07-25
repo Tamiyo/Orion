@@ -1,4 +1,4 @@
-use crate::anf::{Rel, RelId, SelectItem, Thunk, TreeCopier};
+use crate::anf::{JoinCondition, Rel, RelId, SelectItem, Thunk, TreeCopier};
 use crate::reduction::{AnfReducer, environment::Environment};
 
 impl AnfReducer<'_> {
@@ -6,6 +6,22 @@ impl AnfReducer<'_> {
         let input = self.reduced;
         let rel = match input.rel(id) {
             Rel::From { .. } => return self.copy_rel(id),
+            Rel::Join {
+                left,
+                right,
+                kind,
+                condition,
+                ty,
+            } => Rel::Join {
+                left: self.reduce_rel(*left, env),
+                right: self.reduce_rel(*right, env),
+                kind: *kind,
+                condition: match condition {
+                    JoinCondition::On(thunk) => JoinCondition::On(self.reduce_thunk(thunk, env)),
+                    JoinCondition::Using(columns) => JoinCondition::Using(columns.clone()),
+                },
+                ty: *ty,
+            },
             Rel::Select {
                 input: source,
                 items,
@@ -115,6 +131,42 @@ mod tests {
                 let q = from t
                   |> where gt(%t0.a, 0i32)
                   |> select %t0.a
+            "#]],
+        );
+    }
+
+    const JOIN_TABLES: &str = "struct Other { a: int32, c: int32 }\ntable u = Other\nstruct Codes { c: int32, d: int32 }\ntable v = Codes\n";
+
+    #[test]
+    fn folds_constant_in_join_condition() {
+        check(
+            &format!("{TABLE}{JOIN_TABLES}let q = from t |> join v as x on b == x.c + (1 + 1)"),
+            expect![[r#"
+                struct Row { a, b }
+                table t
+                struct Other { a, c }
+                table u
+                struct Codes { c, d }
+                table v
+                let q = from t
+                  |> inner join from v as x on %r0 = add(x.c, 2i32); %r1 = eq(%t1.b, %r0); %r1
+            "#]],
+        );
+    }
+
+    #[test]
+    fn keeps_join_using_columns() {
+        check(
+            &format!("{TABLE}{JOIN_TABLES}let q = from t |> right join u using (a)"),
+            expect![[r#"
+                struct Row { a, b }
+                table t
+                struct Other { a, c }
+                table u
+                struct Codes { c, d }
+                table v
+                let q = from t
+                  |> right join from u using a
             "#]],
         );
     }

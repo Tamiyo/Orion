@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use crate::anf::{
-    Atom, AtomId, BindingId, Expr, ExprId, Rel, RelId, Stmt, StmtId, Thunk, TreeCopier,
+    Atom, AtomId, BindingId, Expr, ExprId, JoinCondition, Rel, RelId, Stmt, StmtId, Thunk,
+    TreeCopier,
 };
 use crate::reduction::AnfReducer;
 
@@ -116,6 +117,18 @@ impl LivenessAnalysis for AnfReducer<'_> {
     fn rel_func_refs(&self, id: RelId, refs: &mut Vec<BindingId>) {
         match self.anf.rel(id) {
             Rel::From { .. } => {}
+            Rel::Join {
+                left,
+                right,
+                condition,
+                ..
+            } => {
+                self.rel_func_refs(*left, refs);
+                self.rel_func_refs(*right, refs);
+                if let JoinCondition::On(thunk) = condition {
+                    self.thunk_func_refs(thunk, refs);
+                }
+            }
             Rel::Select { input, items, .. } | Rel::Extend { input, items, .. } => {
                 self.rel_func_refs(*input, refs);
                 for item in items.iter() {
@@ -145,7 +158,7 @@ impl LivenessAnalysis for AnfReducer<'_> {
         match *self.anf.atom(id) {
             Atom::FuncRef { binding, .. } => refs.push(binding),
             Atom::Field { base, .. } => self.atom_func_refs(base, refs),
-            Atom::Var { .. } | Atom::Const(_) => {}
+            Atom::Var { .. } | Atom::Column { .. } | Atom::Const(_) => {}
         }
     }
 }

@@ -1806,6 +1806,9 @@ dependencies = [
 name = "yuzu_ast"
 version = "0.0.0"
 dependencies = [
+ "yuzu_diagnostics",
+ "yuzu_lexer",
+ "yuzu_parser",
  "yuzu_syntax",
 ]
 

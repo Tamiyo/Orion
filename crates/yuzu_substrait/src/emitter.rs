@@ -9,7 +9,7 @@ use yuzu_diagnostics::{
     diagnostics::{Span, builder::DiagnosticBuilder, engine::DiagnosticsEngine},
     source_map::SourceId,
 };
-use yuzu_types::TypeCtx;
+use yuzu_types::{TypeCtx, TypeId};
 
 use crate::emitter::extensions::Extensions;
 
@@ -41,6 +41,7 @@ pub fn emit(
         source_id,
         query_stmt,
         extensions: Extensions::default(),
+        row: types.error_ty(),
     };
 
     // Build the relation first, so function registration populates the tables.
@@ -88,6 +89,10 @@ struct SubstraitEmitter<'e> {
     source_id: SourceId,
     query_stmt: StmtId,
     extensions: Extensions,
+    /// The row struct an expression's column references index into. A stage
+    /// sets it before emitting its own expressions; a join's condition sees its
+    /// two inputs concatenated, every other stage sees its input's row.
+    row: TypeId,
 }
 
 /// The reduced program contained something a plan cannot express; a

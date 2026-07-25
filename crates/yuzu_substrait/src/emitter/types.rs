@@ -65,23 +65,34 @@ impl SubstraitEmitter<'_> {
         SubstraitType { kind: Some(kind) }
     }
 
-    pub(crate) fn row_fields(&self, rel_ty: TypeId) -> &[(SymbolId, TypeId)] {
+    pub(crate) fn row_ty(&self, rel_ty: TypeId) -> TypeId {
         let Type::Relation(relation) = self.types.ty(rel_ty) else {
             unreachable!("a pipeline stage always has a relation type")
         };
-        let Type::Struct(row) = self.types.ty(relation.inner) else {
+        relation.inner
+    }
+
+    pub(crate) fn row_fields(&self, rel_ty: TypeId) -> &[(SymbolId, TypeId)] {
+        let Type::Struct(row) = self.types.ty(self.row_ty(rel_ty)) else {
             unreachable!("a relation's element is always a row struct")
         };
         &row.fields
     }
 
-    pub(crate) fn field_index(&self, row: TypeId, name: SymbolId) -> i32 {
+    /// `None` for a column the row does not have — an alias can outlive the row
+    /// it named, and a plan cannot express that.
+    pub(crate) fn row_index(&self, row: TypeId, name: SymbolId) -> Option<i32> {
         let Type::Struct(row) = self.types.ty(row) else {
-            unreachable!("a field selection is always into a row struct")
+            return None;
         };
         row.fields
             .iter()
             .position(|&(field, _)| field == name)
-            .expect("field not found in row struct while emitting Substrait") as i32
+            .map(|index| index as i32)
+    }
+
+    pub(crate) fn field_index(&self, row: TypeId, name: SymbolId) -> i32 {
+        self.row_index(row, name)
+            .expect("field not found in row struct while emitting Substrait")
     }
 }

@@ -48,19 +48,53 @@ from employees e
 |> distinct                     // remove duplicate rows
 ```
 
-| operator        | effect                                             |
-| --------------- | -------------------------------------------------- |
-| `from t e`      | the pipe source (the alias `e` is optional)        |
-| `select …`      | project a new set of columns                       |
-| `where p`       | keep rows where the boolean predicate `p` holds    |
-| `extend e as n` | append computed columns, keeping the existing ones |
-| `drop a, b`     | remove named columns                               |
-| `rename a as b` | rename columns                                     |
-| `distinct`      | drop duplicate rows                                |
+| operator          | effect                                             |
+| ----------------- | -------------------------------------------------- |
+| `from t e`        | the pipe source (the alias `e` is optional)        |
+| `select …`        | project a new set of columns                       |
+| `where p`         | keep rows where the boolean predicate `p` holds    |
+| `extend e as n`   | append computed columns, keeping the existing ones |
+| `drop a, b`       | remove named columns                               |
+| `rename a as b`   | rename columns                                     |
+| `distinct`        | drop duplicate rows                                |
+| `join t d on p`   | combine rows with a second relation                |
 
 Columns are referenced by bare name against the current stage's row (`salary`),
 or through the source alias (`e.salary`). The set of operators and their
 semantics are still evolving.
+
+### Joins
+
+```
+from employees e
+|> join departments d on e.dept_id == d.id
+|> select e.id, d.name
+```
+
+The input is the left side and the joined relation is the right; the stage's
+output row is the two concatenated, left first. `inner` (the default), `left`,
+`right` and `full` all work as modifiers — `|> left join departments d on …`.
+
+When both sides share a key name, `using` matches on it and keeps a single copy
+in the output row:
+
+```
+from employees |> join departments using (dept_id) |> select dept_id, id, name
+```
+
+A join concatenates the two rows, so both sides may carry the same column name.
+That is only a problem where a name is *used* without saying which side it came
+from — a qualified reference always resolves:
+
+```
+from employees e
+|> join students s on e.id == s.id
+|> rename e.id as eid, s.id as sid   // `rename` takes a qualified column too
+|> select eid, sid, e.salary
+```
+
+A bare `id` there is `column `id` is ambiguous; qualify it with a relation
+alias`, while a bare name only one side has keeps working.
 
 ### Functions
 
@@ -129,9 +163,16 @@ the same query run on any engine that consumes it.
 
 ```
 cargo build                                   # build everything
-cargo test                                    # run the test suite
+cargo test                                    # the Rust test suite
+cargo e2e                                     # queries executed against DataFusion
 cargo run -p yuzu_driver -- query.yuzu        # compile one file
 ```
+
+`cargo e2e` rebuilds the Python wheel and runs [python/tests/](python/tests/)
+against it, so it always exercises the current compiler rather than whatever
+was installed last. It needs the venv from
+[Running queries from Python](#running-queries-from-python); `cargo test` does
+not, and skips it.
 
 Each pipeline stage can be dumped:
 
@@ -156,7 +197,11 @@ python python/example.py
 ```
 
 See [python/example.py](python/example.py) for the whole flow — a query, a
-table of data, and results — in ~30 lines. For a distributable wheel:
+table of data, and results — in ~30 lines, and
+[python/tests/](python/tests/) for queries checked against their result rows.
+Those split two ways over one shared schema in `support.py`: `language/` covers
+whether a construct can be written and run at all, `correctness/` whether the
+query computes the right answer. For a distributable wheel:
 
 ```
 maturin build --release -m crates/yuzu_python/Cargo.toml   # -> target/wheels/

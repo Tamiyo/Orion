@@ -589,6 +589,7 @@ impl<'l> HirLowerer<'l> {
             ast::Rel::DropExpr(drop_expr) => self.lower_drop_rel(drop_expr),
             ast::Rel::RenameExpr(rename_expr) => self.lower_rename_rel(rename_expr),
             ast::Rel::ExtendExpr(extend_expr) => self.lower_extend_rel(extend_expr),
+            ast::Rel::JoinExpr(join_expr) => self.lower_join_rel(join_expr),
         };
 
         let id = self.ctx.alloc_rel(lowered);
@@ -605,6 +606,61 @@ impl<'l> HirLowerer<'l> {
         let relation = self.lower_ident(relation);
         let alias = expr.alias().map(|alias| self.lower_ident(alias));
         Rel::From { relation, alias }
+    }
+
+    fn lower_join_rel(&mut self, expr: ast::JoinExpr) -> Rel {
+        let Some(input) = expr.input() else {
+            self.error(&expr, "`join` is missing its input relation");
+            return Rel::Missing;
+        };
+        let Some(relation) = expr.relation() else {
+            self.error(&expr, "`join` is missing its relation");
+            return Rel::Missing;
+        };
+        let left = self.lower_rel_input(input);
+        let right = self.lower_joined_rel(relation, expr.alias());
+        let Some(condition) = self.lower_join_condition(&expr) else {
+            return Rel::Missing;
+        };
+        Rel::Join {
+            left,
+            right,
+            kind: lower_join_kind(expr.kind()),
+            condition,
+        }
+    }
+
+    fn lower_joined_rel(&mut self, relation: ast::Ident, alias: Option<ast::Ident>) -> RelId {
+        let ptr = self.ptr_of(&relation);
+        let relation = self.lower_ident(relation);
+        let alias = alias.map(|alias| self.lower_ident(alias));
+        let id = self.ctx.alloc_rel(Rel::From { relation, alias });
+        self.source_map.bind_rel(id, ptr);
+        id
+    }
+
+    fn lower_join_condition(&mut self, expr: &ast::JoinExpr) -> Option<JoinCondition> {
+        if let Some(using) = expr.using() {
+            let columns: Box<[Ident]> = using
+                .columns()
+                .map(|column| self.lower_ident(column))
+                .collect();
+            if columns.is_empty() {
+                self.error(&using, "`using` needs at least one column");
+                return None;
+            }
+            return Some(JoinCondition::Using(columns));
+        }
+
+        let Some(on) = expr.on() else {
+            self.error(expr, "`join` is missing its `on` or `using` clause");
+            return None;
+        };
+        let Some(condition) = on.condition() else {
+            self.error(&on, "`on` is missing its condition");
+            return None;
+        };
+        Some(JoinCondition::On(self.lower_expr(condition)))
     }
 
     fn lower_select_rel(&mut self, expr: ast::SelectExpr) -> Rel {
@@ -712,7 +768,9 @@ impl<'l> HirLowerer<'l> {
             return None;
         };
 
+        let qualifier = item.qualifier().map(|alias| self.lower_ident(alias));
         Some(RenameItem {
+            qualifier,
             from: self.lower_ident(from),
             to: self.lower_ident(to),
         })
@@ -800,6 +858,15 @@ impl<'l> HirLowerer<'l> {
 
     fn ptr_of(&self, node: &impl ast::AstNode) -> SyntaxNodePtr {
         SyntaxNodePtr::new(node.syntax())
+    }
+}
+
+fn lower_join_kind(kind: Option<ast::JoinKind>) -> JoinKind {
+    match kind {
+        Some(ast::JoinKind::Left) => JoinKind::Left,
+        Some(ast::JoinKind::Right) => JoinKind::Right,
+        Some(ast::JoinKind::Full) => JoinKind::Full,
+        Some(ast::JoinKind::Inner) | None => JoinKind::Inner,
     }
 }
 
@@ -1535,6 +1602,145 @@ mod tests {
                   From "t"
                   item:
                     Ident "a"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_rename_qualified() {
+        check(
+            "from t |> rename e.id as eid, b as c",
+            expect![[r#"
+            Expr
+              Rel
+                Rename
+                  From "t"
+                  rename "e"."id" -> "eid"
+                  rename "b" -> "c"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_join_on() {
+        check(
+            "from t |> join u as d on a == d.b",
+            expect![[r#"
+            Expr
+              Rel
+                Join inner
+                  From "t"
+                  From "u" as "d"
+                  on:
+                    Call Eq
+                      Ident "a"
+                      FieldAccess "b"
+                        Ident "d"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_join_using() {
+        check(
+            "from t |> left join u using (a, b)",
+            expect![[r#"
+            Expr
+              Rel
+                Join left
+                  From "t"
+                  From "u"
+                  using "a"
+                  using "b"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_join_after_a_stage_with_its_own_idents() {
+        check(
+            "from t |> drop a, b |> join u as d on c == d.e",
+            expect![[r#"
+            Expr
+              Rel
+                Join inner
+                  Drop
+                    From "t"
+                    column "a"
+                    column "b"
+                  From "u" as "d"
+                  on:
+                    Call Eq
+                      Ident "c"
+                      FieldAccess "e"
+                        Ident "d"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_join_chained() {
+        check(
+            "from t |> left join u on a == b |> join v as x on c == x.d",
+            expect![[r#"
+                Expr
+                  Rel
+                    Join inner
+                      Join left
+                        From "t"
+                        From "u"
+                        on:
+                          Call Eq
+                            Ident "a"
+                            Ident "b"
+                      From "v" as "x"
+                      on:
+                        Call Eq
+                          Ident "c"
+                          FieldAccess "d"
+                            Ident "x"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rel_join_input_alias_is_not_the_joined_relation() {
+        check(
+            "from t as e |> join u on a == b",
+            expect![[r#"
+            Expr
+              Rel
+                Join inner
+                  From "t" as "e"
+                  From "u"
+                  on:
+                    Call Eq
+                      Ident "a"
+                      Ident "b"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_join_using_without_columns_lowers_to_missing() {
+        check(
+            "from t |> join u using ()",
+            expect![[r#"
+            Expr
+              Rel
+                Missing
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_join_without_condition_lowers_to_missing() {
+        check(
+            "from t |> join u",
+            expect![[r#"
+            Expr
+              Rel
+                Missing
         "#]],
         );
     }

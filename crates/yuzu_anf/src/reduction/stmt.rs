@@ -326,7 +326,7 @@ mod tests {
     fn void_call_chain_absorbs() {
         check(
             &format!(
-                "{TABLE}let mut a = 1\nfn inner() {{ a = 2 }}\nfn outer() {{ inner() }}\nouter()\nfrom t |> select a as w"
+                "{TABLE}let mut a = 1\nfn nested() {{ a = 2 }}\nfn outer() {{ nested() }}\nouter()\nfrom t |> select a as w"
             ),
             expect![[r#"
                 struct Row { a, b }

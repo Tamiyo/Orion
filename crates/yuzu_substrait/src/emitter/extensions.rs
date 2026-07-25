@@ -6,7 +6,7 @@ use yuzu_anf::anf::Op;
 
 // Substrait standard extensions (the function families DuckDB consumes).
 const ARITHMETIC_URN: &str = "extension:io.substrait:functions_arithmetic";
-const COMPARISON_URN: &str = "extension:io.substrait:functions_comparison";
+pub(crate) const COMPARISON_URN: &str = "extension:io.substrait:functions_comparison";
 pub(crate) const BOOLEAN_URN: &str = "extension:io.substrait:functions_boolean";
 
 /// Map an ANF builtin operator to its Substrait extension function. Membership

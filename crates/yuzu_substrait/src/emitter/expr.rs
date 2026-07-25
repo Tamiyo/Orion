@@ -112,12 +112,13 @@ impl SubstraitEmitter<'_> {
                     return Err(self.unsupported_query(message));
                 }
             },
-            Atom::Field { base, field, .. } => {
-                let row = match *self.anf.atom(base) {
-                    Atom::Var { binding } => self.anf.binding(binding).ty,
-                    _ => unreachable!("a field selection is rooted at the query row"),
-                };
-                selection(self.field_index(row, field.name))
+            Atom::Column { column, .. } => selection(column as i32),
+            Atom::Field { field, .. } => {
+                let message = format!(
+                    "`{}` is a field of a value, not a query column",
+                    self.interner.text(field.name)
+                );
+                return Err(self.unsupported_query(message));
             }
             Atom::FuncRef { .. } => {
                 unreachable!("a function reference cannot be emitted as a column")
@@ -283,7 +284,7 @@ impl SubstraitEmitter<'_> {
             },
             Atom::Const(Const::Bool { .. }) => "bool",
             Atom::Const(Const::String { .. }) => "string",
-            Atom::Field { ty, .. } => self.type_code(ty),
+            Atom::Field { ty, .. } | Atom::Column { ty, .. } => self.type_code(ty),
             Atom::Var { binding } => {
                 let expr = defs
                     .def(binding)

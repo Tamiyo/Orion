@@ -539,6 +539,7 @@ ast_enum!(Rel, {
     DropExpr,
     RenameExpr,
     ExtendExpr,
+    JoinExpr,
 });
 
 ast_node!(FromExpr);
@@ -616,12 +617,27 @@ impl RenameExpr {
 
 ast_node!(RenameItem);
 impl RenameItem {
+    /// `e.id as eid` names the column of one input; a bare `id as eid` has to
+    /// find it on its own.
+    pub fn qualifier(&self) -> Option<Ident> {
+        self.is_qualified()
+            .then(|| support::nth_child(self.syntax(), 0))
+            .flatten()
+    }
+
     pub fn from(&self) -> Option<Ident> {
-        support::nth_child(self.syntax(), 0)
+        support::nth_child(self.syntax(), self.is_qualified() as usize)
     }
 
     pub fn to(&self) -> Option<Ident> {
-        support::nth_child(self.syntax(), 1)
+        support::nth_child(self.syntax(), self.is_qualified() as usize + 1)
+    }
+
+    fn is_qualified(&self) -> bool {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .any(|token| token.kind() == SyntaxKind::Dot)
     }
 }
 
@@ -632,6 +648,70 @@ impl ExtendExpr {
     }
 
     pub fn items(&self) -> impl Iterator<Item = SelectItem> + '_ {
+        support::children(self.syntax())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum JoinKind {
+    Inner,
+    Left,
+    Right,
+    Full,
+}
+
+impl JoinKind {
+    fn from_token(token: SyntaxToken) -> Option<Self> {
+        Some(match token.kind() {
+            SyntaxKind::InnerKw => JoinKind::Inner,
+            SyntaxKind::LeftKw => JoinKind::Left,
+            SyntaxKind::RightKw => JoinKind::Right,
+            SyntaxKind::FullKw => JoinKind::Full,
+            _ => return None,
+        })
+    }
+}
+
+ast_node!(JoinExpr);
+impl JoinExpr {
+    pub fn input(&self) -> Option<Expr> {
+        support::child(self.syntax())
+    }
+
+    pub fn kind(&self) -> Option<JoinKind> {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find_map(JoinKind::from_token)
+    }
+
+    pub fn relation(&self) -> Option<Ident> {
+        support::nth_child(self.syntax(), 0)
+    }
+
+    pub fn alias(&self) -> Option<Ident> {
+        support::nth_child(self.syntax(), 1)
+    }
+
+    pub fn on(&self) -> Option<JoinOn> {
+        support::child(self.syntax())
+    }
+
+    pub fn using(&self) -> Option<JoinUsing> {
+        support::child(self.syntax())
+    }
+}
+
+ast_node!(JoinOn);
+impl JoinOn {
+    pub fn condition(&self) -> Option<Expr> {
+        support::child(self.syntax())
+    }
+}
+
+ast_node!(JoinUsing);
+impl JoinUsing {
+    pub fn columns(&self) -> impl Iterator<Item = Ident> + '_ {
         support::children(self.syntax())
     }
 }
@@ -673,5 +753,126 @@ impl StringLiteral {
             .and_then(|inner| inner.strip_suffix('"'))
             .unwrap_or(text.as_str());
         Some(unquoted.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use yuzu_diagnostics::{diagnostics::engine::DiagnosticsEngine, source_map::SourceMap};
+    use yuzu_lexer::lexer::{Lexer, Token};
+
+    /// The outermost join stage, so a chained query yields its last stage.
+    fn join(input: &str) -> JoinExpr {
+        let tokens: Vec<Token> = Lexer::new(input).collect();
+        let mut diagnostics = DiagnosticsEngine::new();
+        let mut sources = SourceMap::new();
+        let source_id = sources.add("test".to_string(), input.to_string());
+
+        let syntax = yuzu_parser::parse(&tokens, &mut diagnostics, source_id);
+        syntax
+            .descendants()
+            .find_map(JoinExpr::cast)
+            .expect("input has a join stage")
+    }
+
+    fn text(ident: Option<Ident>) -> Option<String> {
+        ident.and_then(|ident| ident.text())
+    }
+
+    fn rename(input: &str) -> RenameItem {
+        let tokens: Vec<Token> = Lexer::new(input).collect();
+        let mut diagnostics = DiagnosticsEngine::new();
+        let mut sources = SourceMap::new();
+        let source_id = sources.add("test".to_string(), input.to_string());
+
+        let syntax = yuzu_parser::parse(&tokens, &mut diagnostics, source_id);
+        syntax
+            .descendants()
+            .find_map(RenameItem::cast)
+            .expect("input has a rename item")
+    }
+
+    #[test]
+    fn rename_item_reads_a_qualifier() {
+        let item = rename("from t |> rename e.id as eid");
+        assert_eq!(text(item.qualifier()).as_deref(), Some("e"));
+        assert_eq!(text(item.from()).as_deref(), Some("id"));
+        assert_eq!(text(item.to()).as_deref(), Some("eid"));
+    }
+
+    #[test]
+    fn rename_item_without_a_qualifier() {
+        let item = rename("from t |> rename id as eid");
+        assert_eq!(text(item.qualifier()), None);
+        assert_eq!(text(item.from()).as_deref(), Some("id"));
+        assert_eq!(text(item.to()).as_deref(), Some("eid"));
+    }
+
+    #[test]
+    fn join_reads_its_relation_and_alias() {
+        let join = join("from t |> join u as d on a == d.b");
+        assert_eq!(text(join.relation()).as_deref(), Some("u"));
+        assert_eq!(text(join.alias()).as_deref(), Some("d"));
+        assert_eq!(join.kind(), None);
+        assert!(join.on().is_some());
+        assert!(join.using().is_none());
+    }
+
+    #[test]
+    fn join_alias_is_optional_and_may_omit_as() {
+        assert_eq!(
+            text(join("from t |> join u d on a == d.b").alias()).as_deref(),
+            Some("d")
+        );
+        assert_eq!(text(join("from t |> join u on a == b").alias()), None);
+    }
+
+    #[test]
+    fn join_reads_its_kind() {
+        assert_eq!(
+            join("from t |> left join u on a == b").kind(),
+            Some(JoinKind::Left)
+        );
+        assert_eq!(
+            join("from t |> right join u on a == b").kind(),
+            Some(JoinKind::Right)
+        );
+        assert_eq!(
+            join("from t |> full join u on a == b").kind(),
+            Some(JoinKind::Full)
+        );
+        assert_eq!(
+            join("from t |> inner join u on a == b").kind(),
+            Some(JoinKind::Inner)
+        );
+    }
+
+    #[test]
+    fn join_reads_its_using_columns() {
+        let join = join("from t |> join u using (a, b)");
+        let columns: Vec<String> = join
+            .using()
+            .expect("a using clause")
+            .columns()
+            .filter_map(|column| column.text())
+            .collect();
+        assert_eq!(columns, ["a", "b"]);
+        assert!(join.on().is_none());
+    }
+
+    #[test]
+    fn join_ignores_the_idents_of_a_previous_stage() {
+        let join = join("from t |> drop a, b |> join u as d on c == d.e");
+        assert_eq!(text(join.relation()).as_deref(), Some("u"));
+        assert_eq!(text(join.alias()).as_deref(), Some("d"));
+    }
+
+    #[test]
+    fn a_nested_join_keeps_its_own_relation_and_kind() {
+        let outer = join("from t |> left join u on a == b |> join v as x on c == x.d");
+        assert_eq!(text(outer.relation()).as_deref(), Some("v"));
+        assert_eq!(text(outer.alias()).as_deref(), Some("x"));
+        assert_eq!(outer.kind(), None);
     }
 }

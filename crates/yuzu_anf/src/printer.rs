@@ -2,7 +2,8 @@ use yuzu_core::adt::{StringInterner, SymbolId};
 
 use crate::AnfCtx;
 use crate::anf::{
-    Atom, AtomId, Const, Expr, ExprId, Op, Rel, RelId, Root, SelectItem, Stmt, StmtId, Thunk,
+    Atom, AtomId, Const, Expr, ExprId, JoinCondition, Op, Rel, RelId, Root, SelectItem, Stmt,
+    StmtId, Thunk,
 };
 
 struct AnfPrinter<'a> {
@@ -169,6 +170,33 @@ impl AnfPrinter<'_> {
                     out.push_str(self.text(alias.name));
                 }
             }
+            Rel::Join {
+                left,
+                right,
+                kind,
+                condition,
+                ..
+            } => {
+                self.fmt_rel(*left, depth, out);
+                self.fmt_stage(depth, kind.keyword(), out);
+                out.push_str(" join ");
+                self.fmt_rel(*right, depth, out);
+                match condition {
+                    JoinCondition::On(thunk) => {
+                        out.push_str(" on ");
+                        self.fmt_thunk(thunk, depth, out);
+                    }
+                    JoinCondition::Using(columns) => {
+                        out.push_str(" using ");
+                        for (i, column) in columns.iter().enumerate() {
+                            if i > 0 {
+                                out.push_str(", ");
+                            }
+                            out.push_str(self.text(column.name));
+                        }
+                    }
+                }
+            }
             Rel::Select { input, items, .. } => {
                 self.fmt_rel(*input, depth, out);
                 self.fmt_stage(depth, "select ", out);
@@ -281,6 +309,11 @@ impl AnfPrinter<'_> {
                 self.fmt_atom(*base, out);
                 out.push('.');
                 out.push_str(self.text(field.name));
+            }
+            crate::anf::Atom::Column { row, name, .. } => {
+                out.push_str(self.binding_name(*row));
+                out.push('.');
+                out.push_str(self.text(name.name));
             }
             crate::anf::Atom::Const(constant) => self.fmt_const(constant, out),
         }

@@ -1,1 +1,2 @@
 datafusion>=54
+pytest>=8

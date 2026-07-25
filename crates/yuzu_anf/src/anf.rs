@@ -175,6 +175,33 @@ pub struct RenameItem {
     pub to: Ident,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum JoinKind {
+    Inner,
+    Left,
+    Right,
+    Full,
+}
+
+impl JoinKind {
+    pub fn keyword(self) -> &'static str {
+        match self {
+            JoinKind::Inner => "inner",
+            JoinKind::Left => "left",
+            JoinKind::Right => "right",
+            JoinKind::Full => "full",
+        }
+    }
+}
+
+/// Not desugared to an equality: both sides spell the column the same way, so
+/// only the plan's field indices can tell them apart.
+#[derive(Clone, PartialEq, Eq, TreeCopy)]
+pub enum JoinCondition {
+    On(Thunk),
+    Using(Box<[Ident]>),
+}
+
 /// A relational pipeline stage. Inputs nest, so a `RelId` chain mirrors the
 /// `|>` pipeline. Each carries its own `Relation[row]` type.
 #[derive(Clone, PartialEq, Eq, TreeCopy)]
@@ -182,6 +209,13 @@ pub enum Rel {
     From {
         relation: Ident,
         alias: Option<Ident>,
+        ty: TypeId,
+    },
+    Join {
+        left: RelId,
+        right: RelId,
+        kind: JoinKind,
+        condition: JoinCondition,
         ty: TypeId,
     },
     Select {
@@ -227,6 +261,15 @@ pub enum Atom {
     Field {
         base: AtomId,
         field: Ident,
+        ty: TypeId,
+    },
+    /// A column of the row flowing through the query, resolved to its position
+    /// by lowering — a join concatenates rows, so a name alone no longer says
+    /// which column is meant. `row` and `name` are kept for printing.
+    Column {
+        row: BindingId,
+        name: Ident,
+        column: u32,
         ty: TypeId,
     },
     Const(Const),
@@ -285,7 +328,7 @@ macro_rules! leaf_copy {
     )*};
 }
 
-leaf_copy!(AtomId, BindingId, Ident, SymbolId, TypeId, Op);
+leaf_copy!(AtomId, BindingId, Ident, SymbolId, TypeId, Op, JoinKind);
 
 impl<T: TreeCopy> TreeCopy for Option<T> {
     fn copy_tree(&self, copier: &mut impl TreeCopier) -> Self {
