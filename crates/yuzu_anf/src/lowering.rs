@@ -41,7 +41,6 @@ pub fn lower(
         source_id,
         pending: Vec::new(),
         temp: 0,
-        current_row: None,
     }
     .lower_root(root)
 }
@@ -60,7 +59,6 @@ struct AnfLowerer<'l> {
     // Internal State
     pending: Vec<StmtId>,
     temp: usize,
-    current_row: Option<BindingId>,
 }
 
 impl AnfLowerer<'_> {
@@ -254,9 +252,7 @@ impl AnfLowerer<'_> {
             hir::Expr::ListInit { elements } => self.lower_list_init(id, elements),
             hir::Expr::Rel(rel) => {
                 self.symbols.push_scope();
-                let saved_row = self.current_row.take();
                 let rel = self.lower_rel(*rel);
-                self.current_row = saved_row;
                 self.symbols.pop_scope();
                 Expr::Rel(rel)
             }
@@ -289,13 +285,8 @@ impl AnfLowerer<'_> {
         let atom = match self.symbols.lookup(name) {
             Some(Symbol::Value(binding)) => Atom::Var { binding },
             Some(Symbol::Func(binding, ty)) => Atom::FuncRef { binding, ty },
-            // A bare column of the current query row.
-            None => {
-                let row = self
-                    .current_row
-                    .expect("identifier resolves to a binding or a query column");
-                self.column_atom(id, row, name)
-            }
+            // A bare column of the query row.
+            None => self.column_atom(id, name),
         };
         Expr::Atom {
             value: self.anf.intern_atom(atom),
@@ -303,18 +294,17 @@ impl AnfLowerer<'_> {
     }
 
     fn lower_field_access(&mut self, id: hir::ExprId, base: hir::ExprId, field: SymbolId) -> Expr {
-        let base = self.force_atom(base);
-        let ty = self.expr_ty(id);
-
-        // Inference decided whether this reads a column or a struct field.
-        if let Atom::Var { binding } = *self.anf.atom(base)
-            && self.types.column(id).is_some()
-        {
-            let atom = self.column_atom(id, binding, field);
+        // Inference decided whether this reads a column or a struct field; a
+        // column's qualifier names a relation, which is not a value to lower.
+        if self.types.column(id).is_some() {
+            let atom = self.column_atom(id, field);
             return Expr::Atom {
                 value: self.anf.intern_atom(atom),
             };
         }
+
+        let base = self.force_atom(base);
+        let ty = self.expr_ty(id);
 
         Expr::Atom {
             value: self.anf.intern_atom(Atom::Field {
@@ -325,9 +315,8 @@ impl AnfLowerer<'_> {
         }
     }
 
-    fn column_atom(&mut self, id: hir::ExprId, row: BindingId, name: SymbolId) -> Atom {
+    fn column_atom(&mut self, id: hir::ExprId, name: SymbolId) -> Atom {
         Atom::Column {
-            row,
             name: Ident { name },
             column: self
                 .types
@@ -430,15 +419,6 @@ impl AnfLowerer<'_> {
     }
 
     fn lower_from_rel(&mut self, relation: SymbolId, alias: Option<hir::Ident>, ty: TypeId) -> Rel {
-        let name = match alias {
-            Some(alias) => Ident { name: alias.symbol },
-            None => self.fresh_temp(),
-        };
-        let row = self.make_row(name, ty);
-        self.current_row = Some(row);
-        if let Some(alias) = alias {
-            self.symbols.bind_value(alias.symbol, row);
-        }
         Rel::From {
             relation: Ident { name: relation },
             alias: alias.map(|alias| Ident { name: alias.symbol }),
@@ -457,8 +437,6 @@ impl AnfLowerer<'_> {
         let left = self.lower_rel(left);
         let right = self.lower_rel(right);
 
-        // `on` sees the joined row, so bare column names reach either side.
-        self.current_row = Some(self.fresh_row(ty));
         let condition = match condition {
             hir::JoinCondition::On(expr) => JoinCondition::On(self.lower_thunk(*expr)),
             hir::JoinCondition::Using(columns) => JoinCondition::Using(
@@ -491,8 +469,6 @@ impl AnfLowerer<'_> {
             .iter()
             .map(|item| self.lower_select_item(item))
             .collect();
-        // Hand the next stage this select's output row.
-        self.current_row = Some(self.fresh_row(ty));
         Rel::Select { input, items, ty }
     }
 
@@ -515,7 +491,6 @@ impl AnfLowerer<'_> {
                 name: column.symbol,
             })
             .collect();
-        self.current_row = Some(self.fresh_row(ty));
         Rel::Drop { input, columns, ty }
     }
 
@@ -537,7 +512,6 @@ impl AnfLowerer<'_> {
                 },
             })
             .collect();
-        self.current_row = Some(self.fresh_row(ty));
         Rel::Rename { input, items, ty }
     }
 
@@ -552,7 +526,6 @@ impl AnfLowerer<'_> {
             .iter()
             .map(|item| self.lower_select_item(item))
             .collect();
-        self.current_row = Some(self.fresh_row(ty));
         Rel::Extend { input, items, ty }
     }
 
@@ -574,15 +547,6 @@ impl AnfLowerer<'_> {
             stmts: stmts.into_boxed_slice(),
             value,
         }
-    }
-
-    fn make_row(&mut self, name: Ident, row_ty: TypeId) -> BindingId {
-        self.anf.alloc_binding(Binding { name, ty: row_ty })
-    }
-
-    fn fresh_row(&mut self, rel_ty: TypeId) -> BindingId {
-        let name = self.fresh_temp();
-        self.make_row(name, rel_ty)
     }
 
     fn rel_ty(&self, id: hir::RelId) -> TypeId {
@@ -1292,8 +1256,8 @@ mod tests {
                 struct Row { a, b, active }
                 table t
                 let q = from t as e
-                  |> where e.active
-                  |> select e.a, e.b
+                  |> where active
+                  |> select a, b
             "#]],
         );
     }
@@ -1306,7 +1270,7 @@ mod tests {
                 struct Row { a, b, active }
                 table t
                 let q = from t
-                  |> select add(%t0.a, %t0.b) as sum
+                  |> select add(a, b) as sum
             "#]],
         );
     }
@@ -1325,7 +1289,7 @@ mod tests {
                 struct Other { a, c }
                 table u
                 let q = from t as e
-                  |> inner join from d as x on eq(e.a, x.code)
+                  |> inner join from d as x on eq(a, code)
             "#]],
         );
     }
@@ -1342,7 +1306,7 @@ mod tests {
                 struct Other { a, c }
                 table u
                 let q = from t
-                  |> inner join from d on eq(%t2.a, %t2.code)
+                  |> inner join from d on eq(a, code)
             "#]],
         );
     }
@@ -1376,7 +1340,7 @@ mod tests {
                 let q = from t
                   |> drop b
                   |> rename a as x
-                  |> extend %t2.active as flag
+                  |> extend active as flag
                   |> distinct
             "#]],
         );

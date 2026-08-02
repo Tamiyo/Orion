@@ -310,11 +310,7 @@ impl AnfPrinter<'_> {
                 out.push('.');
                 out.push_str(self.text(field.name));
             }
-            crate::anf::Atom::Column { row, name, .. } => {
-                out.push_str(self.binding_name(*row));
-                out.push('.');
-                out.push_str(self.text(name.name));
-            }
+            crate::anf::Atom::Column { name, .. } => out.push_str(self.text(name.name)),
             crate::anf::Atom::Const(constant) => self.fmt_const(constant, out),
         }
     }
