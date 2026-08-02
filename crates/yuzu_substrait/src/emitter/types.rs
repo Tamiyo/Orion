@@ -3,7 +3,7 @@ use substrait::proto::{
     r#type::{self, Kind, Nullability},
 };
 use yuzu_core::adt::SymbolId;
-use yuzu_types::{Type, TypeId};
+use yuzu_types::{Column, Type, TypeId};
 
 use crate::emitter::SubstraitEmitter;
 
@@ -65,34 +65,17 @@ impl SubstraitEmitter<'_> {
         SubstraitType { kind: Some(kind) }
     }
 
-    pub(crate) fn row_ty(&self, rel_ty: TypeId) -> TypeId {
+    pub(crate) fn row_columns(&self, rel_ty: TypeId) -> &[Column] {
         let Type::Relation(relation) = self.types.ty(rel_ty) else {
             unreachable!("a pipeline stage always has a relation type")
         };
-        relation.inner
+        &relation.columns
     }
 
-    pub(crate) fn row_fields(&self, rel_ty: TypeId) -> &[(SymbolId, TypeId)] {
-        let Type::Struct(row) = self.types.ty(self.row_ty(rel_ty)) else {
-            unreachable!("a relation's element is always a row struct")
-        };
-        &row.fields
-    }
-
-    /// `None` for a column the row does not have — an alias can outlive the row
-    /// it named, and a plan cannot express that.
-    pub(crate) fn row_index(&self, row: TypeId, name: SymbolId) -> Option<i32> {
-        let Type::Struct(row) = self.types.ty(row) else {
-            return None;
-        };
-        row.fields
+    pub(crate) fn field_index(&self, rel_ty: TypeId, name: SymbolId) -> i32 {
+        self.row_columns(rel_ty)
             .iter()
-            .position(|&(field, _)| field == name)
-            .map(|index| index as i32)
-    }
-
-    pub(crate) fn field_index(&self, row: TypeId, name: SymbolId) -> i32 {
-        self.row_index(row, name)
-            .expect("field not found in row struct while emitting Substrait")
+            .position(|column| column.name == name)
+            .expect("column not found while emitting Substrait") as i32
     }
 }

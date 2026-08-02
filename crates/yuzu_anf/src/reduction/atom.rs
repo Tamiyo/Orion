@@ -126,7 +126,7 @@ mod tests {
                 table t
                 struct P { v }
                 from t
-                  |> select %t0.a
+                  |> select a
             "#]],
         );
     }
@@ -139,7 +139,7 @@ mod tests {
                 struct Row { a, b }
                 table t
                 from t
-                  |> select %t0.a
+                  |> select a
             "#]],
         );
     }
@@ -237,7 +237,7 @@ mod tests {
                 table t
                 struct P { v }
                 from t
-                  |> select %t0.a
+                  |> select a
                 let p = P { v: 40i64 }
                 p
                 p
@@ -253,7 +253,7 @@ mod tests {
                 struct Row { a, b }
                 table t
                 from t
-                  |> where xs = [1i32, 2i32]; %r0 = in(%t0.a, xs); %r0
+                  |> where xs = [1i32, 2i32]; %r0 = in(a, xs); %r0
             "#]],
         );
     }
@@ -266,7 +266,7 @@ mod tests {
                 struct Row { a, b }
                 table t
                 from t
-                  |> select %t0.a
+                  |> select a
                 let xs = [1i64, 2i64]
                 xs
                 xs
@@ -303,7 +303,7 @@ mod tests {
                 struct I { x }
                 struct O { i }
                 from t
-                  |> select %t0.a
+                  |> select a
                 let deep = I { x: 5i64 }
                 let outer = O { i: deep }
                 outer
@@ -322,7 +322,7 @@ mod tests {
                 table t
                 struct S { xs }
                 from t
-                  |> select %t1.a
+                  |> select a
             "#]],
         );
     }
@@ -338,7 +338,7 @@ mod tests {
                 table t
                 struct S { xs }
                 from t
-                  |> select %t1.a
+                  |> select a
                 let %t0 = [1i64, 2i64]
                 let s = S { xs: %t0 }
                 s

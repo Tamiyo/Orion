@@ -1,5 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
 use yuzu_core::adt::{Int, Signedness, StringInterner, SymbolId};
 use yuzu_diagnostics::{
     diagnostics::{Span, builder::DiagnosticBuilder, engine::DiagnosticsEngine},
@@ -43,9 +41,6 @@ pub fn lower(
         source_id,
         pending: Vec::new(),
         temp: 0,
-        current_row: None,
-        rows: HashSet::new(),
-        placements: HashMap::new(),
     }
     .lower_root(root)
 }
@@ -64,11 +59,6 @@ struct AnfLowerer<'l> {
     // Internal State
     pending: Vec<StmtId>,
     temp: usize,
-    current_row: Option<BindingId>,
-    /// Every row binding, so `alias.column` is told apart from struct access.
-    rows: HashSet<BindingId>,
-    /// Where each addressable row's columns sit in the current stage's row.
-    placements: HashMap<BindingId, Vec<Option<u32>>>,
 }
 
 impl AnfLowerer<'_> {
@@ -165,17 +155,10 @@ impl AnfLowerer<'_> {
         })
     }
 
-    /// Both `table` and `inline table` declarations lower to a table over a row
-    /// type; inference has already reduced the row to a struct type either way.
     fn lower_table_stmt(&mut self, id: hir::StmtId, name: SymbolId) -> StmtId {
-        let table_ty = self.decl_ty(id);
-        let row = match self.type_ctx.ty(table_ty) {
-            Type::Relation(relation) => relation.inner,
-            _ => table_ty,
-        };
         self.anf.alloc_stmt(Stmt::Table {
             name: Ident { name },
-            row,
+            row: self.decl_ty(id),
         })
     }
 
@@ -269,9 +252,7 @@ impl AnfLowerer<'_> {
             hir::Expr::ListInit { elements } => self.lower_list_init(id, elements),
             hir::Expr::Rel(rel) => {
                 self.symbols.push_scope();
-                let saved_row = self.current_row.take();
                 let rel = self.lower_rel(*rel);
-                self.current_row = saved_row;
                 self.symbols.pop_scope();
                 Expr::Rel(rel)
             }
@@ -304,13 +285,8 @@ impl AnfLowerer<'_> {
         let atom = match self.symbols.lookup(name) {
             Some(Symbol::Value(binding)) => Atom::Var { binding },
             Some(Symbol::Func(binding, ty)) => Atom::FuncRef { binding, ty },
-            // A bare column of the current query row.
-            None => {
-                let row = self
-                    .current_row
-                    .expect("identifier resolves to a binding or a query column");
-                self.column_atom(id, row, name)
-            }
+            // A bare column of the query row.
+            None => self.column_atom(id, name),
         };
         Expr::Atom {
             value: self.anf.intern_atom(atom),
@@ -318,19 +294,17 @@ impl AnfLowerer<'_> {
     }
 
     fn lower_field_access(&mut self, id: hir::ExprId, base: hir::ExprId, field: SymbolId) -> Expr {
-        let base = self.force_atom(base);
-        let ty = self.expr_ty(id);
-
-        // `alias.column` against a row in scope is a query column; anything else
-        // is a field of a compile-time struct.
-        if let Atom::Var { binding } = *self.anf.atom(base)
-            && self.rows.contains(&binding)
-        {
-            let atom = self.column_atom(id, binding, field);
+        // Inference decided whether this reads a column or a struct field; a
+        // column's qualifier names a relation, which is not a value to lower.
+        if self.types.column(id).is_some() {
+            let atom = self.column_atom(id, field);
             return Expr::Atom {
                 value: self.anf.intern_atom(atom),
             };
         }
+
+        let base = self.force_atom(base);
+        let ty = self.expr_ty(id);
 
         Expr::Atom {
             value: self.anf.intern_atom(Atom::Field {
@@ -341,122 +315,15 @@ impl AnfLowerer<'_> {
         }
     }
 
-    /// Resolves `row.name` to its position in the row the current stage's
-    /// expressions index.
-    fn column_atom(&mut self, id: hir::ExprId, row: BindingId, name: SymbolId) -> Atom {
-        let ty = self.expr_ty(id);
-        let Some(column) = self.column_of(row, name) else {
-            let text = self.interner.text(name).to_string();
-            self.report_expr(id, format!("column `{text}` is not available here"));
-            return Atom::Column {
-                row,
-                name: Ident { name },
-                column: 0,
-                ty,
-            };
-        };
+    fn column_atom(&mut self, id: hir::ExprId, name: SymbolId) -> Atom {
         Atom::Column {
-            row,
             name: Ident { name },
-            column,
-            ty,
+            column: self
+                .types
+                .column(id)
+                .expect("inference resolves every column reference"),
+            ty: self.expr_ty(id),
         }
-    }
-
-    fn column_of(&self, row: BindingId, name: SymbolId) -> Option<u32> {
-        let placement = self.placements.get(&row)?;
-        let row_ty = self.anf.binding(row).ty;
-        let Type::Struct(fields) = self.type_ctx.ty(row_ty) else {
-            return None;
-        };
-        let index = fields.fields.iter().position(|&(field, _)| field == name)?;
-        placement.get(index).copied().flatten()
-    }
-
-    /// Places a row's columns at consecutive positions from `start`.
-    fn place_row(&mut self, row: BindingId, start: u32, width: u32) {
-        self.rows.insert(row);
-        self.placements
-            .insert(row, (start..start + width).map(Some).collect());
-    }
-
-    /// `where`, `extend` and `rename` leave the input's columns where they were,
-    /// so every alias stays addressable and only the new row is added.
-    fn carry_row(&mut self, ty: TypeId) -> BindingId {
-        let row = self.fresh_row(ty);
-        self.place_row(row, 0, self.row_width(ty));
-        row
-    }
-
-    /// The joined relation's columns follow the left input's. A `using` key is
-    /// carried once, from the left, so the right's copy of it lands there.
-    fn place_joined_row(
-        &mut self,
-        row: BindingId,
-        left_ty: TypeId,
-        right_ty: TypeId,
-        condition: &hir::JoinCondition,
-    ) {
-        let keys: Vec<SymbolId> = match condition {
-            hir::JoinCondition::On(_) => Vec::new(),
-            hir::JoinCondition::Using(columns) => {
-                columns.iter().map(|column| column.symbol).collect()
-            }
-        };
-
-        let left = self.row_fields(left_ty);
-        let mut placement = Vec::new();
-        let mut next = left.len() as u32;
-        for (name, _) in self.row_fields(right_ty) {
-            if keys.contains(&name) {
-                let carried = left.iter().position(|&(field, _)| field == name);
-                placement.push(carried.map(|index| index as u32));
-                continue;
-            }
-            placement.push(Some(next));
-            next += 1;
-        }
-
-        self.rows.insert(row);
-        self.placements.insert(row, placement);
-    }
-
-    /// `select` builds an unrelated row, so the aliases that named the old one
-    /// stop resolving.
-    fn reshape_row(&mut self, ty: TypeId) -> BindingId {
-        self.placements.clear();
-        self.carry_row(ty)
-    }
-
-    /// `drop` shifts every column after the ones it removes.
-    fn dropped_row(&mut self, ty: TypeId, input_ty: TypeId, dropped: &[hir::Ident]) -> BindingId {
-        let mut moved = Vec::new();
-        let mut next = 0;
-        for (name, _) in self.row_fields(input_ty) {
-            let kept = !dropped.iter().any(|column| column.symbol == name);
-            moved.push(kept.then(|| {
-                next += 1;
-                next - 1
-            }));
-        }
-
-        for placement in self.placements.values_mut() {
-            for column in placement.iter_mut() {
-                *column = column.and_then(|index| moved.get(index as usize).copied().flatten());
-            }
-        }
-        self.carry_row(ty)
-    }
-
-    fn row_fields(&self, rel_ty: TypeId) -> Vec<(SymbolId, TypeId)> {
-        match self.type_ctx.ty(self.rel_row(rel_ty)) {
-            Type::Struct(row) => row.fields.clone(),
-            _ => Vec::new(),
-        }
-    }
-
-    fn row_width(&self, rel_ty: TypeId) -> u32 {
-        self.row_fields(rel_ty).len() as u32
     }
 
     fn lower_call(&mut self, id: hir::ExprId, op: hir::Op, args: &[hir::ExprId]) -> Expr {
@@ -552,17 +419,6 @@ impl AnfLowerer<'_> {
     }
 
     fn lower_from_rel(&mut self, relation: SymbolId, alias: Option<hir::Ident>, ty: TypeId) -> Rel {
-        let name = match alias {
-            Some(alias) => Ident { name: alias.symbol },
-            None => self.fresh_temp(),
-        };
-        let row_ty = self.rel_row(ty);
-        let row = self.make_row(name, row_ty);
-        self.place_row(row, 0, self.row_width(ty));
-        self.current_row = Some(row);
-        if let Some(alias) = alias {
-            self.symbols.bind_value(alias.symbol, row);
-        }
         Rel::From {
             relation: Ident { name: relation },
             alias: alias.map(|alias| Ident { name: alias.symbol }),
@@ -578,19 +434,9 @@ impl AnfLowerer<'_> {
         condition: &hir::JoinCondition,
         ty: TypeId,
     ) -> Rel {
-        let left_ty = self.rel_ty(left);
         let left = self.lower_rel(left);
-        let right_ty = self.rel_ty(right);
         let right = self.lower_rel(right);
-        let right_row = self
-            .current_row
-            .expect("the joined relation always leaves a row");
-        self.place_joined_row(right_row, left_ty, right_ty, condition);
 
-        // `on` sees the joined row, so bare column names reach either side.
-        let joined = self.fresh_row(ty);
-        self.place_row(joined, 0, self.row_width(ty));
-        self.current_row = Some(joined);
         let condition = match condition {
             hir::JoinCondition::On(expr) => JoinCondition::On(self.lower_thunk(*expr)),
             hir::JoinCondition::Using(columns) => JoinCondition::Using(
@@ -623,8 +469,6 @@ impl AnfLowerer<'_> {
             .iter()
             .map(|item| self.lower_select_item(item))
             .collect();
-        // Hand the next stage this select's output row.
-        self.current_row = Some(self.reshape_row(ty));
         Rel::Select { input, items, ty }
     }
 
@@ -640,8 +484,6 @@ impl AnfLowerer<'_> {
     }
 
     fn lower_drop_rel(&mut self, input: hir::RelId, columns: &[hir::Ident], ty: TypeId) -> Rel {
-        let input_ty = self.rel_ty(input);
-        let drop_columns = columns;
         let input = self.lower_rel(input);
         let columns = columns
             .iter()
@@ -649,7 +491,6 @@ impl AnfLowerer<'_> {
                 name: column.symbol,
             })
             .collect();
-        self.current_row = Some(self.dropped_row(ty, input_ty, drop_columns));
         Rel::Drop { input, columns, ty }
     }
 
@@ -671,7 +512,6 @@ impl AnfLowerer<'_> {
                 },
             })
             .collect();
-        self.current_row = Some(self.carry_row(ty));
         Rel::Rename { input, items, ty }
     }
 
@@ -686,7 +526,6 @@ impl AnfLowerer<'_> {
             .iter()
             .map(|item| self.lower_select_item(item))
             .collect();
-        self.current_row = Some(self.carry_row(ty));
         Rel::Extend { input, items, ty }
     }
 
@@ -710,27 +549,10 @@ impl AnfLowerer<'_> {
         }
     }
 
-    fn make_row(&mut self, name: Ident, row_ty: TypeId) -> BindingId {
-        self.anf.alloc_binding(Binding { name, ty: row_ty })
-    }
-
-    fn fresh_row(&mut self, rel_ty: TypeId) -> BindingId {
-        let name = self.fresh_temp();
-        let row_ty = self.rel_row(rel_ty);
-        self.make_row(name, row_ty)
-    }
-
     fn rel_ty(&self, id: hir::RelId) -> TypeId {
         self.types
             .rel_ty(id)
             .expect("inference types every relation")
-    }
-
-    fn rel_row(&self, relation_ty: TypeId) -> TypeId {
-        match self.type_ctx.ty(relation_ty) {
-            Type::Relation(relation) => relation.inner,
-            _ => relation_ty,
-        }
     }
 
     fn force_atom(&mut self, id: hir::ExprId) -> AtomId {
@@ -912,61 +734,6 @@ mod tests {
         );
 
         expected.assert_eq(&dump(&anf, &interner, &anf_root));
-    }
-
-    /// Snapshots the diagnostics lowering itself reports, for programs that
-    /// type-check but name a column no stage can supply.
-    fn check_error(input: &str, expected: Expect) {
-        let mut interner = StringInterner::new();
-        let mut diagnostics = DiagnosticsEngine::new();
-        let mut sources = SourceMap::new();
-        let source_id = sources.add("test".to_string(), input.to_string());
-
-        let tokens: Vec<Token> = Lexer::new(input).collect();
-        let syntax = yuzu_parser::parse(&tokens, &mut diagnostics, source_id);
-        let ast_root = AstRoot::cast(syntax).expect("root node");
-
-        let mut hir = HirCtx::new();
-        let (hir_root, hir_source_map) = yuzu_hir::lower(
-            ast_root,
-            &mut hir,
-            &mut interner,
-            &mut diagnostics,
-            source_id,
-        );
-
-        let mut types = TypeCtx::new();
-        let inference = yuzu_hir::infer(
-            &hir_root,
-            &hir,
-            &mut interner,
-            &mut types,
-            &mut diagnostics,
-            &hir_source_map,
-            source_id,
-        );
-
-        let mut anf = AnfCtx::new();
-        let before = diagnostics.diagnostics().len();
-        lower(
-            &hir_root,
-            &hir,
-            &inference,
-            &types,
-            &mut anf,
-            &mut interner,
-            &mut diagnostics,
-            &hir_source_map,
-            source_id,
-        );
-
-        let reported: Vec<String> = diagnostics
-            .diagnostics()
-            .iter()
-            .skip(before)
-            .map(|d| d.message.clone())
-            .collect();
-        expected.assert_eq(&reported.join("\n"));
     }
 
     #[test]
@@ -1489,8 +1256,8 @@ mod tests {
                 struct Row { a, b, active }
                 table t
                 let q = from t as e
-                  |> where e.active
-                  |> select e.a, e.b
+                  |> where active
+                  |> select a, b
             "#]],
         );
     }
@@ -1503,20 +1270,12 @@ mod tests {
                 struct Row { a, b, active }
                 table t
                 let q = from t
-                  |> select add(%t0.a, %t0.b) as sum
+                  |> select add(a, b) as sum
             "#]],
         );
     }
 
     const JOIN_TABLES: &str = "struct Dept { code: int32, name: str }\ntable d = Dept\nstruct Other { a: int32, c: int32 }\ntable u = Other\n";
-
-    #[test]
-    fn reports_an_alias_that_outlived_its_row() {
-        check_error(
-            &format!("{TABLE}from t e |> select a |> where e.b > 0"),
-            expect!["column `b` is not available here"],
-        );
-    }
 
     #[test]
     fn query_join_on_resolves_both_sides() {
@@ -1530,7 +1289,7 @@ mod tests {
                 struct Other { a, c }
                 table u
                 let q = from t as e
-                  |> inner join from d as x on eq(e.a, x.code)
+                  |> inner join from d as x on eq(a, code)
             "#]],
         );
     }
@@ -1547,7 +1306,7 @@ mod tests {
                 struct Other { a, c }
                 table u
                 let q = from t
-                  |> inner join from d on eq(%t2.a, %t2.code)
+                  |> inner join from d on eq(a, code)
             "#]],
         );
     }
@@ -1581,7 +1340,7 @@ mod tests {
                 let q = from t
                   |> drop b
                   |> rename a as x
-                  |> extend %t2.active as flag
+                  |> extend active as flag
                   |> distinct
             "#]],
         );

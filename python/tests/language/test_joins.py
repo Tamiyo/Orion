@@ -45,7 +45,8 @@ def test_using_condition():
 
 def test_using_with_several_keys():
     assert rows(
-        "from employees a |> join employees b using (id, dept_id) |> select id, dept_id"
+        "from employees a |> join employees b using (id, dept_id)"
+        " |> select a.id as id, b.dept_id as dept_id"
     ) == sorted_rows(("e1", 1), ("e2", 2), ("e3", 1), ("e4", 9))
 
 

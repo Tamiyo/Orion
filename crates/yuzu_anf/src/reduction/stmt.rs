@@ -380,7 +380,7 @@ mod tests {
                 let %r0 = r()
                 %r0
                 from t
-                  |> select %t0.a
+                  |> select a
             "#]],
         );
     }
@@ -408,7 +408,7 @@ mod tests {
                 struct Row { a, b }
                 table t
                 from t
-                  |> select %t0.a
+                  |> select a
                 return 1i64
             "#]],
         );

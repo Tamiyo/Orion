@@ -1,3 +1,21 @@
 [workspace]
 members = ["crates/*"]
+
+# The binaries and the pyo3 extension carry no tests, and building the
+# extension links against Python on every `cargo test`. Leave them out of the
+# default loop; `cargo run -p yuzu_driver` and `cargo e2e` name them explicitly.
+default-members = [
+    "crates/yuzu_anf",
+    "crates/yuzu_anf_derive",
+    "crates/yuzu_ast",
+    "crates/yuzu_core",
+    "crates/yuzu_diagnostics",
+    "crates/yuzu_hir",
+    "crates/yuzu_lexer",
+    "crates/yuzu_parser",
+    "crates/yuzu_substrait",
+    "crates/yuzu_syntax",
+    "crates/yuzu_types",
+]
+
 resolver = "3"

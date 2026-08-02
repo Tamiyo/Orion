@@ -33,6 +33,7 @@ pub fn infer<'i>(
 pub struct InferenceResult {
     expr_types: HashMap<ExprId, TypeId>,
     rel_types: HashMap<RelId, TypeId>,
+    columns: HashMap<ExprId, u32>,
     stmt_types: HashMap<StmtId, TypeId>,
     adjustments: HashMap<ExprId, TypeId>,
 }
@@ -44,6 +45,12 @@ impl InferenceResult {
 
     pub fn rel_ty(&self, id: RelId) -> Option<TypeId> {
         self.rel_types.get(&id).copied()
+    }
+
+    /// Which column of its stage's row an expression reads, for the expressions
+    /// that are column references. `None` for everything else.
+    pub fn column(&self, id: ExprId) -> Option<u32> {
+        self.columns.get(&id).copied()
     }
 
     /// The declared type of a declaration statement (struct, table, or func).
@@ -105,6 +112,10 @@ impl<'i> InferCtx<'i> {
     fn bind_expr_ty(&mut self, id: ExprId, ty: TypeId) -> TypeId {
         self.result.expr_types.insert(id, ty);
         ty
+    }
+
+    fn bind_column(&mut self, id: ExprId, column: u32) {
+        self.result.columns.insert(id, column);
     }
 
     fn bind_rel_ty(&mut self, id: RelId, ty: TypeId) -> TypeId {

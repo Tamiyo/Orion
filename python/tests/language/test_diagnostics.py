@@ -15,34 +15,31 @@ def test_unknown_column():
 
 
 def test_unknown_table():
-    assert error_of("from nope |> select level") == "error: `nope` is not a table"
+    assert error_of("from nope |> select level") == "error: `nope` is not a relation"
 
 
 def test_non_bool_predicate():
     assert (
         error_of("from employees |> where level")
-        == "error: `where` predicate must be `bool`, found `Int64`"
+        == "error: expected ``where` predicate` to be a `bool` type, but found `Int64`"
     )
 
 
 def test_non_bool_join_condition():
     assert (
         error_of("from employees e |> join departments d on e.dept_id")
-        == "error: `on` condition must be `bool`, found `Int64`"
+        == "error: expected ``on` condition` to be a `bool` type, but found `Int64`"
     )
 
 
 def test_using_column_missing_from_a_side():
     assert (
         error_of("from employees e |> join departments d using (nope)")
-        == "error: `using` column `nope` is not in the join's left input"
+        == "error: column nope not present in both relations"
     )
-
-
-def test_using_column_missing_from_the_joined_relation():
     assert (
         error_of("from employees e |> join departments d using (salary)")
-        == "error: `using` column `salary` is not in the joined relation"
+        == "error: column salary not present in both relations"
     )
 
 

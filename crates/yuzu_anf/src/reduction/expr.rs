@@ -348,7 +348,7 @@ mod tests {
                 struct Row { a, b }
                 table t
                 let q = from t
-                  |> select mul(%t1.b, 2i32) as db
+                  |> select mul(b, 2i32) as db
             "#]],
         );
     }
@@ -426,7 +426,7 @@ mod tests {
                 table t
                 from t
                   |> where true
-                  |> where xs = [1i32, 2i32]; %r0 = in(%t0.a, xs); %r0
+                  |> where xs = [1i32, 2i32]; %r0 = in(a, xs); %r0
             "#]],
         );
     }

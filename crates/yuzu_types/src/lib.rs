@@ -93,8 +93,23 @@ impl TypeCtx {
         self.float64
     }
 
-    pub fn relation_ty(&mut self, inner: TypeId) -> TypeId {
-        self.intern_ty(Type::Relation(Relation { inner }))
+    pub fn relation_ty(&mut self, columns: Vec<Column>) -> TypeId {
+        self.intern_ty(Type::Relation(Relation { columns }))
+    }
+
+    /// A relation over a declared row type, every column named through the one
+    /// qualifier the source is addressed by.
+    pub fn relation_of_row(&mut self, row: TypeId, qualifier: Option<SymbolId>) -> TypeId {
+        let Type::Struct(row) = self.ty(row) else {
+            return self.error_ty();
+        };
+        let columns = row
+            .fields
+            .clone()
+            .into_iter()
+            .map(|(name, ty)| Column::new(qualifier, name, ty))
+            .collect();
+        self.relation_ty(columns)
     }
 
     pub fn list_ty(&mut self, inner: TypeId) -> TypeId {
@@ -143,11 +158,42 @@ mod tests {
     #[test]
     fn relation_ty_is_hash_consed() {
         let mut types = TypeCtx::new();
-        let inner = types.int64_ty();
-        let a = types.relation_ty(inner);
-        let b = types.relation_ty(inner);
+        let int = types.int64_ty();
+        let columns = vec![Column::new(Some(sym(0)), sym(1), int)];
+        let a = types.relation_ty(columns.clone());
+        let b = types.relation_ty(columns.clone());
         assert_eq!(a, b);
-        assert_eq!(types.ty(a), &Type::Relation(Relation { inner }));
+        assert_eq!(types.ty(a), &Type::Relation(Relation { columns }));
+    }
+
+    #[test]
+    fn relations_differing_only_by_qualifier_are_distinct() {
+        let mut types = TypeCtx::new();
+        let int = types.int64_ty();
+        let a = types.relation_ty(vec![Column::new(Some(sym(0)), sym(2), int)]);
+        let b = types.relation_ty(vec![Column::new(Some(sym(1)), sym(2), int)]);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn relation_of_row_qualifies_every_column() {
+        let mut types = TypeCtx::new();
+        let int = types.int64_ty();
+        let row = types.struct_ty(sym(0), vec![(sym(1), int), (sym(2), int)]);
+        let relation = types.relation_of_row(row, Some(sym(3)));
+        let Type::Relation(relation) = types.ty(relation) else {
+            panic!("expected a relation")
+        };
+        assert!(
+            relation
+                .columns
+                .iter()
+                .all(|column| column.named_by(sym(3)))
+        );
+        assert_eq!(
+            relation.columns.iter().map(|c| c.name).collect::<Vec<_>>(),
+            vec![sym(1), sym(2)]
+        );
     }
 
     #[test]

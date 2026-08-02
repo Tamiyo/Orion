@@ -264,10 +264,9 @@ pub enum Atom {
         ty: TypeId,
     },
     /// A column of the row flowing through the query, resolved to its position
-    /// by lowering — a join concatenates rows, so a name alone no longer says
-    /// which column is meant. `row` and `name` are kept for printing.
+    /// by inference — a join concatenates rows, so a name alone no longer says
+    /// which column is meant. `name` is kept for printing.
     Column {
-        row: BindingId,
         name: Ident,
         column: u32,
         ty: TypeId,

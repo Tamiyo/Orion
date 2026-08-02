@@ -30,9 +30,33 @@ pub enum Type {
     TypeVar(TypeVariable),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Relation {
-    pub inner: TypeId,
+    pub columns: Vec<Column>,
+}
+
+/// One column of a relation's row. A join concatenates rows, so a name alone
+/// need not be unique; the qualifier is the relation it can be named through —
+/// the `from`/`join` alias it came from, or none once a stage computes it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Column {
+    pub qualifier: Option<SymbolId>,
+    pub name: SymbolId,
+    pub ty: TypeId,
+}
+
+impl Column {
+    pub fn new(qualifier: Option<SymbolId>, name: SymbolId, ty: TypeId) -> Self {
+        Self {
+            qualifier,
+            name,
+            ty,
+        }
+    }
+
+    pub fn named_by(&self, qualifier: SymbolId) -> bool {
+        self.qualifier == Some(qualifier)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

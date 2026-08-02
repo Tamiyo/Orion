@@ -116,7 +116,7 @@ mod tests {
                 struct Row { a, b }
                 table t
                 let q = from t
-                  |> select %t0.a, 3i64 as three
+                  |> select a, 3i64 as three
             "#]],
         );
     }
@@ -129,8 +129,8 @@ mod tests {
                 struct Row { a, b }
                 table t
                 let q = from t
-                  |> where gt(%t0.a, 0i32)
-                  |> select %t0.a
+                  |> where gt(a, 0i32)
+                  |> select a
             "#]],
         );
     }
@@ -149,7 +149,7 @@ mod tests {
                 struct Codes { c, d }
                 table v
                 let q = from t
-                  |> inner join from v as x on %r0 = add(x.c, 2i32); %r1 = eq(%t1.b, %r0); %r1
+                  |> inner join from v as x on %r0 = add(c, 2i32); %r1 = eq(b, %r0); %r1
             "#]],
         );
     }
@@ -179,8 +179,8 @@ mod tests {
                 struct Row { a, b }
                 table t
                 from t
-                  |> where xs = [1i32, 2i32]; %r0 = in(%t0.a, xs); %r0
-                  |> where xs = [1i32, 2i32]; %r1 = in(%t0.b, xs); %r1
+                  |> where xs = [1i32, 2i32]; %r0 = in(a, xs); %r0
+                  |> where xs = [1i32, 2i32]; %r1 = in(b, xs); %r1
             "#]],
         );
     }

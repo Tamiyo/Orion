@@ -27,8 +27,16 @@ impl InferCtx<'_> {
                 self.types.list_ty(inner)
             }
             Type::Relation(r) => {
-                let inner = self.concretize_ty(r.inner);
-                self.types.relation_ty(inner)
+                let columns = r
+                    .columns
+                    .clone()
+                    .into_iter()
+                    .map(|column| yuzu_types::Column {
+                        ty: self.concretize_ty(column.ty),
+                        ..column
+                    })
+                    .collect();
+                self.types.relation_ty(columns)
             }
             Type::Func(f) => {
                 let args: Vec<TypeId> = f.args.iter().map(|&a| self.concretize_ty(a)).collect();

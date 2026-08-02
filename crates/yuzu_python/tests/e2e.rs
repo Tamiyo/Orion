@@ -19,12 +19,12 @@ fn python_end_to_end_suite() {
         venv.display(),
     );
 
-    // Build into its own target directory: this runs inside `cargo test`, and
-    // sharing the directory would contend for the lock the outer cargo holds.
+    // Share cargo's target directory: maturin keeps its own by default, which
+    // rebuilds pyo3 and the extension on every run instead of reusing them.
     run(
         Command::new(venv.join("bin/maturin"))
             .args(["develop", "-m", "crates/yuzu_python/Cargo.toml"])
-            .env("CARGO_TARGET_DIR", root.join("target/e2e"))
+            .args(["--target-dir", "target"])
             .current_dir(&root),
         "maturin develop",
     );
