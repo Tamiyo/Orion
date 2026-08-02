@@ -1,5 +1,5 @@
-use crate::anf::{JoinCondition, Rel, RelId, SelectItem, Thunk, TreeCopier};
 use crate::reduction::{AnfReducer, environment::Environment};
+use crate::{JoinCondition, Rel, RelId, SelectItem, SetItem, Thunk, TreeCopier};
 
 impl AnfReducer<'_> {
     pub(crate) fn reduce_rel(&mut self, id: RelId, env: &mut Environment) -> RelId {
@@ -63,6 +63,41 @@ impl AnfReducer<'_> {
             } => Rel::Rename {
                 input: self.reduce_rel(*source, env),
                 items: items.clone(),
+                ty: *ty,
+            },
+            Rel::Set {
+                input: source,
+                items,
+                ty,
+            } => Rel::Set {
+                input: self.reduce_rel(*source, env),
+                items: items
+                    .iter()
+                    .map(|item| SetItem {
+                        column: item.column,
+                        value: self.reduce_thunk(&item.value, env),
+                    })
+                    .collect(),
+                ty: *ty,
+            },
+            Rel::Limit {
+                input: source,
+                count,
+                offset,
+                ty,
+            } => Rel::Limit {
+                input: self.reduce_rel(*source, env),
+                count: self.reduce_thunk(count, env),
+                offset: offset.as_ref().map(|offset| self.reduce_thunk(offset, env)),
+                ty: *ty,
+            },
+            Rel::Alias {
+                input: source,
+                alias,
+                ty,
+            } => Rel::Alias {
+                input: self.reduce_rel(*source, env),
+                alias: *alias,
                 ty: *ty,
             },
             Rel::Extend {
@@ -167,6 +202,32 @@ mod tests {
                 table v
                 let q = from t
                   |> right join from u using a
+            "#]],
+        );
+    }
+
+    #[test]
+    fn folds_the_value_a_set_assigns() {
+        check(
+            &format!("{TABLE}let q = from t |> set a = 1 + 2"),
+            expect![[r#"
+                struct Row { a, b }
+                table t
+                let q = from t
+                  |> set a = 3i64
+            "#]],
+        );
+    }
+
+    #[test]
+    fn folds_a_limit_count() {
+        check(
+            &format!("{TABLE}let q = from t |> limit 2 * 5 offset 1"),
+            expect![[r#"
+                struct Row { a, b }
+                table t
+                let q = from t
+                  |> limit 10i64 offset 1i64
             "#]],
         );
     }

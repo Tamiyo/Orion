@@ -9,7 +9,7 @@ pub type AtomId = Id<Atom>;
 pub type BindingId = Id<Binding>;
 pub type RelId = Id<Rel>;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Op {
     Add,
     Sub,
@@ -169,6 +169,12 @@ pub struct SelectItem {
     pub alias: Option<Ident>,
 }
 
+#[derive(Clone, PartialEq, Eq, TreeCopy)]
+pub struct SetItem {
+    pub column: Ident,
+    pub value: Thunk,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, TreeCopy)]
 pub struct RenameItem {
     pub from: Ident,
@@ -245,6 +251,26 @@ pub enum Rel {
     Extend {
         input: RelId,
         items: Box<[SelectItem]>,
+        ty: TypeId,
+    },
+    Set {
+        input: RelId,
+        items: Box<[SetItem]>,
+        ty: TypeId,
+    },
+    /// The counts stay thunks so the reducer folds them; a plan needs constants
+    /// and emission reports anything that did not reduce to one.
+    Limit {
+        input: RelId,
+        count: Thunk,
+        offset: Option<Thunk>,
+        ty: TypeId,
+    },
+    /// Renames the whole row: the columns are unchanged, but from here they are
+    /// named through `alias`.
+    Alias {
+        input: RelId,
+        alias: Ident,
         ty: TypeId,
     },
 }

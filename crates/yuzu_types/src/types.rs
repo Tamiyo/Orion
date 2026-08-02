@@ -30,6 +30,22 @@ pub enum Type {
     TypeVar(TypeVariable),
 }
 
+impl Type {
+    pub fn is_integer(&self) -> bool {
+        matches!(
+            self,
+            Type::Int8
+                | Type::Int16
+                | Type::Int32
+                | Type::Int64
+                | Type::UInt8
+                | Type::UInt16
+                | Type::UInt32
+                | Type::UInt64
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Relation {
     pub columns: Vec<Column>,

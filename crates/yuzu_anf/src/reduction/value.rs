@@ -1,6 +1,6 @@
 use yuzu_types::{SymbolId, TypeId};
 
-use crate::anf::{AtomId, ExprId, StructFieldInit};
+use crate::{AtomId, ExprId, StructFieldInit};
 
 pub(crate) enum Value {
     Atom(AtomId),

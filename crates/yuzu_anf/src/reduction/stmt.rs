@@ -1,8 +1,6 @@
-use crate::anf::{
-    Atom, AtomId, BindingId, Expr, ExprId, Stmt, StmtId, StructFieldInit, TreeCopier,
-};
 use crate::reduction::term::Term;
 use crate::reduction::{AnfReducer, environment::Environment};
+use crate::{Atom, AtomId, BindingId, Expr, ExprId, Stmt, StmtId, StructFieldInit, TreeCopier};
 
 impl AnfReducer<'_> {
     /// Evaluates the top-level statement list. Declarations pass through

@@ -719,6 +719,7 @@ dependencies = [
  "fixedbitset",
  "hashbrown 0.15.5",
  "indexmap",
+ "serde",
 ]
 
 [[package]]
@@ -1877,6 +1878,17 @@ dependencies = [
  "yuzu_diagnostics",
  "yuzu_lexer",
  "yuzu_syntax",
+]
+
+[[package]]
+name = "yuzu_plan"
+version = "0.0.0"
+dependencies = [
+ "petgraph",
+ "yuzu_anf",
+ "yuzu_core",
+ "yuzu_diagnostics",
+ "yuzu_types",
 ]
 
 [[package]]

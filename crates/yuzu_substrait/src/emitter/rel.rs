@@ -1,8 +1,9 @@
 use substrait::proto::{
-    AggregateRel, Expression, FilterRel, FunctionArgument, JoinRel, NamedStruct, ProjectRel,
-    ReadRel, Rel, RelCommon,
+    AggregateRel, Expression, FetchRel, FilterRel, FunctionArgument, JoinRel, NamedStruct,
+    ProjectRel, ReadRel, Rel, RelCommon,
     aggregate_rel::Grouping,
-    expression::{RexType, ScalarFunction},
+    expression::{RexType, ScalarFunction, literal::LiteralType},
+    fetch_rel::{CountMode, OffsetMode},
     function_argument::ArgType,
     join_rel::JoinType,
     read_rel::{NamedTable, ReadType},
@@ -10,11 +11,13 @@ use substrait::proto::{
     rel_common::{Emit, EmitKind},
     r#type,
 };
-use yuzu_anf::anf::{Ident, JoinCondition, JoinKind, Rel as AnfRel, RelId, SelectItem, Thunk};
+use yuzu_anf::{
+    Atom, Const, Ident, JoinCondition, JoinKind, Rel as AnfRel, RelId, SelectItem, SetItem, Thunk,
+};
 use yuzu_core::adt::SymbolId;
 use yuzu_types::TypeId;
 
-use crate::emitter::expr::selection;
+use crate::emitter::expr::{literal, selection};
 use crate::emitter::extensions::{BOOLEAN_URN, COMPARISON_URN};
 use crate::emitter::types::nullable;
 use crate::emitter::{SubstraitEmitter, Unsupported};
@@ -41,6 +44,16 @@ impl SubstraitEmitter<'_> {
             // row type and surface as the plan's output names.
             AnfRel::Rename { input, .. } => return self.emit_rel(*input),
             AnfRel::Extend { input, items, .. } => self.emit_extend(*input, items)?,
+            AnfRel::Set { input, items, .. } => self.emit_set(*input, items)?,
+            AnfRel::Limit {
+                input,
+                count,
+                offset,
+                ..
+            } => self.emit_limit(*input, count, offset.as_ref())?,
+            // `as` renames the row, which lives in the type; the plan is its
+            // input unchanged.
+            AnfRel::Alias { input, .. } => return self.emit_rel(*input),
         };
         Ok(Rel {
             rel_type: Some(rel_type),
@@ -257,6 +270,77 @@ impl SubstraitEmitter<'_> {
         })))
     }
 
+    /// `set` keeps the row's shape: every column is emitted, with the ones it
+    /// names taking a computed expression in place of the original.
+    fn emit_set(&mut self, input: RelId, items: &[SetItem]) -> Result<RelType, Unsupported> {
+        let input_ty = self.rel_ty(input);
+        let width = self.row_columns(input_ty).len() as i32;
+        let replaced: Vec<i32> = items
+            .iter()
+            .map(|item| self.field_index(input_ty, item.column.name))
+            .collect();
+
+        let input = self.emit_rel(input)?;
+        self.row = input_ty;
+        let expressions = items
+            .iter()
+            .map(|item| self.emit_thunk(&item.value))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // A replacement lands past the input's columns, so the mapping picks it
+        // up where the original stood.
+        let output_mapping = (0..width)
+            .map(
+                |column| match replaced.iter().position(|&set| set == column) {
+                    Some(item) => width + item as i32,
+                    None => column,
+                },
+            )
+            .collect();
+
+        Ok(RelType::Project(Box::new(ProjectRel {
+            common: Self::emit_common(output_mapping),
+            input: Some(Box::new(input)),
+            expressions,
+            ..Default::default()
+        })))
+    }
+
+    fn emit_limit(
+        &mut self,
+        input: RelId,
+        count: &Thunk,
+        offset: Option<&Thunk>,
+    ) -> Result<RelType, Unsupported> {
+        let count = self.row_count(count)?;
+        let offset = match offset {
+            Some(offset) => self.row_count(offset)?,
+            None => 0,
+        };
+
+        let input = self.emit_rel(input)?;
+        Ok(RelType::Fetch(Box::new(FetchRel {
+            input: Some(Box::new(input)),
+            offset_mode: Some(OffsetMode::OffsetExpr(Box::new(literal(LiteralType::I64(
+                offset,
+            ))))),
+            count_mode: Some(CountMode::CountExpr(Box::new(literal(LiteralType::I64(
+                count,
+            ))))),
+            ..Default::default()
+        })))
+    }
+
+    /// A plan carries a number, so the count has to have reduced to one.
+    fn row_count(&mut self, thunk: &Thunk) -> Result<i64, Unsupported> {
+        match *self.anf.atom(thunk.value) {
+            Atom::Const(Const::Int { value }) => Ok(value.as_i64()),
+            _ => Err(self.unsupported_query(
+                "`limit` needs a row count that is known at compile time".to_string(),
+            )),
+        }
+    }
+
     fn emit_common(output_mapping: Vec<i32>) -> Option<RelCommon> {
         Some(RelCommon {
             emit_kind: Some(EmitKind::Emit(Emit { output_mapping })),
@@ -280,7 +364,10 @@ impl SubstraitEmitter<'_> {
             | AnfRel::Distinct { ty, .. }
             | AnfRel::Drop { ty, .. }
             | AnfRel::Rename { ty, .. }
-            | AnfRel::Extend { ty, .. } => *ty,
+            | AnfRel::Extend { ty, .. }
+            | AnfRel::Set { ty, .. }
+            | AnfRel::Limit { ty, .. }
+            | AnfRel::Alias { ty, .. } => *ty,
         }
     }
 }

@@ -17,6 +17,14 @@ pub struct RenameItem {
     pub to: Ident,
 }
 
+/// `set column = value`: the column keeps its place in the row and takes a new
+/// value.
+#[derive(Clone, PartialEq, Eq)]
+pub struct SetItem {
+    pub column: Ident,
+    pub value: ExprId,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JoinKind {
     Inner,
@@ -76,6 +84,20 @@ pub enum Rel {
     Extend {
         input: RelId,
         items: Box<[SelectItem]>,
+    },
+    Set {
+        input: RelId,
+        items: Box<[SetItem]>,
+    },
+    Limit {
+        input: RelId,
+        count: ExprId,
+        offset: Option<ExprId>,
+    },
+    /// `|> as t` — every column of the row is named through `t` from here on.
+    Alias {
+        input: RelId,
+        alias: Ident,
     },
 
     /// Error-recovery node for input that failed to lower.

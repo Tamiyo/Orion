@@ -124,11 +124,17 @@ pub enum TokenKind {
     #[token("let", priority = 1)]
     LetKw,
 
+    #[token("limit", priority = 1)]
+    LimitKw,
+
     #[token("mut", priority = 1)]
     MutKw,
 
     #[token("not", priority = 1)]
     NotKw,
+
+    #[token("offset", priority = 1)]
+    OffsetKw,
 
     #[token("on", priority = 1)]
     OnKw,
@@ -147,6 +153,9 @@ pub enum TokenKind {
 
     #[token("select", priority = 1)]
     SelectKw,
+
+    #[token("set", priority = 1)]
+    SetKw,
 
     #[token("struct", priority = 1)]
     StructKw,
@@ -253,14 +262,17 @@ impl std::fmt::Display for TokenKind {
             TokenKind::JoinKw => "join",
             TokenKind::LeftKw => "left",
             TokenKind::LetKw => "let",
+            TokenKind::LimitKw => "limit",
             TokenKind::MutKw => "mut",
             TokenKind::NotKw => "not",
+            TokenKind::OffsetKw => "offset",
             TokenKind::OnKw => "on",
             TokenKind::OrKw => "or",
             TokenKind::RenameKw => "rename",
             TokenKind::ReturnKw => "return",
             TokenKind::RightKw => "right",
             TokenKind::SelectKw => "select",
+            TokenKind::SetKw => "set",
             TokenKind::StructKw => "struct",
             TokenKind::TableKw => "table",
             TokenKind::TraitKw => "trait",
@@ -330,14 +342,17 @@ mod tests {
             (TokenKind::JoinKw, "join"),
             (TokenKind::LeftKw, "left"),
             (TokenKind::LetKw, "let"),
+            (TokenKind::LimitKw, "limit"),
             (TokenKind::MutKw, "mut"),
             (TokenKind::NotKw, "not"),
+            (TokenKind::OffsetKw, "offset"),
             (TokenKind::OnKw, "on"),
             (TokenKind::OrKw, "or"),
             (TokenKind::RenameKw, "rename"),
             (TokenKind::ReturnKw, "return"),
             (TokenKind::RightKw, "right"),
             (TokenKind::SelectKw, "select"),
+            (TokenKind::SetKw, "set"),
             (TokenKind::StructKw, "struct"),
             (TokenKind::TableKw, "table"),
             (TokenKind::TraitKw, "trait"),

@@ -1,6 +1,6 @@
-use crate::anf::{Atom, AtomId, BindingId, Expr, Stmt, StmtId, StructFieldInit};
 use crate::reduction::AnfReducer;
 use crate::reduction::environment::Environment;
+use crate::{Atom, AtomId, BindingId, Expr, Stmt, StmtId, StructFieldInit};
 
 impl AnfReducer<'_> {
     pub(crate) fn reduce_atoms(

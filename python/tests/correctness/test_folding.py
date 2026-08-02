@@ -14,7 +14,7 @@ def test_folded_call_matches_the_literal():
 
 
 def test_folded_let_matches_the_literal():
-    folded = rows("let limit = 1 + 1\nfrom employees |> where level > limit |> select name")
+    folded = rows("let cap = 1 + 1\nfrom employees |> where level > cap |> select name")
     assert folded == rows("from employees |> where level > 2 |> select name")
     assert folded == [("carol",)]
 

@@ -1,4 +1,4 @@
-use crate::anf::{AtomId, Expr, StmtId};
+use crate::{AtomId, Expr, StmtId};
 
 pub(crate) enum Term {
     Stmt(StmtId),

@@ -10,8 +10,8 @@ use crate::{
     AnfCtx, AnfSourceMap,
     anf::{
         Atom, AtomId, Binding, BindingId, Const, Expr, ExprId, Ident, JoinCondition, JoinKind, Op,
-        Rel, RelId, RenameItem, Root, SelectItem, Stmt, StmtId, StructField, StructFieldInit,
-        Thunk,
+        Rel, RelId, RenameItem, Root, SelectItem, SetItem, Stmt, StmtId, StructField,
+        StructFieldInit, Thunk,
     },
     symbols::{Symbol, SymbolTable},
 };
@@ -413,6 +413,34 @@ impl AnfLowerer<'_> {
             hir::Rel::Drop { input, items } => self.lower_drop_rel(input, &items, ty),
             hir::Rel::Rename { input, items } => self.lower_rename_rel(input, &items, ty),
             hir::Rel::Extend { input, items } => self.lower_extend_rel(input, &items, ty),
+            hir::Rel::Set { input, items } => Rel::Set {
+                input: self.lower_rel(input),
+                items: items
+                    .iter()
+                    .map(|item| SetItem {
+                        column: Ident {
+                            name: item.column.symbol,
+                        },
+                        value: self.lower_thunk(item.value),
+                    })
+                    .collect(),
+                ty,
+            },
+            hir::Rel::Limit {
+                input,
+                count,
+                offset,
+            } => Rel::Limit {
+                input: self.lower_rel(input),
+                count: self.lower_thunk(count),
+                offset: offset.map(|offset| self.lower_thunk(offset)),
+                ty,
+            },
+            hir::Rel::Alias { input, alias } => Rel::Alias {
+                input: self.lower_rel(input),
+                alias: Ident { name: alias.symbol },
+                ty,
+            },
             hir::Rel::Missing => unreachable!("Rel::Missing only exists after a parse error"),
         };
         self.anf.alloc_rel(rel)

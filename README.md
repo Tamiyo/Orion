@@ -57,11 +57,27 @@ from employees e
 | `drop a, b`       | remove named columns                               |
 | `rename a as b`   | rename columns                                     |
 | `distinct`        | drop duplicate rows                                |
+| `set a = e`       | replace a column's value, keeping its place        |
+| `limit n`         | keep at most `n` rows, after an optional `offset`  |
+| `as t`            | name the whole row, so its columns qualify as `t.` |
 | `join t d on p`   | combine rows with a second relation                |
 
 Columns are referenced by bare name against the current stage's row (`salary`),
 or through the source alias (`e.salary`). The set of operators and their
 semantics are still evolving.
+
+`set` keeps the row's shape — the named column takes a new value where it
+stands — while `extend` appends. `limit` takes a row count that must reduce to a
+constant, like everything else. `as` renames the whole row and replaces any
+alias it had, which is how a computed row gets qualified names again:
+
+```
+from employees e
+|> join departments d on e.dept_id == d.dept_id
+|> select e.id as eid, d.name as dept
+|> as joined
+|> select joined.eid, joined.dept
+```
 
 ### Joins
 
@@ -113,7 +129,7 @@ inlined and constant-folded at compile time — a call that survives to the plan
 ### Values and lists
 
 ```
-let limit = 10 + 5
+let cutoff = 10 + 5
 let ids: List[int32] = [1, 2, 3]
 
 from employees e |> where e.department in ["eng", "sales"]

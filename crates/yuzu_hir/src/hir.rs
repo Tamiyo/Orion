@@ -9,7 +9,7 @@ mod stmt;
 
 pub use expr::{Expr, ExprId, Op, StructFieldInit};
 pub use literal::Literal;
-pub use rel::{JoinCondition, JoinKind, Rel, RelId, RenameItem, SelectItem};
+pub use rel::{JoinCondition, JoinKind, Rel, RelId, RenameItem, SelectItem, SetItem};
 pub use stmt::{FuncParam, Mutability, Stmt, StmtId, StructField};
 
 pub type TypeAnnotationId = Id<TypeAnnotation>;

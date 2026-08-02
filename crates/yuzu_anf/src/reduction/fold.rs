@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use yuzu_core::adt::{Float, Int};
 
-use crate::anf::{Const, Op};
+use crate::{Const, Op};
 
 pub(crate) fn fold(op: Op, args: &[Const]) -> Option<Const> {
     match op {
@@ -106,8 +106,8 @@ mod tests {
     use expect_test::expect;
     use yuzu_core::adt::StringInterner;
 
-    use crate::anf::{Const, Op};
     use crate::reduction::test_support::{TABLE, check};
+    use crate::{Const, Op};
 
     use super::fold;
 

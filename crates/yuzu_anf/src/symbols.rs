@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use yuzu_core::adt::SymbolId;
 use yuzu_types::TypeId;
 
-use crate::anf::BindingId;
+use crate::BindingId;
 
 /// What a name resolves to in the ANF: a local value (let or parameter) or a
 /// reference to a function declaration.

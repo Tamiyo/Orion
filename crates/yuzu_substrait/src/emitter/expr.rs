@@ -11,7 +11,7 @@ use substrait::proto::{
     function_argument::ArgType,
 };
 use yuzu_anf::AnfCtx;
-use yuzu_anf::anf::{Atom, AtomId, BindingId, Const, Expr, ExprId, Op, Stmt, Thunk};
+use yuzu_anf::{Atom, AtomId, BindingId, Const, Expr, ExprId, Op, Stmt, Thunk};
 use yuzu_types::TypeId;
 
 use crate::emitter::extensions::{BOOLEAN_URN, function_target};
@@ -53,7 +53,7 @@ pub(crate) fn selection(index: i32) -> Expression {
     }
 }
 
-fn literal(value: LiteralType) -> Expression {
+pub(crate) fn literal(value: LiteralType) -> Expression {
     Expression {
         rex_type: Some(RexType::Literal(Literal {
             literal_type: Some(value),

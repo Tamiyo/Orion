@@ -8,7 +8,7 @@ use syn::{Data, DeriveInput, Fields, parse_macro_input};
 /// pool ids and plain data through unchanged.
 ///
 /// Internal to `yuzu_anf`: the generated code names the traits at
-/// `crate::anf::{TreeCopy, TreeCopier}`.
+/// `crate::{TreeCopy, TreeCopier}`.
 #[proc_macro_derive(TreeCopy)]
 pub fn derive_tree_copy(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -34,8 +34,8 @@ pub fn derive_tree_copy(input: TokenStream) -> TokenStream {
     };
 
     quote! {
-        impl crate::anf::TreeCopy for #name {
-            fn copy_tree(&self, copier: &mut impl crate::anf::TreeCopier) -> Self {
+        impl crate::TreeCopy for #name {
+            fn copy_tree(&self, copier: &mut impl crate::TreeCopier) -> Self {
                 #body
             }
         }
@@ -54,7 +54,7 @@ fn copy_fields(fields: &Fields, path: proc_macro2::TokenStream) -> proc_macro2::
                 .collect();
             quote! {
                 #path { #(#names),* } => #path {
-                    #(#names: crate::anf::TreeCopy::copy_tree(#names, copier)),*
+                    #(#names: crate::TreeCopy::copy_tree(#names, copier)),*
                 },
             }
         }
@@ -64,7 +64,7 @@ fn copy_fields(fields: &Fields, path: proc_macro2::TokenStream) -> proc_macro2::
                 .collect();
             quote! {
                 #path(#(#names),*) => #path(
-                    #(crate::anf::TreeCopy::copy_tree(#names, copier)),*
+                    #(crate::TreeCopy::copy_tree(#names, copier)),*
                 ),
             }
         }

@@ -2,7 +2,7 @@ use substrait::proto::extensions::{
     SimpleExtensionDeclaration, SimpleExtensionUrn,
     simple_extension_declaration::{ExtensionFunction, MappingType},
 };
-use yuzu_anf::anf::Op;
+use yuzu_anf::Op;
 
 // Substrait standard extensions (the function families DuckDB consumes).
 const ARITHMETIC_URN: &str = "extension:io.substrait:functions_arithmetic";

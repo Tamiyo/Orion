@@ -2,15 +2,14 @@ use std::collections::HashMap;
 
 use id_arena::Arena;
 
-use crate::anf::{Atom, AtomId, Binding, BindingId, Expr, ExprId, Rel, RelId, Stmt, StmtId};
-
-pub mod anf;
+mod anf;
 mod lowering;
 mod printer;
 mod reduction;
 mod source_map;
 mod symbols;
 
+pub use anf::*;
 pub use lowering::lower;
 pub use printer::dump;
 pub use reduction::reduce;

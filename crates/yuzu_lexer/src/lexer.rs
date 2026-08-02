@@ -79,14 +79,17 @@ mod tests {
             ("join", TokenKind::JoinKw),
             ("left", TokenKind::LeftKw),
             ("let", TokenKind::LetKw),
+            ("limit", TokenKind::LimitKw),
             ("mut", TokenKind::MutKw),
             ("not", TokenKind::NotKw),
+            ("offset", TokenKind::OffsetKw),
             ("on", TokenKind::OnKw),
             ("or", TokenKind::OrKw),
             ("rename", TokenKind::RenameKw),
             ("return", TokenKind::ReturnKw),
             ("right", TokenKind::RightKw),
             ("select", TokenKind::SelectKw),
+            ("set", TokenKind::SetKw),
             ("struct", TokenKind::StructKw),
             ("table", TokenKind::TableKw),
             ("trait", TokenKind::TraitKw),
@@ -115,6 +118,9 @@ mod tests {
         assert_eq!(one("fullness"), TokenKind::Identifier);
         assert_eq!(one("onto"), TokenKind::Identifier);
         assert_eq!(one("using_key"), TokenKind::Identifier);
+        assert_eq!(one("settings"), TokenKind::Identifier);
+        assert_eq!(one("limits"), TokenKind::Identifier);
+        assert_eq!(one("offsets"), TokenKind::Identifier);
     }
 
     #[test]

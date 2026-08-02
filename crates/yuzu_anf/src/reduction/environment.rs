@@ -136,7 +136,7 @@ mod tests {
     use yuzu_types::TypeCtx;
 
     use crate::AnfCtx;
-    use crate::anf::{Atom, Binding, BindingId, Const, Ident, StructFieldInit};
+    use crate::{Atom, Binding, BindingId, Const, Ident, StructFieldInit};
 
     use super::Environment;
 
@@ -189,7 +189,7 @@ mod tests {
         let field = interner.intern("v");
 
         let mut env = Environment::default();
-        let origin = anf.alloc_expr(crate::anf::Expr::Atom { value });
+        let origin = anf.alloc_expr(crate::Expr::Atom { value });
         env.bind_struct(
             b,
             interner.intern("P"),
@@ -216,7 +216,7 @@ mod tests {
         let two = anf.intern_atom(Atom::Const(Const::Int { value: 2.into() }));
 
         let mut env = Environment::default();
-        let origin = anf.alloc_expr(crate::anf::Expr::Atom { value: one });
+        let origin = anf.alloc_expr(crate::Expr::Atom { value: one });
         env.bind_list(b, Box::new([one, two]), types.int64_ty(), origin);
         assert!(env.is_aggregate_value(b));
         assert_eq!(env.list_elements(b), Some([one, two].as_slice()));

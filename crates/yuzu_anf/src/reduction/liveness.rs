@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use crate::anf::{
+use crate::reduction::AnfReducer;
+use crate::{
     Atom, AtomId, BindingId, Expr, ExprId, JoinCondition, Rel, RelId, Stmt, StmtId, Thunk,
     TreeCopier,
 };
-use crate::reduction::AnfReducer;
 
 pub(crate) trait DeadCodeElimination {
     fn sweep_dead_functions(&mut self, stmts: Vec<StmtId>) -> Box<[StmtId]>;
@@ -141,7 +141,28 @@ impl LivenessAnalysis for AnfReducer<'_> {
                 self.rel_func_refs(*input, refs);
                 self.thunk_func_refs(predicate, refs);
             }
-            Rel::Distinct { input, .. } | Rel::Drop { input, .. } | Rel::Rename { input, .. } => {
+            Rel::Set { input, items, .. } => {
+                self.rel_func_refs(*input, refs);
+                for item in items.iter() {
+                    self.thunk_func_refs(&item.value, refs);
+                }
+            }
+            Rel::Limit {
+                input,
+                count,
+                offset,
+                ..
+            } => {
+                self.rel_func_refs(*input, refs);
+                self.thunk_func_refs(count, refs);
+                if let Some(offset) = offset {
+                    self.thunk_func_refs(offset, refs);
+                }
+            }
+            Rel::Distinct { input, .. }
+            | Rel::Drop { input, .. }
+            | Rel::Rename { input, .. }
+            | Rel::Alias { input, .. } => {
                 self.rel_func_refs(*input, refs);
             }
         }

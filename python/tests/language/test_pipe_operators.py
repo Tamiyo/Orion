@@ -49,3 +49,23 @@ def test_every_stage_chained():
         " |> select who, big"
         " |> distinct"
     ) == sorted_rows(("bob", 20), ("carol", 30), ("dan", 20))
+
+
+def test_set():
+    assert rows('from employees |> set level = level * 10 |> where name == "alice" |> select level') == [
+        (10,)
+    ]
+
+
+def test_limit():
+    assert len(rows("from employees |> limit 2 |> select name")) == 2
+
+
+def test_limit_with_offset():
+    assert len(rows("from employees |> limit 2 offset 1 |> select name")) == 2
+
+
+def test_alias():
+    assert rows('from employees |> as staff |> where staff.name == "alice" |> select staff.level') == [
+        (1,)
+    ]

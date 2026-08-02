@@ -1,11 +1,11 @@
 use yuzu_core::adt::SymbolId;
 use yuzu_types::TypeId;
 
-use crate::anf::{
-    Atom, AtomId, BindingId, Const, Expr, ExprId, Ident, Op, RelId, Stmt, StmtId, StructFieldInit,
-};
 use crate::reduction::term::Term;
 use crate::reduction::{AnfReducer, environment::Environment, fold::fold};
+use crate::{
+    Atom, AtomId, BindingId, Const, Expr, ExprId, Ident, Op, RelId, Stmt, StmtId, StructFieldInit,
+};
 
 impl<'r> AnfReducer<'r> {
     pub(crate) fn reduce_expr(

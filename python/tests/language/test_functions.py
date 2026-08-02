@@ -5,7 +5,7 @@ from support import rows, sorted_rows
 
 def test_function_without_parameters():
     assert rows(
-        "fn limit() -> int64 { return 2 }\nfrom employees |> where level > limit() |> select name"
+        "fn cap() -> int64 { return 2 }\nfrom employees |> where level > cap() |> select name"
     ) == [("carol",)]
 
 

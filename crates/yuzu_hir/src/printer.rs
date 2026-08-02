@@ -367,6 +367,36 @@ impl HirPrinter<'_> {
                     self.fmt_select_item(item, depth + 1, out);
                 }
             }
+            Rel::Set { input, items } => {
+                line(out, depth, "Set");
+                self.fmt_rel(*input, depth + 1, out);
+                for item in items.iter() {
+                    line(
+                        out,
+                        depth + 1,
+                        format!("set {:?}:", self.text(&item.column)),
+                    );
+                    self.fmt_expr(item.value, depth + 2, out);
+                }
+            }
+            Rel::Limit {
+                input,
+                count,
+                offset,
+            } => {
+                line(out, depth, "Limit");
+                self.fmt_rel(*input, depth + 1, out);
+                line(out, depth + 1, "count:");
+                self.fmt_expr(*count, depth + 2, out);
+                if let Some(offset) = offset {
+                    line(out, depth + 1, "offset:");
+                    self.fmt_expr(*offset, depth + 2, out);
+                }
+            }
+            Rel::Alias { input, alias } => {
+                line(out, depth, format!("Alias {:?}", self.text(alias)));
+                self.fmt_rel(*input, depth + 1, out);
+            }
             Rel::Missing => line(out, depth, "Missing"),
         }
     }

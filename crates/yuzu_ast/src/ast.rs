@@ -532,6 +532,9 @@ impl ParenExpr {
 }
 
 ast_enum!(Rel, {
+    SetExpr,
+    LimitExpr,
+    AliasExpr,
     FromExpr,
     SelectExpr,
     WhereExpr,
@@ -713,6 +716,54 @@ ast_node!(JoinUsing);
 impl JoinUsing {
     pub fn columns(&self) -> impl Iterator<Item = Ident> + '_ {
         support::children(self.syntax())
+    }
+}
+
+ast_node!(SetExpr);
+impl SetExpr {
+    pub fn input(&self) -> Option<Expr> {
+        support::child(self.syntax())
+    }
+
+    pub fn items(&self) -> impl Iterator<Item = SetItem> + '_ {
+        support::children(self.syntax())
+    }
+}
+
+ast_node!(SetItem);
+impl SetItem {
+    pub fn column(&self) -> Option<Ident> {
+        support::child(self.syntax())
+    }
+
+    pub fn value(&self) -> Option<Expr> {
+        support::child(self.syntax())
+    }
+}
+
+ast_node!(LimitExpr);
+impl LimitExpr {
+    pub fn input(&self) -> Option<Expr> {
+        support::nth_child(self.syntax(), 0)
+    }
+
+    pub fn count(&self) -> Option<Expr> {
+        support::nth_child(self.syntax(), 1)
+    }
+
+    pub fn offset(&self) -> Option<Expr> {
+        support::nth_child(self.syntax(), 2)
+    }
+}
+
+ast_node!(AliasExpr);
+impl AliasExpr {
+    pub fn input(&self) -> Option<Expr> {
+        support::child(self.syntax())
+    }
+
+    pub fn alias(&self) -> Option<Ident> {
+        support::child(self.syntax())
     }
 }
 

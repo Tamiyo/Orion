@@ -1,7 +1,7 @@
 use yuzu_core::adt::{StringInterner, SymbolId};
 
 use crate::AnfCtx;
-use crate::anf::{
+use crate::{
     Atom, AtomId, Const, Expr, ExprId, JoinCondition, Op, Rel, RelId, Root, SelectItem, Stmt,
     StmtId, Thunk,
 };
@@ -31,7 +31,7 @@ impl AnfPrinter<'_> {
         self.interner.text(name)
     }
 
-    fn binding_name(&self, binding: crate::anf::BindingId) -> &str {
+    fn binding_name(&self, binding: crate::BindingId) -> &str {
         self.text(self.anf.binding(binding).name.name)
     }
 
@@ -235,6 +235,37 @@ impl AnfPrinter<'_> {
                     out.push_str(self.text(item.to.name));
                 }
             }
+            Rel::Set { input, items, .. } => {
+                self.fmt_rel(*input, depth, out);
+                self.fmt_stage(depth, "set ", out);
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push_str(", ");
+                    }
+                    out.push_str(self.text(item.column.name));
+                    out.push_str(" = ");
+                    self.fmt_thunk(&item.value, depth, out);
+                }
+            }
+            Rel::Limit {
+                input,
+                count,
+                offset,
+                ..
+            } => {
+                self.fmt_rel(*input, depth, out);
+                self.fmt_stage(depth, "limit ", out);
+                self.fmt_thunk(count, depth, out);
+                if let Some(offset) = offset {
+                    out.push_str(" offset ");
+                    self.fmt_thunk(offset, depth, out);
+                }
+            }
+            Rel::Alias { input, alias, .. } => {
+                self.fmt_rel(*input, depth, out);
+                self.fmt_stage(depth, "as ", out);
+                out.push_str(self.text(alias.name));
+            }
             Rel::Extend { input, items, .. } => {
                 self.fmt_rel(*input, depth, out);
                 self.fmt_stage(depth, "extend ", out);
@@ -303,15 +334,15 @@ impl AnfPrinter<'_> {
 
     fn fmt_atom(&self, id: AtomId, out: &mut String) {
         match self.anf.atom(id) {
-            crate::anf::Atom::Var { binding } => out.push_str(self.binding_name(*binding)),
-            crate::anf::Atom::FuncRef { binding, .. } => out.push_str(self.binding_name(*binding)),
-            crate::anf::Atom::Field { base, field, .. } => {
+            crate::Atom::Var { binding } => out.push_str(self.binding_name(*binding)),
+            crate::Atom::FuncRef { binding, .. } => out.push_str(self.binding_name(*binding)),
+            crate::Atom::Field { base, field, .. } => {
                 self.fmt_atom(*base, out);
                 out.push('.');
                 out.push_str(self.text(field.name));
             }
-            crate::anf::Atom::Column { name, .. } => out.push_str(self.text(name.name)),
-            crate::anf::Atom::Const(constant) => self.fmt_const(constant, out),
+            crate::Atom::Column { name, .. } => out.push_str(self.text(name.name)),
+            crate::Atom::Const(constant) => self.fmt_const(constant, out),
         }
     }
 

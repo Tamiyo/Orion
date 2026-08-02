@@ -27,6 +27,15 @@ pub(crate) fn parse_query(p: &mut Parser) -> CompletedMarker {
         } else if p.at(TokenKind::ExtendKw) {
             parse_extend_clause(p);
             p.complete(marker, SyntaxKind::ExtendExpr)
+        } else if p.at(TokenKind::SetKw) {
+            parse_set_clause(p);
+            p.complete(marker, SyntaxKind::SetExpr)
+        } else if p.at(TokenKind::LimitKw) {
+            parse_limit_clause(p);
+            p.complete(marker, SyntaxKind::LimitExpr)
+        } else if p.at(TokenKind::AsKw) {
+            parse_alias_clause(p);
+            p.complete(marker, SyntaxKind::AliasExpr)
         } else if at_join_clause(p) {
             parse_join_clause(p);
             p.complete(marker, SyntaxKind::JoinExpr)
@@ -121,6 +130,39 @@ fn parse_extend_clause(p: &mut Parser) {
         p.bump();
         parse_select_item(p);
     }
+}
+
+fn parse_set_item(p: &mut Parser) {
+    let m = p.start();
+    parse_ident(p);
+    p.expect(TokenKind::Eq);
+    parse_expr(p);
+    p.complete(m, SyntaxKind::SetItem);
+}
+
+fn parse_set_clause(p: &mut Parser) {
+    p.expect(TokenKind::SetKw);
+    parse_set_item(p);
+    while p.at(TokenKind::Comma) {
+        p.bump();
+        parse_set_item(p);
+    }
+}
+
+fn parse_limit_clause(p: &mut Parser) {
+    p.expect(TokenKind::LimitKw);
+    parse_expr(p);
+    if p.at(TokenKind::OffsetKw) {
+        p.bump();
+        parse_expr(p);
+    }
+}
+
+/// `|> as t` renames the whole row, so it takes an identifier rather than the
+/// `expr as name` an item alias would.
+fn parse_alias_clause(p: &mut Parser) {
+    p.expect(TokenKind::AsKw);
+    parse_ident(p);
 }
 
 const JOIN_TYPES: [TokenKind; 4] = [
@@ -435,6 +477,86 @@ mod tests {
               Space@7..8 " "
               Ident@8..11
                 Identifier@8..11 "eid"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn parse_query_set_clause() {
+        test_support::check(
+            "from t |> set a = 1",
+            parse_query,
+            expect![[r#"
+            SetExpr@0..19
+              FromExpr@0..6
+                FromKw@0..4 "from"
+                Space@4..5 " "
+                Ident@5..6
+                  Identifier@5..6 "t"
+              Space@6..7 " "
+              Pipe@7..9 "|>"
+              Space@9..10 " "
+              SetKw@10..13 "set"
+              Space@13..14 " "
+              SetItem@14..19
+                Ident@14..15
+                  Identifier@14..15 "a"
+                Space@15..16 " "
+                Eq@16..17 "="
+                Space@17..18 " "
+                IntLiteral@18..19
+                  IntLit@18..19 "1"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn parse_query_limit_clause() {
+        test_support::check(
+            "from t |> limit 2 offset 1",
+            parse_query,
+            expect![[r#"
+            LimitExpr@0..26
+              FromExpr@0..6
+                FromKw@0..4 "from"
+                Space@4..5 " "
+                Ident@5..6
+                  Identifier@5..6 "t"
+              Space@6..7 " "
+              Pipe@7..9 "|>"
+              Space@9..10 " "
+              LimitKw@10..15 "limit"
+              Space@15..16 " "
+              IntLiteral@16..17
+                IntLit@16..17 "2"
+              Space@17..18 " "
+              OffsetKw@18..24 "offset"
+              Space@24..25 " "
+              IntLiteral@25..26
+                IntLit@25..26 "1"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn parse_query_alias_clause() {
+        test_support::check(
+            "from t |> as u",
+            parse_query,
+            expect![[r#"
+            AliasExpr@0..14
+              FromExpr@0..6
+                FromKw@0..4 "from"
+                Space@4..5 " "
+                Ident@5..6
+                  Identifier@5..6 "t"
+              Space@6..7 " "
+              Pipe@7..9 "|>"
+              Space@9..10 " "
+              AsKw@10..12 "as"
+              Space@12..13 " "
+              Ident@13..14
+                Identifier@13..14 "u"
         "#]],
         );
     }

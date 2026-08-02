@@ -4,14 +4,14 @@ from support import rows, sorted_rows
 
 
 def test_let_binding():
-    assert rows("let limit = 2\nfrom employees |> where level > limit |> select name") == [
+    assert rows("let cap = 2\nfrom employees |> where level > cap |> select name") == [
         ("carol",)
     ]
 
 
 def test_annotated_let_binding():
     assert rows(
-        "let limit: int64 = 2\nfrom employees |> where level > limit |> select name"
+        "let cap: int64 = 2\nfrom employees |> where level > cap |> select name"
     ) == [("carol",)]
 
 

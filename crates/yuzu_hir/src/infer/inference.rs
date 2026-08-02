@@ -9,7 +9,7 @@ use yuzu_types::{Column, InferKind, SymbolId, Type, TypeCtx, TypeId};
 
 use crate::{
     Expr, ExprId, FuncParam, HirCtx, HirSourceMap, Ident, JoinCondition, Literal, Mutability, Op,
-    Rel, RelId, RenameItem, Root, SelectItem, Stmt, StmtId, StructField, StructFieldInit,
+    Rel, RelId, RenameItem, Root, SelectItem, SetItem, Stmt, StmtId, StructField, StructFieldInit,
     TypeAnnotation, TypeAnnotationId,
     infer::{
         InferCtx,
@@ -390,6 +390,13 @@ impl<'i> TypeInferrer<'i> {
             Rel::Drop { input, items } => self.infer_drop_rel(input, &items),
             Rel::Rename { input, items } => self.infer_rename_rel(id, input, &items),
             Rel::Extend { input, items } => self.infer_extend_rel(input, &items),
+            Rel::Set { input, items } => self.infer_set_rel(id, input, &items),
+            Rel::Limit {
+                input,
+                count,
+                offset,
+            } => self.infer_limit_rel(input, count, offset),
+            Rel::Alias { input, alias } => self.infer_alias_rel(input, alias),
             Rel::Missing => self.infer.types.error_ty(),
         };
         self.infer.bind_rel_ty(id, ty)
@@ -619,6 +626,86 @@ impl<'i> TypeInferrer<'i> {
                 None
             }
         }
+    }
+
+    /// `set` replaces a column's value where it stands, so the row keeps its
+    /// shape and each name must match exactly one column.
+    fn infer_set_rel(&mut self, id: RelId, input: RelId, items: &[SetItem]) -> TypeId {
+        let input_ty = self.infer_rel(input);
+        let Some(columns) = self.columns(input_ty) else {
+            return self.infer.types.error_ty();
+        };
+        let mut columns = columns.to_vec();
+
+        for item in items {
+            let ty = self.infer_expr(item.value);
+            let name = item.column.symbol;
+
+            let mut matches = columns
+                .iter()
+                .enumerate()
+                .filter(|(_, column)| column.name == name);
+            let target = match (matches.next(), matches.next()) {
+                (Some((column, _)), None) => column,
+                (Some(_), Some(_)) => {
+                    let message = format!(
+                        "column `{}` is ambiguous; qualify it with a relation alias",
+                        self.interner.text(name)
+                    );
+                    return self.error_rel(id, message);
+                }
+                _ => {
+                    let message =
+                        format!("column `{}` is not in this row", self.interner.text(name));
+                    return self.error_rel(id, message);
+                }
+            };
+            columns[target].ty = ty;
+        }
+
+        let set_ty = self.infer.types.relation_ty(columns);
+        self.symbols.replace_current_row(set_ty)
+    }
+
+    /// `limit` keeps the row it is given; only the counts are typed.
+    fn infer_limit_rel(&mut self, input: RelId, count: ExprId, offset: Option<ExprId>) -> TypeId {
+        let input_ty = self.infer_rel(input);
+        for bound in [Some(count), offset].into_iter().flatten() {
+            let ty = self.infer_expr(bound);
+            self.ensure_integer(bound, ty);
+        }
+        input_ty
+    }
+
+    /// `|> as t` renames the whole row: every column is named through `t` from
+    /// here on, and the aliases that reached it stop resolving.
+    fn infer_alias_rel(&mut self, input: RelId, alias: Ident) -> TypeId {
+        let input_ty = self.infer_rel(input);
+        let Some(columns) = self.columns(input_ty) else {
+            return self.infer.types.error_ty();
+        };
+
+        let columns = columns
+            .iter()
+            .map(|column| Column::new(Some(alias.symbol), column.name, column.ty))
+            .collect();
+
+        let aliased_ty = self.infer.types.relation_ty(columns);
+        self.symbols
+            .bind_symbol(alias.symbol, Binding::Relation { ty: aliased_ty });
+        self.symbols.replace_current_row(aliased_ty)
+    }
+
+    fn ensure_integer(&mut self, expr: ExprId, ty: TypeId) {
+        let ty = self.infer.resolve(ty);
+        if self.infer.types.ty(ty).is_integer() || ty == self.infer.types.error_ty() {
+            return;
+        }
+        let message = format!(
+            "`limit` needs an integer, but found `{}`",
+            self.type_name(ty)
+        );
+        self.report_expr(expr, message);
     }
 
     fn infer_extend_rel(&mut self, input: RelId, items: &[SelectItem]) -> TypeId {
@@ -2080,6 +2167,54 @@ mod tests {
         check_src(
             &format!("{TABLE}let q: Relation[Row] = from t |> select a"),
             expect!["value of type `Relation[a]` is not assignable to `Relation[a, active]`"],
+        );
+    }
+
+    #[test]
+    fn src_set_replaces_a_column_in_place() {
+        check_src(
+            &format!("{TABLE}let q = from t |> set a = a + 1 |> select a, active"),
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
+    fn src_set_of_an_unknown_column() {
+        check_src(
+            &format!("{TABLE}let q = from t |> set nope = 1"),
+            expect!["column `nope` is not in this row"],
+        );
+    }
+
+    #[test]
+    fn src_set_of_an_ambiguous_column() {
+        check_src(
+            &format!("{TABLE}{JOIN_TABLES}let q = from t e |> join d x on e.a == x.a |> set a = 1"),
+            expect!["column `a` is ambiguous; qualify it with a relation alias"],
+        );
+    }
+
+    #[test]
+    fn src_limit_needs_an_integer() {
+        check_src(
+            &format!("{TABLE}let q = from t |> limit active"),
+            expect!["`limit` needs an integer, but found `Bool`"],
+        );
+    }
+
+    #[test]
+    fn src_alias_renames_the_whole_row() {
+        check_src(
+            &format!("{TABLE}let q = from t e |> as u |> select u.a"),
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
+    fn src_alias_replaces_the_previous_one() {
+        check_src(
+            &format!("{TABLE}let q = from t e |> as u |> select e.a"),
+            expect!["`e` has no column `a` here"],
         );
     }
 

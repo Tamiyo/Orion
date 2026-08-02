@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use yuzu_syntax::SyntaxNodePtr;
 
-use crate::anf::{AtomId, ExprId, StmtId};
+use crate::{AtomId, ExprId, StmtId};
 
 #[derive(Default)]
 pub struct AnfSourceMap {

@@ -590,6 +590,9 @@ impl<'l> HirLowerer<'l> {
             ast::Rel::RenameExpr(rename_expr) => self.lower_rename_rel(rename_expr),
             ast::Rel::ExtendExpr(extend_expr) => self.lower_extend_rel(extend_expr),
             ast::Rel::JoinExpr(join_expr) => self.lower_join_rel(join_expr),
+            ast::Rel::SetExpr(set_expr) => self.lower_set_rel(set_expr),
+            ast::Rel::LimitExpr(limit_expr) => self.lower_limit_rel(limit_expr),
+            ast::Rel::AliasExpr(alias_expr) => self.lower_alias_rel(alias_expr),
         };
 
         let id = self.ctx.alloc_rel(lowered);
@@ -793,6 +796,65 @@ impl<'l> HirLowerer<'l> {
         Rel::Extend {
             input,
             items: items.into_boxed_slice(),
+        }
+    }
+
+    fn lower_set_rel(&mut self, expr: ast::SetExpr) -> Rel {
+        let Some(input) = expr.input() else {
+            self.error(&expr, "`set` is missing its input relation");
+            return Rel::Missing;
+        };
+
+        let input = self.lower_rel_input(input);
+        let mut items = Vec::new();
+        for item in expr.items() {
+            let (Some(column), Some(value)) = (item.column(), item.value()) else {
+                self.error(&item, "set item is incomplete");
+                continue;
+            };
+            items.push(SetItem {
+                column: self.lower_ident(column),
+                value: self.lower_expr(value),
+            });
+        }
+
+        Rel::Set {
+            input,
+            items: items.into_boxed_slice(),
+        }
+    }
+
+    fn lower_limit_rel(&mut self, expr: ast::LimitExpr) -> Rel {
+        let Some(input) = expr.input() else {
+            self.error(&expr, "`limit` is missing its input relation");
+            return Rel::Missing;
+        };
+        let Some(count) = expr.count() else {
+            self.error(&expr, "`limit` is missing its row count");
+            return Rel::Missing;
+        };
+
+        let input = self.lower_rel_input(input);
+        Rel::Limit {
+            input,
+            count: self.lower_expr(count),
+            offset: expr.offset().map(|offset| self.lower_expr(offset)),
+        }
+    }
+
+    fn lower_alias_rel(&mut self, expr: ast::AliasExpr) -> Rel {
+        let Some(input) = expr.input() else {
+            self.error(&expr, "`as` is missing its input relation");
+            return Rel::Missing;
+        };
+        let Some(alias) = expr.alias() else {
+            self.error(&expr, "`as` is missing its alias");
+            return Rel::Missing;
+        };
+
+        Rel::Alias {
+            input: self.lower_rel_input(input),
+            alias: self.lower_ident(alias),
         }
     }
 
@@ -1617,6 +1679,55 @@ mod tests {
                   From "t"
                   rename "e"."id" -> "eid"
                   rename "b" -> "c"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_set() {
+        check(
+            "from t |> set a = a + 1, b = 2",
+            expect![[r#"
+            Expr
+              Rel
+                Set
+                  From "t"
+                  set "a":
+                    Call Add
+                      Ident "a"
+                      Literal Int 1u64
+                  set "b":
+                    Literal Int 2u64
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_limit() {
+        check(
+            "from t |> limit 10 offset 5",
+            expect![[r#"
+            Expr
+              Rel
+                Limit
+                  From "t"
+                  count:
+                    Literal Int 10u64
+                  offset:
+                    Literal Int 5u64
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_alias() {
+        check(
+            "from t |> as u",
+            expect![[r#"
+            Expr
+              Rel
+                Alias "u"
+                  From "t"
         "#]],
         );
     }
