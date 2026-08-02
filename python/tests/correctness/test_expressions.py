@@ -21,54 +21,114 @@ def test_negation():
 
 
 def test_comparisons_select_the_right_rows():
-    assert rows("from employees |> where level > 2 |> select name") == [("carol",)]
-    assert rows("from employees |> where level >= 2 |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where level > 2
+        |> select name
+    """) == [("carol",)]
+    assert rows("""
+        from employees
+        |> where level >= 2
+        |> select name
+    """) == sorted_rows(
         ("bob",), ("carol",), ("dan",)
     )
-    assert rows("from employees |> where level < 2 |> select name") == [("alice",)]
-    assert rows("from employees |> where level <= 2 |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where level < 2
+        |> select name
+    """) == [("alice",)]
+    assert rows("""
+        from employees
+        |> where level <= 2
+        |> select name
+    """) == sorted_rows(
         ("alice",), ("bob",), ("dan",)
     )
-    assert rows("from employees |> where level == 2 |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where level == 2
+        |> select name
+    """) == sorted_rows(
         ("bob",), ("dan",)
     )
-    assert rows("from employees |> where level != 2 |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where level != 2
+        |> select name
+    """) == sorted_rows(
         ("alice",), ("carol",)
     )
 
 
 def test_string_equality():
-    assert rows('from employees |> where name == "bob" |> select level') == [(2,)]
+    query = """
+        from employees
+        |> where name == "bob"
+        |> select level
+    """
+    assert rows(query) == [(2,)]
 
 
 def test_boolean_operators():
-    assert rows("from employees |> where active |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where active
+        |> select name
+    """) == sorted_rows(
         ("alice",), ("carol",)
     )
-    assert rows("from employees |> where not active |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where not active
+        |> select name
+    """) == sorted_rows(
         ("bob",), ("dan",)
     )
-    assert rows("from employees |> where active and level > 1 |> select name") == [("carol",)]
-    assert rows("from employees |> where active or level == 2 |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where active and level > 1
+        |> select name
+    """) == [("carol",)]
+    assert rows("""
+        from employees
+        |> where active or level == 2
+        |> select name
+    """) == sorted_rows(
         ("alice",), ("bob",), ("carol",), ("dan",)
     )
 
 
 def test_membership():
-    assert rows("from employees |> where level in [1, 3] |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where level in [1, 3]
+        |> select name
+    """) == sorted_rows(
         ("alice",), ("carol",)
     )
-    assert rows("from employees |> where level not in [1, 3] |> select name") == sorted_rows(
+    assert rows("""
+        from employees
+        |> where level not in [1, 3]
+        |> select name
+    """) == sorted_rows(
         ("bob",), ("dan",)
     )
-    assert rows('from employees |> where name in ["alice", "dan"] |> select level') == sorted_rows(
+    assert rows("""
+        from employees
+        |> where name in ["alice", "dan"]
+        |> select level
+    """) == sorted_rows(
         (1,), (2,)
     )
 
 
 def test_shifts_compile_but_datafusion_cannot_run_them():
     """Known gap: we emit `shift_left`/`shift_right`, which DataFusion lacks."""
-    query = "from employees |> select level << 2 as shl"
+    query = """
+        from employees
+        |> select level << 2 as shl
+    """
     assert error_of(query) is None
     try:
         rows(query)

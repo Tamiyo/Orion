@@ -33,6 +33,8 @@ table projects = Project
 
 struct Grade { code: int64, label: str }
 table grades = Grade
+
+table people = { name: str, level: int64 }
 """
 
 TABLES = {
