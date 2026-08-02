@@ -50,9 +50,9 @@ pub fn emit(
     // Output column names come from the query's row type, so aliased,
     // bare-ident, and generated names all carry through.
     let names = emitter
-        .row_fields(emitter.rel_ty(query))
+        .row_columns(emitter.rel_ty(query))
         .iter()
-        .map(|&(name, _)| interner.text(name).to_string())
+        .map(|column| interner.text(column.name).to_string())
         .collect();
 
     Some(Plan {

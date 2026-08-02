@@ -1,7 +1,7 @@
 """Joins match the right rows, keep the right columns, and resolve each
 reference to the side it names."""
 
-from support import rows, sorted_rows
+from support import error_of, rows, sorted_rows
 
 # alice and carol are in dept 1, bob in dept 2, dan in dept 9 (no department).
 # Department `ops` (dept 3) has no employee.
@@ -94,24 +94,28 @@ def test_qualified_rename_names_one_side():
 # --- `using` carries one copy of each key ---
 
 
-def test_using_keeps_a_single_copy_of_the_key():
+def test_using_carries_both_sides_columns():
+    """`using` only constrains the rows; both copies of the key survive, so a
+    bare reference to it is ambiguous and each side names its own."""
     assert rows(
         "from employees e |> join departments d using (dept_id)"
-        " |> select dept_id, e.name as who"
-    ) == sorted_rows((1, "alice"), (2, "bob"), (1, "carol"))
+        " |> select e.dept_id as left_key, d.dept_id as right_key, e.name as who"
+    ) == sorted_rows((1, 1, "alice"), (2, 2, "bob"), (1, 1, "carol"))
 
 
-def test_either_side_reaches_the_carried_key():
-    assert rows(
-        "from employees e |> join departments d using (dept_id)"
-        " |> select e.dept_id as left_key, d.dept_id as right_key"
-    ) == sorted_rows((1, 1), (2, 2), (1, 1))
+def test_bare_using_key_is_ambiguous():
+    assert (
+        error_of(
+            "from employees e |> join departments d using (dept_id) |> select dept_id"
+        )
+        == "error: column `dept_id` is ambiguous; qualify it with a relation alias"
+    )
 
 
 def test_using_with_several_keys():
     assert rows(
         "from employees a |> join employees b using (id, dept_id)"
-        " |> select id, dept_id"
+        " |> select a.id as id, b.dept_id as dept_id"
     ) == sorted_rows(("e1", 1), ("e2", 2), ("e3", 1), ("e4", 9))
 
 

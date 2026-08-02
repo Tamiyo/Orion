@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use substrait::proto::{
     AggregateRel, Expression, FilterRel, FunctionArgument, JoinRel, NamedStruct, ProjectRel,
     ReadRel, Rel, RelCommon,
@@ -50,12 +48,15 @@ impl SubstraitEmitter<'_> {
     }
 
     fn emit_from(&mut self, relation: Ident, ty: TypeId) -> RelType {
-        let fields = self.row_fields(ty);
+        let fields = self.row_columns(ty);
         let names = fields
             .iter()
-            .map(|&(name, _)| self.interner.text(name).to_string())
+            .map(|column| self.interner.text(column.name).to_string())
             .collect();
-        let types = fields.iter().map(|&(_, ty)| self.emit_type(ty)).collect();
+        let types = fields
+            .iter()
+            .map(|column| self.emit_type(column.ty))
+            .collect();
         RelType::Read(Box::new(ReadRel {
             base_schema: Some(NamedStruct {
                 names,
@@ -83,7 +84,7 @@ impl SubstraitEmitter<'_> {
     ) -> Result<RelType, Unsupported> {
         let left_ty = self.rel_ty(left);
         let right_ty = self.rel_ty(right);
-        let left_width = self.row_fields(left_ty).len() as i32;
+        let left_width = self.row_columns(left_ty).len() as i32;
 
         let left_rel = self.emit_rel(left)?;
         let right_rel = self.emit_rel(right)?;
@@ -92,12 +93,14 @@ impl SubstraitEmitter<'_> {
             JoinCondition::On(thunk) => {
                 // An `on` join emits the concatenation, so its own row is what
                 // the condition indexes.
-                self.row = self.row_ty(ty);
+                self.row = ty;
                 (self.emit_thunk(thunk)?, None)
             }
+            // `using` only constrains the rows; both sides' columns carry
+            // through, so the join emits its inputs concatenated.
             JoinCondition::Using(columns) => (
                 self.emit_using(left_ty, right_ty, left_width, columns),
-                Self::emit_common(self.using_output_mapping(right_ty, left_width, columns)),
+                None,
             ),
         };
 
@@ -136,8 +139,8 @@ impl SubstraitEmitter<'_> {
         left_width: i32,
         column: Ident,
     ) -> Expression {
-        let left_index = self.field_index(self.row_ty(left_ty), column.name);
-        let right_index = left_width + self.field_index(self.row_ty(right_ty), column.name);
+        let left_index = self.field_index(left_ty, column.name);
+        let right_index = left_width + self.field_index(right_ty, column.name);
 
         let code = self.type_code(self.field_ty(left_ty, column.name));
         let anchor = self
@@ -170,37 +173,19 @@ impl SubstraitEmitter<'_> {
         }
     }
 
-    fn using_output_mapping(
-        &self,
-        right_ty: TypeId,
-        left_width: i32,
-        columns: &[Ident],
-    ) -> Vec<i32> {
-        let keys: HashSet<SymbolId> = columns.iter().map(|column| column.name).collect();
-        (0..left_width)
-            .chain(
-                self.row_fields(right_ty)
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, (name, _))| !keys.contains(name))
-                    .map(|(index, _)| left_width + index as i32),
-            )
-            .collect()
-    }
-
     fn field_ty(&self, rel_ty: TypeId, name: SymbolId) -> TypeId {
-        self.row_fields(rel_ty)
+        self.row_columns(rel_ty)
             .iter()
-            .find(|(field, _)| *field == name)
-            .map(|&(_, ty)| ty)
+            .find(|column| column.name == name)
+            .map(|column| column.ty)
             .expect("a `using` column is in both rows")
     }
 
     fn emit_select(&mut self, input: RelId, items: &[SelectItem]) -> Result<RelType, Unsupported> {
         let input_ty = self.rel_ty(input);
-        let input_columns = self.row_fields(input_ty).len() as i32;
+        let input_columns = self.row_columns(input_ty).len() as i32;
         let input = self.emit_rel(input)?;
-        self.row = self.row_ty(input_ty);
+        self.row = input_ty;
         let expressions = self.emit_select_items(items)?;
         let output_mapping = (input_columns..input_columns + expressions.len() as i32).collect();
         Ok(RelType::Project(Box::new(ProjectRel {
@@ -214,7 +199,7 @@ impl SubstraitEmitter<'_> {
     fn emit_where(&mut self, input: RelId, predicate: &Thunk) -> Result<RelType, Unsupported> {
         let input_ty = self.rel_ty(input);
         let input = self.emit_rel(input)?;
-        self.row = self.row_ty(input_ty);
+        self.row = input_ty;
         let condition = self.emit_thunk(predicate)?;
         Ok(RelType::Filter(Box::new(FilterRel {
             input: Some(Box::new(input)),
@@ -224,7 +209,7 @@ impl SubstraitEmitter<'_> {
     }
 
     fn emit_distinct(&mut self, input: RelId, ty: TypeId) -> Result<RelType, Unsupported> {
-        let columns = self.row_fields(ty).len() as i32;
+        let columns = self.row_columns(ty).len() as i32;
         let input = self.emit_rel(input)?;
         Ok(RelType::Aggregate(Box::new(AggregateRel {
             input: Some(Box::new(input)),
@@ -240,10 +225,10 @@ impl SubstraitEmitter<'_> {
 
     fn emit_drop(&mut self, input: RelId, columns: &[Ident]) -> Result<RelType, Unsupported> {
         let output_mapping = self
-            .row_fields(self.rel_ty(input))
+            .row_columns(self.rel_ty(input))
             .iter()
             .enumerate()
-            .filter(|(_, (field, _))| !columns.iter().any(|column| column.name == *field))
+            .filter(|(_, field)| !columns.iter().any(|column| column.name == field.name))
             .map(|(index, _)| index as i32)
             .collect();
         let input = self.emit_rel(input)?;
@@ -257,9 +242,9 @@ impl SubstraitEmitter<'_> {
 
     fn emit_extend(&mut self, input: RelId, items: &[SelectItem]) -> Result<RelType, Unsupported> {
         let input_ty = self.rel_ty(input);
-        let input_columns = self.row_fields(input_ty).len() as i32;
+        let input_columns = self.row_columns(input_ty).len() as i32;
         let input = self.emit_rel(input)?;
-        self.row = self.row_ty(input_ty);
+        self.row = input_ty;
         let expressions = self.emit_select_items(items)?;
         let output_mapping = (0..input_columns)
             .chain(input_columns..input_columns + expressions.len() as i32)
@@ -614,15 +599,6 @@ mod tests {
                       "root": {
                         "input": {
                           "join": {
-                            "common": {
-                              "emit": {
-                                "outputMapping": [
-                                  0,
-                                  1,
-                                  3
-                                ]
-                              }
-                            },
                             "left": {
                               "read": {
                                 "baseSchema": {
@@ -723,6 +699,7 @@ mod tests {
                         "names": [
                           "a",
                           "b",
+                          "a",
                           "c"
                         ]
                       }
@@ -765,21 +742,12 @@ mod tests {
                             "common": {
                               "emit": {
                                 "outputMapping": [
-                                  3
+                                  4
                                 ]
                               }
                             },
                             "input": {
                               "join": {
-                                "common": {
-                                  "emit": {
-                                    "outputMapping": [
-                                      0,
-                                      1,
-                                      3
-                                    ]
-                                  }
-                                },
                                 "left": {
                                   "read": {
                                     "baseSchema": {
@@ -882,7 +850,7 @@ mod tests {
                                 "selection": {
                                   "directReference": {
                                     "structField": {
-                                      "field": 2
+                                      "field": 3
                                     }
                                   },
                                   "rootReference": {}
@@ -902,9 +870,9 @@ mod tests {
     }
 
     #[test]
-    fn resolves_the_right_sides_using_key_to_the_emitted_column() {
+    fn resolves_the_carried_using_key_to_the_emitted_column() {
         check(
-            &format!("{TABLE}{JOIN_TABLES}from t |> join u d using (a) |> select d.a"),
+            &format!("{TABLE}{JOIN_TABLES}from t e |> join u d using (a) |> select e.a"),
             expect![[r#"
                 {
                   "version": {
@@ -934,21 +902,12 @@ mod tests {
                             "common": {
                               "emit": {
                                 "outputMapping": [
-                                  3
+                                  4
                                 ]
                               }
                             },
                             "input": {
                               "join": {
-                                "common": {
-                                  "emit": {
-                                    "outputMapping": [
-                                      0,
-                                      1,
-                                      3
-                                    ]
-                                  }
-                                },
                                 "left": {
                                   "read": {
                                     "baseSchema": {

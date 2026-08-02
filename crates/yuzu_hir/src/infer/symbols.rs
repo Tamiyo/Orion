@@ -15,6 +15,11 @@ pub(crate) enum Binding {
         symbol: SymbolId,
         ty: TypeId,
     },
+    /// A `from`/`join` alias standing for a row of the query, so `alias.column`
+    /// is a column reference rather than a struct field access.
+    Relation {
+        ty: TypeId,
+    },
     FuncStmt {
         stmt: StmtId,
         ty: TypeId,
@@ -30,6 +35,7 @@ impl Binding {
         match self {
             Binding::LetStmt { ty, .. }
             | Binding::Param { ty, .. }
+            | Binding::Relation { ty, .. }
             | Binding::FuncStmt { ty, .. }
             | Binding::Ident { ty, .. } => *ty,
         }
@@ -47,6 +53,7 @@ struct Scope {
     types: HashMap<SymbolId, TypeId>,
     structs: HashMap<SymbolId, StmtId>,
     relations: HashMap<SymbolId, TypeId>,
+    row: Option<TypeId>,
 }
 
 impl Scope {
@@ -57,6 +64,7 @@ impl Scope {
             types: HashMap::new(),
             structs: HashMap::new(),
             relations: HashMap::new(),
+            row: None,
         }
     }
 }
@@ -80,6 +88,18 @@ impl SymbolTable {
         self.scopes.pop();
     }
 
+    pub(crate) fn row(&self) -> Option<TypeId> {
+        self.scopes.last()?.row
+    }
+
+    /// Puts a stage's output row in scope and hands it back, so each stage
+    /// leaves the row its successor resolves against.
+    pub(crate) fn replace_current_row(&mut self, row: TypeId) -> TypeId {
+        let scope = self.scopes.last_mut().expect("there is always a scope");
+        scope.row = Some(row);
+        row
+    }
+
     pub(crate) fn return_ty(&self) -> Option<TypeId> {
         self.scopes.iter().rev().find_map(|scope| match scope.kind {
             ScopeKind::Func { return_ty } => Some(return_ty),
@@ -87,11 +107,11 @@ impl SymbolTable {
         })
     }
 
-    pub(crate) fn bind(&mut self, name: SymbolId, binding: Binding) {
+    pub(crate) fn bind_symbol(&mut self, name: SymbolId, binding: Binding) {
         self.current().bindings.insert(name, binding);
     }
 
-    pub(crate) fn lookup(&self, name: SymbolId) -> Option<&Binding> {
+    pub(crate) fn lookup_symbol(&self, name: SymbolId) -> Option<&Binding> {
         self.scopes
             .iter()
             .rev()

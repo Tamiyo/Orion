@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use yuzu_core::adt::StringInterner;
 use yuzu_diagnostics::{
     diagnostics::{Span, builder::DiagnosticBuilder, engine::DiagnosticsEngine},
     source_map::SourceId,
 };
-use yuzu_types::{InferKind, SymbolId, Type, TypeCtx, TypeId};
+use yuzu_types::{Column, InferKind, SymbolId, Type, TypeCtx, TypeId};
 
 use crate::{
     Expr, ExprId, FuncParam, HirCtx, HirSourceMap, Ident, JoinCondition, Literal, Mutability, Op,
@@ -25,12 +25,6 @@ pub(crate) struct TypeInferrer<'i> {
     diagnostics: &'i mut DiagnosticsEngine,
     source_map: &'i HirSourceMap,
     source_id: SourceId,
-    /// The row struct of the query stage being typed, so bare column names and
-    /// `alias.field` resolve against it. `None` outside a query.
-    current_row: Option<TypeId>,
-    /// Where each alias's columns sit in the current row, so a qualified
-    /// `rename` names one column rather than every one that shares its name.
-    alias_columns: HashMap<SymbolId, Vec<Option<u32>>>,
 }
 
 impl<'i> TypeInferrer<'i> {
@@ -50,8 +44,6 @@ impl<'i> TypeInferrer<'i> {
             diagnostics,
             source_map,
             source_id,
-            current_row: None,
-            alias_columns: HashMap::new(),
         }
     }
 
@@ -113,7 +105,7 @@ impl<'i> TypeInferrer<'i> {
                 return;
             }
         };
-        let relation_ty = self.infer.types.relation_ty(row_ty);
+        let relation_ty = self.infer.types.relation_of_row(row_ty, None);
         self.infer.bind_stmt_ty(stmt_id, relation_ty);
         self.symbols.bind_relation(name, relation_ty);
     }
@@ -121,7 +113,7 @@ impl<'i> TypeInferrer<'i> {
     fn register_inline_table(&mut self, stmt_id: StmtId, name: SymbolId, fields: &[StructField]) {
         let field_tys = self.resolve_fields(fields);
         let row_ty = self.infer.types.struct_ty(name, field_tys);
-        let relation_ty = self.infer.types.relation_ty(row_ty);
+        let relation_ty = self.infer.types.relation_of_row(row_ty, None);
         self.infer.bind_stmt_ty(stmt_id, relation_ty);
         self.symbols.bind_relation(name, relation_ty);
     }
@@ -154,7 +146,7 @@ impl<'i> TypeInferrer<'i> {
         let func_ty = self.infer.types.func_ty(arg_tys, ret_ty);
         self.infer.bind_stmt_ty(stmt_id, func_ty);
 
-        self.symbols.bind(
+        self.symbols.bind_symbol(
             name,
             Binding::FuncStmt {
                 stmt: stmt_id,
@@ -205,7 +197,7 @@ impl<'i> TypeInferrer<'i> {
         self.symbols.push_scope(ScopeKind::Func { return_ty });
         for param in params {
             let ty = self.resolve_annotation(param.type_annotation);
-            self.symbols.bind(
+            self.symbols.bind_symbol(
                 param.name.symbol,
                 Binding::Param {
                     symbol: param.name.symbol,
@@ -231,15 +223,13 @@ impl<'i> TypeInferrer<'i> {
 
         let ty_id = if let Some(annotation) = type_annotation {
             let target_ty_id = self.resolve_annotation(annotation);
-            if !self.infer.unify(expr_ty_id, target_ty_id)
-                && !self.infer.coerce(expr, expr_ty_id, target_ty_id)
-            {
+            if !self.is_assignable(expr, expr_ty_id, target_ty_id) {
                 let resolved_expr_ty = self.infer.resolve(expr_ty_id);
                 let expected_expr_ty = self.infer.resolve(target_ty_id);
                 let message = format!(
-                    "value of type `{:?}` is not assignable to `{:?}`",
-                    self.infer.types.ty(resolved_expr_ty),
-                    self.infer.types.ty(expected_expr_ty),
+                    "value of type `{}` is not assignable to `{}`",
+                    self.type_name(resolved_expr_ty),
+                    self.type_name(expected_expr_ty),
                 );
                 self.report_stmt(stmt_id, message);
             }
@@ -248,7 +238,7 @@ impl<'i> TypeInferrer<'i> {
             expr_ty_id
         };
 
-        self.symbols.bind(
+        self.symbols.bind_symbol(
             name,
             Binding::LetStmt {
                 stmt: stmt_id,
@@ -281,7 +271,7 @@ impl<'i> TypeInferrer<'i> {
         match self.hir.expr(target) {
             Expr::Ident { value } => {
                 let name = value.symbol;
-                match self.symbols.lookup(name).copied() {
+                match self.symbols.lookup_symbol(name).copied() {
                     Some(Binding::LetStmt {
                         mutability: Mutability::Mutable,
                         ..
@@ -405,26 +395,31 @@ impl<'i> TypeInferrer<'i> {
         self.infer.bind_rel_ty(id, ty)
     }
 
-    fn infer_from_rel(&mut self, id: RelId, relation: SymbolId, alias: Option<Ident>) -> TypeId {
-        let Some(relation_ty) = self.symbols.lookup_relation(relation) else {
-            let message = format!("`{}` is not a table", self.interner.text(relation));
+    fn infer_from_rel(&mut self, id: RelId, symbol: SymbolId, alias: Option<Ident>) -> TypeId {
+        let Some(relation_ty) = self.symbols.lookup_relation(symbol) else {
+            let message = format!("`{}` is not a relation", self.interner.text(symbol));
             return self.error_rel(id, message);
         };
 
-        // Bind the row alias so later stages can reference `alias.field`.
-        if let (Some(alias), Some(row)) = (alias, self.row_of(relation_ty)) {
-            self.symbols.bind(
-                alias.symbol,
-                Binding::Param {
-                    symbol: alias.symbol,
-                    ty: row,
-                },
-            );
-            let width = self.row_field_types(row).map_or(0, |fields| fields.len());
-            self.alias_columns
-                .insert(alias.symbol, (0..width as u32).map(Some).collect());
-        }
-        relation_ty
+        // An alias replaces the relation's own name: `from employees e` is
+        // addressed as `e`, never as `employees`.
+        let alias = alias.unwrap_or(Ident { symbol }).symbol;
+        let Some(columns) = self.columns(relation_ty) else {
+            return self.infer.types.error_ty();
+        };
+
+        let columns = columns
+            .iter()
+            .map(|column| Column::new(Some(alias), column.name, column.ty))
+            .collect();
+
+        let source_ty = self.infer.types.relation_ty(columns);
+        // The binding is what marks `alias.column` as a column reference; which
+        // column it is comes from the row it resolves against.
+        self.symbols
+            .bind_symbol(alias, Binding::Relation { ty: source_ty });
+
+        self.symbols.replace_current_row(source_ty)
     }
 
     fn infer_join_rel(
@@ -436,144 +431,110 @@ impl<'i> TypeInferrer<'i> {
     ) -> TypeId {
         let left_ty = self.infer_rel(left);
         let right_ty = self.infer_rel(right);
-        let (Some(left_row), Some(right_row)) = (self.row_of(left_ty), self.row_of(right_ty))
-        else {
+
+        let Some(left_columns) = self.columns(left_ty).map(|f| f.to_vec()) else {
             return self.infer.types.error_ty();
         };
 
-        let (Some(left_fields), Some(right_fields)) = (
-            self.row_field_types(left_row),
-            self.row_field_types(right_row),
-        ) else {
+        let Some(right_columns) = self.columns(right_ty).map(|f| f.to_vec()) else {
             return self.infer.types.error_ty();
         };
 
-        let fields = match condition {
-            JoinCondition::On(expr) => {
-                let joined = [left_fields.clone(), right_fields.clone()].concat();
-                self.infer_join_condition(*expr, joined.clone());
-                joined
-            }
-            JoinCondition::Using(columns) => {
-                match self.infer_join_using(id, columns, &left_fields, &right_fields) {
-                    Some(fields) => fields,
-                    None => return self.infer.types.error_ty(),
-                }
-            }
-        };
-
-        self.place_joined_alias(right, &left_fields, &right_fields, condition);
-        let out_row = self.anonymous_row(fields);
-        self.infer.types.relation_ty(out_row)
-    }
-
-    /// The joined relation's columns follow the left input's, except a `using`
-    /// key, which is carried once from the left.
-    fn place_joined_alias(
-        &mut self,
-        right: RelId,
-        left: &[(SymbolId, TypeId)],
-        right_fields: &[(SymbolId, TypeId)],
-        condition: &JoinCondition,
-    ) {
-        let Rel::From {
-            alias: Some(alias), ..
-        } = self.hir.rel(right)
-        else {
-            return;
-        };
-        let alias = alias.symbol;
-
-        let keys: Vec<SymbolId> = match condition {
-            JoinCondition::On(_) => Vec::new(),
-            JoinCondition::Using(columns) => columns.iter().map(|column| column.symbol).collect(),
-        };
-
-        let mut placement = Vec::new();
-        let mut next = left.len() as u32;
-        for &(name, _) in right_fields {
-            if keys.contains(&name) {
-                let carried = left.iter().position(|&(field, _)| field == name);
-                placement.push(carried.map(|index| index as u32));
-                continue;
-            }
-            placement.push(Some(next));
-            next += 1;
-        }
-        self.alias_columns.insert(alias, placement);
-    }
-
-    fn infer_join_condition(&mut self, expr: ExprId, fields: Vec<(SymbolId, TypeId)>) {
-        let row = self.anonymous_row(fields);
-        let saved = self.current_row.replace(row);
-        let condition_ty = self.infer_expr(expr);
-        self.current_row = saved;
-        self.check_bool(expr, condition_ty, "`on` condition");
-    }
-
-    fn infer_join_using(
-        &mut self,
-        id: RelId,
-        columns: &[Ident],
-        left: &[(SymbolId, TypeId)],
-        right: &[(SymbolId, TypeId)],
-    ) -> Option<Vec<(SymbolId, TypeId)>> {
-        let mut usable = true;
-        for column in columns {
-            if !self.check_using_column(id, column.symbol, left, right) {
-                usable = false;
-            }
-        }
-        if !usable {
-            return None;
-        }
-
-        let keys: HashSet<SymbolId> = columns.iter().map(|column| column.symbol).collect();
-        Some(
-            left.iter()
-                .chain(right.iter().filter(|(name, _)| !keys.contains(name)))
-                .copied()
+        let joined_columns: Vec<Column> = match condition {
+            JoinCondition::On(_) => left_columns
+                .iter()
+                .cloned()
+                .chain(right_columns.iter().cloned())
                 .collect(),
-        )
-    }
 
-    fn check_using_column(
-        &mut self,
-        id: RelId,
-        name: SymbolId,
-        left: &[(SymbolId, TypeId)],
-        right: &[(SymbolId, TypeId)],
-    ) -> bool {
-        let Some(left_ty) = field_ty(left, name) else {
-            let message = format!(
-                "`using` column `{}` is not in the join's left input",
-                self.interner.text(name)
-            );
-            self.report_rel(id, message);
-            return false;
+            JoinCondition::Using(idents) => {
+                let mut error_reported = false;
+                for ident in idents {
+                    let left_col = left_columns.iter().find(|col| col.name == ident.symbol);
+                    let right_col = right_columns.iter().find(|col| col.name == ident.symbol);
+
+                    let (Some(left_col), Some(right_col)) = (left_col, right_col) else {
+                        let message = format!(
+                            "column {} not present in both relations",
+                            self.interner.text(ident.symbol)
+                        );
+                        self.report_rel(id, message);
+                        error_reported = true;
+                        continue;
+                    };
+
+                    // The two are compared, so a plan needs one comparison type.
+                    if self.infer.resolve(left_col.ty) != self.infer.resolve(right_col.ty) {
+                        let message = format!(
+                            "column {} is `{:?}` on the left and `{:?}` on the right",
+                            self.interner.text(ident.symbol),
+                            self.infer.types.ty(left_col.ty),
+                            self.infer.types.ty(right_col.ty),
+                        );
+                        self.report_rel(id, message);
+                        error_reported = true;
+                    }
+                }
+
+                if error_reported {
+                    return self.infer.types.error_ty();
+                }
+
+                // `using` only constrains the two rows; both sides' columns
+                // carry through, exactly as they do for `on`.
+                left_columns
+                    .iter()
+                    .cloned()
+                    .chain(right_columns.iter().cloned())
+                    .collect()
+            }
         };
-        let Some(right_ty) = field_ty(right, name) else {
-            let message = format!(
-                "`using` column `{}` is not in the joined relation",
-                self.interner.text(name)
-            );
-            self.report_rel(id, message);
-            return false;
-        };
-        if self.infer.resolve(left_ty) != self.infer.resolve(right_ty) {
-            let message = format!(
-                "`using` column `{}` is `{:?}` on the left and `{:?}` on the right",
-                self.interner.text(name),
-                self.infer.types.ty(left_ty),
-                self.infer.types.ty(right_ty),
-            );
-            self.report_rel(id, message);
-            return false;
+
+        let joined_ty = self
+            .symbols
+            .replace_current_row(self.infer.types.relation_ty(joined_columns));
+
+        if let JoinCondition::On(expr) = condition {
+            let condition_ty = self.infer_expr(*expr);
+            self.ensure_boolean(*expr, condition_ty, "`on` condition");
         }
-        true
+
+        joined_ty
     }
 
-    fn check_bool(&mut self, expr: ExprId, ty: TypeId, subject: &str) {
+    fn infer_select_rel(&mut self, input: RelId, items: &[SelectItem]) -> TypeId {
+        let input_ty = self.infer_rel(input);
+        if self.columns(input_ty).is_none() {
+            return self.infer.types.error_ty();
+        }
+
+        let mut columns = Vec::with_capacity(items.len());
+        let mut anonymous = 0;
+        for item in items {
+            let ty = self.infer_expr(item.expr);
+            let name = self.resolve_column_name(item, &mut anonymous);
+            columns.push(Column::new(None, name, ty));
+        }
+
+        let selected_ty = self.infer.types.relation_ty(columns);
+
+        self.symbols.replace_current_row(selected_ty)
+    }
+
+    fn infer_where_rel(&mut self, input: RelId, predicate: ExprId) -> TypeId {
+        let input_ty = self.infer_rel(input);
+        if self.columns(input_ty).is_none() {
+            self.infer_expr(predicate);
+            return self.infer.types.error_ty();
+        }
+
+        let predicate_ty = self.infer_expr(predicate);
+        self.ensure_boolean(predicate, predicate_ty, "`where` predicate");
+
+        input_ty
+    }
+
+    fn ensure_boolean(&mut self, expr: ExprId, ty: TypeId, subject: &str) {
         let ty = self.infer.resolve(ty);
         let bool_ty = self.infer.types.bool_ty();
         let error_ty = self.infer.types.error_ty();
@@ -582,170 +543,105 @@ impl<'i> TypeInferrer<'i> {
         }
 
         let message = format!(
-            "{subject} must be `bool`, found `{:?}`",
+            "expected `{subject}` to be a `bool` type, but found `{:?}`",
             self.infer.types.ty(ty)
         );
         self.report_expr(expr, message);
     }
 
-    fn infer_select_rel(&mut self, input: RelId, items: &[SelectItem]) -> TypeId {
-        let input_ty = self.infer_rel(input);
-        let Some(row) = self.row_of(input_ty) else {
-            return self.infer.types.error_ty();
-        };
-
-        let saved = self.current_row.replace(row);
-        let mut fields = Vec::with_capacity(items.len());
-        let mut anonymous = 0;
-        for item in items {
-            let col_ty = self.infer_expr(item.expr);
-            let name = self.column_name(item, &mut anonymous);
-            fields.push((name, col_ty));
-        }
-        self.current_row = saved;
-
-        let out_row = self.anonymous_row(fields);
-        self.infer.types.relation_ty(out_row)
-    }
-
-    fn infer_where_rel(&mut self, input: RelId, predicate: ExprId) -> TypeId {
-        let input_ty = self.infer_rel(input);
-        let Some(row) = self.row_of(input_ty) else {
-            self.infer_expr(predicate);
-            return self.infer.types.error_ty();
-        };
-
-        let saved = self.current_row.replace(row);
-        let pred_ty = self.infer_expr(predicate);
-        self.current_row = saved;
-        self.check_bool(predicate, pred_ty, "`where` predicate");
-
-        // A filter keeps the input schema.
-        input_ty
-    }
-
     fn infer_drop_rel(&mut self, input: RelId, columns: &[Ident]) -> TypeId {
         let input_ty = self.infer_rel(input);
-        let Some(row) = self.row_of(input_ty) else {
+        let Some(input_columns) = self.columns(input_ty) else {
             return self.infer.types.error_ty();
         };
 
         let dropped: HashSet<SymbolId> = columns.iter().map(|column| column.symbol).collect();
-        let fields: Vec<(SymbolId, TypeId)> = match self.infer.types.ty(row) {
-            Type::Struct(s) => s
-                .fields
-                .iter()
-                .filter(|(name, _)| !dropped.contains(name))
-                .copied()
-                .collect(),
-            _ => return self.infer.types.error_ty(),
-        };
 
-        let out_row = self.anonymous_row(fields);
-        self.infer.types.relation_ty(out_row)
+        let remaining = input_columns
+            .iter()
+            .filter(|column| !dropped.contains(&column.name))
+            .cloned()
+            .collect();
+
+        let dropped_ty = self.infer.types.relation_ty(remaining);
+        self.symbols.replace_current_row(dropped_ty)
     }
 
     fn infer_rename_rel(&mut self, id: RelId, input: RelId, items: &[RenameItem]) -> TypeId {
         let input_ty = self.infer_rel(input);
-        let Some(row) = self.row_of(input_ty) else {
+        let Some(columns) = self.columns(input_ty) else {
             return self.infer.types.error_ty();
         };
-
-        let Some(mut fields) = self.row_field_types(row) else {
-            return self.infer.types.error_ty();
-        };
+        let mut renamed = columns.to_vec();
 
         for item in items {
-            let Some(column) = self.rename_target(id, item, &fields) else {
+            let Some(column) = self.rename_target(id, item, &renamed) else {
                 return self.infer.types.error_ty();
             };
-            fields[column as usize].0 = item.to.symbol;
+            renamed[column as usize].name = item.to.symbol;
         }
 
-        let out_row = self.anonymous_row(fields);
-        self.infer.types.relation_ty(out_row)
+        let renamed_ty = self.infer.types.relation_ty(renamed);
+        self.symbols.replace_current_row(renamed_ty)
     }
 
     /// The one column a rename item names: a qualified item goes through its
     /// alias, a bare one has to match exactly one column of the row.
-    fn rename_target(
-        &mut self,
-        id: RelId,
-        item: &RenameItem,
-        fields: &[(SymbolId, TypeId)],
-    ) -> Option<u32> {
+    fn rename_target(&mut self, id: RelId, item: &RenameItem, columns: &[Column]) -> Option<u32> {
         let name = item.from.symbol;
-        let Some(alias) = item.qualifier else {
-            let mut matches = fields
-                .iter()
-                .enumerate()
-                .filter(|(_, (field, _))| *field == name);
-            return match (matches.next(), matches.next()) {
-                (Some((column, _)), None) => Some(column as u32),
-                (Some(_), Some(_)) => {
-                    let message = format!(
-                        "column `{}` is ambiguous; qualify it with a relation alias",
+        let mut matches = columns.iter().enumerate().filter(|(_, column)| {
+            column.name == name
+                && item
+                    .qualifier
+                    .is_none_or(|alias| column.named_by(alias.symbol))
+        });
+
+        match (matches.next(), matches.next()) {
+            (Some((column, _)), None) => Some(column as u32),
+            (Some(_), Some(_)) => {
+                let message = format!(
+                    "column `{}` is ambiguous; qualify it with a relation alias",
+                    self.interner.text(name)
+                );
+                self.report_rel(id, message);
+                None
+            }
+            _ => {
+                let message = match item.qualifier {
+                    Some(alias) => format!(
+                        "`{}` has no column `{}`",
+                        self.interner.text(alias.symbol),
                         self.interner.text(name)
-                    );
-                    self.report_rel(id, message);
-                    None
-                }
-                _ => {
-                    let message =
-                        format!("column `{}` is not in this row", self.interner.text(name));
-                    self.report_rel(id, message);
-                    None
-                }
-            };
-        };
-
-        let column = self
-            .symbols
-            .lookup(alias.symbol)
-            .map(|binding| binding.ty())
-            .and_then(|row| self.row_field_types(row))
-            .and_then(|row| row.iter().position(|&(field, _)| field == name))
-            .and_then(|index| self.alias_columns.get(&alias.symbol)?.get(index).copied())
-            .flatten();
-
-        if column.is_none() {
-            let message = format!(
-                "`{}` has no column `{}` here",
-                self.interner.text(alias.symbol),
-                self.interner.text(name)
-            );
-            self.report_rel(id, message);
+                    ),
+                    None => format!("column `{}` is not in this row", self.interner.text(name)),
+                };
+                self.report_rel(id, message);
+                None
+            }
         }
-        column
     }
 
     fn infer_extend_rel(&mut self, input: RelId, items: &[SelectItem]) -> TypeId {
         let input_ty = self.infer_rel(input);
-        let Some(row) = self.row_of(input_ty) else {
+        let Some(columns) = self.columns(input_ty) else {
             return self.infer.types.error_ty();
         };
 
-        let mut fields: Vec<(SymbolId, TypeId)> = match self.infer.types.ty(row) {
-            Type::Struct(s) => s.fields.clone(),
-            _ => return self.infer.types.error_ty(),
-        };
-
-        let saved = self.current_row.replace(row);
+        let mut extended_columns = columns.to_vec();
         let mut anonymous = 0;
         for item in items {
-            let col_ty = self.infer_expr(item.expr);
-            let name = self.column_name(item, &mut anonymous);
-            fields.push((name, col_ty));
+            let ty = self.infer_expr(item.expr);
+            let name = self.resolve_column_name(item, &mut anonymous);
+            extended_columns.push(Column::new(None, name, ty));
         }
-        self.current_row = saved;
 
-        let out_row = self.anonymous_row(fields);
-        self.infer.types.relation_ty(out_row)
+        let extended_ty = self.infer.types.relation_ty(extended_columns);
+        self.symbols.replace_current_row(extended_ty)
     }
 
     /// The output column name: the `as` alias, else a bare identifier's or field
     /// access's own name, else a generated `%gN` for an anonymous expression.
-    fn column_name(&mut self, item: &SelectItem, anonymous: &mut usize) -> SymbolId {
+    fn resolve_column_name(&mut self, item: &SelectItem, anonymous: &mut usize) -> SymbolId {
         if let Some(alias) = item.alias {
             return alias.symbol;
         }
@@ -760,38 +656,32 @@ impl<'i> TypeInferrer<'i> {
         }
     }
 
-    fn anonymous_row(&mut self, fields: Vec<(SymbolId, TypeId)>) -> TypeId {
-        let name = self.interner.intern("");
-        self.infer.types.struct_ty(name, fields)
-    }
-
-    fn row_field_types(&self, row: TypeId) -> Option<Vec<(SymbolId, TypeId)>> {
-        match self.infer.types.ty(row) {
-            Type::Struct(s) => Some(s.fields.clone()),
-            _ => None,
-        }
-    }
-
-    fn row_of(&self, relation_ty: TypeId) -> Option<TypeId> {
+    fn columns(&self, relation_ty: TypeId) -> Option<&[Column]> {
         match self.infer.types.ty(relation_ty) {
-            Type::Relation(relation) => Some(relation.inner),
+            Type::Relation(relation) => Some(&relation.columns),
             _ => None,
         }
     }
 
-    /// A join concatenates its inputs, so a bare name can match more than one
-    /// column; that is only an error where it is used, not where it arose.
-    fn current_row_field(&self, name: SymbolId) -> ColumnLookup {
-        let Some(row) = self.current_row else {
-            return ColumnLookup::Absent;
-        };
-        let Type::Struct(row) = self.infer.types.ty(row) else {
+    fn current_columns(&self) -> Option<&[Column]> {
+        self.columns(self.symbols.row()?)
+    }
+
+    fn resolve_column(&self, name: SymbolId) -> ColumnLookup {
+        let Some(columns) = self.current_columns() else {
             return ColumnLookup::Absent;
         };
 
-        let mut matches = row.fields.iter().filter(|(n, _)| *n == name);
+        let mut matches = columns
+            .iter()
+            .enumerate()
+            .filter(|(_, column)| column.name == name);
+
         match (matches.next(), matches.next()) {
-            (Some(&(_, ty)), None) => ColumnLookup::Unique(ty),
+            (Some((column, found)), None) => ColumnLookup::Unique {
+                ty: found.ty,
+                column: column as u32,
+            },
             (Some(_), Some(_)) => ColumnLookup::Ambiguous,
             _ => ColumnLookup::Absent,
         }
@@ -842,13 +732,15 @@ impl<'i> TypeInferrer<'i> {
 
     fn infer_ident_expr(&mut self, expr_id: ExprId, value: &Ident) -> TypeId {
         let name = value.symbol;
-        if let Some(ty) = self.symbols.lookup(name).map(|binding| binding.ty()) {
+        if let Some(ty) = self.symbols.lookup_symbol(name).map(|binding| binding.ty()) {
             return self.infer.bind_expr_ty(expr_id, ty);
         }
 
-        // Inside a query, a bare name may be a column of the current row.
-        match self.current_row_field(name) {
-            ColumnLookup::Unique(ty) => return self.infer.bind_expr_ty(expr_id, ty),
+        match self.resolve_column(name) {
+            ColumnLookup::Unique { ty, column } => {
+                self.infer.bind_column(expr_id, column);
+                return self.infer.bind_expr_ty(expr_id, ty);
+            }
             ColumnLookup::Ambiguous => {
                 let message = format!(
                     "column `{}` is ambiguous; qualify it with a relation alias",
@@ -858,8 +750,38 @@ impl<'i> TypeInferrer<'i> {
             }
             ColumnLookup::Absent => {}
         }
+        if self.symbols.lookup_relation(name).is_some() {
+            let message = format!("`{}` is a relation, not a value", self.interner.text(name));
+            return self.error_expr(expr_id, message);
+        }
+
         let message = format!("unresolved identifier `{}`", self.interner.text(name));
         self.error_expr(expr_id, message)
+    }
+
+    fn infer_column_expr(&mut self, expr_id: ExprId, alias: Ident, name: SymbolId) -> TypeId {
+        let Some(columns) = self.current_columns() else {
+            let message = format!("`{}` is not available here", self.interner.text(name));
+            return self.error_expr(expr_id, message);
+        };
+
+        let found = columns
+            .iter()
+            .enumerate()
+            .find(|(_, column)| column.name == name && column.named_by(alias.symbol));
+
+        let Some((column, found)) = found else {
+            let message = format!(
+                "`{}` has no column `{}` here",
+                self.interner.text(alias.symbol),
+                self.interner.text(name)
+            );
+            return self.error_expr(expr_id, message);
+        };
+
+        let ty = found.ty;
+        self.infer.bind_column(expr_id, column as u32);
+        self.infer.bind_expr_ty(expr_id, ty)
     }
 
     fn infer_call_expr(&mut self, expr_id: ExprId, op: Op, args: &[ExprId]) -> TypeId {
@@ -901,7 +823,14 @@ impl<'i> TypeInferrer<'i> {
         let resolved = self.infer.resolve(ty);
         match self.infer.types.ty(resolved).clone() {
             Type::List(list) => format!("List[{}]", self.type_name(list.inner)),
-            Type::Relation(relation) => format!("Relation[{}]", self.type_name(relation.inner)),
+            Type::Relation(relation) => {
+                let columns: Vec<String> = relation
+                    .columns
+                    .iter()
+                    .map(|column| self.interner.text(column.name).to_string())
+                    .collect();
+                format!("Relation[{}]", columns.join(", "))
+            }
             Type::Struct(row) => self.interner.text(row.name).to_string(),
             other => format!("{other:?}"),
         }
@@ -957,7 +886,23 @@ impl<'i> TypeInferrer<'i> {
     }
 
     fn is_assignable(&mut self, expr: ExprId, value_ty: TypeId, target_ty: TypeId) -> bool {
-        self.infer.unify(value_ty, target_ty) || self.infer.coerce(expr, value_ty, target_ty)
+        self.relations_match(value_ty, target_ty)
+            || self.infer.unify(value_ty, target_ty)
+            || self.infer.coerce(expr, value_ty, target_ty)
+    }
+
+    /// Two relations match on their columns' names and types. A qualifier says
+    /// how a column is named inside a query, not what shape the relation has,
+    /// so `Relation[Row]` accepts a query however its source was aliased.
+    fn relations_match(&self, value_ty: TypeId, target_ty: TypeId) -> bool {
+        let (Some(value), Some(target)) = (self.columns(value_ty), self.columns(target_ty)) else {
+            return false;
+        };
+        value.len() == target.len()
+            && value
+                .iter()
+                .zip(target)
+                .all(|(value, target)| value.name == target.name && value.ty == target.ty)
     }
 
     fn infer_field_access_expr(
@@ -966,6 +911,24 @@ impl<'i> TypeInferrer<'i> {
         base: ExprId,
         field: SymbolId,
     ) -> TypeId {
+        // If the field is of the form <ident>.<expr>, where <ident> is an relation alias, then
+        // infer using a column expression instead.
+        if let Some(alias) = self.lookup_relation_alias(base) {
+            return self.infer_column_expr(expr_id, alias, field);
+        }
+
+        // A relation names no value, so it cannot qualify anything until a
+        // `from` or `join` gives it an alias.
+        if let Expr::Ident { value } = self.hir.expr(base)
+            && self.symbols.lookup_relation(value.symbol).is_some()
+        {
+            let message = format!(
+                "`{}` is aliased here; qualify its columns with the alias",
+                self.interner.text(value.symbol)
+            );
+            return self.error_expr(expr_id, message);
+        }
+
         let base_ty = self.infer_expr(base);
         let base_ty = self.infer.resolve(base_ty);
         let error_ty = self.infer.types.error_ty();
@@ -996,6 +959,16 @@ impl<'i> TypeInferrer<'i> {
             None => format!("type `{:?}` has no fields", self.infer.types.ty(base_ty)),
         };
         self.error_expr(expr_id, message)
+    }
+
+    fn lookup_relation_alias(&self, base: ExprId) -> Option<Ident> {
+        let Expr::Ident { value } = self.hir.expr(base) else {
+            return None;
+        };
+        match self.symbols.lookup_symbol(value.symbol) {
+            Some(Binding::Relation { .. }) => Some(*value),
+            _ => None,
+        }
     }
 
     fn infer_struct_init_expr(
@@ -1148,7 +1121,7 @@ impl<'i> TypeInferrer<'i> {
             let inner = self.resolve_annotation(args[0]);
             return match name_str.as_str() {
                 "List" => self.infer.types.list_ty(inner),
-                _ => self.infer.types.relation_ty(inner),
+                _ => self.infer.types.relation_of_row(inner, None),
             };
         }
 
@@ -1236,16 +1209,9 @@ impl<'i> TypeInferrer<'i> {
     }
 }
 
-fn field_ty(fields: &[(SymbolId, TypeId)], name: SymbolId) -> Option<TypeId> {
-    fields
-        .iter()
-        .find(|(field, _)| *field == name)
-        .map(|&(_, ty)| ty)
-}
-
 enum ColumnLookup {
     Absent,
-    Unique(TypeId),
+    Unique { ty: TypeId, column: u32 },
     Ambiguous,
 }
 
@@ -1802,7 +1768,31 @@ mod tests {
     fn src_where_non_bool_predicate() {
         check_src(
             &format!("{TABLE}let q = from t |> where a"),
-            expect!["`where` predicate must be `bool`, found `Int64`"],
+            expect!["expected ``where` predicate` to be a `bool` type, but found `Int64`"],
+        );
+    }
+
+    #[test]
+    fn src_relation_name_qualifies_when_there_is_no_alias() {
+        check_src(
+            &format!("{TABLE}let q = from t |> select t.a"),
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
+    fn src_alias_shadows_the_relation_name() {
+        check_src(
+            &format!("{TABLE}let q = from t e |> select t.a"),
+            expect!["`t` is aliased here; qualify its columns with the alias"],
+        );
+    }
+
+    #[test]
+    fn src_relation_is_not_a_value() {
+        check_src(
+            &format!("{TABLE}let q = t"),
+            expect!["`t` is a relation, not a value"],
         );
     }
 
@@ -1810,7 +1800,7 @@ mod tests {
     fn src_from_unknown_table() {
         check_src(
             "let q = from nope |> select x",
-            expect!["`nope` is not a table"],
+            expect!["`nope` is not a relation"],
         );
     }
 
@@ -1942,17 +1932,25 @@ mod tests {
     fn src_join_on_non_bool_condition() {
         check_src(
             &format!("{TABLE}{JOIN_TABLES}let q = from t e |> join i x on e.a"),
-            expect!["`on` condition must be `bool`, found `Int64`"],
+            expect!["expected ``on` condition` to be a `bool` type, but found `Int64`"],
         );
     }
 
     #[test]
-    fn src_join_using_keeps_one_copy_of_the_key() {
+    fn src_join_using_carries_both_sides_columns() {
         check_src(
             &format!(
-                "{TABLE}{JOIN_TABLES}let q = from t |> join d using (a) |> select a, active, name"
+                "{TABLE}{JOIN_TABLES}let q = from t e |> join d x using (a) |> select e.a, x.a"
             ),
-            expect![""],
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
+    fn src_bare_using_key_is_ambiguous() {
+        check_src(
+            &format!("{TABLE}{JOIN_TABLES}let q = from t e |> join d x using (a) |> select a"),
+            expect!["column `a` is ambiguous; qualify it with a relation alias"],
         );
     }
 
@@ -1960,7 +1958,7 @@ mod tests {
     fn src_join_using_unknown_column() {
         check_src(
             &format!("{TABLE}{JOIN_TABLES}let q = from t |> join d using (missing)"),
-            expect!["`using` column `missing` is not in the join's left input"],
+            expect!["column missing not present in both relations"],
         );
     }
 
@@ -1968,7 +1966,7 @@ mod tests {
     fn src_join_using_column_missing_on_the_right() {
         check_src(
             &format!("{TABLE}{JOIN_TABLES}let q = from t |> join i using (a)"),
-            expect!["`using` column `a` is not in the joined relation"],
+            expect!["column a not present in both relations"],
         );
     }
 
@@ -1976,7 +1974,23 @@ mod tests {
     fn src_join_using_column_types_must_match() {
         check_src(
             &format!("{TABLE}{JOIN_TABLES}let q = from t |> join g using (a)"),
-            expect!["`using` column `a` is `Int64` on the left and `String` on the right"],
+            expect!["column a is `Int64` on the left and `String` on the right"],
+        );
+    }
+
+    #[test]
+    fn src_using_key_is_named_through_the_left_side_only() {
+        check_src(
+            &format!("{TABLE}{JOIN_TABLES}let q = from t e |> join d x using (a) |> select e.a"),
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
+    fn src_using_key_is_not_named_through_the_right_side() {
+        check_src(
+            &format!("{TABLE}{JOIN_TABLES}let q = from t e |> join d x using (a) |> select x.a"),
+            expect![[r#""#]],
         );
     }
 
@@ -1993,9 +2007,9 @@ mod tests {
         check_src(
             &format!("{TABLE}{JOIN_TABLES}let q = from t |> join g using (a, active, missing)"),
             expect![[r#"
-                `using` column `a` is `Int64` on the left and `String` on the right
-                `using` column `active` is not in the joined relation
-                `using` column `missing` is not in the join's left input"#]],
+                column a is `Int64` on the left and `String` on the right
+                column active not present in both relations
+                column missing not present in both relations"#]],
         );
     }
 
@@ -2025,7 +2039,47 @@ mod tests {
             &format!(
                 "{TABLE}{JOIN_TABLES}let q = from t e |> join d x on e.a == x.a |> rename e.nope as z"
             ),
+            expect!["`e` has no column `nope`"],
+        );
+    }
+
+    #[test]
+    fn src_alias_that_outlived_its_row() {
+        check_src(
+            &format!("{TABLE}let q = from t e |> select a |> where e.active"),
+            expect!["`e` has no column `active` here"],
+        );
+    }
+
+    #[test]
+    fn src_alias_has_no_such_column() {
+        check_src(
+            &format!("{TABLE}let q = from t e |> where e.nope"),
             expect!["`e` has no column `nope` here"],
+        );
+    }
+
+    #[test]
+    fn src_relation_annotation_accepts_an_aliased_query() {
+        check_src(
+            &format!("{TABLE}let q: Relation[Row] = from t e |> where e.active"),
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
+    fn src_relation_annotation_ignores_which_alias_was_used() {
+        check_src(
+            &format!("{TABLE}let q: Relation[Row] = from t |> where active"),
+            expect![[r#""#]],
+        );
+    }
+
+    #[test]
+    fn src_relation_annotation_still_checks_the_columns() {
+        check_src(
+            &format!("{TABLE}let q: Relation[Row] = from t |> select a"),
+            expect!["value of type `Relation[a]` is not assignable to `Relation[a, active]`"],
         );
     }
 
@@ -2033,7 +2087,7 @@ mod tests {
     fn src_join_unknown_relation() {
         check_src(
             &format!("{TABLE}let q = from t |> join nope on a == 1"),
-            expect!["`nope` is not a table"],
+            expect!["`nope` is not a relation"],
         );
     }
 }
