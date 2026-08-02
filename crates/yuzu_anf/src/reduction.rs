@@ -4,13 +4,13 @@ use id_arena::Arena;
 use yuzu_core::adt::StringInterner;
 
 use crate::AnfCtx;
-use crate::anf::{
-    Atom, AtomId, Binding, BindingId, Expr, ExprId, Ident, Rel, RelId, Root, Stmt, StmtId,
-    TreeCopier, TreeCopy,
-};
 use crate::reduction::environment::Environment;
 use crate::reduction::liveness::DeadCodeElimination;
 use crate::source_map::AnfSourceMap;
+use crate::{
+    Atom, AtomId, Binding, BindingId, Expr, ExprId, Ident, Rel, RelId, Root, Stmt, StmtId,
+    TreeCopier, TreeCopy,
+};
 
 mod atom;
 mod environment;
@@ -26,15 +26,14 @@ pub fn reduce(
     root: &Root,
     anf: &mut AnfCtx,
     interner: &mut StringInterner,
-    source: &AnfSourceMap,
-) -> (Root, AnfSourceMap) {
+    source_map: &mut AnfSourceMap,
+) -> Root {
     let reduced = AnfReduceCtx::take(anf);
     AnfReducer {
         reduced: &reduced,
         anf,
         interner,
-        source,
-        source_map: AnfSourceMap::default(),
+        source_map,
         funcs: FuncTable::default(),
         inlining: HashSet::new(),
         materialized: HashSet::new(),
@@ -91,8 +90,7 @@ struct AnfReducer<'r> {
     reduced: &'r AnfReduceCtx,
     anf: &'r mut AnfCtx,
     interner: &'r mut StringInterner,
-    source: &'r AnfSourceMap,
-    source_map: AnfSourceMap,
+    source_map: &'r mut AnfSourceMap,
     funcs: FuncTable,
     inlining: HashSet<BindingId>,
     materialized: HashSet<BindingId>,
@@ -101,25 +99,25 @@ struct AnfReducer<'r> {
 }
 
 impl AnfReducer<'_> {
-    fn reduce_root(mut self, root: &Root) -> (Root, AnfSourceMap) {
+    fn reduce_root(mut self, root: &Root) -> Root {
         self.register_funcs(&root.stmts);
 
         let mut env = Environment::default();
         let stmts = self.reduce_stmts(&root.stmts, &mut env);
         let stmts = self.sweep_dead_functions(stmts);
-        (Root { stmts }, self.source_map)
+        Root { stmts }
     }
 
     /// Carries an input node's source position over to the node that replaces
     /// it in the reduced program.
     fn bind_expr_origin(&mut self, id: ExprId, origin: ExprId) {
-        if let Some(&ptr) = self.source.expr(origin) {
+        if let Some(&ptr) = self.source_map.expr(origin) {
             self.source_map.bind_expr(id, ptr);
         }
     }
 
     fn bind_stmt_origin(&mut self, id: StmtId, origin: StmtId) {
-        if let Some(&ptr) = self.source.stmt(origin) {
+        if let Some(&ptr) = self.source_map.stmt(origin) {
             self.source_map.bind_stmt(id, ptr);
         }
     }
@@ -248,7 +246,7 @@ pub(crate) mod test_support {
         );
 
         let mut anf = AnfCtx::new();
-        let (anf_root, anf_source_map) = lower(
+        let (anf_root, mut anf_source_map) = lower(
             &hir_root,
             &hir,
             &inference,
@@ -260,7 +258,7 @@ pub(crate) mod test_support {
             source_id,
         );
 
-        let (reduced, _) = reduce(&anf_root, &mut anf, &mut interner, &anf_source_map);
+        let reduced = reduce(&anf_root, &mut anf, &mut interner, &mut anf_source_map);
         expected.assert_eq(&dump(&anf, &interner, &reduced));
     }
 }

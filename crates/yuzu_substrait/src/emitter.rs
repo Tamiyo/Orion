@@ -1,9 +1,6 @@
 use substrait::proto::{Plan, PlanRel, RelRoot, plan_rel};
 use substrait::version;
-use yuzu_anf::{
-    AnfCtx, AnfSourceMap,
-    anf::{Expr, ExprId, RelId, Root, Stmt, StmtId},
-};
+use yuzu_anf::{AnfCtx, AnfSourceMap, Expr, ExprId, RelId, Root, Stmt, StmtId};
 use yuzu_core::adt::StringInterner;
 use yuzu_diagnostics::{
     diagnostics::{Span, builder::DiagnosticBuilder, engine::DiagnosticsEngine},
@@ -196,7 +193,7 @@ pub(crate) mod test_support {
         );
 
         let mut anf = yuzu_anf::AnfCtx::new();
-        let (anf_root, anf_source_map) = yuzu_anf::lower(
+        let (anf_root, mut anf_source_map) = yuzu_anf::lower(
             &hir_root,
             &hir,
             &inference,
@@ -207,15 +204,14 @@ pub(crate) mod test_support {
             &hir_source_map,
             source_id,
         );
-        let (reduced, reduced_source_map) =
-            yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &anf_source_map);
+        let reduced = yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &mut anf_source_map);
 
         let plan = super::emit(
             &reduced,
             &anf,
             &types,
             &interner,
-            &reduced_source_map,
+            &anf_source_map,
             &mut diagnostics,
             source_id,
         )

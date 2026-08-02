@@ -65,7 +65,7 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
     let backend = options.debug_anf || options.debug_reduce || options.debug_substrait;
     if backend && !has_errors(&diagnostics) {
         let mut anf = AnfCtx::new();
-        let (anf_root, anf_source_map) = yuzu_anf::lower(
+        let (anf_root, mut anf_source_map) = yuzu_anf::lower(
             &root,
             &hir,
             &inference,
@@ -81,8 +81,7 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
             print!("{}", yuzu_anf::dump(&anf, &interner, &anf_root));
         }
         if options.debug_reduce || options.debug_substrait {
-            let (reduced, reduced_source_map) =
-                yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &anf_source_map);
+            let reduced = yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &mut anf_source_map);
             if options.debug_reduce {
                 println!("=== reduced ===");
                 print!("{}", yuzu_anf::dump(&anf, &interner, &reduced));
@@ -93,7 +92,7 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
                     &anf,
                     &types,
                     &interner,
-                    &reduced_source_map,
+                    &anf_source_map,
                     &mut diagnostics,
                     source_id,
                 );
@@ -158,7 +157,7 @@ pub fn compile_to_substrait(
     }
 
     let mut anf = AnfCtx::new();
-    let (anf_root, anf_source_map) = yuzu_anf::lower(
+    let (anf_root, mut anf_source_map) = yuzu_anf::lower(
         &root,
         &hir,
         &inference,
@@ -174,8 +173,7 @@ pub fn compile_to_substrait(
         print!("{}", yuzu_anf::dump(&anf, &interner, &anf_root));
     }
 
-    let (reduced, reduced_source_map) =
-        yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &anf_source_map);
+    let reduced = yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &mut anf_source_map);
     if options.debug_reduce {
         println!("=== reduced ===");
         print!("{}", yuzu_anf::dump(&anf, &interner, &reduced));
@@ -186,7 +184,7 @@ pub fn compile_to_substrait(
         &anf,
         &types,
         &interner,
-        &reduced_source_map,
+        &anf_source_map,
         &mut diagnostics,
         source_id,
     );
