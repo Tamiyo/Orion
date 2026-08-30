@@ -187,6 +187,19 @@ mod tests {
     }
 
     #[test]
+    fn count_distinct_is_its_own_function() {
+        check(
+            &format!("{TABLE}from t |> aggregate count_distinct(a) as kinds group by b"),
+            expect![[r#"
+                struct Row { a, b }
+                table t
+                from t
+                  |> aggregate count_distinct(a) as kinds group by b
+            "#]],
+        );
+    }
+
+    #[test]
     fn aggregate_folds_inside_measure_arguments() {
         check(
             &format!("{TABLE}from t |> aggregate sum(a * (1 + 1)) as v group by b"),

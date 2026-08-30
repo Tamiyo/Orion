@@ -259,7 +259,7 @@ impl GraphEmitter<'_> {
                 arguments,
                 output_type: Some(emit_type(self.types, measure.ty)),
                 phase: AggregationPhase::InitialToResult as i32,
-                invocation: AggregationInvocation::All as i32,
+                invocation: invocation(measure.func) as i32,
                 ..Default::default()
             }),
             filter: None,
@@ -356,6 +356,16 @@ fn emit_common(output_mapping: Vec<i32>) -> Option<RelCommon> {
         emit_kind: Some(EmitKind::Emit(Emit { output_mapping })),
         ..Default::default()
     })
+}
+
+/// A `_distinct` builtin is its base function under Substrait's DISTINCT
+/// invocation; the dialect spells it as a separate function instead of a
+/// keyword.
+fn invocation(func: yuzu_types::AggFunc) -> AggregationInvocation {
+    match func {
+        yuzu_types::AggFunc::CountDistinct => AggregationInvocation::Distinct,
+        _ => AggregationInvocation::All,
+    }
 }
 
 fn join_type(kind: JoinKind) -> JoinType {
@@ -484,6 +494,139 @@ mod tests {
                         "names": [
                           "b",
                           "s"
+                        ]
+                      }
+                    }
+                  ]
+                }"#]],
+        );
+    }
+
+    #[test]
+    fn emits_count_distinct_as_distinct_invocation() {
+        check(
+            &format!("{TABLE}from t |> aggregate count_distinct(a) as kinds, count(a) as values"),
+            expect![[r#"
+                {
+                  "version": {
+                    "minorNumber": 85,
+                    "producer": "yuzu"
+                  },
+                  "extensionUrns": [
+                    {
+                      "extensionUrnAnchor": 1,
+                      "urn": "extension:io.substrait:functions_aggregate_generic"
+                    }
+                  ],
+                  "extensions": [
+                    {
+                      "extensionFunction": {
+                        "extensionUrnReference": 1,
+                        "functionAnchor": 1,
+                        "name": "count:i32"
+                      }
+                    },
+                    {
+                      "extensionFunction": {
+                        "extensionUrnReference": 1,
+                        "functionAnchor": 2,
+                        "name": "count:i32"
+                      }
+                    }
+                  ],
+                  "relations": [
+                    {
+                      "root": {
+                        "input": {
+                          "aggregate": {
+                            "input": {
+                              "read": {
+                                "baseSchema": {
+                                  "names": [
+                                    "a",
+                                    "b"
+                                  ],
+                                  "struct": {
+                                    "types": [
+                                      {
+                                        "i32": {
+                                          "nullability": "NULLABILITY_NULLABLE"
+                                        }
+                                      },
+                                      {
+                                        "i32": {
+                                          "nullability": "NULLABILITY_NULLABLE"
+                                        }
+                                      }
+                                    ],
+                                    "nullability": "NULLABILITY_NULLABLE"
+                                  }
+                                },
+                                "namedTable": {
+                                  "names": [
+                                    "t"
+                                  ]
+                                }
+                              }
+                            },
+                            "groupings": [
+                              {}
+                            ],
+                            "measures": [
+                              {
+                                "measure": {
+                                  "functionReference": 1,
+                                  "arguments": [
+                                    {
+                                      "value": {
+                                        "selection": {
+                                          "directReference": {
+                                            "structField": {}
+                                          },
+                                          "rootReference": {}
+                                        }
+                                      }
+                                    }
+                                  ],
+                                  "outputType": {
+                                    "i64": {
+                                      "nullability": "NULLABILITY_NULLABLE"
+                                    }
+                                  },
+                                  "phase": "AGGREGATION_PHASE_INITIAL_TO_RESULT",
+                                  "invocation": "AGGREGATION_INVOCATION_DISTINCT"
+                                }
+                              },
+                              {
+                                "measure": {
+                                  "functionReference": 2,
+                                  "arguments": [
+                                    {
+                                      "value": {
+                                        "selection": {
+                                          "directReference": {
+                                            "structField": {}
+                                          },
+                                          "rootReference": {}
+                                        }
+                                      }
+                                    }
+                                  ],
+                                  "outputType": {
+                                    "i64": {
+                                      "nullability": "NULLABILITY_NULLABLE"
+                                    }
+                                  },
+                                  "phase": "AGGREGATION_PHASE_INITIAL_TO_RESULT",
+                                  "invocation": "AGGREGATION_INVOCATION_ALL"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "names": [
+                          "kinds",
+                          "values"
                         ]
                       }
                     }

@@ -6,29 +6,40 @@ use yuzu_types::{AggFunc, BuiltinFunc};
 /// checks.
 pub(crate) struct Entry {
     pub(crate) func: BuiltinFunc,
-    pub(crate) arity: usize,
+    pub(crate) min_args: usize,
+    pub(crate) max_args: usize,
 }
 
 pub(crate) const ENTRIES: &[Entry] = &[
     Entry {
         func: BuiltinFunc::Aggregate(AggFunc::Count),
-        arity: 0,
+        min_args: 0,
+        max_args: 1,
+    },
+    Entry {
+        func: BuiltinFunc::Aggregate(AggFunc::CountDistinct),
+        min_args: 1,
+        max_args: 1,
     },
     Entry {
         func: BuiltinFunc::Aggregate(AggFunc::Sum),
-        arity: 1,
+        min_args: 1,
+        max_args: 1,
     },
     Entry {
         func: BuiltinFunc::Aggregate(AggFunc::Min),
-        arity: 1,
+        min_args: 1,
+        max_args: 1,
     },
     Entry {
         func: BuiltinFunc::Aggregate(AggFunc::Max),
-        arity: 1,
+        min_args: 1,
+        max_args: 1,
     },
     Entry {
         func: BuiltinFunc::Aggregate(AggFunc::Avg),
-        arity: 1,
+        min_args: 1,
+        max_args: 1,
     },
 ];
 

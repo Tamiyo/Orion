@@ -152,6 +152,7 @@ impl Type {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AggFunc {
     Count,
+    CountDistinct,
     Sum,
     Min,
     Max,
@@ -162,6 +163,7 @@ impl AggFunc {
     pub fn name(self) -> &'static str {
         match self {
             AggFunc::Count => "count",
+            AggFunc::CountDistinct => "count_distinct",
             AggFunc::Sum => "sum",
             AggFunc::Min => "min",
             AggFunc::Max => "max",

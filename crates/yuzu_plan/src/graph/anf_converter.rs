@@ -1126,6 +1126,26 @@ mod tests {
     }
 
     #[test]
+    fn count_and_count_distinct_stay_apart() {
+        let (graph, _, errors) = convert(&format!(
+            "{TABLES}from t |> aggregate count(a) + count_distinct(a) as v group by b"
+        ));
+        assert!(
+            errors.is_empty(),
+            "conversion should succeed, got: {errors:?}"
+        );
+        let graph = graph.expect("a clean conversion produces a graph");
+        let measures = graph
+            .nodes()
+            .find_map(|node| match graph.plan().rel(node) {
+                crate::Rel::Aggregate { measures, .. } => Some(measures.len()),
+                _ => None,
+            })
+            .expect("the graph holds an aggregate");
+        assert_eq!(measures, 2);
+    }
+
+    #[test]
     fn repeated_measures_intern_to_one() {
         let (graph, _, errors) = convert(&format!(
             "{TABLES}from t |> aggregate max(a) - min(a) + max(a) as v group by b"

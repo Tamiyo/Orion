@@ -1264,11 +1264,15 @@ impl<'i> TypeInferrer<'i> {
                 let arg_tys: Vec<TypeId> = args.iter().map(|&arg| self.infer_expr(arg)).collect();
                 self.agg.depth -= 1;
 
-                if args.len() != entry.arity {
+                if args.len() < entry.min_args || args.len() > entry.max_args {
+                    let expected = if entry.min_args == entry.max_args {
+                        entry.min_args.to_string()
+                    } else {
+                        format!("{} to {}", entry.min_args, entry.max_args)
+                    };
                     let message = format!(
-                        "`{}` expects {} argument(s), found {}",
+                        "`{}` expects {expected} argument(s), found {}",
                         func.name(),
-                        entry.arity,
                         args.len()
                     );
                     return self.error_expr(expr_id, message);
@@ -1284,7 +1288,7 @@ impl<'i> TypeInferrer<'i> {
     fn resolve_agg_ty(&mut self, expr_id: ExprId, func: AggFunc, args: &[TypeId]) -> TypeId {
         let error_ty = self.infer.types.error_ty();
         match func {
-            AggFunc::Count => self.infer.types.int64_ty(),
+            AggFunc::Count | AggFunc::CountDistinct => self.infer.types.int64_ty(),
             AggFunc::Sum => {
                 let arg = self.infer.resolve(args[0]);
                 if arg == error_ty {
@@ -2637,10 +2641,26 @@ mod tests {
     }
 
     #[test]
-    fn src_aggregate_count_takes_no_arguments() {
+    fn src_aggregate_count_takes_an_optional_argument() {
         check_src(
             &format!("{TABLE}let q = from t |> aggregate count(a) as n"),
-            expect!["`count` expects 0 argument(s), found 1"],
+            expect![""],
+        );
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate count(a, active) as n"),
+            expect!["`count` expects 0 to 1 argument(s), found 2"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_count_distinct() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate count_distinct(a) as kinds"),
+            expect![""],
+        );
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate count_distinct() as kinds"),
+            expect!["`count_distinct` expects 1 argument(s), found 0"],
         );
     }
 

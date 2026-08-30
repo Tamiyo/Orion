@@ -66,3 +66,11 @@ def test_group_keys_come_first_in_the_output():
     assert rows(query) == sorted_rows(
         (1, True, 2), (2, False, 1), (9, False, 1)
     )
+
+
+def test_count_distinct():
+    query = """
+        from employees
+        |> aggregate count_distinct(level) as kinds, count(level) as values
+    """
+    assert rows(query) == [(3, 4)]

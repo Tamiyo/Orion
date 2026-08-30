@@ -41,7 +41,7 @@ pub(crate) fn function_target(func: Func) -> Option<(&'static str, &'static str)
 /// lives in the generic aggregate family; the rest are arithmetic.
 pub(crate) fn aggregate_target(func: AggFunc) -> (&'static str, &'static str) {
     match func {
-        AggFunc::Count => (AGGREGATE_GENERIC_URN, "count"),
+        AggFunc::Count | AggFunc::CountDistinct => (AGGREGATE_GENERIC_URN, "count"),
         AggFunc::Sum => (ARITHMETIC_URN, "sum"),
         AggFunc::Min => (ARITHMETIC_URN, "min"),
         AggFunc::Max => (ARITHMETIC_URN, "max"),
