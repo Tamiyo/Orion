@@ -13,6 +13,7 @@ default-members = [
     "crates/yuzu_hir",
     "crates/yuzu_lexer",
     "crates/yuzu_parser",
+    "crates/yuzu_plan",
     "crates/yuzu_substrait",
     "crates/yuzu_syntax",
     "crates/yuzu_types",

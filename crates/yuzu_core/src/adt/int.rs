@@ -101,6 +101,10 @@ impl Int {
         self.num_bits
     }
 
+    pub fn signedness(self) -> Signedness {
+        self.signedness
+    }
+
     pub fn as_i64(self) -> i64 {
         self.value() as i64
     }

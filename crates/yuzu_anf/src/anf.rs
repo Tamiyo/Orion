@@ -157,31 +157,31 @@ pub enum Expr {
 
 /// A per-row computation (a `select` column or `where` predicate): the temporary
 /// bindings it needs, ending in the `value` atom it yields.
-#[derive(Clone, PartialEq, Eq, TreeCopy)]
+#[derive(Clone, PartialEq, Eq, Hash, TreeCopy)]
 pub struct Thunk {
     pub stmts: Box<[StmtId]>,
     pub value: AtomId,
 }
 
-#[derive(Clone, PartialEq, Eq, TreeCopy)]
+#[derive(Clone, PartialEq, Eq, Hash, TreeCopy)]
 pub struct SelectItem {
     pub body: Thunk,
     pub alias: Option<Ident>,
 }
 
-#[derive(Clone, PartialEq, Eq, TreeCopy)]
+#[derive(Clone, PartialEq, Eq, Hash, TreeCopy)]
 pub struct SetItem {
     pub column: Ident,
     pub value: Thunk,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, TreeCopy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, TreeCopy)]
 pub struct RenameItem {
     pub from: Ident,
     pub to: Ident,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum JoinKind {
     Inner,
     Left,
@@ -202,7 +202,7 @@ impl JoinKind {
 
 /// Not desugared to an equality: both sides spell the column the same way, so
 /// only the plan's field indices can tell them apart.
-#[derive(Clone, PartialEq, Eq, TreeCopy)]
+#[derive(Clone, PartialEq, Eq, Hash, TreeCopy)]
 pub enum JoinCondition {
     On(Thunk),
     Using(Box<[Ident]>),
@@ -210,7 +210,7 @@ pub enum JoinCondition {
 
 /// A relational pipeline stage. Inputs nest, so a `RelId` chain mirrors the
 /// `|>` pipeline. Each carries its own `Relation[row]` type.
-#[derive(Clone, PartialEq, Eq, TreeCopy)]
+#[derive(Clone, PartialEq, Eq, Hash, TreeCopy)]
 pub enum Rel {
     From {
         relation: Ident,
