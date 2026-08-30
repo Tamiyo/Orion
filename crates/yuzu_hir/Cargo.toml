@@ -10,6 +10,7 @@ yuzu_ast = { path = "../yuzu_ast" }
 yuzu_core = { path = "../yuzu_core" }
 yuzu_diagnostics = { path = "../yuzu_diagnostics" }
 yuzu_syntax = { path = "../yuzu_syntax" }
+yuzu_registry = { path = "../yuzu_registry" }
 yuzu_types = { path = "../yuzu_types" }
 
 [dev-dependencies]

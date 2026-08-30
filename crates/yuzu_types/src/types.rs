@@ -22,7 +22,7 @@ pub enum Type {
     Relation(Relation),
     List(List),
     Struct(Struct),
-    Func(Func),
+    Func(FuncType),
     TypeParam(TypeParam),
     Error,
 
@@ -87,7 +87,7 @@ pub struct Struct {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Func {
+pub struct FuncType {
     pub args: Vec<TypeId>,
     pub ret_type: TypeId,
 }
@@ -168,6 +168,60 @@ impl AggFunc {
             AggFunc::Min => "min",
             AggFunc::Max => "max",
             AggFunc::Avg => "avg",
+        }
+    }
+}
+
+/// A builtin scalar function.
+///
+/// The model's own vocabulary rather than any interchange format's: evaluating
+/// a call means knowing what the function does, and two plans calling one
+/// function have to compare equal however each spelled it. Emitters map these
+/// onto their dialect at the boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Func {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Power,
+    Negate,
+    ShiftLeft,
+    ShiftRight,
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    And,
+    Or,
+    Not,
+    In,
+}
+
+impl Func {
+    /// How the function is spelled in source, for diagnostics.
+    pub fn symbol(self) -> &'static str {
+        match self {
+            Func::Add => "+",
+            Func::Subtract => "-",
+            Func::Multiply => "*",
+            Func::Divide => "/",
+            Func::Power => "**",
+            Func::Negate => "-",
+            Func::ShiftLeft => "<<",
+            Func::ShiftRight => ">>",
+            Func::Equal => "==",
+            Func::NotEqual => "!=",
+            Func::Less => "<",
+            Func::LessEqual => "<=",
+            Func::Greater => ">",
+            Func::GreaterEqual => ">=",
+            Func::And => "and",
+            Func::Or => "or",
+            Func::Not => "not",
+            Func::In => "in",
         }
     }
 }

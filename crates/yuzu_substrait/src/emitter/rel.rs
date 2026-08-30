@@ -259,7 +259,7 @@ impl GraphEmitter<'_> {
                 arguments,
                 output_type: Some(emit_type(self.types, measure.ty)),
                 phase: AggregationPhase::InitialToResult as i32,
-                invocation: invocation(measure.func) as i32,
+                invocation: quantifier(measure.func) as i32,
                 ..Default::default()
             }),
             filter: None,
@@ -361,7 +361,7 @@ fn emit_common(output_mapping: Vec<i32>) -> Option<RelCommon> {
 /// A `_distinct` builtin is its base function under Substrait's DISTINCT
 /// invocation; the dialect spells it as a separate function instead of a
 /// keyword.
-fn invocation(func: yuzu_types::AggFunc) -> AggregationInvocation {
+fn quantifier(func: yuzu_types::AggFunc) -> AggregationInvocation {
     match func {
         yuzu_types::AggFunc::CountDistinct => AggregationInvocation::Distinct,
         _ => AggregationInvocation::All,

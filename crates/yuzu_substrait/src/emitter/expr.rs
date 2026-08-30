@@ -74,7 +74,7 @@ impl GraphEmitter<'_> {
         ty: yuzu_types::TypeId,
     ) -> Result<Expression, Unsupported> {
         let Some((urn, base)) = function_target(func) else {
-            let message = "operator `**` has no Substrait equivalent";
+            let message = format!("`{}` has no Substrait mapping yet", func.symbol());
             return Err(self.unsupported_query(message));
         };
 
@@ -242,7 +242,7 @@ mod tests {
     fn reports_an_unsupported_operator() {
         check_error(
             &format!("{TABLE}from t |> select a ** 2 as p"),
-            expect!["operator `**` has no Substrait equivalent"],
+            expect!["`**` has no Substrait mapping yet"],
         );
     }
 

@@ -2,6 +2,8 @@ use id_arena::Id;
 use yuzu_core::adt::{Float, Int, SymbolId};
 use yuzu_types::{AggFunc, TypeId};
 
+pub use yuzu_types::Func;
+
 pub type ExprId = Id<Expr>;
 
 /// A scalar expression over one row.
@@ -54,32 +56,4 @@ pub enum Const {
     Float { value: Float },
     Bool { value: bool },
     String { value: SymbolId },
-}
-
-/// A builtin scalar function.
-///
-/// The model's own vocabulary rather than the interchange format's: evaluating
-/// a call means knowing what the function does, and two plans calling one
-/// function have to compare equal however each spelled it. The Substrait
-/// reader and writer map these onto extension declarations at the boundary.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Func {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Power,
-    Negate,
-    ShiftLeft,
-    ShiftRight,
-    Equal,
-    NotEqual,
-    Less,
-    LessEqual,
-    Greater,
-    GreaterEqual,
-    And,
-    Or,
-    Not,
-    In,
 }

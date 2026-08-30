@@ -123,16 +123,11 @@ def test_membership():
     )
 
 
-def test_shifts_compile_but_datafusion_cannot_run_them():
-    """Known gap: we emit `shift_left`/`shift_right`, which DataFusion lacks."""
+def test_shifts_are_rejected_for_the_datafusion_target():
+    """DataFusion lacks `shift_left`/`shift_right`, so targeting it makes
+    shifts a compile error instead of a runtime failure."""
     query = """
         from employees
         |> select level << 2 as shl
     """
-    assert error_of(query) is None
-    try:
-        rows(query)
-    except Exception as failure:
-        assert "shift_left" in str(failure)
-    else:
-        raise AssertionError("DataFusion now runs shifts; drop this test")
+    assert error_of(query) == "error: `<<` is not supported by the datafusion target"

@@ -121,7 +121,7 @@ impl TypeCtx {
     }
 
     pub fn func_ty(&mut self, args: Vec<TypeId>, ret_type: TypeId) -> TypeId {
-        self.intern_ty(Type::Func(Func { args, ret_type }))
+        self.intern_ty(Type::Func(FuncType { args, ret_type }))
     }
 
     pub fn type_param_ty(&mut self, name: SymbolId, index: usize) -> TypeId {
@@ -233,7 +233,7 @@ mod tests {
         assert_eq!(a, b);
         assert_eq!(
             types.ty(a),
-            &Type::Func(Func {
+            &Type::Func(FuncType {
                 args: vec![int],
                 ret_type: boolean,
             })

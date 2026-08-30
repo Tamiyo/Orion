@@ -10,22 +10,31 @@ mod coerce;
 mod concretize;
 mod inference;
 mod op;
-mod registry;
 mod symbols;
 
 use self::inference::TypeInferrer;
 
+#[allow(clippy::too_many_arguments)]
 pub fn infer<'i>(
     root: &Root,
     hir: &'i HirCtx,
+    registry: &'i dyn yuzu_registry::Registry,
     interner: &'i mut StringInterner,
     types: &'i mut TypeCtx,
     diagnostics: &'i mut DiagnosticsEngine,
     source_map: &'i HirSourceMap,
     source_id: SourceId,
 ) -> InferenceResult {
-    let mut ctx =
-        TypeInferrer::new(hir, types, interner, diagnostics, source_map, source_id).run(root);
+    let mut ctx = TypeInferrer::new(
+        hir,
+        registry,
+        types,
+        interner,
+        diagnostics,
+        source_map,
+        source_id,
+    )
+    .run(root);
     ctx.concretize();
     ctx.finish()
 }
@@ -178,6 +187,7 @@ pub(crate) mod test_support {
         super::infer(
             &root,
             &hir,
+            &yuzu_registry::Builtins,
             &mut interner,
             &mut types,
             &mut diagnostics,
@@ -195,6 +205,14 @@ pub(crate) mod test_support {
     }
 
     pub(crate) fn check_src(input: &str, expected: Expect) {
+        check_src_with(&yuzu_registry::Builtins, input, expected);
+    }
+
+    pub(crate) fn check_src_with(
+        registry: &dyn yuzu_registry::Registry,
+        input: &str,
+        expected: Expect,
+    ) {
         use yuzu_ast::ast::{AstNode, Root as AstRoot};
         use yuzu_lexer::lexer::{Lexer, Token};
 
@@ -220,6 +238,7 @@ pub(crate) mod test_support {
         super::infer(
             &root,
             &hir,
+            registry,
             &mut interner,
             &mut types,
             &mut diagnostics,

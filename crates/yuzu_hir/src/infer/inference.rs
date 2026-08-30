@@ -12,13 +12,14 @@ use crate::{
     Rel, RelId, RenameItem, Root, SelectItem, SetItem, Stmt, StmtId, StructField, StructFieldInit,
     TypeAnnotation, TypeAnnotationId,
     infer::{
-        InferCtx, registry,
+        InferCtx,
         symbols::{Binding, ScopeKind, SymbolTable},
     },
 };
 
 pub(crate) struct TypeInferrer<'i> {
     hir: &'i HirCtx,
+    registry: &'i dyn yuzu_registry::Registry,
     infer: InferCtx<'i>,
     symbols: SymbolTable,
     interner: &'i mut StringInterner,
@@ -42,8 +43,10 @@ struct AggregateScope {
 }
 
 impl<'i> TypeInferrer<'i> {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         hir: &'i HirCtx,
+        registry: &'i dyn yuzu_registry::Registry,
         types: &'i mut TypeCtx,
         interner: &'i mut StringInterner,
         diagnostics: &'i mut DiagnosticsEngine,
@@ -52,6 +55,7 @@ impl<'i> TypeInferrer<'i> {
     ) -> Self {
         Self {
             hir,
+            registry,
             infer: InferCtx::new(types),
             symbols: SymbolTable::new(),
             interner,
@@ -63,8 +67,14 @@ impl<'i> TypeInferrer<'i> {
     }
 
     pub(crate) fn run(mut self, root: &Root) -> InferCtx<'i> {
-        for entry in registry::ENTRIES {
-            let name = self.interner.intern(entry.func.name());
+        // The chain resolves collisions first-wins, but scope binds overwrite,
+        // so later entries must not rebind a name an earlier one claimed.
+        let mut seen = HashSet::new();
+        for entry in self.registry.entries() {
+            if !seen.insert(entry.name) {
+                continue;
+            }
+            let name = self.interner.intern(entry.name);
             self.symbols
                 .bind_symbol(name, Binding::Builtin { func: entry.func });
         }
@@ -1240,7 +1250,10 @@ impl<'i> TypeInferrer<'i> {
         func: BuiltinFunc,
         args: &[ExprId],
     ) -> TypeId {
-        let entry = registry::entry(func);
+        let entry = self
+            .registry
+            .resolve(func)
+            .unwrap_or_else(|| unreachable!("a bound builtin came from the registry"));
 
         match func {
             BuiltinFunc::Aggregate(agg) => {
@@ -2545,6 +2558,32 @@ mod tests {
         check_src(
             &format!("{TABLE}{JOIN_TABLES}let q = from t e |> join d x on e.a == x.a |> set a = 1"),
             expect!["column `a` is ambiguous; qualify it with a relation alias"],
+        );
+    }
+
+    #[test]
+    fn src_chained_registry_aliases_a_builtin() {
+        use yuzu_registry::{Builtins, Entry, Registry, chain};
+        use yuzu_types::{AggFunc, BuiltinFunc};
+
+        struct Total;
+        const TOTAL: &[Entry] = &[Entry {
+            name: "total",
+            func: BuiltinFunc::Aggregate(AggFunc::Sum),
+            min_args: 1,
+            max_args: 1,
+        }];
+        impl Registry for Total {
+            fn entries(&self) -> &[Entry] {
+                TOTAL
+            }
+        }
+
+        let chained = chain(vec![Box::new(Total), Box::new(Builtins)]);
+        crate::infer::test_support::check_src_with(
+            &chained,
+            &format!("{TABLE}let q = from t |> aggregate total(a) as v group by active"),
+            expect![""],
         );
     }
 

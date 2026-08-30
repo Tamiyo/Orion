@@ -77,7 +77,7 @@ def test_operator_without_a_substrait_equivalent():
     """
     assert (
         error_of(query)
-        == "error: operator `**` has no Substrait equivalent"
+        == "error: `**` is not supported by the datafusion target"
     )
 
 

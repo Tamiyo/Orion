@@ -22,6 +22,7 @@ pub struct CompileOptions {
     pub debug_plan: bool,
     pub debug_substrait: bool,
     pub time_phases: bool,
+    pub target: Option<String>,
 }
 
 pub fn compile(name: &str, source: &str, options: &CompileOptions) {
@@ -68,6 +69,7 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
     let inference = yuzu_hir::infer(
         &root,
         &hir,
+        &yuzu_registry::Builtins,
         &mut interner,
         &mut types,
         &mut diagnostics,
@@ -124,6 +126,17 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
             );
             phases.record("plan", start);
             if let Some(graph) = graph {
+                if let Some(target) = parse_target(options, &mut diagnostics, source_id) {
+                    validate_plan(
+                        &graph,
+                        &target,
+                        &reduced,
+                        &anf,
+                        &anf_source_map,
+                        &mut diagnostics,
+                        source_id,
+                    );
+                }
                 if options.debug_plan {
                     println!("=== plan ===");
                     print!("{}", yuzu_plan::dump(&graph, &interner));
@@ -221,6 +234,7 @@ pub fn compile_to_substrait(
     let inference = yuzu_hir::infer(
         &root,
         &hir,
+        &yuzu_registry::Builtins,
         &mut interner,
         &mut types,
         &mut diagnostics,
@@ -268,6 +282,22 @@ pub fn compile_to_substrait(
     {
         println!("=== plan ===");
         print!("{}", yuzu_plan::dump(graph, &interner));
+    }
+    if let (Some(graph), Some(target)) =
+        (&graph, parse_target(options, &mut diagnostics, source_id))
+    {
+        validate_plan(
+            graph,
+            &target,
+            &reduced,
+            &anf,
+            &anf_source_map,
+            &mut diagnostics,
+            source_id,
+        );
+    }
+    if has_errors(&diagnostics) {
+        return Err(render_diagnostics(&diagnostics, &sources));
     }
     let plan = graph.as_ref().and_then(|graph| {
         emit_plan(
@@ -340,6 +370,54 @@ fn emit_plan(
             .text_range(),
     };
     yuzu_substrait::emit(graph, types, interner, diagnostics, query_span)
+}
+
+fn parse_target(
+    options: &CompileOptions,
+    diagnostics: &mut DiagnosticsEngine,
+    source_id: yuzu_diagnostics::source_map::SourceId,
+) -> Option<yuzu_registry::Target> {
+    let Some(text) = &options.target else {
+        return Some(yuzu_registry::Target {
+            dialect: yuzu_registry::Dialect::DataFusion,
+            version: None,
+        });
+    };
+    match text.parse() {
+        Ok(target) => Some(target),
+        Err(message) => {
+            let span = yuzu_diagnostics::diagnostics::Span {
+                source_id,
+                range: Default::default(),
+            };
+            diagnostics.emit(
+                yuzu_diagnostics::diagnostics::builder::DiagnosticBuilder::error(span, message),
+            );
+            None
+        }
+    }
+}
+
+fn validate_plan(
+    graph: &yuzu_plan::RelGraph,
+    target: &yuzu_registry::Target,
+    reduced: &yuzu_anf::Root,
+    anf: &AnfCtx,
+    anf_source_map: &yuzu_anf::AnfSourceMap,
+    diagnostics: &mut DiagnosticsEngine,
+    source_id: yuzu_diagnostics::source_map::SourceId,
+) {
+    let Some((_, query_stmt)) = yuzu_anf::find_query(reduced, anf) else {
+        return;
+    };
+    let query_span = yuzu_diagnostics::diagnostics::Span {
+        source_id,
+        range: anf_source_map
+            .stmt(query_stmt)
+            .expect("the query is in the source map")
+            .text_range(),
+    };
+    yuzu_plan::validate(graph, target, diagnostics, query_span);
 }
 
 fn render_diagnostics(diagnostics: &DiagnosticsEngine, sources: &SourceMap) -> String {

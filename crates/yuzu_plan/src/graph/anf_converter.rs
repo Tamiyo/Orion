@@ -712,6 +712,7 @@ mod tests {
         let inference = yuzu_hir::infer(
             &hir_root,
             &hir,
+            &yuzu_registry::Builtins,
             &mut interner,
             &mut types,
             &mut diagnostics,
@@ -1164,6 +1165,59 @@ mod tests {
             .expect("the graph holds an aggregate");
         // `max(a)` twice and `min(a)` once: two measures, not three.
         assert_eq!(aggregate, 2);
+    }
+
+    fn validated(input: &str, target: &str) -> Vec<String> {
+        let (graph, _, errors) = convert(input);
+        assert!(errors.is_empty(), "conversion should succeed: {errors:?}");
+        let graph = graph.expect("a clean conversion produces a graph");
+
+        let mut diagnostics = DiagnosticsEngine::new();
+        let span = yuzu_diagnostics::diagnostics::Span {
+            source_id: SourceMap::new().add("test".into(), String::new()),
+            range: Default::default(),
+        };
+        crate::validate(
+            &graph,
+            &target.parse().expect("a known target"),
+            &mut diagnostics,
+            span,
+        );
+        diagnostics
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.message.clone())
+            .collect()
+    }
+
+    #[test]
+    fn datafusion_target_rejects_shifts() {
+        let errors = validated(
+            &format!("{TABLES}from t |> select a << 1 as x, b >> 1 as y"),
+            "datafusion",
+        );
+        assert_eq!(
+            errors,
+            [
+                "`<<` is not supported by the datafusion target",
+                "`>>` is not supported by the datafusion target"
+            ]
+        );
+    }
+
+    #[test]
+    fn postgres_target_accepts_shifts() {
+        let errors = validated(&format!("{TABLES}from t |> select a << 1 as x"), "postgres");
+        assert!(errors.is_empty(), "{errors:?}");
+    }
+
+    #[test]
+    fn aggregates_validate_against_the_target() {
+        let errors = validated(
+            &format!("{TABLES}from t |> aggregate count_distinct(a) as n group by b"),
+            "datafusion",
+        );
+        assert!(errors.is_empty(), "{errors:?}");
     }
 
     #[test]

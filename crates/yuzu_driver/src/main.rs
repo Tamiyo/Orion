@@ -25,6 +25,9 @@ struct Cli {
     #[arg(long, help = "Time each compile phase")]
     time: bool,
 
+    #[arg(long, help = "Target to validate against, e.g. postgres@16")]
+    target: Option<String>,
+
     #[arg(long, help = "Dump the plan graph")]
     debug_plan: bool,
 
@@ -50,6 +53,7 @@ fn main() -> ExitCode {
         debug_plan: cli.debug_plan || cli.debug,
         debug_substrait: cli.debug_substrait || cli.debug,
         time_phases: cli.time,
+        target: cli.target,
     };
 
     let source = match std::fs::read_to_string(&cli.file) {

@@ -16,6 +16,7 @@ yuzu_types = { path = "../yuzu_types" }
 
 [dev-dependencies]
 expect-test = "1.5.1"
+yuzu_registry = { path = "../yuzu_registry" }
 yuzu_ast = { path = "../yuzu_ast" }
 yuzu_lexer = { path = "../yuzu_lexer" }
 yuzu_parser = { path = "../yuzu_parser" }

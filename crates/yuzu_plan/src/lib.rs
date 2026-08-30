@@ -6,12 +6,14 @@ mod expr;
 mod graph;
 mod printer;
 mod rel;
+mod validate;
 
 pub use expr::*;
 pub use graph::anf_converter::AnfToRelGraphConverter;
 pub use graph::{RelGraph, RelGraphConverter};
 pub use printer::dump;
 pub use rel::*;
+pub use validate::validate;
 
 /// The arenas a plan's nodes live in. Expressions are interned: structurally
 /// equal trees get one id, so equality is an id compare. Relations are

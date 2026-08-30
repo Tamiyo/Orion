@@ -173,7 +173,7 @@ impl Default for TypeUnifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Func, List, TypeParam};
+    use crate::{FuncType, List, TypeParam};
     use string_interner::DefaultStringInterner;
 
     macro_rules! fixture {
@@ -383,11 +383,11 @@ mod tests {
         fixture!(types, u);
         let int = types.intern_ty(Type::Int64);
         let boolean = types.intern_ty(Type::Bool);
-        let f1 = types.intern_ty(Type::Func(Func {
+        let f1 = types.intern_ty(Type::Func(FuncType {
             args: vec![int],
             ret_type: boolean,
         }));
-        let f2 = types.intern_ty(Type::Func(Func {
+        let f2 = types.intern_ty(Type::Func(FuncType {
             args: vec![int],
             ret_type: boolean,
         }));
@@ -399,11 +399,11 @@ mod tests {
         fixture!(types, u);
         let int = types.intern_ty(Type::Int64);
         let boolean = types.intern_ty(Type::Bool);
-        let f1 = types.intern_ty(Type::Func(Func {
+        let f1 = types.intern_ty(Type::Func(FuncType {
             args: vec![int],
             ret_type: boolean,
         }));
-        let f2 = types.intern_ty(Type::Func(Func {
+        let f2 = types.intern_ty(Type::Func(FuncType {
             args: vec![boolean],
             ret_type: boolean,
         }));
@@ -416,11 +416,11 @@ mod tests {
         let int = types.intern_ty(Type::Int64);
         let boolean = types.intern_ty(Type::Bool);
         let string = types.intern_ty(Type::String);
-        let f1 = types.intern_ty(Type::Func(Func {
+        let f1 = types.intern_ty(Type::Func(FuncType {
             args: vec![int],
             ret_type: boolean,
         }));
-        let f2 = types.intern_ty(Type::Func(Func {
+        let f2 = types.intern_ty(Type::Func(FuncType {
             args: vec![int],
             ret_type: string,
         }));
@@ -432,11 +432,11 @@ mod tests {
         fixture!(types, u);
         let int = types.intern_ty(Type::Int64);
         let boolean = types.intern_ty(Type::Bool);
-        let f1 = types.intern_ty(Type::Func(Func {
+        let f1 = types.intern_ty(Type::Func(FuncType {
             args: vec![int],
             ret_type: boolean,
         }));
-        let f2 = types.intern_ty(Type::Func(Func {
+        let f2 = types.intern_ty(Type::Func(FuncType {
             args: vec![int, int],
             ret_type: boolean,
         }));
@@ -450,11 +450,11 @@ mod tests {
         let boolean = types.intern_ty(Type::Bool);
         let arg_var = u.fresh_var(InferKind::General, &mut types);
         let ret_var = u.fresh_var(InferKind::General, &mut types);
-        let f1 = types.intern_ty(Type::Func(Func {
+        let f1 = types.intern_ty(Type::Func(FuncType {
             args: vec![arg_var],
             ret_type: ret_var,
         }));
-        let f2 = types.intern_ty(Type::Func(Func {
+        let f2 = types.intern_ty(Type::Func(FuncType {
             args: vec![int],
             ret_type: boolean,
         }));
