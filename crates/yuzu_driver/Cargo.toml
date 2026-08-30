@@ -18,6 +18,5 @@ yuzu_hir = { path = "../yuzu_hir" }
 yuzu_lexer = { path = "../yuzu_lexer" }
 yuzu_parser = { path = "../yuzu_parser" }
 yuzu_plan = { path = "../yuzu_plan" }
-yuzu_registry = { path = "../yuzu_registry" }
 yuzu_substrait = { path = "../yuzu_substrait" }
 yuzu_types = { path = "../yuzu_types" }

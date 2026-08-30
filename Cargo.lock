@@ -1790,7 +1790,6 @@ dependencies = [
  "yuzu_hir",
  "yuzu_lexer",
  "yuzu_parser",
- "yuzu_registry",
  "yuzu_syntax",
  "yuzu_types",
 ]
@@ -1842,7 +1841,6 @@ dependencies = [
  "yuzu_lexer",
  "yuzu_parser",
  "yuzu_plan",
- "yuzu_registry",
  "yuzu_substrait",
  "yuzu_types",
 ]
@@ -1858,7 +1856,6 @@ dependencies = [
  "yuzu_diagnostics",
  "yuzu_lexer",
  "yuzu_parser",
- "yuzu_registry",
  "yuzu_syntax",
  "yuzu_types",
 ]
@@ -1898,7 +1895,6 @@ dependencies = [
  "yuzu_hir",
  "yuzu_lexer",
  "yuzu_parser",
- "yuzu_registry",
  "yuzu_types",
 ]
 
@@ -1909,13 +1905,6 @@ dependencies = [
  "pyo3",
  "pyo3-stub-gen",
  "yuzu_driver",
-]
-
-[[package]]
-name = "yuzu_registry"
-version = "0.0.0"
-dependencies = [
- "yuzu_types",
 ]
 
 [[package]]
@@ -1934,7 +1923,6 @@ dependencies = [
  "yuzu_lexer",
  "yuzu_parser",
  "yuzu_plan",
- "yuzu_registry",
  "yuzu_types",
 ]
 

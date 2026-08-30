@@ -1,7 +1,0 @@
-[package]
-name = "yuzu_registry"
-version = "0.0.0"
-edition = "2024"
-
-[dependencies]
-yuzu_types = { path = "../yuzu_types" }

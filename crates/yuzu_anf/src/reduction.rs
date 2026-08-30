@@ -229,7 +229,7 @@ pub(crate) mod test_support {
         let inference = yuzu_hir::infer(
             &hir_root,
             &hir,
-            &yuzu_registry::Builtins,
+            &yuzu_types::Builtins,
             &mut interner,
             &mut types,
             &mut diagnostics,

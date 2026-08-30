@@ -18,7 +18,7 @@ use self::inference::TypeInferrer;
 pub fn infer<'i>(
     root: &Root,
     hir: &'i HirCtx,
-    registry: &'i dyn yuzu_registry::Registry,
+    registry: &'i dyn yuzu_types::Registry,
     interner: &'i mut StringInterner,
     types: &'i mut TypeCtx,
     diagnostics: &'i mut DiagnosticsEngine,
@@ -187,7 +187,7 @@ pub(crate) mod test_support {
         super::infer(
             &root,
             &hir,
-            &yuzu_registry::Builtins,
+            &yuzu_types::Builtins,
             &mut interner,
             &mut types,
             &mut diagnostics,
@@ -205,11 +205,11 @@ pub(crate) mod test_support {
     }
 
     pub(crate) fn check_src(input: &str, expected: Expect) {
-        check_src_with(&yuzu_registry::Builtins, input, expected);
+        check_src_with(&yuzu_types::Builtins, input, expected);
     }
 
     pub(crate) fn check_src_with(
-        registry: &dyn yuzu_registry::Registry,
+        registry: &dyn yuzu_types::Registry,
         input: &str,
         expected: Expect,
     ) {

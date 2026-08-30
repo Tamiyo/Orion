@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
+use crate::target::{Target, TargetRegistry};
 use yuzu_diagnostics::diagnostics::{Span, builder::DiagnosticBuilder, engine::DiagnosticsEngine};
-use yuzu_registry::{Target, TargetRegistry};
 
 use crate::graph::RelGraph;
 use crate::{Expr, ExprId, JoinCondition, Measure, Rel};

@@ -2,8 +2,10 @@ use std::collections::HashMap;
 
 use id_arena::Arena;
 
+mod registry;
 mod types;
 mod unifier;
+pub use registry::*;
 pub use types::*;
 pub use unifier::*;
 

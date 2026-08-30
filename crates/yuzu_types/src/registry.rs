@@ -1,4 +1,4 @@
-use yuzu_types::{AggFunc, BuiltinFunc};
+use crate::{AggFunc, BuiltinFunc};
 
 /// A function the language offers under a name. Validation reads the metadata
 /// here — the builtin's kind and argument-count range — rather than matching

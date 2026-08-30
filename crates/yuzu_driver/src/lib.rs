@@ -69,7 +69,7 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
     let inference = yuzu_hir::infer(
         &root,
         &hir,
-        &yuzu_registry::Builtins,
+        &yuzu_types::Builtins,
         &mut interner,
         &mut types,
         &mut diagnostics,
@@ -234,7 +234,7 @@ pub fn compile_to_substrait(
     let inference = yuzu_hir::infer(
         &root,
         &hir,
-        &yuzu_registry::Builtins,
+        &yuzu_types::Builtins,
         &mut interner,
         &mut types,
         &mut diagnostics,
@@ -376,10 +376,10 @@ fn parse_target(
     options: &CompileOptions,
     diagnostics: &mut DiagnosticsEngine,
     source_id: yuzu_diagnostics::source_map::SourceId,
-) -> Option<yuzu_registry::Target> {
+) -> Option<yuzu_plan::Target> {
     let Some(text) = &options.target else {
-        return Some(yuzu_registry::Target {
-            dialect: yuzu_registry::Dialect::DataFusion,
+        return Some(yuzu_plan::Target {
+            dialect: yuzu_plan::Dialect::DataFusion,
             version: None,
         });
     };
@@ -400,7 +400,7 @@ fn parse_target(
 
 fn validate_plan(
     graph: &yuzu_plan::RelGraph,
-    target: &yuzu_registry::Target,
+    target: &yuzu_plan::Target,
     reduced: &yuzu_anf::Root,
     anf: &AnfCtx,
     anf_source_map: &yuzu_anf::AnfSourceMap,
