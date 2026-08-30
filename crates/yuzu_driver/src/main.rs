@@ -22,6 +22,9 @@ struct Cli {
     #[arg(long, help = "Dump the ANF")]
     debug_anf: bool,
 
+    #[arg(long, help = "Time each compile phase")]
+    time: bool,
+
     #[arg(long, help = "Dump the plan graph")]
     debug_plan: bool,
 
@@ -46,6 +49,7 @@ fn main() -> ExitCode {
         debug_reduce: cli.debug_reduce || cli.debug,
         debug_plan: cli.debug_plan || cli.debug,
         debug_substrait: cli.debug_substrait || cli.debug,
+        time_phases: cli.time,
     };
 
     let source = match std::fs::read_to_string(&cli.file) {

@@ -67,6 +67,7 @@ impl From<&CompileOptions> for yuzu_driver::CompileOptions {
             debug_reduce: options.debug_reduce,
             debug_plan: false,
             debug_substrait: options.debug_substrait,
+            time_phases: false,
         }
     }
 }

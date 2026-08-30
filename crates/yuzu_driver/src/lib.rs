@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use yuzu_anf::AnfCtx;
 use yuzu_ast::ast::{AstNode, Root};
 use yuzu_core::adt::StringInterner;
@@ -19,14 +21,18 @@ pub struct CompileOptions {
     pub debug_reduce: bool,
     pub debug_plan: bool,
     pub debug_substrait: bool,
+    pub time_phases: bool,
 }
 
 pub fn compile(name: &str, source: &str, options: &CompileOptions) {
     let mut diagnostics = DiagnosticsEngine::new();
     let mut sources = SourceMap::new();
     let source_id = sources.add(name.to_string(), source.to_string());
+    let mut phases = Phases::new();
 
+    let start = Instant::now();
     let tokens: Vec<Token> = Lexer::new(source).collect();
+    phases.record("lex", start);
     if options.debug_tokens {
         println!("=== tokens ===");
         for token in &tokens {
@@ -34,7 +40,9 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
         }
     }
 
+    let start = Instant::now();
     let syntax = yuzu_parser::parse(&tokens, &mut diagnostics, source_id);
+    phases.record("parse", start);
     if options.debug_ast {
         println!("=== syntax ===\n{syntax:#?}");
     }
@@ -46,14 +54,17 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
 
     let mut hir = HirCtx::new();
     let mut interner = StringInterner::new();
+    let start = Instant::now();
     let (root, source_map) =
         yuzu_hir::lower(root, &mut hir, &mut interner, &mut diagnostics, source_id);
+    phases.record("hir", start);
     if options.debug_hir {
         println!("=== hir ===");
         print!("{}", yuzu_hir::dump(&hir, &interner, &root));
     }
 
     let mut types = TypeCtx::new();
+    let start = Instant::now();
     let inference = yuzu_hir::infer(
         &root,
         &hir,
@@ -63,11 +74,16 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
         &source_map,
         source_id,
     );
+    phases.record("infer", start);
 
-    let backend =
-        options.debug_anf || options.debug_reduce || options.debug_plan || options.debug_substrait;
+    let backend = options.debug_anf
+        || options.debug_reduce
+        || options.debug_plan
+        || options.debug_substrait
+        || options.time_phases;
     if backend && !has_errors(&diagnostics) {
         let mut anf = AnfCtx::new();
+        let start = Instant::now();
         let (anf_root, mut anf_source_map) = yuzu_anf::lower(
             &root,
             &hir,
@@ -79,42 +95,53 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
             &source_map,
             source_id,
         );
+        phases.record("anf", start);
         if options.debug_anf {
             println!("=== anf ===");
             print!("{}", yuzu_anf::dump(&anf, &interner, &anf_root));
         }
-        if options.debug_reduce || options.debug_plan || options.debug_substrait {
+        if options.debug_reduce
+            || options.debug_plan
+            || options.debug_substrait
+            || options.time_phases
+        {
+            let start = Instant::now();
             let reduced = yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &mut anf_source_map);
+            phases.record("reduce", start);
             if options.debug_reduce {
                 println!("=== reduced ===");
                 print!("{}", yuzu_anf::dump(&anf, &interner, &reduced));
             }
-            if (options.debug_plan || options.debug_substrait)
-                && let Some(graph) = build_plan(
-                    &reduced,
-                    &anf,
-                    &mut types,
-                    &interner,
-                    &anf_source_map,
-                    &mut diagnostics,
-                    source_id,
-                )
-            {
+            let start = Instant::now();
+            let graph = build_plan(
+                &reduced,
+                &anf,
+                &mut types,
+                &interner,
+                &anf_source_map,
+                &mut diagnostics,
+                source_id,
+            );
+            phases.record("plan", start);
+            if let Some(graph) = graph {
                 if options.debug_plan {
                     println!("=== plan ===");
                     print!("{}", yuzu_plan::dump(&graph, &interner));
                 }
+                let start = Instant::now();
+                let plan = emit_plan(
+                    &graph,
+                    &reduced,
+                    &anf,
+                    &types,
+                    &interner,
+                    &anf_source_map,
+                    &mut diagnostics,
+                    source_id,
+                );
+                phases.record("substrait", start);
                 if options.debug_substrait
-                    && let Some(plan) = emit_plan(
-                        &graph,
-                        &reduced,
-                        &anf,
-                        &types,
-                        &interner,
-                        &anf_source_map,
-                        &mut diagnostics,
-                        source_id,
-                    )
+                    && let Some(plan) = plan
                 {
                     println!("=== substrait ===");
                     println!("{}", yuzu_substrait::to_json(&plan));
@@ -123,7 +150,36 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
         }
     }
 
+    if options.time_phases {
+        phases.print();
+    }
     print_diagnostics(&diagnostics, &sources);
+}
+
+/// Wall-clock time spent in each compile phase.
+struct Phases {
+    entries: Vec<(&'static str, std::time::Duration)>,
+}
+
+impl Phases {
+    fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
+
+    fn record(&mut self, phase: &'static str, start: Instant) {
+        self.entries.push((phase, start.elapsed()));
+    }
+
+    fn print(&self) {
+        println!("=== timing ===");
+        for (phase, duration) in &self.entries {
+            println!("{phase:<10} {duration:>10.1?}");
+        }
+        let total: std::time::Duration = self.entries.iter().map(|(_, d)| *d).sum();
+        println!("{:<10} {total:>10.1?}", "total");
+    }
 }
 
 pub fn compile_to_substrait(
