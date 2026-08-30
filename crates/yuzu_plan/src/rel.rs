@@ -2,7 +2,7 @@ use id_arena::Id;
 use yuzu_core::adt::SymbolId;
 use yuzu_types::TypeId;
 
-use crate::expr::ExprId;
+use crate::expr::{ExprId, Measure};
 
 pub type RelId = Id<Rel>;
 
@@ -57,6 +57,12 @@ pub enum Rel {
         alias: SymbolId,
         ty: TypeId,
     },
+    /// Output row: the group keys in order, then one column per measure.
+    Aggregate {
+        groupings: Box<[u32]>,
+        measures: Box<[Measure]>,
+        ty: TypeId,
+    },
 }
 
 impl Rel {
@@ -72,7 +78,8 @@ impl Rel {
             | Rel::Extend { ty, .. }
             | Rel::Set { ty, .. }
             | Rel::Limit { ty, .. }
-            | Rel::Alias { ty, .. } => *ty,
+            | Rel::Alias { ty, .. }
+            | Rel::Aggregate { ty, .. } => *ty,
         }
     }
 
@@ -89,7 +96,8 @@ impl Rel {
             | Rel::Extend { .. }
             | Rel::Set { .. }
             | Rel::Limit { .. }
-            | Rel::Alias { .. } => 1,
+            | Rel::Alias { .. }
+            | Rel::Aggregate { .. } => 1,
         }
     }
 }

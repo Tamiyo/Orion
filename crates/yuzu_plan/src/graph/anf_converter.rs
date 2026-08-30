@@ -9,7 +9,7 @@ use yuzu_types::{Column, Type, TypeCtx, TypeId};
 
 use crate::graph::{RelGraph, RelGraphConverter};
 use crate::{
-    Const, Expr, ExprId, Func, JoinCondition, JoinKey, JoinKind, Rel, RelId, RenameItem,
+    Const, Expr, ExprId, Func, JoinCondition, JoinKey, JoinKind, Measure, Rel, RelId, RenameItem,
     SelectItem, SetItem,
 };
 
@@ -31,6 +31,19 @@ pub struct AnfToRelGraphConverter<'g> {
     source_id: SourceId,
     query_stmt: yuzu_anf::StmtId,
     graph: RelGraph,
+    agg: Option<AggState>,
+}
+
+/// Conversion state for one `Aggregate` node's items. An aggregate call
+/// becomes a measure (deduplicated structurally) and reads back as an output
+/// column past the keys; a column outside a measure's arguments sits at group
+/// level, where only the keys survive, so it remaps to its key position.
+struct AggState {
+    keys: Vec<u32>,
+    measures: Vec<Measure>,
+    names: Vec<yuzu_core::adt::SymbolId>,
+    current_name: yuzu_core::adt::SymbolId,
+    in_args: bool,
 }
 
 impl<'g> AnfToRelGraphConverter<'g> {
@@ -53,6 +66,7 @@ impl<'g> AnfToRelGraphConverter<'g> {
             source_id,
             query_stmt,
             graph: RelGraph::new(),
+            agg: None,
         }
     }
 
@@ -197,6 +211,12 @@ impl<'g> AnfToRelGraphConverter<'g> {
                 },
                 vec![self.convert_rel(input)?],
             ),
+            yuzu_anf::Rel::Aggregate {
+                input,
+                items,
+                groups,
+                ty,
+            } => return self.convert_aggregate_rel(input, &items, &groups, ty),
         };
         Ok(self.graph.add(rel, &inputs))
     }
@@ -214,6 +234,95 @@ impl<'g> AnfToRelGraphConverter<'g> {
                 })
             })
             .collect()
+    }
+
+    /// The aggregate computes keys ++ measures; when an item is more than a
+    /// bare aggregate call, a `Select` over that row computes the surface
+    /// output, so however many calls the items contain, there is one
+    /// `Aggregate` and at most one projection.
+    fn convert_aggregate_rel(
+        &mut self,
+        input: yuzu_anf::RelId,
+        items: &[yuzu_anf::AggregateItem],
+        groups: &[yuzu_anf::GroupKey],
+        ty: TypeId,
+    ) -> Result<RelId, Unsupported> {
+        let input = self.convert_rel(input)?;
+        let output_columns = self.columns(ty).to_vec();
+        let key_count = groups.len();
+        let groupings: Vec<u32> = groups.iter().map(|key| key.column).collect();
+
+        self.agg = Some(AggState {
+            keys: groupings.clone(),
+            measures: Vec::new(),
+            names: Vec::new(),
+            current_name: output_columns
+                .first()
+                .map(|column| column.name)
+                .unwrap_or_else(|| groups[0].name.name),
+            in_args: false,
+        });
+        let mut item_exprs = Vec::new();
+        for (index, item) in items.iter().enumerate() {
+            let state = self.agg.as_mut().expect("aggregate state is set");
+            state.current_name = output_columns[key_count + index].name;
+            let body = self.convert_thunk(&item.body);
+            if body.is_err() {
+                self.agg = None;
+            }
+            item_exprs.push((body?, item.alias.map(|alias| alias.name)));
+        }
+        let state = self.agg.take().expect("aggregate state is set");
+
+        let mut aggregate_columns = output_columns[..key_count].to_vec();
+        for (measure, &name) in state.measures.iter().zip(&state.names) {
+            aggregate_columns.push(Column::new(None, name, measure.ty));
+        }
+        let aggregate_ty = self.types.relation_ty(aggregate_columns);
+        let node = self.graph.add(
+            Rel::Aggregate {
+                groupings: groupings.into(),
+                measures: state.measures.clone().into(),
+                ty: aggregate_ty,
+            },
+            &[input],
+        );
+
+        let mut bare = state.measures.len() == items.len();
+        if bare {
+            for (index, (expr, _)) in item_exprs.iter().enumerate() {
+                let measure_column = self.graph.intern_expr(Expr::Column {
+                    column: (key_count + index) as u32,
+                    ty: state.measures[index].ty,
+                });
+                if *expr != measure_column {
+                    bare = false;
+                    break;
+                }
+            }
+        }
+        if bare {
+            return Ok(node);
+        }
+
+        let mut select_items = Vec::with_capacity(key_count + item_exprs.len());
+        for (index, column) in output_columns[..key_count].iter().enumerate() {
+            let body = self.graph.intern_expr(Expr::Column {
+                column: index as u32,
+                ty: column.ty,
+            });
+            select_items.push(SelectItem { body, alias: None });
+        }
+        for (body, alias) in item_exprs {
+            select_items.push(SelectItem { body, alias });
+        }
+        Ok(self.graph.add(
+            Rel::Select {
+                items: select_items.into(),
+                ty,
+            },
+            &[node],
+        ))
     }
 
     fn convert_thunk(&mut self, thunk: &yuzu_anf::Thunk) -> Result<ExprId, Unsupported> {
@@ -246,6 +355,34 @@ impl<'g> AnfToRelGraphConverter<'g> {
                     }))
                 }
             },
+            yuzu_anf::Expr::AggCall { func, args, ty } => {
+                let state = self
+                    .agg
+                    .as_mut()
+                    .expect("an aggregate call sits in an aggregate item");
+                state.in_args = true;
+                let args = args
+                    .iter()
+                    .map(|&arg| self.convert_atom(arg, defs))
+                    .collect::<Result<_, _>>()?;
+                let state = self
+                    .agg
+                    .as_mut()
+                    .expect("an aggregate call sits in an aggregate item");
+                state.in_args = false;
+
+                let measure = Measure { func, args, ty };
+                let index = match state.measures.iter().position(|seen| *seen == measure) {
+                    Some(index) => index,
+                    None => {
+                        state.measures.push(measure);
+                        state.names.push(state.current_name);
+                        state.measures.len() - 1
+                    }
+                };
+                let column = (state.keys.len() + index) as u32;
+                Ok(self.graph.intern_expr(Expr::Column { column, ty }))
+            }
             yuzu_anf::Expr::FuncCall { callee, .. } => {
                 let message = match *self.anf.atom(callee) {
                     yuzu_anf::Atom::FuncRef { binding, .. } => format!(
@@ -277,7 +414,18 @@ impl<'g> AnfToRelGraphConverter<'g> {
                 value: convert_const(constant),
                 ty: self.const_ty(constant),
             },
-            yuzu_anf::Atom::Column { column, ty, .. } => Expr::Column { column, ty },
+            yuzu_anf::Atom::Column { column, ty, .. } => {
+                let column = match &self.agg {
+                    Some(state) if !state.in_args => state
+                        .keys
+                        .iter()
+                        .position(|&key| key == column)
+                        .expect("inference admits only group keys at group level")
+                        as u32,
+                    _ => column,
+                };
+                Expr::Column { column, ty }
+            }
             yuzu_anf::Atom::Var { binding } => match defs.get(&binding) {
                 Some(&expr) => return self.convert_expr(expr, defs),
                 None => {
@@ -389,7 +537,8 @@ impl<'g> AnfToRelGraphConverter<'g> {
             | yuzu_anf::Rel::Extend { ty, .. }
             | yuzu_anf::Rel::Set { ty, .. }
             | yuzu_anf::Rel::Limit { ty, .. }
-            | yuzu_anf::Rel::Alias { ty, .. } => *ty,
+            | yuzu_anf::Rel::Alias { ty, .. }
+            | yuzu_anf::Rel::Aggregate { ty, .. } => *ty,
         }
     }
 
@@ -928,6 +1077,73 @@ mod tests {
         assert_eq!(inputs[0], inputs[1]);
         assert_eq!(graph.parents(inputs[0]).collect::<Vec<_>>(), [root]);
         assert_eq!(graph.parents(root).count(), 0);
+    }
+
+    #[test]
+    fn bare_aggregate_is_one_node() {
+        check(
+            &format!("{TABLES}from t |> aggregate sum(a) as s, count() as n group by b"),
+            expect![[r#"
+                aggregate [sum(#0), count()] group [#1]
+                  from t
+            "#]],
+        );
+    }
+
+    #[test]
+    fn full_table_aggregate_has_no_groupings() {
+        check(
+            &format!("{TABLES}from t |> aggregate count() as n"),
+            expect![[r#"
+            aggregate [count()]
+              from t
+        "#]],
+        );
+    }
+
+    #[test]
+    fn composite_item_projects_over_the_measures() {
+        check(
+            &format!("{TABLES}from t |> aggregate max(a) - min(a) as spread group by b"),
+            expect![[r#"
+                select [#0, subtract(#1, #2) as spread]
+                  aggregate [max(#0), min(#0)] group [#1]
+                    from t
+            "#]],
+        );
+    }
+
+    #[test]
+    fn group_key_reads_back_as_its_output_position() {
+        check(
+            &format!("{TABLES}from t |> aggregate b + min(a) as v group by b"),
+            expect![[r#"
+                select [#0, add(#0, #1) as v]
+                  aggregate [min(#0)] group [#1]
+                    from t
+            "#]],
+        );
+    }
+
+    #[test]
+    fn repeated_measures_intern_to_one() {
+        let (graph, _, errors) = convert(&format!(
+            "{TABLES}from t |> aggregate max(a) - min(a) + max(a) as v group by b"
+        ));
+        assert!(
+            errors.is_empty(),
+            "conversion should succeed, got: {errors:?}"
+        );
+        let graph = graph.expect("a clean conversion produces a graph");
+        let aggregate = graph
+            .nodes()
+            .find_map(|node| match graph.plan().rel(node) {
+                crate::Rel::Aggregate { measures, .. } => Some(measures.len()),
+                _ => None,
+            })
+            .expect("the graph holds an aggregate");
+        // `max(a)` twice and `min(a)` once: two measures, not three.
+        assert_eq!(aggregate, 2);
     }
 
     #[test]

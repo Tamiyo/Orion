@@ -1,7 +1,7 @@
 use id_arena::Id;
 use yuzu_anf_derive::TreeCopy;
 use yuzu_core::adt::{Float, Int, SymbolId};
-use yuzu_types::TypeId;
+use yuzu_types::{AggFunc, TypeId};
 
 pub type StmtId = Id<Stmt>;
 pub type ExprId = Id<Expr>;
@@ -150,6 +150,11 @@ pub enum Expr {
         ty: TypeId,
     },
     Rel(RelId),
+    AggCall {
+        func: AggFunc,
+        args: Box<[AtomId]>,
+        ty: TypeId,
+    },
     Atom {
         value: AtomId,
     },
@@ -173,6 +178,20 @@ pub struct SelectItem {
 pub struct SetItem {
     pub column: Ident,
     pub value: Thunk,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, TreeCopy)]
+pub struct AggregateItem {
+    pub body: Thunk,
+    pub alias: Option<Ident>,
+}
+
+/// A group key, resolved to its input-row position by inference; `name` is the
+/// output column's name, kept for printing.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, TreeCopy)]
+pub struct GroupKey {
+    pub name: Ident,
+    pub column: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, TreeCopy)]
@@ -273,6 +292,12 @@ pub enum Rel {
         alias: Ident,
         ty: TypeId,
     },
+    Aggregate {
+        input: RelId,
+        items: Box<[AggregateItem]>,
+        groups: Box<[GroupKey]>,
+        ty: TypeId,
+    },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -353,7 +378,9 @@ macro_rules! leaf_copy {
     )*};
 }
 
-leaf_copy!(AtomId, BindingId, Ident, SymbolId, TypeId, Op, JoinKind);
+leaf_copy!(
+    AtomId, BindingId, Ident, SymbolId, TypeId, Op, JoinKind, AggFunc, u32
+);
 
 impl<T: TreeCopy> TreeCopy for Option<T> {
     fn copy_tree(&self, copier: &mut impl TreeCopier) -> Self {

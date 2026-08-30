@@ -31,6 +31,11 @@ impl<'r> AnfReducer<'r> {
             }
             Expr::ListInit { elements, ty } => self.reduce_list_init_expr(elements, *ty, env, out),
             Expr::Rel(rel) => self.reduce_rel_expr(*rel, env),
+            Expr::AggCall { func, args, ty } => Term::Expr(Expr::AggCall {
+                func: *func,
+                args: self.reduce_atoms(args, env, out),
+                ty: *ty,
+            }),
         }
     }
 

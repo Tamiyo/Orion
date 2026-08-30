@@ -5,14 +5,14 @@ use yuzu_diagnostics::{
     diagnostics::{Span, builder::DiagnosticBuilder, engine::DiagnosticsEngine},
     source_map::SourceId,
 };
-use yuzu_types::{Column, InferKind, SymbolId, Type, TypeCtx, TypeId};
+use yuzu_types::{AggFunc, BuiltinFunc, Column, InferKind, SymbolId, Type, TypeCtx, TypeId};
 
 use crate::{
     Expr, ExprId, FuncParam, HirCtx, HirSourceMap, Ident, JoinCondition, Literal, Mutability, Op,
     Rel, RelId, RenameItem, Root, SelectItem, SetItem, Stmt, StmtId, StructField, StructFieldInit,
     TypeAnnotation, TypeAnnotationId,
     infer::{
-        InferCtx,
+        InferCtx, registry,
         symbols::{Binding, ScopeKind, SymbolTable},
     },
 };
@@ -25,6 +25,18 @@ pub(crate) struct TypeInferrer<'i> {
     diagnostics: &'i mut DiagnosticsEngine,
     source_map: &'i HirSourceMap,
     source_id: SourceId,
+    agg: AggregateScope,
+}
+
+/// Where inference stands relative to `aggregate` items. Inside an item, a
+/// bare column at depth 0 sits at group level and must be a group key; inside
+/// an aggregate call's arguments (depth > 0) the input row is back in reach,
+/// and a further aggregate call is nesting.
+#[derive(Default)]
+struct AggregateScope {
+    in_item: bool,
+    depth: u32,
+    keys: Vec<u32>,
 }
 
 impl<'i> TypeInferrer<'i> {
@@ -44,10 +56,16 @@ impl<'i> TypeInferrer<'i> {
             diagnostics,
             source_map,
             source_id,
+            agg: AggregateScope::default(),
         }
     }
 
     pub(crate) fn run(mut self, root: &Root) -> InferCtx<'i> {
+        for entry in registry::ENTRIES {
+            let name = self.interner.intern(entry.func.name());
+            self.symbols
+                .bind_symbol(name, Binding::Builtin { func: entry.func });
+        }
         self.hoist_and_infer(&root.stmts);
         self.infer
     }
@@ -397,6 +415,11 @@ impl<'i> TypeInferrer<'i> {
                 offset,
             } => self.infer_limit_rel(input, count, offset),
             Rel::Alias { input, alias } => self.infer_alias_rel(input, alias),
+            Rel::Aggregate {
+                input,
+                items,
+                groups,
+            } => self.infer_aggregate_rel(id, input, &items, &groups),
             Rel::Missing => self.infer.types.error_ty(),
         };
         self.infer.bind_rel_ty(id, ty)
@@ -519,13 +542,83 @@ impl<'i> TypeInferrer<'i> {
         let mut anonymous = 0;
         for item in items {
             let ty = self.infer_expr(item.expr);
-            let name = self.resolve_column_name(item, &mut anonymous);
+            let name = self.resolve_column_name(item.expr, item.alias, &mut anonymous);
             columns.push(Column::new(None, name, ty));
         }
 
         let selected_ty = self.infer.types.relation_ty(columns);
 
         self.symbols.replace_current_row(selected_ty)
+    }
+
+    fn infer_aggregate_rel(
+        &mut self,
+        id: RelId,
+        input: RelId,
+        items: &[crate::AggregateItem],
+        groups: &[crate::GroupKey],
+    ) -> TypeId {
+        let input_ty = self.infer_rel(input);
+        let Some(input_columns) = self.columns(input_ty) else {
+            return self.infer.types.error_ty();
+        };
+        let input_columns = input_columns.to_vec();
+
+        let mut key_columns = Vec::with_capacity(groups.len());
+        let mut key_positions = Vec::with_capacity(groups.len());
+        let mut poisoned = false;
+        for key in groups {
+            let mut matches = input_columns.iter().enumerate().filter(|(_, column)| {
+                column.name == key.column.symbol
+                    && key
+                        .qualifier
+                        .as_ref()
+                        .is_none_or(|qualifier| column.named_by(qualifier.symbol))
+            });
+            match (matches.next(), matches.next()) {
+                (Some((position, column)), None) => {
+                    let name = key.alias.as_ref().unwrap_or(&key.column).symbol;
+                    key_columns.push(Column::new(None, name, column.ty));
+                    key_positions.push(position as u32);
+                }
+                (Some(_), Some(_)) => {
+                    let message = format!(
+                        "group key `{}` is ambiguous; qualify it with a relation alias",
+                        self.interner.text(key.column.symbol)
+                    );
+                    self.error_rel(id, message);
+                    poisoned = true;
+                }
+                _ => {
+                    let message = format!(
+                        "group key `{}` is not a column of this row",
+                        self.interner.text(key.column.symbol)
+                    );
+                    self.error_rel(id, message);
+                    poisoned = true;
+                }
+            }
+        }
+
+        self.infer.bind_group_keys(id, &key_positions);
+        self.agg.in_item = true;
+        self.agg.keys = key_positions;
+        let mut columns = key_columns;
+        let mut anonymous = 0;
+        for item in items {
+            let ty = self.infer_expr(item.expr);
+            let name = self.resolve_column_name(item.expr, item.alias, &mut anonymous);
+            columns.push(Column::new(None, name, ty));
+        }
+        self.agg.in_item = false;
+        self.agg.keys.clear();
+
+        if poisoned {
+            return self.infer.types.error_ty();
+        }
+
+        let aggregated_ty = self.infer.types.relation_ty(columns);
+        self.symbols.replace_current_row(aggregated_ty)
     }
 
     fn infer_where_rel(&mut self, input: RelId, predicate: ExprId) -> TypeId {
@@ -718,7 +811,7 @@ impl<'i> TypeInferrer<'i> {
         let mut anonymous = 0;
         for item in items {
             let ty = self.infer_expr(item.expr);
-            let name = self.resolve_column_name(item, &mut anonymous);
+            let name = self.resolve_column_name(item.expr, item.alias, &mut anonymous);
             extended_columns.push(Column::new(None, name, ty));
         }
 
@@ -728,11 +821,16 @@ impl<'i> TypeInferrer<'i> {
 
     /// The output column name: the `as` alias, else a bare identifier's or field
     /// access's own name, else a generated `%gN` for an anonymous expression.
-    fn resolve_column_name(&mut self, item: &SelectItem, anonymous: &mut usize) -> SymbolId {
-        if let Some(alias) = item.alias {
+    fn resolve_column_name(
+        &mut self,
+        expr: ExprId,
+        alias: Option<Ident>,
+        anonymous: &mut usize,
+    ) -> SymbolId {
+        if let Some(alias) = alias {
             return alias.symbol;
         }
-        match self.hir.expr(item.expr) {
+        match self.hir.expr(expr) {
             Expr::Ident { value } => value.symbol,
             Expr::FieldAccess { field, .. } => field.symbol,
             _ => {
@@ -819,12 +917,17 @@ impl<'i> TypeInferrer<'i> {
 
     fn infer_ident_expr(&mut self, expr_id: ExprId, value: &Ident) -> TypeId {
         let name = value.symbol;
-        if let Some(ty) = self.symbols.lookup_symbol(name).map(|binding| binding.ty()) {
-            return self.infer.bind_expr_ty(expr_id, ty);
+        if let Some(&binding) = self.symbols.lookup_symbol(name) {
+            if let Binding::Builtin { func } = binding {
+                let message = format!("`{}` is a function, not a value", func.name());
+                return self.error_expr(expr_id, message);
+            }
+            return self.infer.bind_expr_ty(expr_id, binding.ty());
         }
 
         match self.resolve_column(name) {
             ColumnLookup::Unique { ty, column } => {
+                self.check_group_position(expr_id, name, column);
                 self.infer.bind_column(expr_id, column);
                 return self.infer.bind_expr_ty(expr_id, ty);
             }
@@ -867,8 +970,22 @@ impl<'i> TypeInferrer<'i> {
         };
 
         let ty = found.ty;
+        self.check_group_position(expr_id, name, column as u32);
         self.infer.bind_column(expr_id, column as u32);
         self.infer.bind_expr_ty(expr_id, ty)
+    }
+
+    /// Inside an `aggregate` item at group level, the input row is gone: a
+    /// column is only reachable as a group key or through an aggregate call.
+    fn check_group_position(&mut self, expr_id: ExprId, name: SymbolId, column: u32) {
+        if !self.agg.in_item || self.agg.depth > 0 || self.agg.keys.contains(&column) {
+            return;
+        }
+        let message = format!(
+            "column `{}` must be a group key or inside an aggregate function",
+            self.interner.text(name)
+        );
+        self.report_expr(expr_id, message);
     }
 
     fn infer_call_expr(&mut self, expr_id: ExprId, op: Op, args: &[ExprId]) -> TypeId {
@@ -924,6 +1041,10 @@ impl<'i> TypeInferrer<'i> {
     }
 
     fn infer_func_call_expr(&mut self, expr_id: ExprId, callee: ExprId, args: &[ExprId]) -> TypeId {
+        if let Some(func) = self.builtin_callee(callee) {
+            return self.infer_builtin_call_expr(expr_id, func, args);
+        }
+
         let callee_ty = self.infer_expr(callee);
         let callee_ty = self.infer.resolve(callee_ty);
         let error_ty = self.infer.types.error_ty();
@@ -970,6 +1091,103 @@ impl<'i> TypeInferrer<'i> {
         }
 
         self.infer.bind_expr_ty(expr_id, func.ret_type)
+    }
+
+    /// The builtin a call's callee names, when nothing in scope shadows it.
+    fn builtin_callee(&mut self, callee: ExprId) -> Option<BuiltinFunc> {
+        let Expr::Ident { value } = self.hir.expr(callee) else {
+            return None;
+        };
+        match self.symbols.lookup_symbol(value.symbol) {
+            Some(Binding::Builtin { func }) => Some(*func),
+            _ => None,
+        }
+    }
+
+    fn infer_builtin_call_expr(
+        &mut self,
+        expr_id: ExprId,
+        func: BuiltinFunc,
+        args: &[ExprId],
+    ) -> TypeId {
+        let entry = registry::entry(func);
+
+        match func {
+            BuiltinFunc::Aggregate(agg) => {
+                if !self.agg.in_item {
+                    let message = format!(
+                        "aggregate function `{}` can only be used in an `aggregate` item",
+                        func.name()
+                    );
+                    return self.error_expr(expr_id, message);
+                }
+                if self.agg.depth > 0 {
+                    let message = format!(
+                        "aggregate function `{}` cannot be nested in another aggregate",
+                        func.name()
+                    );
+                    return self.error_expr(expr_id, message);
+                }
+
+                self.agg.depth += 1;
+                let arg_tys: Vec<TypeId> = args.iter().map(|&arg| self.infer_expr(arg)).collect();
+                self.agg.depth -= 1;
+
+                if args.len() != entry.arity {
+                    let message = format!(
+                        "`{}` expects {} argument(s), found {}",
+                        func.name(),
+                        entry.arity,
+                        args.len()
+                    );
+                    return self.error_expr(expr_id, message);
+                }
+
+                let ty = self.resolve_agg_ty(expr_id, agg, &arg_tys);
+                self.infer.bind_builtin_call(expr_id, func);
+                self.infer.bind_expr_ty(expr_id, ty)
+            }
+        }
+    }
+
+    fn resolve_agg_ty(&mut self, expr_id: ExprId, func: AggFunc, args: &[TypeId]) -> TypeId {
+        let error_ty = self.infer.types.error_ty();
+        match func {
+            AggFunc::Count => self.infer.types.int64_ty(),
+            AggFunc::Sum => {
+                let arg = self.infer.resolve(args[0]);
+                if arg == error_ty {
+                    return error_ty;
+                }
+                if self.infer.types.ty(arg).is_int() {
+                    self.infer.types.int64_ty()
+                } else if self.infer.types.ty(arg).is_float() {
+                    self.infer.types.float64_ty()
+                } else {
+                    self.numeric_argument_error(expr_id, func, arg)
+                }
+            }
+            AggFunc::Min | AggFunc::Max | AggFunc::Avg => {
+                let arg = self.infer.resolve(args[0]);
+                if arg == error_ty {
+                    return error_ty;
+                }
+                if self.infer.types.ty(arg).is_numeric() {
+                    arg
+                } else {
+                    self.numeric_argument_error(expr_id, func, arg)
+                }
+            }
+        }
+    }
+
+    fn numeric_argument_error(&mut self, expr_id: ExprId, func: AggFunc, arg: TypeId) -> TypeId {
+        let message = format!(
+            "`{}` needs a numeric argument, but found `{:?}`",
+            func.name(),
+            self.infer.types.ty(arg)
+        );
+        self.error_expr(expr_id, message)
     }
 
     fn is_assignable(&mut self, expr: ExprId, value_ty: TypeId, target_ty: TypeId) -> bool {
@@ -2191,6 +2409,116 @@ mod tests {
         check_src(
             &format!("{TABLE}{JOIN_TABLES}let q = from t e |> join d x on e.a == x.a |> set a = 1"),
             expect!["column `a` is ambiguous; qualify it with a relation alias"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_bare_call() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate sum(a) as s group by active"),
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_full_table() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate count()"),
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_composite_item() {
+        check_src(
+            &format!(
+                "{TABLE}let q = from t |> aggregate max(a) - min(a) as spread group by active"
+            ),
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_key_is_reachable_at_group_level() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate a + count() as v group by a"),
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_key_alias_names_the_output() {
+        check_src(
+            &format!(
+                "{TABLE}let q = from t |> aggregate count() as n group by active as is_active |> select is_active, n"
+            ),
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_outside_aggregate_item() {
+        check_src(
+            &format!("{TABLE}let q = from t |> select sum(a)"),
+            expect!["aggregate function `sum` can only be used in an `aggregate` item"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_cannot_nest() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate sum(min(a)) as v"),
+            expect!["aggregate function `min` cannot be nested in another aggregate"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_non_key_column_at_group_level() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate a + count() as v group by active"),
+            expect!["column `a` must be a group key or inside an aggregate function"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_builtin_is_not_a_value() {
+        check_src(
+            &format!("{TABLE}let q = from t |> select sum as v"),
+            expect!["`sum` is a function, not a value"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_unknown_group_key() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate count() group by missing"),
+            expect!["group key `missing` is not a column of this row"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_needs_numeric_argument() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate sum(active) as v"),
+            expect!["`sum` needs a numeric argument, but found `Bool`"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_count_takes_no_arguments() {
+        check_src(
+            &format!("{TABLE}let q = from t |> aggregate count(a) as n"),
+            expect!["`count` expects 0 argument(s), found 1"],
+        );
+    }
+
+    #[test]
+    fn src_aggregate_user_fn_shadows_a_builtin() {
+        check_src(
+            &format!(
+                "{TABLE}fn sum(x: int64) -> int64 {{ return x }}\nlet q = from t |> select sum(a) as v"
+            ),
+            expect![""],
         );
     }
 

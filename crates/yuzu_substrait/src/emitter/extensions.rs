@@ -3,11 +3,13 @@ use substrait::proto::extensions::{
     simple_extension_declaration::{ExtensionFunction, MappingType},
 };
 use yuzu_plan::Func;
+use yuzu_types::AggFunc;
 
 // Substrait standard extensions (the function families DuckDB consumes).
 const ARITHMETIC_URN: &str = "extension:io.substrait:functions_arithmetic";
 pub(crate) const COMPARISON_URN: &str = "extension:io.substrait:functions_comparison";
 pub(crate) const BOOLEAN_URN: &str = "extension:io.substrait:functions_boolean";
+const AGGREGATE_GENERIC_URN: &str = "extension:io.substrait:functions_aggregate_generic";
 
 /// Map a plan function to its Substrait extension function. Membership is
 /// handled separately (`SingularOrList`); a function with no Substrait
@@ -33,6 +35,18 @@ pub(crate) fn function_target(func: Func) -> Option<(&'static str, &'static str)
         Func::Power | Func::In => return None,
     };
     Some(target)
+}
+
+/// Map a plan aggregate to its Substrait extension function. `count` alone
+/// lives in the generic aggregate family; the rest are arithmetic.
+pub(crate) fn aggregate_target(func: AggFunc) -> (&'static str, &'static str) {
+    match func {
+        AggFunc::Count => (AGGREGATE_GENERIC_URN, "count"),
+        AggFunc::Sum => (ARITHMETIC_URN, "sum"),
+        AggFunc::Min => (ARITHMETIC_URN, "min"),
+        AggFunc::Max => (ARITHMETIC_URN, "max"),
+        AggFunc::Avg => (ARITHMETIC_URN, "avg"),
+    }
 }
 
 /// The plan's extension tables, built up as functions are registered.

@@ -79,11 +79,17 @@ pub enum TokenKind {
     #[token(":", priority = 1)]
     Colon,
 
+    #[token("aggregate", priority = 1)]
+    AggregateKw,
+
     #[token("and", priority = 1)]
     AndKw,
 
     #[token("as", priority = 1)]
     AsKw,
+
+    #[token("by", priority = 1)]
+    ByKw,
 
     #[token("distinct", priority = 1)]
     DistinctKw,
@@ -105,6 +111,9 @@ pub enum TokenKind {
 
     #[token("full", priority = 1)]
     FullKw,
+
+    #[token("group", priority = 1)]
+    GroupKw,
 
     #[token("impl", priority = 1)]
     ImplKw,
@@ -247,8 +256,10 @@ impl std::fmt::Display for TokenKind {
             TokenKind::RightSquare => "]",
             TokenKind::Comma => ",",
             TokenKind::Colon => ":",
+            TokenKind::AggregateKw => "aggregate",
             TokenKind::AndKw => "and",
             TokenKind::AsKw => "as",
+            TokenKind::ByKw => "by",
             TokenKind::DistinctKw => "distinct",
             TokenKind::DropKw => "drop",
             TokenKind::ExtendKw => "extend",
@@ -256,6 +267,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::ForKw => "for",
             TokenKind::FromKw => "from",
             TokenKind::FullKw => "full",
+            TokenKind::GroupKw => "group",
             TokenKind::ImplKw => "impl",
             TokenKind::InKw => "in",
             TokenKind::InnerKw => "inner",
@@ -327,8 +339,10 @@ mod tests {
             (TokenKind::RightSquare, "]"),
             (TokenKind::Comma, ","),
             (TokenKind::Colon, ":"),
+            (TokenKind::AggregateKw, "aggregate"),
             (TokenKind::AndKw, "and"),
             (TokenKind::AsKw, "as"),
+            (TokenKind::ByKw, "by"),
             (TokenKind::DistinctKw, "distinct"),
             (TokenKind::DropKw, "drop"),
             (TokenKind::ExtendKw, "extend"),
@@ -336,6 +350,7 @@ mod tests {
             (TokenKind::ForKw, "for"),
             (TokenKind::FromKw, "from"),
             (TokenKind::FullKw, "full"),
+            (TokenKind::GroupKw, "group"),
             (TokenKind::ImplKw, "impl"),
             (TokenKind::InKw, "in"),
             (TokenKind::InnerKw, "inner"),

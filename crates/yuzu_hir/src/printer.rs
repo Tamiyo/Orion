@@ -397,11 +397,47 @@ impl HirPrinter<'_> {
                 line(out, depth, format!("Alias {:?}", self.text(alias)));
                 self.fmt_rel(*input, depth + 1, out);
             }
+            Rel::Aggregate {
+                input,
+                items,
+                groups,
+            } => {
+                line(out, depth, "Aggregate");
+                self.fmt_rel(*input, depth + 1, out);
+                for item in items.iter() {
+                    self.fmt_aggregate_item(item, depth + 1, out);
+                }
+                for key in groups.iter() {
+                    let qualifier = key
+                        .qualifier
+                        .as_ref()
+                        .map(|qualifier| format!("{:?}.", self.text(qualifier)))
+                        .unwrap_or_default();
+                    let alias = key
+                        .alias
+                        .as_ref()
+                        .map(|alias| format!(" as {:?}", self.text(alias)))
+                        .unwrap_or_default();
+                    line(
+                        out,
+                        depth + 1,
+                        format!("group by {qualifier}{:?}{alias}", self.text(&key.column)),
+                    );
+                }
+            }
             Rel::Missing => line(out, depth, "Missing"),
         }
     }
 
     fn fmt_select_item(&self, item: &SelectItem, depth: usize, out: &mut String) {
+        match &item.alias {
+            Some(alias) => line(out, depth, format!("item as {:?}:", self.text(alias))),
+            None => line(out, depth, "item:"),
+        }
+        self.fmt_expr(item.expr, depth + 1, out);
+    }
+
+    fn fmt_aggregate_item(&self, item: &AggregateItem, depth: usize, out: &mut String) {
         match &item.alias {
             Some(alias) => line(out, depth, format!("item as {:?}:", self.text(alias))),
             None => line(out, depth, "item:"),

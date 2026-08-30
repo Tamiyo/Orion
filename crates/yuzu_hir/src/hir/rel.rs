@@ -25,6 +25,19 @@ pub struct SetItem {
     pub value: ExprId,
 }
 
+#[derive(Clone, PartialEq, Eq)]
+pub struct AggregateItem {
+    pub expr: ExprId,
+    pub alias: Option<Ident>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct GroupKey {
+    pub qualifier: Option<Ident>,
+    pub column: Ident,
+    pub alias: Option<Ident>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JoinKind {
     Inner,
@@ -98,6 +111,11 @@ pub enum Rel {
     Alias {
         input: RelId,
         alias: Ident,
+    },
+    Aggregate {
+        input: RelId,
+        items: Box<[AggregateItem]>,
+        groups: Box<[GroupKey]>,
     },
 
     /// Error-recovery node for input that failed to lower.

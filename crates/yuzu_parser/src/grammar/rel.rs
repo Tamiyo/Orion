@@ -36,6 +36,9 @@ pub(crate) fn parse_query(p: &mut Parser) -> CompletedMarker {
         } else if p.at(TokenKind::AsKw) {
             parse_alias_clause(p);
             p.complete(marker, SyntaxKind::AliasExpr)
+        } else if p.at(TokenKind::AggregateKw) {
+            parse_aggregate_clause(p);
+            p.complete(marker, SyntaxKind::AggregateExpr)
         } else if at_join_clause(p) {
             parse_join_clause(p);
             p.complete(marker, SyntaxKind::JoinExpr)
@@ -163,6 +166,54 @@ fn parse_limit_clause(p: &mut Parser) {
 fn parse_alias_clause(p: &mut Parser) {
     p.expect(TokenKind::AsKw);
     parse_ident(p);
+}
+
+fn parse_aggregate_item(p: &mut Parser) {
+    let m = p.start();
+    parse_expr(p);
+    if p.at(TokenKind::AsKw) {
+        p.bump();
+        parse_ident(p);
+    }
+    p.complete(m, SyntaxKind::AggregateItem);
+}
+
+fn parse_group_by_item(p: &mut Parser) {
+    let m = p.start();
+    parse_ident(p);
+    if p.at(TokenKind::Dot) {
+        p.bump();
+        parse_ident(p);
+    }
+    if p.at(TokenKind::AsKw) {
+        p.bump();
+        parse_ident(p);
+    }
+    p.complete(m, SyntaxKind::GroupByItem);
+}
+
+fn parse_group_by(p: &mut Parser) {
+    let m = p.start();
+    p.expect(TokenKind::GroupKw);
+    p.expect(TokenKind::ByKw);
+    parse_group_by_item(p);
+    while p.at(TokenKind::Comma) {
+        p.bump();
+        parse_group_by_item(p);
+    }
+    p.complete(m, SyntaxKind::GroupBy);
+}
+
+fn parse_aggregate_clause(p: &mut Parser) {
+    p.expect(TokenKind::AggregateKw);
+    parse_aggregate_item(p);
+    while p.at(TokenKind::Comma) {
+        p.bump();
+        parse_aggregate_item(p);
+    }
+    if p.at(TokenKind::GroupKw) {
+        parse_group_by(p);
+    }
 }
 
 const JOIN_TYPES: [TokenKind; 4] = [
@@ -506,6 +557,81 @@ mod tests {
                 Space@17..18 " "
                 IntLiteral@18..19
                   IntLit@18..19 "1"
+        "#]],
+        );
+    }
+
+    #[test]
+    fn parse_query_aggregate_clause() {
+        test_support::check(
+            "from t |> aggregate sum(a) as s group by b",
+            parse_query,
+            expect![[r#"
+                AggregateExpr@0..42
+                  FromExpr@0..6
+                    FromKw@0..4 "from"
+                    Space@4..5 " "
+                    Ident@5..6
+                      Identifier@5..6 "t"
+                  Space@6..7 " "
+                  Pipe@7..9 "|>"
+                  Space@9..10 " "
+                  AggregateKw@10..19 "aggregate"
+                  Space@19..20 " "
+                  AggregateItem@20..31
+                    CallExpr@20..26
+                      IdentExpr@20..23
+                        Ident@20..23
+                          Identifier@20..23 "sum"
+                      ArgList@23..26
+                        LeftParen@23..24 "("
+                        IdentExpr@24..25
+                          Ident@24..25
+                            Identifier@24..25 "a"
+                        RightParen@25..26 ")"
+                    Space@26..27 " "
+                    AsKw@27..29 "as"
+                    Space@29..30 " "
+                    Ident@30..31
+                      Identifier@30..31 "s"
+                  Space@31..32 " "
+                  GroupBy@32..42
+                    GroupKw@32..37 "group"
+                    Space@37..38 " "
+                    ByKw@38..40 "by"
+                    Space@40..41 " "
+                    GroupByItem@41..42
+                      Ident@41..42
+                        Identifier@41..42 "b"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_query_aggregate_without_group_by() {
+        test_support::check(
+            "from t |> aggregate count()",
+            parse_query,
+            expect![[r#"
+            AggregateExpr@0..27
+              FromExpr@0..6
+                FromKw@0..4 "from"
+                Space@4..5 " "
+                Ident@5..6
+                  Identifier@5..6 "t"
+              Space@6..7 " "
+              Pipe@7..9 "|>"
+              Space@9..10 " "
+              AggregateKw@10..19 "aggregate"
+              Space@19..20 " "
+              AggregateItem@20..27
+                CallExpr@20..27
+                  IdentExpr@20..25
+                    Ident@20..25
+                      Identifier@20..25 "count"
+                  ArgList@25..27
+                    LeftParen@25..26 "("
+                    RightParen@26..27 ")"
         "#]],
         );
     }

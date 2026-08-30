@@ -1,6 +1,6 @@
 use id_arena::Id;
 use yuzu_core::adt::{Float, Int, SymbolId};
-use yuzu_types::TypeId;
+use yuzu_types::{AggFunc, TypeId};
 
 pub type ExprId = Id<Expr>;
 
@@ -36,6 +36,16 @@ impl Expr {
             Expr::Column { ty, .. } | Expr::Literal { ty, .. } | Expr::Call { ty, .. } => *ty,
         }
     }
+}
+
+/// One aggregate computation of an `Aggregate` node. Not an expression: a
+/// measure consumes a group, not a row, so it can only appear here, and an
+/// expression over its result addresses it as an output column.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Measure {
+    pub func: AggFunc,
+    pub args: Box<[ExprId]>,
+    pub ty: TypeId,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]

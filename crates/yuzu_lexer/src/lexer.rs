@@ -64,8 +64,10 @@ mod tests {
     #[test]
     fn keywords_win_over_identifiers() {
         let keywords = [
+            ("aggregate", TokenKind::AggregateKw),
             ("and", TokenKind::AndKw),
             ("as", TokenKind::AsKw),
+            ("by", TokenKind::ByKw),
             ("distinct", TokenKind::DistinctKw),
             ("drop", TokenKind::DropKw),
             ("extend", TokenKind::ExtendKw),
@@ -73,6 +75,7 @@ mod tests {
             ("for", TokenKind::ForKw),
             ("from", TokenKind::FromKw),
             ("full", TokenKind::FullKw),
+            ("group", TokenKind::GroupKw),
             ("impl", TokenKind::ImplKw),
             ("in", TokenKind::InKw),
             ("inner", TokenKind::InnerKw),
@@ -121,6 +124,9 @@ mod tests {
         assert_eq!(one("settings"), TokenKind::Identifier);
         assert_eq!(one("limits"), TokenKind::Identifier);
         assert_eq!(one("offsets"), TokenKind::Identifier);
+        assert_eq!(one("aggregates"), TokenKind::Identifier);
+        assert_eq!(one("groups"), TokenKind::Identifier);
+        assert_eq!(one("bypass"), TokenKind::Identifier);
     }
 
     #[test]

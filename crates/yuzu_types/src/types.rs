@@ -145,3 +145,43 @@ impl Type {
         matches!(self, Type::TypeVar { .. })
     }
 }
+
+/// A builtin aggregate function. The identity every stage shares: inference
+/// types it, the ANF carries it, the plan holds it as a measure, and each
+/// emitter maps it onto its dialect at the boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AggFunc {
+    Count,
+    Sum,
+    Min,
+    Max,
+    Avg,
+}
+
+impl AggFunc {
+    pub fn name(self) -> &'static str {
+        match self {
+            AggFunc::Count => "count",
+            AggFunc::Sum => "sum",
+            AggFunc::Min => "min",
+            AggFunc::Max => "max",
+            AggFunc::Avg => "avg",
+        }
+    }
+}
+
+/// A function the target dialect guarantees. Aggregates are the first kind;
+/// builtin scalars join as a sibling variant, so everything that handles a
+/// builtin dispatches on the kind rather than assuming aggregates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BuiltinFunc {
+    Aggregate(AggFunc),
+}
+
+impl BuiltinFunc {
+    pub fn name(self) -> &'static str {
+        match self {
+            BuiltinFunc::Aggregate(func) => func.name(),
+        }
+    }
+}

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use yuzu_types::TypeId;
+use yuzu_types::{BuiltinFunc, TypeId};
 
 use crate::{ExprId, Mutability, StmtId, SymbolId};
 
@@ -28,6 +28,11 @@ pub(crate) enum Binding {
         expr: ExprId,
         ty: TypeId,
     },
+    /// A registered builtin. Not a value — call sites resolve it through the
+    /// registry, and a bare reference is an error.
+    Builtin {
+        func: BuiltinFunc,
+    },
 }
 
 impl Binding {
@@ -38,6 +43,7 @@ impl Binding {
             | Binding::Relation { ty, .. }
             | Binding::FuncStmt { ty, .. }
             | Binding::Ident { ty, .. } => *ty,
+            Binding::Builtin { .. } => unreachable!("a builtin has no value type"),
         }
     }
 }

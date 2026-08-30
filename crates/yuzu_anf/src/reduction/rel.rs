@@ -1,5 +1,5 @@
 use crate::reduction::{AnfReducer, environment::Environment};
-use crate::{JoinCondition, Rel, RelId, SelectItem, SetItem, Thunk, TreeCopier};
+use crate::{AggregateItem, JoinCondition, Rel, RelId, SelectItem, SetItem, Thunk, TreeCopier};
 
 impl AnfReducer<'_> {
     pub(crate) fn reduce_rel(&mut self, id: RelId, env: &mut Environment) -> RelId {
@@ -112,6 +112,23 @@ impl AnfReducer<'_> {
                     .collect(),
                 ty: *ty,
             },
+            Rel::Aggregate {
+                input: source,
+                items,
+                groups,
+                ty,
+            } => Rel::Aggregate {
+                input: self.reduce_rel(*source, env),
+                items: items
+                    .iter()
+                    .map(|item| AggregateItem {
+                        body: self.reduce_thunk(&item.body, env),
+                        alias: item.alias,
+                    })
+                    .collect(),
+                groups: groups.clone(),
+                ty: *ty,
+            },
         };
 
         self.anf.alloc_rel(rel)
@@ -142,6 +159,34 @@ mod tests {
     use expect_test::expect;
 
     use crate::reduction::test_support::{TABLE, check};
+
+    #[test]
+    fn aggregate_folds_inside_measure_arguments() {
+        check(
+            &format!("{TABLE}from t |> aggregate sum(a * (1 + 1)) as v group by b"),
+            expect![[r#"
+                struct Row { a, b }
+                table t
+                from t
+                  |> aggregate %r0 = mul(a, 2i32); %r1 = sum(%r0); %r1 as v group by b
+            "#]],
+        );
+    }
+
+    #[test]
+    fn aggregate_inlines_a_scalar_function_in_measure_arguments() {
+        check(
+            &format!(
+                "{TABLE}fn double(x: int32) -> int32 {{ return x * 2 }}\nfrom t |> aggregate min(double(a)) as v"
+            ),
+            expect![[r#"
+                struct Row { a, b }
+                table t
+                from t
+                  |> aggregate %r0 = mul(a, 2i32); %r1 = min(%r0); %r1 as v
+            "#]],
+        );
+    }
 
     #[test]
     fn folds_query_column_constant() {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use yuzu_core::adt::StringInterner;
 use yuzu_diagnostics::{diagnostics::engine::DiagnosticsEngine, source_map::SourceId};
-use yuzu_types::{InferKind, TypeCtx, TypeId, TypeUnifier};
+use yuzu_types::{BuiltinFunc, InferKind, TypeCtx, TypeId, TypeUnifier};
 
 use crate::{ExprId, HirCtx, HirSourceMap, RelId, Root, StmtId};
 
@@ -10,6 +10,7 @@ mod coerce;
 mod concretize;
 mod inference;
 mod op;
+mod registry;
 mod symbols;
 
 use self::inference::TypeInferrer;
@@ -34,6 +35,8 @@ pub struct InferenceResult {
     expr_types: HashMap<ExprId, TypeId>,
     rel_types: HashMap<RelId, TypeId>,
     columns: HashMap<ExprId, u32>,
+    builtin_calls: HashMap<ExprId, BuiltinFunc>,
+    group_keys: HashMap<RelId, Box<[u32]>>,
     stmt_types: HashMap<StmtId, TypeId>,
     adjustments: HashMap<ExprId, TypeId>,
 }
@@ -51,6 +54,18 @@ impl InferenceResult {
     /// that are column references. `None` for everything else.
     pub fn column(&self, id: ExprId) -> Option<u32> {
         self.columns.get(&id).copied()
+    }
+
+    /// Which builtin a call expression invokes, for the calls that resolved to
+    /// one. `None` for everything else.
+    pub fn builtin_call(&self, id: ExprId) -> Option<BuiltinFunc> {
+        self.builtin_calls.get(&id).copied()
+    }
+
+    /// The input-row position of each of an `aggregate` stage's group keys,
+    /// in declaration order.
+    pub fn group_keys(&self, id: RelId) -> Option<&[u32]> {
+        self.group_keys.get(&id).map(|keys| &**keys)
     }
 
     /// The declared type of a declaration statement (struct, table, or func).
@@ -116,6 +131,14 @@ impl<'i> InferCtx<'i> {
 
     fn bind_column(&mut self, id: ExprId, column: u32) {
         self.result.columns.insert(id, column);
+    }
+
+    fn bind_builtin_call(&mut self, id: ExprId, func: BuiltinFunc) {
+        self.result.builtin_calls.insert(id, func);
+    }
+
+    fn bind_group_keys(&mut self, id: RelId, keys: &[u32]) {
+        self.result.group_keys.insert(id, keys.into());
     }
 
     fn bind_rel_ty(&mut self, id: RelId, ty: TypeId) -> TypeId {

@@ -30,8 +30,10 @@ pub enum SyntaxKind {
     RightSquare,
     Comma,
     Colon,
+    AggregateKw,
     AndKw,
     AsKw,
+    ByKw,
     DistinctKw,
     DropKw,
     ExtendKw,
@@ -39,6 +41,7 @@ pub enum SyntaxKind {
     ForKw,
     FromKw,
     FullKw,
+    GroupKw,
     ImplKw,
     InKw,
     InnerKw,
@@ -126,6 +129,10 @@ pub enum SyntaxKind {
     SetItem,
     LimitExpr,
     AliasExpr,
+    AggregateExpr,
+    AggregateItem,
+    GroupBy,
+    GroupByItem,
     JoinExpr,
     JoinOn,
     JoinUsing,
@@ -168,8 +175,10 @@ impl From<TokenKind> for SyntaxKind {
             TokenKind::RightSquare => Self::RightSquare,
             TokenKind::Comma => Self::Comma,
             TokenKind::Colon => Self::Colon,
+            TokenKind::AggregateKw => Self::AggregateKw,
             TokenKind::AndKw => Self::AndKw,
             TokenKind::AsKw => Self::AsKw,
+            TokenKind::ByKw => Self::ByKw,
             TokenKind::DistinctKw => Self::DistinctKw,
             TokenKind::DropKw => Self::DropKw,
             TokenKind::ExtendKw => Self::ExtendKw,
@@ -177,6 +186,7 @@ impl From<TokenKind> for SyntaxKind {
             TokenKind::ForKw => Self::ForKw,
             TokenKind::FromKw => Self::FromKw,
             TokenKind::FullKw => Self::FullKw,
+            TokenKind::GroupKw => Self::GroupKw,
             TokenKind::ImplKw => Self::ImplKw,
             TokenKind::InKw => Self::InKw,
             TokenKind::InnerKw => Self::InnerKw,
@@ -220,6 +230,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn aggregate_tokens_map_to_their_own_syntax_kinds() {
+        let cases = [
+            (TokenKind::AggregateKw, SyntaxKind::AggregateKw),
+            (TokenKind::GroupKw, SyntaxKind::GroupKw),
+            (TokenKind::ByKw, SyntaxKind::ByKw),
+        ];
+
+        for (token, expected) in cases {
+            assert_eq!(SyntaxKind::from(token), expected, "{token:?}");
+        }
+    }
+
+    #[test]
     fn join_tokens_map_to_their_own_syntax_kinds() {
         let cases = [
             (TokenKind::JoinKw, SyntaxKind::JoinKw),
@@ -251,6 +274,9 @@ mod tests {
             TokenKind::WhereKw,
             TokenKind::AsKw,
             TokenKind::InKw,
+            TokenKind::AggregateKw,
+            TokenKind::GroupKw,
+            TokenKind::ByKw,
         ];
 
         let mut seen = Vec::new();

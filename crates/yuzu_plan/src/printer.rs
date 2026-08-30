@@ -1,7 +1,7 @@
 use yuzu_core::adt::StringInterner;
 
 use crate::graph::RelGraph;
-use crate::{Const, Expr, ExprId, Func, JoinCondition, JoinKind, Rel, RelId, SelectItem};
+use crate::{Const, Expr, ExprId, Func, JoinCondition, JoinKind, Measure, Rel, RelId, SelectItem};
 
 pub fn dump(graph: &RelGraph, interner: &StringInterner) -> String {
     let printer = PlanPrinter { graph, interner };
@@ -108,11 +108,47 @@ impl PlanPrinter<'_> {
                 out.push_str("as ");
                 out.push_str(self.text(*alias));
             }
+            Rel::Aggregate {
+                groupings,
+                measures,
+                ..
+            } => {
+                out.push_str("aggregate [");
+                for (index, measure) in measures.iter().enumerate() {
+                    if index > 0 {
+                        out.push_str(", ");
+                    }
+                    self.fmt_measure(measure, out);
+                }
+                out.push(']');
+                if !groupings.is_empty() {
+                    out.push_str(" group [");
+                    for (index, key) in groupings.iter().enumerate() {
+                        if index > 0 {
+                            out.push_str(", ");
+                        }
+                        out.push_str(&format!("#{key}"));
+                    }
+                    out.push(']');
+                }
+            }
         }
         out.push('\n');
         for input in self.graph.inputs(id) {
             self.fmt_rel(input, depth + 1, out);
         }
+    }
+
+    fn fmt_measure(&self, measure: &Measure, out: &mut String) {
+        out.push_str(measure.func.name());
+        out.push('(');
+        for (index, &arg) in measure.args.iter().enumerate() {
+            if index > 0 {
+                out.push_str(", ");
+            }
+            self.fmt_expr(arg, out);
+        }
+        out.push(')');
     }
 
     fn fmt_items(&self, items: &[SelectItem], out: &mut String) {

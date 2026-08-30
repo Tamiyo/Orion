@@ -593,6 +593,7 @@ impl<'l> HirLowerer<'l> {
             ast::Rel::SetExpr(set_expr) => self.lower_set_rel(set_expr),
             ast::Rel::LimitExpr(limit_expr) => self.lower_limit_rel(limit_expr),
             ast::Rel::AliasExpr(alias_expr) => self.lower_alias_rel(alias_expr),
+            ast::Rel::AggregateExpr(aggregate_expr) => self.lower_aggregate_rel(aggregate_expr),
         };
 
         let id = self.ctx.alloc_rel(lowered);
@@ -821,6 +822,49 @@ impl<'l> HirLowerer<'l> {
         Rel::Set {
             input,
             items: items.into_boxed_slice(),
+        }
+    }
+
+    fn lower_aggregate_rel(&mut self, expr: ast::AggregateExpr) -> Rel {
+        let Some(input) = expr.input() else {
+            self.error(&expr, "`aggregate` is missing its input relation");
+            return Rel::Missing;
+        };
+
+        let input = self.lower_rel_input(input);
+        let mut items = Vec::new();
+        for item in expr.items() {
+            let Some(item_expr) = item.expr() else {
+                self.error(&item, "aggregate item is missing its expression");
+                continue;
+            };
+            items.push(AggregateItem {
+                expr: self.lower_expr(item_expr),
+                alias: item.alias().map(|alias| self.lower_ident(alias)),
+            });
+        }
+
+        let mut groups = Vec::new();
+        let keys: Vec<ast::GroupByItem> = expr
+            .group_by()
+            .map(|list| list.items().collect())
+            .unwrap_or_default();
+        for key in keys {
+            let Some(column) = key.column() else {
+                self.error(&key, "group by key is missing its column");
+                continue;
+            };
+            groups.push(GroupKey {
+                qualifier: key.qualifier().map(|qualifier| self.lower_ident(qualifier)),
+                column: self.lower_ident(column),
+                alias: key.alias().map(|alias| self.lower_ident(alias)),
+            });
+        }
+
+        Rel::Aggregate {
+            input,
+            items: items.into_boxed_slice(),
+            groups: groups.into_boxed_slice(),
         }
     }
 
@@ -1715,6 +1759,44 @@ mod tests {
                     Literal Int 10u64
                   offset:
                     Literal Int 5u64
+        "#]],
+        );
+    }
+
+    #[test]
+    fn rel_aggregate() {
+        check(
+            "from t |> aggregate sum(a) as s, count() group by b, e.c as k",
+            expect![[r#"
+                Expr
+                  Rel
+                    Aggregate
+                      From "t"
+                      item as "s":
+                        FuncCall
+                          Ident "sum"
+                          Ident "a"
+                      item:
+                        FuncCall
+                          Ident "count"
+                      group by "b"
+                      group by "e"."c" as "k"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn rel_aggregate_without_group_by() {
+        check(
+            "from t |> aggregate count()",
+            expect![[r#"
+            Expr
+              Rel
+                Aggregate
+                  From "t"
+                  item:
+                    FuncCall
+                      Ident "count"
         "#]],
         );
     }

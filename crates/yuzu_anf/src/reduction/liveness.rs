@@ -87,7 +87,9 @@ impl LivenessAnalysis for AnfReducer<'_> {
 
     fn expr_func_refs(&self, id: ExprId, refs: &mut Vec<BindingId>) {
         match self.anf.expr(id) {
-            Expr::Call { args, .. } | Expr::ListInit { elements: args, .. } => {
+            Expr::Call { args, .. }
+            | Expr::ListInit { elements: args, .. }
+            | Expr::AggCall { args, .. } => {
                 for &arg in args.iter() {
                     self.atom_func_refs(arg, refs);
                 }
@@ -130,6 +132,12 @@ impl LivenessAnalysis for AnfReducer<'_> {
                 }
             }
             Rel::Select { input, items, .. } | Rel::Extend { input, items, .. } => {
+                self.rel_func_refs(*input, refs);
+                for item in items.iter() {
+                    self.thunk_func_refs(&item.body, refs);
+                }
+            }
+            Rel::Aggregate { input, items, .. } => {
                 self.rel_func_refs(*input, refs);
                 for item in items.iter() {
                     self.thunk_func_refs(&item.body, refs);

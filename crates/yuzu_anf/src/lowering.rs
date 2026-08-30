@@ -4,14 +4,14 @@ use yuzu_diagnostics::{
     source_map::SourceId,
 };
 use yuzu_hir::{self as hir, HirSourceMap, InferenceResult};
-use yuzu_types::{Type, TypeCtx, TypeId};
+use yuzu_types::{BuiltinFunc, Type, TypeCtx, TypeId};
 
 use crate::{
     AnfCtx, AnfSourceMap,
     anf::{
-        Atom, AtomId, Binding, BindingId, Const, Expr, ExprId, Ident, JoinCondition, JoinKind, Op,
-        Rel, RelId, RenameItem, Root, SelectItem, SetItem, Stmt, StmtId, StructField,
-        StructFieldInit, Thunk,
+        AggregateItem, Atom, AtomId, Binding, BindingId, Const, Expr, ExprId, GroupKey, Ident,
+        JoinCondition, JoinKind, Op, Rel, RelId, RenameItem, Root, SelectItem, SetItem, Stmt,
+        StmtId, StructField, StructFieldInit, Thunk,
     },
     symbols::{Symbol, SymbolTable},
 };
@@ -340,6 +340,14 @@ impl AnfLowerer<'_> {
         callee: hir::ExprId,
         args: &[hir::ExprId],
     ) -> Expr {
+        if let Some(BuiltinFunc::Aggregate(func)) = self.types.builtin_call(id) {
+            return Expr::AggCall {
+                func,
+                args: args.iter().map(|&arg| self.force_atom(arg)).collect(),
+                ty: self.expr_ty(id),
+            };
+        }
+
         let callee = self.force_atom(callee);
         Expr::FuncCall {
             callee,
@@ -405,6 +413,11 @@ impl AnfLowerer<'_> {
                 condition,
             } => self.lower_join_rel(left, right, kind, &condition, ty),
             hir::Rel::Select { input, items } => self.lower_select_rel(input, &items, ty),
+            hir::Rel::Aggregate {
+                input,
+                items,
+                groups,
+            } => self.lower_aggregate_rel(id, input, &items, &groups, ty),
             hir::Rel::Where { input, predicate } => self.lower_where_rel(input, predicate, ty),
             hir::Rel::Distinct { input } => Rel::Distinct {
                 input: self.lower_rel(input),
@@ -498,6 +511,44 @@ impl AnfLowerer<'_> {
             .map(|item| self.lower_select_item(item))
             .collect();
         Rel::Select { input, items, ty }
+    }
+
+    fn lower_aggregate_rel(
+        &mut self,
+        id: hir::RelId,
+        input: hir::RelId,
+        items: &[hir::AggregateItem],
+        groups: &[hir::GroupKey],
+        ty: TypeId,
+    ) -> Rel {
+        let input = self.lower_rel(input);
+        let items = items
+            .iter()
+            .map(|item| AggregateItem {
+                body: self.lower_thunk(item.expr),
+                alias: item.alias.map(|alias| Ident { name: alias.symbol }),
+            })
+            .collect();
+        let positions = self
+            .types
+            .group_keys(id)
+            .expect("inference resolves every group key");
+        let groups = groups
+            .iter()
+            .zip(positions.iter())
+            .map(|(key, &column)| GroupKey {
+                name: Ident {
+                    name: key.alias.as_ref().unwrap_or(&key.column).symbol,
+                },
+                column,
+            })
+            .collect();
+        Rel::Aggregate {
+            input,
+            items,
+            groups,
+            ty,
+        }
     }
 
     fn lower_where_rel(&mut self, input: hir::RelId, predicate: hir::ExprId, ty: TypeId) -> Rel {

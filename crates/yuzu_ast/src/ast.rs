@@ -535,6 +535,7 @@ ast_enum!(Rel, {
     SetExpr,
     LimitExpr,
     AliasExpr,
+    AggregateExpr,
     FromExpr,
     SelectExpr,
     WhereExpr,
@@ -767,6 +768,72 @@ impl AliasExpr {
     }
 }
 
+ast_node!(AggregateExpr);
+impl AggregateExpr {
+    pub fn input(&self) -> Option<Expr> {
+        support::child(self.syntax())
+    }
+
+    pub fn items(&self) -> impl Iterator<Item = AggregateItem> + '_ {
+        support::children(self.syntax())
+    }
+
+    pub fn group_by(&self) -> Option<GroupBy> {
+        support::child(self.syntax())
+    }
+}
+
+ast_node!(AggregateItem);
+impl AggregateItem {
+    pub fn expr(&self) -> Option<Expr> {
+        support::child(self.syntax())
+    }
+
+    pub fn alias(&self) -> Option<Ident> {
+        support::child(self.syntax())
+    }
+}
+
+ast_node!(GroupBy);
+impl GroupBy {
+    pub fn items(&self) -> impl Iterator<Item = GroupByItem> + '_ {
+        support::children(self.syntax())
+    }
+}
+
+ast_node!(GroupByItem);
+impl GroupByItem {
+    pub fn qualifier(&self) -> Option<Ident> {
+        self.is_qualified()
+            .then(|| support::nth_child(self.syntax(), 0))
+            .flatten()
+    }
+
+    pub fn column(&self) -> Option<Ident> {
+        support::nth_child(self.syntax(), self.is_qualified() as usize)
+    }
+
+    pub fn alias(&self) -> Option<Ident> {
+        self.is_aliased()
+            .then(|| support::nth_child(self.syntax(), self.is_qualified() as usize + 1))
+            .flatten()
+    }
+
+    fn is_qualified(&self) -> bool {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .any(|token| token.kind() == SyntaxKind::Dot)
+    }
+
+    fn is_aliased(&self) -> bool {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .any(|token| token.kind() == SyntaxKind::AsKw)
+    }
+}
+
 ast_enum!(Literal, {
     BoolLiteral,
     IntLiteral,
@@ -842,6 +909,48 @@ mod tests {
             .descendants()
             .find_map(RenameItem::cast)
             .expect("input has a rename item")
+    }
+
+    fn aggregate(input: &str) -> AggregateExpr {
+        let tokens: Vec<Token> = Lexer::new(input).collect();
+        let mut diagnostics = DiagnosticsEngine::new();
+        let mut sources = SourceMap::new();
+        let source_id = sources.add("test".to_string(), input.to_string());
+
+        let syntax = yuzu_parser::parse(&tokens, &mut diagnostics, source_id);
+        syntax
+            .descendants()
+            .find_map(AggregateExpr::cast)
+            .expect("input has an aggregate stage")
+    }
+
+    #[test]
+    fn aggregate_reads_items_and_group_by() {
+        let stage = aggregate("from t |> aggregate sum(a) as s, count() group by b, e.c as k");
+        assert!(stage.input().is_some());
+
+        let items: Vec<AggregateItem> = stage.items().collect();
+        assert_eq!(items.len(), 2);
+        assert!(items[0].expr().is_some());
+        assert_eq!(text(items[0].alias()).as_deref(), Some("s"));
+        assert!(items[1].expr().is_some());
+        assert!(items[1].alias().is_none());
+
+        let keys: Vec<GroupByItem> = stage.group_by().expect("has group by").items().collect();
+        assert_eq!(keys.len(), 2);
+        assert!(keys[0].qualifier().is_none());
+        assert_eq!(text(keys[0].column()).as_deref(), Some("b"));
+        assert!(keys[0].alias().is_none());
+        assert_eq!(text(keys[1].qualifier()).as_deref(), Some("e"));
+        assert_eq!(text(keys[1].column()).as_deref(), Some("c"));
+        assert_eq!(text(keys[1].alias()).as_deref(), Some("k"));
+    }
+
+    #[test]
+    fn aggregate_without_group_by() {
+        let stage = aggregate("from t |> aggregate count()");
+        assert!(stage.group_by().is_none());
+        assert_eq!(stage.items().count(), 1);
     }
 
     #[test]

@@ -2,8 +2,8 @@ use yuzu_core::adt::{StringInterner, SymbolId};
 
 use crate::AnfCtx;
 use crate::{
-    Atom, AtomId, Const, Expr, ExprId, JoinCondition, Op, Rel, RelId, Root, SelectItem, Stmt,
-    StmtId, Thunk,
+    AggregateItem, Atom, AtomId, Const, Expr, ExprId, JoinCondition, Op, Rel, RelId, Root,
+    SelectItem, Stmt, StmtId, Thunk,
 };
 
 struct AnfPrinter<'a> {
@@ -116,6 +116,10 @@ impl AnfPrinter<'_> {
         match self.anf.expr(id) {
             Expr::Call { op, args, .. } => {
                 out.push_str(op_name(*op));
+                self.fmt_args(args, out);
+            }
+            Expr::AggCall { func, args, .. } => {
+                out.push_str(func.name());
                 self.fmt_args(args, out);
             }
             Expr::FuncCall { callee, args, .. } => {
@@ -271,6 +275,20 @@ impl AnfPrinter<'_> {
                 self.fmt_stage(depth, "extend ", out);
                 self.fmt_select_items(items, depth, out);
             }
+            Rel::Aggregate {
+                input,
+                items,
+                groups,
+                ..
+            } => {
+                self.fmt_rel(*input, depth, out);
+                self.fmt_stage(depth, "aggregate ", out);
+                self.fmt_aggregate_items(items, depth, out);
+                for (i, key) in groups.iter().enumerate() {
+                    out.push_str(if i == 0 { " group by " } else { ", " });
+                    out.push_str(self.text(key.name.name));
+                }
+            }
         }
     }
 
@@ -282,6 +300,19 @@ impl AnfPrinter<'_> {
     }
 
     fn fmt_select_items(&self, items: &[SelectItem], depth: usize, out: &mut String) {
+        for (i, item) in items.iter().enumerate() {
+            if i > 0 {
+                out.push_str(", ");
+            }
+            self.fmt_thunk(&item.body, depth, out);
+            if let Some(alias) = item.alias {
+                out.push_str(" as ");
+                out.push_str(self.text(alias.name));
+            }
+        }
+    }
+
+    fn fmt_aggregate_items(&self, items: &[AggregateItem], depth: usize, out: &mut String) {
         for (i, item) in items.iter().enumerate() {
             if i > 0 {
                 out.push_str(", ");

@@ -1,7 +1,8 @@
 use substrait::proto::{
-    AggregateRel, Expression, FetchRel, FilterRel, FunctionArgument, JoinRel, NamedStruct,
-    ProjectRel, ReadRel, Rel, RelCommon,
-    aggregate_rel::Grouping,
+    AggregateFunction, AggregateRel, AggregationPhase, Expression, FetchRel, FilterRel,
+    FunctionArgument, JoinRel, NamedStruct, ProjectRel, ReadRel, Rel, RelCommon,
+    aggregate_function::AggregationInvocation,
+    aggregate_rel::{Grouping, Measure},
     expression::{RexType, ScalarFunction, literal::LiteralType},
     fetch_rel::{CountMode, OffsetMode},
     function_argument::ArgType,
@@ -12,11 +13,14 @@ use substrait::proto::{
     r#type,
 };
 use yuzu_core::adt::SymbolId;
-use yuzu_plan::{JoinCondition, JoinKey, JoinKind, Rel as PlanRel, RelId, SelectItem, SetItem};
+use yuzu_plan::{
+    JoinCondition, JoinKey, JoinKind, Measure as PlanMeasure, Rel as PlanRel, RelId, SelectItem,
+    SetItem,
+};
 use yuzu_types::TypeId;
 
 use crate::emitter::expr::{literal, selection};
-use crate::emitter::extensions::{BOOLEAN_URN, COMPARISON_URN};
+use crate::emitter::extensions::{BOOLEAN_URN, COMPARISON_URN, aggregate_target};
 use crate::emitter::types::{emit_type, nullable, row_columns, type_code};
 use crate::emitter::{GraphEmitter, Unsupported};
 
@@ -41,6 +45,11 @@ impl GraphEmitter<'_> {
             // `as` renames the row, which lives in the type; the plan is its
             // input unchanged.
             PlanRel::Alias { .. } => return self.emit_rel(inputs[0]),
+            PlanRel::Aggregate {
+                groupings,
+                measures,
+                ..
+            } => self.emit_aggregate(inputs[0], &groupings, &measures)?,
         };
         Ok(Rel {
             rel_type: Some(rel_type),
@@ -204,6 +213,59 @@ impl GraphEmitter<'_> {
         })))
     }
 
+    fn emit_aggregate(
+        &mut self,
+        input: RelId,
+        groupings: &[u32],
+        measures: &[PlanMeasure],
+    ) -> Result<RelType, Unsupported> {
+        let input = self.emit_rel(input)?;
+        let measures = measures
+            .iter()
+            .map(|measure| self.emit_measure(measure))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(RelType::Aggregate(Box::new(AggregateRel {
+            input: Some(Box::new(input)),
+            grouping_expressions: groupings.iter().map(|&key| selection(key as i32)).collect(),
+            groupings: vec![Grouping {
+                expression_references: (0..groupings.len() as u32).collect(),
+                ..Default::default()
+            }],
+            measures,
+            ..Default::default()
+        })))
+    }
+
+    fn emit_measure(&mut self, measure: &PlanMeasure) -> Result<Measure, Unsupported> {
+        let (urn, base) = aggregate_target(measure.func);
+        let signature: Vec<&str> = measure
+            .args
+            .iter()
+            .map(|&arg| type_code(self.types, self.graph.plan().expr(arg).ty()))
+            .collect();
+        let name = format!("{base}:{}", signature.join("_"));
+
+        let mut arguments = Vec::new();
+        for &arg in measure.args.iter() {
+            arguments.push(FunctionArgument {
+                arg_type: Some(ArgType::Value(self.emit_expr(arg)?)),
+            });
+        }
+
+        let anchor = self.extensions.register(urn, name);
+        Ok(Measure {
+            measure: Some(AggregateFunction {
+                function_reference: anchor,
+                arguments,
+                output_type: Some(emit_type(self.types, measure.ty)),
+                phase: AggregationPhase::InitialToResult as i32,
+                invocation: AggregationInvocation::All as i32,
+                ..Default::default()
+            }),
+            filter: None,
+        })
+    }
+
     fn emit_drop(&mut self, input: RelId, columns: &[u32]) -> Result<RelType, Unsupported> {
         let output_mapping = (0..self.width(input))
             .filter(|index| !columns.contains(&(*index as u32)))
@@ -311,6 +373,427 @@ mod tests {
     use expect_test::expect;
 
     use crate::emitter::test_support::{TABLE, check};
+
+    #[test]
+    fn emits_grouped_aggregate() {
+        check(
+            &format!("{TABLE}from t |> aggregate sum(a) as s group by b"),
+            expect![[r#"
+                {
+                  "version": {
+                    "minorNumber": 85,
+                    "producer": "yuzu"
+                  },
+                  "extensionUrns": [
+                    {
+                      "extensionUrnAnchor": 1,
+                      "urn": "extension:io.substrait:functions_arithmetic"
+                    }
+                  ],
+                  "extensions": [
+                    {
+                      "extensionFunction": {
+                        "extensionUrnReference": 1,
+                        "functionAnchor": 1,
+                        "name": "sum:i32"
+                      }
+                    }
+                  ],
+                  "relations": [
+                    {
+                      "root": {
+                        "input": {
+                          "aggregate": {
+                            "input": {
+                              "read": {
+                                "baseSchema": {
+                                  "names": [
+                                    "a",
+                                    "b"
+                                  ],
+                                  "struct": {
+                                    "types": [
+                                      {
+                                        "i32": {
+                                          "nullability": "NULLABILITY_NULLABLE"
+                                        }
+                                      },
+                                      {
+                                        "i32": {
+                                          "nullability": "NULLABILITY_NULLABLE"
+                                        }
+                                      }
+                                    ],
+                                    "nullability": "NULLABILITY_NULLABLE"
+                                  }
+                                },
+                                "namedTable": {
+                                  "names": [
+                                    "t"
+                                  ]
+                                }
+                              }
+                            },
+                            "groupings": [
+                              {
+                                "expressionReferences": [
+                                  0
+                                ]
+                              }
+                            ],
+                            "measures": [
+                              {
+                                "measure": {
+                                  "functionReference": 1,
+                                  "arguments": [
+                                    {
+                                      "value": {
+                                        "selection": {
+                                          "directReference": {
+                                            "structField": {}
+                                          },
+                                          "rootReference": {}
+                                        }
+                                      }
+                                    }
+                                  ],
+                                  "outputType": {
+                                    "i64": {
+                                      "nullability": "NULLABILITY_NULLABLE"
+                                    }
+                                  },
+                                  "phase": "AGGREGATION_PHASE_INITIAL_TO_RESULT",
+                                  "invocation": "AGGREGATION_INVOCATION_ALL"
+                                }
+                              }
+                            ],
+                            "groupingExpressions": [
+                              {
+                                "selection": {
+                                  "directReference": {
+                                    "structField": {
+                                      "field": 1
+                                    }
+                                  },
+                                  "rootReference": {}
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "names": [
+                          "b",
+                          "s"
+                        ]
+                      }
+                    }
+                  ]
+                }"#]],
+        );
+    }
+
+    #[test]
+    fn emits_full_table_count() {
+        check(
+            &format!("{TABLE}from t |> aggregate count() as n"),
+            expect![[r#"
+            {
+              "version": {
+                "minorNumber": 85,
+                "producer": "yuzu"
+              },
+              "extensionUrns": [
+                {
+                  "extensionUrnAnchor": 1,
+                  "urn": "extension:io.substrait:functions_aggregate_generic"
+                }
+              ],
+              "extensions": [
+                {
+                  "extensionFunction": {
+                    "extensionUrnReference": 1,
+                    "functionAnchor": 1,
+                    "name": "count:"
+                  }
+                }
+              ],
+              "relations": [
+                {
+                  "root": {
+                    "input": {
+                      "aggregate": {
+                        "input": {
+                          "read": {
+                            "baseSchema": {
+                              "names": [
+                                "a",
+                                "b"
+                              ],
+                              "struct": {
+                                "types": [
+                                  {
+                                    "i32": {
+                                      "nullability": "NULLABILITY_NULLABLE"
+                                    }
+                                  },
+                                  {
+                                    "i32": {
+                                      "nullability": "NULLABILITY_NULLABLE"
+                                    }
+                                  }
+                                ],
+                                "nullability": "NULLABILITY_NULLABLE"
+                              }
+                            },
+                            "namedTable": {
+                              "names": [
+                                "t"
+                              ]
+                            }
+                          }
+                        },
+                        "groupings": [
+                          {}
+                        ],
+                        "measures": [
+                          {
+                            "measure": {
+                              "functionReference": 1,
+                              "outputType": {
+                                "i64": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              },
+                              "phase": "AGGREGATION_PHASE_INITIAL_TO_RESULT",
+                              "invocation": "AGGREGATION_INVOCATION_ALL"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "names": [
+                      "n"
+                    ]
+                  }
+                }
+              ]
+            }"#]],
+        );
+    }
+
+    #[test]
+    fn emits_composite_aggregate_as_aggregate_then_project() {
+        check(
+            &format!("{TABLE}from t |> aggregate max(a) - min(a) as spread group by b"),
+            expect![[r#"
+                {
+                  "version": {
+                    "minorNumber": 85,
+                    "producer": "yuzu"
+                  },
+                  "extensionUrns": [
+                    {
+                      "extensionUrnAnchor": 1,
+                      "urn": "extension:io.substrait:functions_arithmetic"
+                    }
+                  ],
+                  "extensions": [
+                    {
+                      "extensionFunction": {
+                        "extensionUrnReference": 1,
+                        "functionAnchor": 1,
+                        "name": "max:i32"
+                      }
+                    },
+                    {
+                      "extensionFunction": {
+                        "extensionUrnReference": 1,
+                        "functionAnchor": 2,
+                        "name": "min:i32"
+                      }
+                    },
+                    {
+                      "extensionFunction": {
+                        "extensionUrnReference": 1,
+                        "functionAnchor": 3,
+                        "name": "subtract:i32_i32"
+                      }
+                    }
+                  ],
+                  "relations": [
+                    {
+                      "root": {
+                        "input": {
+                          "project": {
+                            "common": {
+                              "emit": {
+                                "outputMapping": [
+                                  3,
+                                  4
+                                ]
+                              }
+                            },
+                            "input": {
+                              "aggregate": {
+                                "input": {
+                                  "read": {
+                                    "baseSchema": {
+                                      "names": [
+                                        "a",
+                                        "b"
+                                      ],
+                                      "struct": {
+                                        "types": [
+                                          {
+                                            "i32": {
+                                              "nullability": "NULLABILITY_NULLABLE"
+                                            }
+                                          },
+                                          {
+                                            "i32": {
+                                              "nullability": "NULLABILITY_NULLABLE"
+                                            }
+                                          }
+                                        ],
+                                        "nullability": "NULLABILITY_NULLABLE"
+                                      }
+                                    },
+                                    "namedTable": {
+                                      "names": [
+                                        "t"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "groupings": [
+                                  {
+                                    "expressionReferences": [
+                                      0
+                                    ]
+                                  }
+                                ],
+                                "measures": [
+                                  {
+                                    "measure": {
+                                      "functionReference": 1,
+                                      "arguments": [
+                                        {
+                                          "value": {
+                                            "selection": {
+                                              "directReference": {
+                                                "structField": {}
+                                              },
+                                              "rootReference": {}
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "outputType": {
+                                        "i32": {
+                                          "nullability": "NULLABILITY_NULLABLE"
+                                        }
+                                      },
+                                      "phase": "AGGREGATION_PHASE_INITIAL_TO_RESULT",
+                                      "invocation": "AGGREGATION_INVOCATION_ALL"
+                                    }
+                                  },
+                                  {
+                                    "measure": {
+                                      "functionReference": 2,
+                                      "arguments": [
+                                        {
+                                          "value": {
+                                            "selection": {
+                                              "directReference": {
+                                                "structField": {}
+                                              },
+                                              "rootReference": {}
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "outputType": {
+                                        "i32": {
+                                          "nullability": "NULLABILITY_NULLABLE"
+                                        }
+                                      },
+                                      "phase": "AGGREGATION_PHASE_INITIAL_TO_RESULT",
+                                      "invocation": "AGGREGATION_INVOCATION_ALL"
+                                    }
+                                  }
+                                ],
+                                "groupingExpressions": [
+                                  {
+                                    "selection": {
+                                      "directReference": {
+                                        "structField": {
+                                          "field": 1
+                                        }
+                                      },
+                                      "rootReference": {}
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "expressions": [
+                              {
+                                "selection": {
+                                  "directReference": {
+                                    "structField": {}
+                                  },
+                                  "rootReference": {}
+                                }
+                              },
+                              {
+                                "scalarFunction": {
+                                  "functionReference": 3,
+                                  "arguments": [
+                                    {
+                                      "value": {
+                                        "selection": {
+                                          "directReference": {
+                                            "structField": {
+                                              "field": 1
+                                            }
+                                          },
+                                          "rootReference": {}
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "value": {
+                                        "selection": {
+                                          "directReference": {
+                                            "structField": {
+                                              "field": 2
+                                            }
+                                          },
+                                          "rootReference": {}
+                                        }
+                                      }
+                                    }
+                                  ],
+                                  "outputType": {
+                                    "i32": {
+                                      "nullability": "NULLABILITY_NULLABLE"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "names": [
+                          "b",
+                          "spread"
+                        ]
+                      }
+                    }
+                  ]
+                }"#]],
+        );
+    }
 
     #[test]
     fn emits_read_and_project() {

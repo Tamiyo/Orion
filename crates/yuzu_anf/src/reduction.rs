@@ -146,7 +146,8 @@ impl AnfReducer<'_> {
             | Expr::FuncCall { ty, .. }
             | Expr::MethodCall { ty, .. }
             | Expr::StructInit { ty, .. }
-            | Expr::ListInit { ty, .. } => ty,
+            | Expr::ListInit { ty, .. }
+            | Expr::AggCall { ty, .. } => ty,
             Expr::Atom { .. } => unreachable!("bind_to_temp only binds computations"),
             Expr::Rel(_) => unreachable!("a query is a let value, never bound to a temp"),
         };
