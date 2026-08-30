@@ -45,6 +45,7 @@ pub enum Stmt {
         type_bounds: Box<[TypeBound]>,
         ret_type_annotation: TypeAnnotationId,
         body: Option<StmtId>,
+        is_agg: bool,
     },
     Block {
         stmts: Box<[StmtId]>,

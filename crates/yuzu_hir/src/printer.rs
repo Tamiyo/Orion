@@ -89,8 +89,10 @@ impl HirPrinter<'_> {
                 type_bounds,
                 body,
                 ret_type_annotation,
+                is_agg,
             } => {
-                line(out, depth, format!("Func {:?}", self.text(name)));
+                let kind = if *is_agg { "Agg Func" } else { "Func" };
+                line(out, depth, format!("{kind} {:?}", self.text(name)));
                 for type_param in type_params.iter() {
                     line(
                         out,

@@ -11,6 +11,9 @@ pub(crate) fn parse_stmt(p: &mut Parser) -> CompletedMarker {
     if p.at(TokenKind::FnKw) {
         return parse_func_stmt(p);
     }
+    if p.at_contextual("agg") && p.peek_nth_kind(1) == Some(TokenKind::FnKw) {
+        return parse_func_stmt(p);
+    }
     if p.at(TokenKind::ImplKw) {
         return parse_impl_stmt(p);
     }
@@ -49,6 +52,9 @@ fn parse_block_stmt(p: &mut Parser) -> CompletedMarker {
 fn parse_func_stmt(p: &mut Parser) -> CompletedMarker {
     let m = p.start();
 
+    if p.at_contextual("agg") {
+        p.bump();
+    }
     p.expect(TokenKind::FnKw);
     parse_ident(p);
 
@@ -292,6 +298,78 @@ mod tests {
 
     fn check(input: &str, expected: Expect) {
         test_support::check(input, parse_stmt, expected);
+    }
+
+    #[test]
+    fn parse_agg_func_stmt() {
+        test_support::check(
+            "agg fn spread(x: int64) -> int64 { return sum(x) }",
+            parse_stmt,
+            expect![[r#"
+                FuncStmt@0..50
+                  Identifier@0..3 "agg"
+                  Space@3..4 " "
+                  FnKw@4..6 "fn"
+                  Space@6..7 " "
+                  Ident@7..13
+                    Identifier@7..13 "spread"
+                  LeftParen@13..14 "("
+                  FuncParam@14..22
+                    Ident@14..15
+                      Identifier@14..15 "x"
+                    Colon@15..16 ":"
+                    Space@16..17 " "
+                    NamedTypeAnnotation@17..22
+                      Ident@17..22
+                        Identifier@17..22 "int64"
+                  RightParen@22..23 ")"
+                  Space@23..24 " "
+                  Arrow@24..26 "->"
+                  Space@26..27 " "
+                  NamedTypeAnnotation@27..32
+                    Ident@27..32
+                      Identifier@27..32 "int64"
+                  Space@32..33 " "
+                  BlockStmt@33..50
+                    LeftCurly@33..34 "{"
+                    Space@34..35 " "
+                    ReturnStmt@35..48
+                      ReturnKw@35..41 "return"
+                      Space@41..42 " "
+                      CallExpr@42..48
+                        IdentExpr@42..45
+                          Ident@42..45
+                            Identifier@42..45 "sum"
+                        ArgList@45..48
+                          LeftParen@45..46 "("
+                          IdentExpr@46..47
+                            Ident@46..47
+                              Identifier@46..47 "x"
+                          RightParen@47..48 ")"
+                    Space@48..49 " "
+                    RightCurly@49..50 "}"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn agg_stays_an_identifier_elsewhere() {
+        test_support::check(
+            "let agg = 1",
+            parse_stmt,
+            expect![[r#"
+            LetStmt@0..11
+              LetKw@0..3 "let"
+              Space@3..4 " "
+              Ident@4..7
+                Identifier@4..7 "agg"
+              Space@7..8 " "
+              Eq@8..9 "="
+              Space@9..10 " "
+              IntLiteral@10..11
+                IntLit@10..11 "1"
+        "#]],
+        );
     }
 
     #[test]

@@ -68,3 +68,13 @@ def test_aggregate_then_pipeline_continues():
         |> select total
     """
     assert rows(query) == [(360000,)]
+
+
+def test_agg_fn_composes_builtins():
+    query = """
+        agg fn spread(x: int64) -> int64 { return max(x) - min(x) }
+        from employees
+        |> aggregate spread(salary) as v
+        group by dept_id
+    """
+    assert rows(query) == sorted_rows((1, 120000), (2, 0), (9, 0))

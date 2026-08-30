@@ -302,6 +302,16 @@ impl ImplStmt {
 
 ast_node!(FuncStmt);
 impl FuncStmt {
+    /// The `agg` marker is a bare token before `fn`; the function's name sits
+    /// inside an `Ident` node, so a direct identifier token can only be it.
+    pub fn is_agg(&self) -> bool {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .take_while(|token| token.kind() != SyntaxKind::FnKw)
+            .any(|token| token.kind() == SyntaxKind::Identifier && token.text() == "agg")
+    }
+
     pub fn name(&self) -> Option<Ident> {
         support::child(self.syntax())
     }
@@ -951,6 +961,30 @@ mod tests {
         let stage = aggregate("from t |> aggregate count()");
         assert!(stage.group_by().is_none());
         assert_eq!(stage.items().count(), 1);
+    }
+
+    #[test]
+    fn func_stmt_reads_the_agg_marker() {
+        let tokens: Vec<Token> =
+            Lexer::new("agg fn agg_of(agg: int64) -> int64 { return sum(agg) }").collect();
+        let mut diagnostics = DiagnosticsEngine::new();
+        let mut sources = SourceMap::new();
+        let source_id = sources.add("test".to_string(), "x".to_string());
+        let syntax = yuzu_parser::parse(&tokens, &mut diagnostics, source_id);
+        let func = syntax
+            .descendants()
+            .find_map(FuncStmt::cast)
+            .expect("input has a function");
+        assert!(func.is_agg());
+        assert_eq!(text(func.name()).as_deref(), Some("agg_of"));
+
+        let tokens: Vec<Token> = Lexer::new("fn plain(x: int64) -> int64 { return x }").collect();
+        let syntax = yuzu_parser::parse(&tokens, &mut diagnostics, source_id);
+        let func = syntax
+            .descendants()
+            .find_map(FuncStmt::cast)
+            .expect("input has a function");
+        assert!(!func.is_agg());
     }
 
     #[test]

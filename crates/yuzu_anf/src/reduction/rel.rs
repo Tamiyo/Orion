@@ -161,6 +161,32 @@ mod tests {
     use crate::reduction::test_support::{TABLE, check};
 
     #[test]
+    fn agg_fn_inlines_to_the_handwritten_body() {
+        let handwritten = &format!("{TABLE}from t |> aggregate max(a) - min(a) as v group by b");
+        let through_fn = &format!(
+            "{TABLE}agg fn spread(x: int32) -> int32 {{ return max(x) - min(x) }}\nfrom t |> aggregate spread(a) as v group by b"
+        );
+        check(
+            handwritten,
+            expect![[r#"
+            struct Row { a, b }
+            table t
+            from t
+              |> aggregate %r0 = max(a); %r1 = min(a); %r2 = sub(%r0, %r1); %r2 as v group by b
+        "#]],
+        );
+        check(
+            through_fn,
+            expect![[r#"
+            struct Row { a, b }
+            table t
+            from t
+              |> aggregate %r0 = max(a); %r1 = min(a); %r2 = sub(%r0, %r1); %r2 as v group by b
+        "#]],
+        );
+    }
+
+    #[test]
     fn aggregate_folds_inside_measure_arguments() {
         check(
             &format!("{TABLE}from t |> aggregate sum(a * (1 + 1)) as v group by b"),

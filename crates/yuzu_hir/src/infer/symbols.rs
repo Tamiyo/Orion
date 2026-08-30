@@ -23,6 +23,7 @@ pub(crate) enum Binding {
     FuncStmt {
         stmt: StmtId,
         ty: TypeId,
+        is_agg: bool,
     },
     Ident {
         expr: ExprId,

@@ -175,6 +175,7 @@ impl<'l> HirLowerer<'l> {
             type_bounds: type_bounds.into_boxed_slice(),
             ret_type_annotation,
             body,
+            is_agg: stmt.is_agg(),
         }
     }
 
@@ -1760,6 +1761,26 @@ mod tests {
                   offset:
                     Literal Int 5u64
         "#]],
+        );
+    }
+
+    #[test]
+    fn agg_func_stmt() {
+        check(
+            "agg fn spread(x: int64) -> int64 { return sum(x) }",
+            expect![[r#"
+                Agg Func "spread"
+                  param "x":
+                    Named "int64"
+                  ret:
+                    Named "int64"
+                  body:
+                    Block
+                      Return
+                        FuncCall
+                          Ident "sum"
+                          Ident "x"
+            "#]],
         );
     }
 

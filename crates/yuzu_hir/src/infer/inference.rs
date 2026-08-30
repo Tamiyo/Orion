@@ -37,6 +37,8 @@ struct AggregateScope {
     in_item: bool,
     depth: u32,
     keys: Vec<u32>,
+    body: Option<StmtId>,
+    calls: u32,
 }
 
 impl<'i> TypeInferrer<'i> {
@@ -94,10 +96,11 @@ impl<'i> TypeInferrer<'i> {
                 name,
                 params,
                 ret_type_annotation,
+                is_agg,
                 ..
             } = self.hir.stmt(stmt_id)
             {
-                self.register_func(stmt_id, name.symbol, params, *ret_type_annotation);
+                self.register_func(stmt_id, name.symbol, params, *ret_type_annotation, *is_agg);
             }
         }
 
@@ -154,6 +157,7 @@ impl<'i> TypeInferrer<'i> {
         name: SymbolId,
         params: &[FuncParam],
         ret_annotation: TypeAnnotationId,
+        is_agg: bool,
     ) {
         let arg_tys: Vec<TypeId> = params
             .iter()
@@ -169,6 +173,7 @@ impl<'i> TypeInferrer<'i> {
             Binding::FuncStmt {
                 stmt: stmt_id,
                 ty: func_ty,
+                is_agg,
             },
         );
     }
@@ -182,8 +187,9 @@ impl<'i> TypeInferrer<'i> {
                 params,
                 ret_type_annotation,
                 body,
+                is_agg,
                 ..
-            } => self.infer_func_stmt(params, *ret_type_annotation, *body),
+            } => self.infer_func_stmt(stmt_id, params, *ret_type_annotation, *body, *is_agg),
             Stmt::Block { stmts } => self.infer_block_stmt(stmts),
             Stmt::Table { .. } | Stmt::InlineTable { .. } => {}
             Stmt::Let {
@@ -207,9 +213,11 @@ impl<'i> TypeInferrer<'i> {
 
     fn infer_func_stmt(
         &mut self,
+        stmt_id: StmtId,
         params: &[FuncParam],
         ret_annotation: TypeAnnotationId,
         body: Option<StmtId>,
+        is_agg: bool,
     ) {
         let return_ty = self.resolve_return_annotation(ret_annotation);
         self.symbols.push_scope(ScopeKind::Func { return_ty });
@@ -223,9 +231,28 @@ impl<'i> TypeInferrer<'i> {
                 },
             );
         }
+
+        // An `agg fn` body is checked as an aggregate item: aggregate calls
+        // are legal, and its parameters stand for per-row values, reachable
+        // only inside those calls' arguments.
+        let outer = std::mem::take(&mut self.agg);
+        if is_agg {
+            self.agg = AggregateScope {
+                in_item: true,
+                body: Some(stmt_id),
+                ..AggregateScope::default()
+            };
+        }
         if let Some(body) = body {
             self.infer_stmt(body);
         }
+        if is_agg && self.agg.calls == 0 {
+            self.report_stmt(
+                stmt_id,
+                "an `agg fn` must use an aggregate function".to_string(),
+            );
+        }
+        self.agg = outer;
         self.symbols.pop_scope();
     }
 
@@ -918,9 +945,28 @@ impl<'i> TypeInferrer<'i> {
     fn infer_ident_expr(&mut self, expr_id: ExprId, value: &Ident) -> TypeId {
         let name = value.symbol;
         if let Some(&binding) = self.symbols.lookup_symbol(name) {
-            if let Binding::Builtin { func } = binding {
-                let message = format!("`{}` is a function, not a value", func.name());
-                return self.error_expr(expr_id, message);
+            match binding {
+                Binding::Builtin { func } => {
+                    let message = format!("`{}` is a function, not a value", func.name());
+                    return self.error_expr(expr_id, message);
+                }
+                Binding::FuncStmt { is_agg: true, .. } => {
+                    let message = format!(
+                        "`{}` is an aggregate function, not a value",
+                        self.interner.text(name)
+                    );
+                    return self.error_expr(expr_id, message);
+                }
+                Binding::Param { .. }
+                    if self.agg.in_item && self.agg.depth == 0 && self.agg.body.is_some() =>
+                {
+                    let message = format!(
+                        "parameter `{}` can only be used inside an aggregate function's arguments",
+                        self.interner.text(name)
+                    );
+                    return self.error_expr(expr_id, message);
+                }
+                _ => {}
             }
             return self.infer.bind_expr_ty(expr_id, binding.ty());
         }
@@ -1044,6 +1090,9 @@ impl<'i> TypeInferrer<'i> {
         if let Some(func) = self.builtin_callee(callee) {
             return self.infer_builtin_call_expr(expr_id, func, args);
         }
+        if let Some((stmt, ty)) = self.agg_fn_callee(callee) {
+            return self.infer_agg_fn_call_expr(expr_id, callee, stmt, ty, args);
+        }
 
         let callee_ty = self.infer_expr(callee);
         let callee_ty = self.infer.resolve(callee_ty);
@@ -1104,6 +1153,87 @@ impl<'i> TypeInferrer<'i> {
         }
     }
 
+    fn agg_fn_callee(&mut self, callee: ExprId) -> Option<(StmtId, TypeId)> {
+        let Expr::Ident { value } = self.hir.expr(callee) else {
+            return None;
+        };
+        match self.symbols.lookup_symbol(value.symbol) {
+            Some(&Binding::FuncStmt {
+                stmt,
+                ty,
+                is_agg: true,
+            }) => Some((stmt, ty)),
+            _ => None,
+        }
+    }
+
+    /// An `agg fn` call sits exactly where a builtin aggregate call does: its
+    /// arguments are per-row values, its result is a group-level value, and it
+    /// cannot nest. The body already type-checked at its declaration, so the
+    /// call checks like any function call against the signature.
+    fn infer_agg_fn_call_expr(
+        &mut self,
+        expr_id: ExprId,
+        callee: ExprId,
+        stmt: StmtId,
+        callee_ty: TypeId,
+        args: &[ExprId],
+    ) -> TypeId {
+        let name = match self.hir.expr(callee) {
+            Expr::Ident { value } => self.interner.text(value.symbol).to_string(),
+            _ => unreachable!("an aggregate function callee is an identifier"),
+        };
+        if !self.agg.in_item {
+            let message =
+                format!("aggregate function `{name}` can only be used in an `aggregate` item");
+            return self.error_expr(expr_id, message);
+        }
+        if self.agg.depth > 0 {
+            let message =
+                format!("aggregate function `{name}` cannot be nested in another aggregate");
+            return self.error_expr(expr_id, message);
+        }
+        if self.agg.body == Some(stmt) {
+            let message = format!("`{name}` is an `agg fn` and cannot call itself");
+            return self.error_expr(expr_id, message);
+        }
+
+        let Type::Func(func) = self.infer.types.ty(callee_ty).clone() else {
+            unreachable!("a registered function has a function type")
+        };
+
+        self.agg.calls += 1;
+        self.agg.depth += 1;
+        for (index, &arg) in args.iter().enumerate() {
+            let arg_ty = self.infer_expr(arg);
+            let Some(&param_ty) = func.args.get(index) else {
+                continue;
+            };
+            if !self.is_assignable(arg, arg_ty, param_ty) {
+                let resolved_arg = self.infer.resolve(arg_ty);
+                let resolved_param = self.infer.resolve(param_ty);
+                let message = format!(
+                    "argument of type `{:?}` is not assignable to parameter of type `{:?}`",
+                    self.infer.types.ty(resolved_arg),
+                    self.infer.types.ty(resolved_param),
+                );
+                self.report_expr(arg, message);
+            }
+        }
+        self.agg.depth -= 1;
+
+        if args.len() != func.args.len() {
+            let message = format!(
+                "expected {} argument(s), found {}",
+                func.args.len(),
+                args.len()
+            );
+            self.report_expr(expr_id, message);
+        }
+
+        self.infer.bind_expr_ty(expr_id, func.ret_type)
+    }
+
     fn infer_builtin_call_expr(
         &mut self,
         expr_id: ExprId,
@@ -1129,6 +1259,7 @@ impl<'i> TypeInferrer<'i> {
                     return self.error_expr(expr_id, message);
                 }
 
+                self.agg.calls += 1;
                 self.agg.depth += 1;
                 let arg_tys: Vec<TypeId> = args.iter().map(|&arg| self.infer_expr(arg)).collect();
                 self.agg.depth -= 1;
@@ -1670,6 +1801,7 @@ mod tests {
             type_bounds: Box::new([]),
             ret_type_annotation: ret_ann,
             body: Some(body),
+            is_agg: false,
         });
 
         Root {
@@ -2519,6 +2651,80 @@ mod tests {
                 "{TABLE}fn sum(x: int64) -> int64 {{ return x }}\nlet q = from t |> select sum(a) as v"
             ),
             expect![""],
+        );
+    }
+
+    #[test]
+    fn src_agg_fn_used_in_an_aggregate() {
+        check_src(
+            &format!(
+                "{TABLE}agg fn spread(x: int64) -> int64 {{ return max(x) - min(x) }}\nlet q = from t |> aggregate spread(a) as v group by active"
+            ),
+            expect![""],
+        );
+    }
+
+    #[test]
+    fn src_agg_fn_outside_an_aggregate() {
+        check_src(
+            &format!(
+                "{TABLE}agg fn spread(x: int64) -> int64 {{ return max(x) - min(x) }}\nlet q = from t |> select spread(a) as v"
+            ),
+            expect!["aggregate function `spread` can only be used in an `aggregate` item"],
+        );
+    }
+
+    #[test]
+    fn src_agg_fn_cannot_nest_in_an_aggregate() {
+        check_src(
+            &format!(
+                "{TABLE}agg fn spread(x: int64) -> int64 {{ return max(x) - min(x) }}\nlet q = from t |> aggregate sum(spread(a)) as v"
+            ),
+            expect!["aggregate function `spread` cannot be nested in another aggregate"],
+        );
+    }
+
+    #[test]
+    fn src_agg_fn_cannot_call_itself() {
+        check_src(
+            &format!("{TABLE}agg fn bad(x: int64) -> int64 {{ return sum(x) + bad(x) }}"),
+            expect!["`bad` is an `agg fn` and cannot call itself"],
+        );
+    }
+
+    #[test]
+    fn src_agg_fn_needs_an_aggregate_call() {
+        check_src(
+            &format!("{TABLE}agg fn nothing(x: int64) -> int64 {{ return x + 1 }}"),
+            expect![[r#"
+                parameter `x` can only be used inside an aggregate function's arguments
+                an `agg fn` must use an aggregate function"#]],
+        );
+    }
+
+    #[test]
+    fn src_agg_fn_param_at_group_level() {
+        check_src(
+            &format!("{TABLE}agg fn off(x: int64) -> int64 {{ return sum(x) + x }}"),
+            expect!["parameter `x` can only be used inside an aggregate function's arguments"],
+        );
+    }
+
+    #[test]
+    fn src_plain_fn_cannot_aggregate() {
+        check_src(
+            &format!("{TABLE}fn sneaky(x: int64) -> int64 {{ return sum(x) }}"),
+            expect!["aggregate function `sum` can only be used in an `aggregate` item"],
+        );
+    }
+
+    #[test]
+    fn src_agg_fn_is_not_a_value() {
+        check_src(
+            &format!(
+                "{TABLE}agg fn spread(x: int64) -> int64 {{ return max(x) - min(x) }}\nlet q = from t |> select spread as v"
+            ),
+            expect!["`spread` is an aggregate function, not a value"],
         );
     }
 
