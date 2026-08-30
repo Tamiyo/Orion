@@ -60,6 +60,22 @@ pub enum Rel {
 }
 
 impl Rel {
+    pub fn ty(&self) -> yuzu_types::TypeId {
+        match self {
+            Rel::From { ty, .. }
+            | Rel::Join { ty, .. }
+            | Rel::Select { ty, .. }
+            | Rel::Where { ty, .. }
+            | Rel::Distinct { ty, .. }
+            | Rel::Drop { ty, .. }
+            | Rel::Rename { ty, .. }
+            | Rel::Extend { ty, .. }
+            | Rel::Set { ty, .. }
+            | Rel::Limit { ty, .. }
+            | Rel::Alias { ty, .. } => *ty,
+        }
+    }
+
     /// How many relations this operator reads.
     pub fn arity(&self) -> usize {
         match self {

@@ -1,53 +1,44 @@
 use substrait::proto::{Plan, PlanRel, RelRoot, plan_rel};
 use substrait::version;
-use yuzu_anf::{AnfCtx, AnfSourceMap, Expr, ExprId, RelId, Root, Stmt, StmtId};
 use yuzu_core::adt::StringInterner;
-use yuzu_diagnostics::{
-    diagnostics::{Span, builder::DiagnosticBuilder, engine::DiagnosticsEngine},
-    source_map::SourceId,
-};
-use yuzu_types::{TypeCtx, TypeId};
+use yuzu_diagnostics::diagnostics::{Span, builder::DiagnosticBuilder, engine::DiagnosticsEngine};
+use yuzu_plan::RelGraph;
+use yuzu_types::TypeCtx;
 
 use crate::emitter::extensions::Extensions;
+use crate::emitter::types::row_columns;
 
 mod expr;
 mod extensions;
 mod rel;
 mod types;
 
-/// Emits a plan for the program's query — `None` if it has no query, or if
-/// the reduced program contains something a plan cannot express, reported as
-/// a diagnostic at its source position.
+/// Emits a plan for the graph's query — `None` if the graph contains something
+/// a plan cannot express, reported as a diagnostic at the query's position.
 pub fn emit(
-    root: &Root,
-    anf: &AnfCtx,
+    graph: &RelGraph,
     types: &TypeCtx,
     interner: &StringInterner,
-    source_map: &AnfSourceMap,
     diagnostics: &mut DiagnosticsEngine,
-    source_id: SourceId,
+    query_span: Span,
 ) -> Option<Plan> {
-    let (query, query_stmt) = find_query(root, anf)?;
+    let root = graph.root()?;
 
-    let mut emitter = SubstraitEmitter {
-        anf,
+    let mut emitter = GraphEmitter {
+        graph,
         types,
         interner,
-        source_map,
         diagnostics,
-        source_id,
-        query_stmt,
+        query_span,
         extensions: Extensions::default(),
-        row: types.error_ty(),
     };
 
     // Build the relation first, so function registration populates the tables.
-    let relation = emitter.emit_rel(query).ok()?;
+    let relation = emitter.emit_rel(root).ok()?;
 
     // Output column names come from the query's row type, so aliased,
     // bare-ident, and generated names all carry through.
-    let names = emitter
-        .row_columns(emitter.rel_ty(query))
+    let names = row_columns(types, graph.plan().rel(root).ty())
         .iter()
         .map(|column| interner.text(column.name).to_string())
         .collect();
@@ -66,74 +57,24 @@ pub fn emit(
     })
 }
 
-/// The query is the relational expression statement at the program's tail.
-fn find_query(root: &Root, anf: &AnfCtx) -> Option<(RelId, StmtId)> {
-    root.stmts.iter().rev().find_map(|&id| match anf.stmt(id) {
-        Stmt::Expr { value } => match anf.expr(*value) {
-            Expr::Rel(rel) => Some((*rel, id)),
-            _ => None,
-        },
-        _ => None,
-    })
-}
-
-struct SubstraitEmitter<'e> {
-    anf: &'e AnfCtx,
+struct GraphEmitter<'e> {
+    graph: &'e RelGraph,
     types: &'e TypeCtx,
     interner: &'e StringInterner,
-    source_map: &'e AnfSourceMap,
     diagnostics: &'e mut DiagnosticsEngine,
-    source_id: SourceId,
-    query_stmt: StmtId,
+    query_span: Span,
     extensions: Extensions,
-    /// The row struct an expression's column references index into. A stage
-    /// sets it before emitting its own expressions; a join's condition sees its
-    /// two inputs concatenated, every other stage sees its input's row.
-    row: TypeId,
 }
 
-/// The reduced program contained something a plan cannot express; a
-/// diagnostic has already been reported at its source position.
+/// The plan graph contained something Substrait cannot express; a diagnostic
+/// has already been reported.
 struct Unsupported;
 
-impl SubstraitEmitter<'_> {
-    fn unsupported(&mut self, id: ExprId, message: impl Into<String>) -> Unsupported {
-        let range = self
-            .source_map
-            .expr(id)
-            .expect("a reported node is always in the source map")
-            .text_range();
-
-        let span = Span {
-            source_id: self.source_id,
-            range,
-        };
-
-        let diagnostic = DiagnosticBuilder::error(span, message)
-            .note("expressions must be evaluatable at compile time");
-
-        self.diagnostics.emit(diagnostic);
-
-        Unsupported
-    }
-
+impl GraphEmitter<'_> {
     fn unsupported_query(&mut self, message: impl Into<String>) -> Unsupported {
-        let range = self
-            .source_map
-            .stmt(self.query_stmt)
-            .expect("a reported node is always in the source map")
-            .text_range();
-
-        let span = Span {
-            source_id: self.source_id,
-            range,
-        };
-
-        let diagnostic = DiagnosticBuilder::error(span, message)
+        let diagnostic = DiagnosticBuilder::error(self.query_span, message)
             .note("expressions must be evaluatable at compile time");
-
         self.diagnostics.emit(diagnostic);
-
         Unsupported
     }
 }
@@ -143,9 +84,11 @@ pub(crate) mod test_support {
     use expect_test::Expect;
     use yuzu_ast::ast::{AstNode, Root as AstRoot};
     use yuzu_core::adt::StringInterner;
-    use yuzu_diagnostics::{diagnostics::engine::DiagnosticsEngine, source_map::SourceMap};
+    use yuzu_diagnostics::diagnostics::{Span, engine::DiagnosticsEngine};
+    use yuzu_diagnostics::source_map::SourceMap;
     use yuzu_hir::HirCtx;
     use yuzu_lexer::lexer::{Lexer, Token};
+    use yuzu_plan::RelGraphConverter;
     use yuzu_types::TypeCtx;
 
     use crate::to_json;
@@ -206,23 +149,35 @@ pub(crate) mod test_support {
         );
         let reduced = yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &mut anf_source_map);
 
-        let plan = super::emit(
-            &reduced,
-            &anf,
-            &types,
-            &interner,
-            &anf_source_map,
-            &mut diagnostics,
-            source_id,
-        )
-        .map(|plan| to_json(&plan));
+        let plan = yuzu_anf::find_query(&reduced, &anf).and_then(|(query, query_stmt)| {
+            let graph = {
+                let mut converter = yuzu_plan::AnfToRelGraphConverter::new(
+                    &anf,
+                    &mut types,
+                    &interner,
+                    &anf_source_map,
+                    &mut diagnostics,
+                    source_id,
+                    query_stmt,
+                );
+                converter.convert(query)
+            }?;
+            let query_span = Span {
+                source_id,
+                range: anf_source_map
+                    .stmt(query_stmt)
+                    .expect("the query is in the source map")
+                    .text_range(),
+            };
+            super::emit(&graph, &types, &interner, &mut diagnostics, query_span)
+        });
 
         let messages: Vec<String> = diagnostics
             .diagnostics()
             .iter()
             .map(|d| d.message.clone())
             .collect();
-        (plan, messages)
+        (plan.map(|plan| to_json(&plan)), messages)
     }
 
     pub(crate) fn plan(input: &str) -> Option<String> {

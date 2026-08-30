@@ -22,6 +22,9 @@ struct Cli {
     #[arg(long, help = "Dump the ANF")]
     debug_anf: bool,
 
+    #[arg(long, help = "Dump the plan graph")]
+    debug_plan: bool,
+
     #[arg(long, help = "Dump the reduced ANF")]
     debug_reduce: bool,
 
@@ -41,6 +44,7 @@ fn main() -> ExitCode {
         debug_hir: cli.debug_hir || cli.debug,
         debug_anf: cli.debug_anf || cli.debug,
         debug_reduce: cli.debug_reduce || cli.debug,
+        debug_plan: cli.debug_plan || cli.debug,
         debug_substrait: cli.debug_substrait || cli.debug,
     };
 

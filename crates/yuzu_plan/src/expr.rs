@@ -30,6 +30,14 @@ pub enum Expr {
     },
 }
 
+impl Expr {
+    pub fn ty(&self) -> TypeId {
+        match self {
+            Expr::Column { ty, .. } | Expr::Literal { ty, .. } | Expr::Call { ty, .. } => *ty,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Const {
     Int { value: Int },

@@ -1,41 +1,18 @@
-use std::collections::HashMap;
-
 use substrait::proto::{
     Expression, FunctionArgument,
     expression::{
         FieldReference, Literal, ReferenceSegment, RexType, ScalarFunction, SingularOrList,
         field_reference::{ReferenceType, RootReference, RootType},
-        literal::{self, LiteralType},
+        literal::LiteralType,
         reference_segment,
     },
     function_argument::ArgType,
 };
-use yuzu_anf::AnfCtx;
-use yuzu_anf::{Atom, AtomId, BindingId, Const, Expr, ExprId, Op, Stmt, Thunk};
-use yuzu_types::TypeId;
+use yuzu_plan::{Const, Expr, ExprId, Func};
 
-use crate::emitter::extensions::{BOOLEAN_URN, function_target};
-use crate::emitter::{SubstraitEmitter, Unsupported};
-
-struct ThunkDefs {
-    defs: HashMap<BindingId, ExprId>,
-}
-
-impl ThunkDefs {
-    fn new(anf: &AnfCtx, thunk: &Thunk) -> Self {
-        let mut defs = HashMap::new();
-        for &stmt in thunk.stmts.iter() {
-            if let Stmt::Let { binding, expr } = anf.stmt(stmt) {
-                defs.insert(*binding, *expr);
-            }
-        }
-        Self { defs }
-    }
-
-    fn def(&self, binding: BindingId) -> Option<ExprId> {
-        self.defs.get(&binding).copied()
-    }
-}
+use crate::emitter::extensions::function_target;
+use crate::emitter::types::{emit_type, type_code};
+use crate::emitter::{GraphEmitter, Unsupported};
 
 pub(crate) fn selection(index: i32) -> Expression {
     Expression {
@@ -62,108 +39,55 @@ pub(crate) fn literal(value: LiteralType) -> Expression {
     }
 }
 
-impl SubstraitEmitter<'_> {
-    pub(crate) fn emit_thunk(&mut self, thunk: &Thunk) -> Result<Expression, Unsupported> {
-        let defs = ThunkDefs::new(self.anf, thunk);
-        self.emit_atom(thunk.value, &defs)
-    }
-
-    fn emit_expr(&mut self, id: ExprId, defs: &ThunkDefs) -> Result<Expression, Unsupported> {
-        let anf = self.anf;
-        match anf.expr(id) {
-            Expr::Atom { value } => self.emit_atom(*value, defs),
-            Expr::Call { op, args, ty } => self.emit_call(id, *op, args, *ty, defs),
-            Expr::ListInit { elements, .. } => Ok(self.emit_list_literal(elements)),
-            Expr::FuncCall { callee, .. } => {
-                let message = match *anf.atom(*callee) {
-                    Atom::FuncRef { binding, .. } => format!(
-                        "call to `{}` could not be fully reduced",
-                        self.interner.text(anf.binding(binding).name.name)
-                    ),
-                    _ => "a call could not be fully reduced".to_string(),
-                };
-                Err(self.unsupported(id, message))
-            }
-            Expr::MethodCall { .. } => {
-                Err(self.unsupported(id, "method calls are not yet supported in Substrait plans"))
-            }
-            Expr::StructInit { .. } => {
-                Err(self.unsupported(id, "a struct value cannot be a query column"))
-            }
-            Expr::Rel(_) => Err(self.unsupported(id, "a query cannot be used as a column")),
-        }
-    }
-
-    fn emit_atom(&mut self, id: AtomId, defs: &ThunkDefs) -> Result<Expression, Unsupported> {
-        let expression = match *self.anf.atom(id) {
-            Atom::Const(constant) => literal(self.literal_value(constant)),
-            Atom::Var { binding } => match defs.def(binding) {
-                Some(expr) => self.emit_expr(expr, defs)?,
-                None => {
-                    let name = self.interner.text(self.anf.binding(binding).name.name);
-                    let message = if name.starts_with('%') {
-                        "query column depends on a value that could not be fully reduced"
-                            .to_string()
-                    } else {
-                        format!(
-                            "query column depends on `{name}`, which could not be fully reduced"
-                        )
+impl GraphEmitter<'_> {
+    pub(crate) fn emit_expr(&mut self, id: ExprId) -> Result<Expression, Unsupported> {
+        let expression = match self.graph.plan().expr(id).clone() {
+            Expr::Column { column, .. } => selection(column as i32),
+            Expr::Literal { value, .. } => literal(self.literal_value(value)),
+            Expr::Call { func, args, ty } => match func {
+                Func::In => {
+                    let [value, options @ ..] = &args[..] else {
+                        unreachable!("a membership test has a value")
                     };
-                    return Err(self.unsupported_query(message));
+                    let value = self.emit_expr(*value)?;
+                    let options = options
+                        .iter()
+                        .map(|&option| self.emit_expr(option))
+                        .collect::<Result<_, _>>()?;
+                    Expression {
+                        rex_type: Some(RexType::SingularOrList(Box::new(SingularOrList {
+                            value: Some(Box::new(value)),
+                            options,
+                        }))),
+                    }
                 }
+                _ => return self.emit_scalar_function(func, &args, ty),
             },
-            Atom::Column { column, .. } => selection(column as i32),
-            Atom::Field { field, .. } => {
-                let message = format!(
-                    "`{}` is a field of a value, not a query column",
-                    self.interner.text(field.name)
-                );
-                return Err(self.unsupported_query(message));
-            }
-            Atom::FuncRef { .. } => {
-                unreachable!("a function reference cannot be emitted as a column")
-            }
         };
         Ok(expression)
     }
 
-    fn emit_call(
-        &mut self,
-        id: ExprId,
-        op: Op,
-        args: &[AtomId],
-        ty: TypeId,
-        defs: &ThunkDefs,
-    ) -> Result<Expression, Unsupported> {
-        match op {
-            Op::In | Op::NotIn => self.emit_membership(op, args, ty, defs),
-            _ => self.emit_scalar_function(id, op, args, ty, defs),
-        }
-    }
-
     fn emit_scalar_function(
         &mut self,
-        id: ExprId,
-        op: Op,
-        args: &[AtomId],
-        ty: TypeId,
-        defs: &ThunkDefs,
+        func: Func,
+        args: &[ExprId],
+        ty: yuzu_types::TypeId,
     ) -> Result<Expression, Unsupported> {
-        let Some((urn, base)) = function_target(op) else {
-            let message = format!("operator `{}` has no Substrait equivalent", op.symbol());
-            return Err(self.unsupported(id, message));
+        let Some((urn, base)) = function_target(func) else {
+            let message = "operator `**` has no Substrait equivalent";
+            return Err(self.unsupported_query(message));
         };
 
         let signature: Vec<&str> = args
             .iter()
-            .map(|&arg| self.atom_type_code(arg, defs))
+            .map(|&arg| type_code(self.types, self.graph.plan().expr(arg).ty()))
             .collect();
         let name = format!("{base}:{}", signature.join("_"));
 
         let mut arguments = Vec::new();
         for &arg in args {
             arguments.push(FunctionArgument {
-                arg_type: Some(ArgType::Value(self.emit_atom(arg, defs)?)),
+                arg_type: Some(ArgType::Value(self.emit_expr(arg)?)),
             });
         }
 
@@ -171,86 +95,11 @@ impl SubstraitEmitter<'_> {
         Ok(Expression {
             rex_type: Some(RexType::ScalarFunction(ScalarFunction {
                 function_reference: anchor,
-                output_type: Some(self.emit_type(ty)),
+                output_type: Some(emit_type(self.types, ty)),
                 arguments,
                 ..Default::default()
             })),
         })
-    }
-
-    fn emit_membership(
-        &mut self,
-        op: Op,
-        args: &[AtomId],
-        ty: TypeId,
-        defs: &ThunkDefs,
-    ) -> Result<Expression, Unsupported> {
-        let [value, list] = args else {
-            unreachable!("a membership test has a value and a list")
-        };
-        let value = self.emit_atom(*value, defs)?;
-        let options = self.list_options(*list, defs)?;
-        let test = Expression {
-            rex_type: Some(RexType::SingularOrList(Box::new(SingularOrList {
-                value: Some(Box::new(value)),
-                options,
-            }))),
-        };
-        Ok(match op {
-            Op::In => test,
-            _ => self.emit_not(test, ty),
-        })
-    }
-
-    fn list_options(
-        &mut self,
-        list: AtomId,
-        defs: &ThunkDefs,
-    ) -> Result<Vec<Expression>, Unsupported> {
-        let anf = self.anf;
-        let expr = match *anf.atom(list) {
-            Atom::Var { binding } => defs
-                .def(binding)
-                .expect("a membership list is always thunk-local"),
-            _ => unreachable!("a membership list is a bound name"),
-        };
-        match anf.expr(expr) {
-            Expr::ListInit { elements, .. } => elements
-                .iter()
-                .map(|&element| self.emit_atom(element, defs))
-                .collect(),
-            _ => unreachable!("a membership list is a list literal"),
-        }
-    }
-
-    fn emit_not(&mut self, value: Expression, ty: TypeId) -> Expression {
-        let anchor = self
-            .extensions
-            .register(BOOLEAN_URN, "not:bool".to_string());
-        Expression {
-            rex_type: Some(RexType::ScalarFunction(ScalarFunction {
-                function_reference: anchor,
-                output_type: Some(self.emit_type(ty)),
-                arguments: vec![FunctionArgument {
-                    arg_type: Some(ArgType::Value(value)),
-                }],
-                ..Default::default()
-            })),
-        }
-    }
-
-    fn emit_list_literal(&mut self, elements: &[AtomId]) -> Expression {
-        let values = elements
-            .iter()
-            .map(|&element| match *self.anf.atom(element) {
-                Atom::Const(constant) => Literal {
-                    literal_type: Some(self.literal_value(constant)),
-                    ..Default::default()
-                },
-                _ => unreachable!("non-constant list element while emitting Substrait"),
-            })
-            .collect();
-        literal(LiteralType::List(literal::List { values }))
     }
 
     fn literal_value(&self, constant: Const) -> LiteralType {
@@ -267,45 +116,6 @@ impl SubstraitEmitter<'_> {
             },
             Const::Bool { value } => LiteralType::Boolean(value),
             Const::String { value } => LiteralType::String(self.interner.text(value).to_string()),
-        }
-    }
-
-    fn atom_type_code(&self, id: AtomId, defs: &ThunkDefs) -> &'static str {
-        match *self.anf.atom(id) {
-            Atom::Const(Const::Int { value }) => match value.num_bits() {
-                8 => "i8",
-                16 => "i16",
-                32 => "i32",
-                _ => "i64",
-            },
-            Atom::Const(Const::Float { value }) => match value.num_bits() {
-                32 => "fp32",
-                _ => "fp64",
-            },
-            Atom::Const(Const::Bool { .. }) => "bool",
-            Atom::Const(Const::String { .. }) => "string",
-            Atom::Field { ty, .. } | Atom::Column { ty, .. } => self.type_code(ty),
-            Atom::Var { binding } => {
-                let expr = defs
-                    .def(binding)
-                    .expect("a signature atom is always thunk-local");
-                self.expr_type_code(expr, defs)
-            }
-            Atom::FuncRef { .. } => {
-                unreachable!("a function reference has no Substrait type code")
-            }
-        }
-    }
-
-    fn expr_type_code(&self, id: ExprId, defs: &ThunkDefs) -> &'static str {
-        match self.anf.expr(id) {
-            Expr::Atom { value } => self.atom_type_code(*value, defs),
-            Expr::Call { ty, .. }
-            | Expr::FuncCall { ty, .. }
-            | Expr::MethodCall { ty, .. }
-            | Expr::StructInit { ty, .. }
-            | Expr::ListInit { ty, .. } => self.type_code(*ty),
-            Expr::Rel(_) => unreachable!("a relation has no Substrait type code"),
         }
     }
 }
@@ -421,82 +231,10 @@ mod tests {
     }
 
     #[test]
-    fn emits_list_literal_column() {
-        check(
+    fn a_list_column_is_reported() {
+        check_error(
             &format!("{TABLE}let xs: List[int32] = [1, 2]\nfrom t |> select xs as l"),
-            expect![[r#"
-                {
-                  "version": {
-                    "minorNumber": 85,
-                    "producer": "yuzu"
-                  },
-                  "relations": [
-                    {
-                      "root": {
-                        "input": {
-                          "project": {
-                            "common": {
-                              "emit": {
-                                "outputMapping": [
-                                  2
-                                ]
-                              }
-                            },
-                            "input": {
-                              "read": {
-                                "baseSchema": {
-                                  "names": [
-                                    "a",
-                                    "b"
-                                  ],
-                                  "struct": {
-                                    "types": [
-                                      {
-                                        "i32": {
-                                          "nullability": "NULLABILITY_NULLABLE"
-                                        }
-                                      },
-                                      {
-                                        "i32": {
-                                          "nullability": "NULLABILITY_NULLABLE"
-                                        }
-                                      }
-                                    ],
-                                    "nullability": "NULLABILITY_NULLABLE"
-                                  }
-                                },
-                                "namedTable": {
-                                  "names": [
-                                    "t"
-                                  ]
-                                }
-                              }
-                            },
-                            "expressions": [
-                              {
-                                "literal": {
-                                  "list": {
-                                    "values": [
-                                      {
-                                        "i32": 1
-                                      },
-                                      {
-                                        "i32": 2
-                                      }
-                                    ]
-                                  }
-                                }
-                              }
-                            ]
-                          }
-                        },
-                        "names": [
-                          "l"
-                        ]
-                      }
-                    }
-                  ]
-                }"#]],
+            expect!["a list can only be tested for membership"],
         );
     }
 

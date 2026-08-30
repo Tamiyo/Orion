@@ -15,6 +15,17 @@ pub use printer::dump;
 pub use reduction::reduce;
 pub use source_map::AnfSourceMap;
 
+/// The program's query: the relational expression statement at its tail.
+pub fn find_query(root: &Root, anf: &AnfCtx) -> Option<(RelId, StmtId)> {
+    root.stmts.iter().rev().find_map(|&id| match anf.stmt(id) {
+        Stmt::Expr { value } => match anf.expr(*value) {
+            Expr::Rel(rel) => Some((*rel, id)),
+            _ => None,
+        },
+        _ => None,
+    })
+}
+
 #[derive(Default)]
 pub struct AnfCtx {
     stmts: Arena<Stmt>,

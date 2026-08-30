@@ -7,6 +7,7 @@ use yuzu_diagnostics::{
 };
 use yuzu_hir::HirCtx;
 use yuzu_lexer::lexer::{Lexer, Token};
+use yuzu_plan::RelGraphConverter;
 use yuzu_types::TypeCtx;
 
 #[derive(Default)]
@@ -16,6 +17,7 @@ pub struct CompileOptions {
     pub debug_hir: bool,
     pub debug_anf: bool,
     pub debug_reduce: bool,
+    pub debug_plan: bool,
     pub debug_substrait: bool,
 }
 
@@ -62,7 +64,8 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
         source_id,
     );
 
-    let backend = options.debug_anf || options.debug_reduce || options.debug_substrait;
+    let backend =
+        options.debug_anf || options.debug_reduce || options.debug_plan || options.debug_substrait;
     if backend && !has_errors(&diagnostics) {
         let mut anf = AnfCtx::new();
         let (anf_root, mut anf_source_map) = yuzu_anf::lower(
@@ -80,23 +83,39 @@ pub fn compile(name: &str, source: &str, options: &CompileOptions) {
             println!("=== anf ===");
             print!("{}", yuzu_anf::dump(&anf, &interner, &anf_root));
         }
-        if options.debug_reduce || options.debug_substrait {
+        if options.debug_reduce || options.debug_plan || options.debug_substrait {
             let reduced = yuzu_anf::reduce(&anf_root, &mut anf, &mut interner, &mut anf_source_map);
             if options.debug_reduce {
                 println!("=== reduced ===");
                 print!("{}", yuzu_anf::dump(&anf, &interner, &reduced));
             }
-            if options.debug_substrait {
-                let plan = yuzu_substrait::emit(
+            if (options.debug_plan || options.debug_substrait)
+                && let Some(graph) = build_plan(
                     &reduced,
                     &anf,
-                    &types,
+                    &mut types,
                     &interner,
                     &anf_source_map,
                     &mut diagnostics,
                     source_id,
-                );
-                if let Some(plan) = plan {
+                )
+            {
+                if options.debug_plan {
+                    println!("=== plan ===");
+                    print!("{}", yuzu_plan::dump(&graph, &interner));
+                }
+                if options.debug_substrait
+                    && let Some(plan) = emit_plan(
+                        &graph,
+                        &reduced,
+                        &anf,
+                        &types,
+                        &interner,
+                        &anf_source_map,
+                        &mut diagnostics,
+                        source_id,
+                    )
+                {
                     println!("=== substrait ===");
                     println!("{}", yuzu_substrait::to_json(&plan));
                 }
@@ -179,15 +198,33 @@ pub fn compile_to_substrait(
         print!("{}", yuzu_anf::dump(&anf, &interner, &reduced));
     }
 
-    let plan = yuzu_substrait::emit(
+    let graph = build_plan(
         &reduced,
         &anf,
-        &types,
+        &mut types,
         &interner,
         &anf_source_map,
         &mut diagnostics,
         source_id,
     );
+    if options.debug_plan
+        && let Some(graph) = &graph
+    {
+        println!("=== plan ===");
+        print!("{}", yuzu_plan::dump(graph, &interner));
+    }
+    let plan = graph.as_ref().and_then(|graph| {
+        emit_plan(
+            graph,
+            &reduced,
+            &anf,
+            &types,
+            &interner,
+            &anf_source_map,
+            &mut diagnostics,
+            source_id,
+        )
+    });
     if has_errors(&diagnostics) {
         return Err(render_diagnostics(&diagnostics, &sources));
     }
@@ -200,6 +237,53 @@ pub fn compile_to_substrait(
     }
 
     Ok(yuzu_substrait::to_protobuf(&plan))
+}
+
+/// Converts the reduced program's query into the plan graph — `None` if there
+/// is no query, or if it contains something a plan cannot express.
+#[allow(clippy::too_many_arguments)]
+fn build_plan(
+    reduced: &yuzu_anf::Root,
+    anf: &AnfCtx,
+    types: &mut TypeCtx,
+    interner: &StringInterner,
+    anf_source_map: &yuzu_anf::AnfSourceMap,
+    diagnostics: &mut DiagnosticsEngine,
+    source_id: yuzu_diagnostics::source_map::SourceId,
+) -> Option<yuzu_plan::RelGraph> {
+    let (query, query_stmt) = yuzu_anf::find_query(reduced, anf)?;
+    let mut converter = yuzu_plan::AnfToRelGraphConverter::new(
+        anf,
+        types,
+        interner,
+        anf_source_map,
+        diagnostics,
+        source_id,
+        query_stmt,
+    );
+    converter.convert(query)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_plan(
+    graph: &yuzu_plan::RelGraph,
+    reduced: &yuzu_anf::Root,
+    anf: &AnfCtx,
+    types: &TypeCtx,
+    interner: &StringInterner,
+    anf_source_map: &yuzu_anf::AnfSourceMap,
+    diagnostics: &mut DiagnosticsEngine,
+    source_id: yuzu_diagnostics::source_map::SourceId,
+) -> Option<yuzu_substrait::Plan> {
+    let (_, query_stmt) = yuzu_anf::find_query(reduced, anf)?;
+    let query_span = yuzu_diagnostics::diagnostics::Span {
+        source_id,
+        range: anf_source_map
+            .stmt(query_stmt)
+            .expect("the query is in the source map")
+            .text_range(),
+    };
+    yuzu_substrait::emit(graph, types, interner, diagnostics, query_span)
 }
 
 fn render_diagnostics(diagnostics: &DiagnosticsEngine, sources: &SourceMap) -> String {

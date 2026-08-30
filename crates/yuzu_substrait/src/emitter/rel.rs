@@ -11,64 +11,51 @@ use substrait::proto::{
     rel_common::{Emit, EmitKind},
     r#type,
 };
-use yuzu_anf::{
-    Atom, Const, Ident, JoinCondition, JoinKind, Rel as AnfRel, RelId, SelectItem, SetItem, Thunk,
-};
 use yuzu_core::adt::SymbolId;
+use yuzu_plan::{JoinCondition, JoinKey, JoinKind, Rel as PlanRel, RelId, SelectItem, SetItem};
 use yuzu_types::TypeId;
 
 use crate::emitter::expr::{literal, selection};
 use crate::emitter::extensions::{BOOLEAN_URN, COMPARISON_URN};
-use crate::emitter::types::nullable;
-use crate::emitter::{SubstraitEmitter, Unsupported};
+use crate::emitter::types::{emit_type, nullable, row_columns, type_code};
+use crate::emitter::{GraphEmitter, Unsupported};
 
-impl SubstraitEmitter<'_> {
+impl GraphEmitter<'_> {
     pub(crate) fn emit_rel(&mut self, id: RelId) -> Result<Rel, Unsupported> {
-        let anf = self.anf;
-        let rel_type = match anf.rel(id) {
-            AnfRel::From { relation, ty, .. } => self.emit_from(*relation, *ty),
-            AnfRel::Join {
-                left,
-                right,
-                kind,
-                condition,
-                ty,
-            } => self.emit_join(*left, *right, *kind, condition, *ty)?,
-            AnfRel::Select { input, items, .. } => self.emit_select(*input, items)?,
-            AnfRel::Where {
-                input, predicate, ..
-            } => self.emit_where(*input, predicate)?,
-            AnfRel::Distinct { input, ty } => self.emit_distinct(*input, *ty)?,
-            AnfRel::Drop { input, columns, .. } => self.emit_drop(*input, columns)?,
+        let inputs = self.graph.inputs(id);
+        let rel_type = match self.graph.plan().rel(id).clone() {
+            PlanRel::From { relation, ty, .. } => self.emit_from(relation, ty),
+            PlanRel::Join {
+                kind, condition, ..
+            } => self.emit_join(inputs[0], inputs[1], kind, condition)?,
+            PlanRel::Select { items, .. } => self.emit_select(inputs[0], &items)?,
+            PlanRel::Where { predicate, .. } => self.emit_where(inputs[0], predicate)?,
+            PlanRel::Distinct { ty, .. } => self.emit_distinct(inputs[0], ty)?,
+            PlanRel::Drop { columns, .. } => self.emit_drop(inputs[0], &columns)?,
             // Rename is positionally a no-op: the new names live in the output
             // row type and surface as the plan's output names.
-            AnfRel::Rename { input, .. } => return self.emit_rel(*input),
-            AnfRel::Extend { input, items, .. } => self.emit_extend(*input, items)?,
-            AnfRel::Set { input, items, .. } => self.emit_set(*input, items)?,
-            AnfRel::Limit {
-                input,
-                count,
-                offset,
-                ..
-            } => self.emit_limit(*input, count, offset.as_ref())?,
+            PlanRel::Rename { .. } => return self.emit_rel(inputs[0]),
+            PlanRel::Extend { items, .. } => self.emit_extend(inputs[0], &items)?,
+            PlanRel::Set { items, .. } => self.emit_set(inputs[0], &items)?,
+            PlanRel::Limit { count, offset, .. } => self.emit_limit(inputs[0], count, offset)?,
             // `as` renames the row, which lives in the type; the plan is its
             // input unchanged.
-            AnfRel::Alias { input, .. } => return self.emit_rel(*input),
+            PlanRel::Alias { .. } => return self.emit_rel(inputs[0]),
         };
         Ok(Rel {
             rel_type: Some(rel_type),
         })
     }
 
-    fn emit_from(&mut self, relation: Ident, ty: TypeId) -> RelType {
-        let fields = self.row_columns(ty);
+    fn emit_from(&mut self, relation: SymbolId, ty: TypeId) -> RelType {
+        let fields = row_columns(self.types, ty);
         let names = fields
             .iter()
             .map(|column| self.interner.text(column.name).to_string())
             .collect();
         let types = fields
             .iter()
-            .map(|column| self.emit_type(column.ty))
+            .map(|column| emit_type(self.types, column.ty))
             .collect();
         RelType::Read(Box::new(ReadRel {
             base_schema: Some(NamedStruct {
@@ -80,7 +67,7 @@ impl SubstraitEmitter<'_> {
                 }),
             }),
             read_type: Some(ReadType::NamedTable(NamedTable {
-                names: vec![self.interner.text(relation.name).to_string()],
+                names: vec![self.interner.text(relation).to_string()],
                 ..Default::default()
             })),
             ..Default::default()
@@ -92,33 +79,24 @@ impl SubstraitEmitter<'_> {
         left: RelId,
         right: RelId,
         kind: JoinKind,
-        condition: &JoinCondition,
-        ty: TypeId,
+        condition: Option<JoinCondition>,
     ) -> Result<RelType, Unsupported> {
-        let left_ty = self.rel_ty(left);
-        let right_ty = self.rel_ty(right);
-        let left_width = self.row_columns(left_ty).len() as i32;
+        let left_ty = self.graph.plan().rel(left).ty();
+        let left_width = row_columns(self.types, left_ty).len() as i32;
 
         let left_rel = self.emit_rel(left)?;
         let right_rel = self.emit_rel(right)?;
 
-        let (expression, common) = match condition {
-            JoinCondition::On(thunk) => {
-                // An `on` join emits the concatenation, so its own row is what
-                // the condition indexes.
-                self.row = ty;
-                (self.emit_thunk(thunk)?, None)
-            }
+        let expression = match condition {
+            // An `on` condition indexes the concatenated row already.
+            Some(JoinCondition::On(predicate)) => self.emit_expr(predicate)?,
             // `using` only constrains the rows; both sides' columns carry
             // through, so the join emits its inputs concatenated.
-            JoinCondition::Using(columns) => (
-                self.emit_using(left_ty, right_ty, left_width, columns),
-                None,
-            ),
+            Some(JoinCondition::Using(keys)) => self.emit_using(left_ty, left_width, &keys),
+            None => unreachable!("no source produces a cross join yet"),
         };
 
         Ok(RelType::Join(Box::new(JoinRel {
-            common,
             left: Some(Box::new(left_rel)),
             right: Some(Box::new(right_rel)),
             expression: Some(Box::new(expression)),
@@ -127,16 +105,10 @@ impl SubstraitEmitter<'_> {
         })))
     }
 
-    fn emit_using(
-        &mut self,
-        left_ty: TypeId,
-        right_ty: TypeId,
-        left_width: i32,
-        columns: &[Ident],
-    ) -> Expression {
+    fn emit_using(&mut self, left_ty: TypeId, left_width: i32, keys: &[JoinKey]) -> Expression {
         let mut condition: Option<Expression> = None;
-        for column in columns {
-            let equality = self.emit_using_equality(left_ty, right_ty, left_width, *column);
+        for key in keys {
+            let equality = self.emit_using_equality(left_ty, left_width, *key);
             condition = Some(match condition {
                 Some(left) => self.emit_and(left, equality),
                 None => equality,
@@ -148,18 +120,23 @@ impl SubstraitEmitter<'_> {
     fn emit_using_equality(
         &mut self,
         left_ty: TypeId,
-        right_ty: TypeId,
         left_width: i32,
-        column: Ident,
+        key: JoinKey,
     ) -> Expression {
-        let left_index = self.field_index(left_ty, column.name);
-        let right_index = left_width + self.field_index(right_ty, column.name);
-
-        let code = self.type_code(self.field_ty(left_ty, column.name));
+        let code = type_code(
+            self.types,
+            row_columns(self.types, left_ty)[key.left as usize].ty,
+        );
         let anchor = self
             .extensions
             .register(COMPARISON_URN, format!("equal:{code}_{code}"));
-        self.emit_bool_function(anchor, vec![selection(left_index), selection(right_index)])
+        self.emit_bool_function(
+            anchor,
+            vec![
+                selection(key.left as i32),
+                selection(left_width + key.right as i32),
+            ],
+        )
     }
 
     fn emit_and(&mut self, left: Expression, right: Expression) -> Expression {
@@ -170,11 +147,10 @@ impl SubstraitEmitter<'_> {
     }
 
     fn emit_bool_function(&mut self, anchor: u32, arguments: Vec<Expression>) -> Expression {
-        let bool_ty = self.emit_type(self.types.bool_ty());
         Expression {
             rex_type: Some(RexType::ScalarFunction(ScalarFunction {
                 function_reference: anchor,
-                output_type: Some(bool_ty),
+                output_type: Some(emit_type(self.types, self.types.bool_ty())),
                 arguments: arguments
                     .into_iter()
                     .map(|value| FunctionArgument {
@@ -186,34 +162,26 @@ impl SubstraitEmitter<'_> {
         }
     }
 
-    fn field_ty(&self, rel_ty: TypeId, name: SymbolId) -> TypeId {
-        self.row_columns(rel_ty)
-            .iter()
-            .find(|column| column.name == name)
-            .map(|column| column.ty)
-            .expect("a `using` column is in both rows")
-    }
-
     fn emit_select(&mut self, input: RelId, items: &[SelectItem]) -> Result<RelType, Unsupported> {
-        let input_ty = self.rel_ty(input);
-        let input_columns = self.row_columns(input_ty).len() as i32;
+        let input_columns = self.width(input);
         let input = self.emit_rel(input)?;
-        self.row = input_ty;
         let expressions = self.emit_select_items(items)?;
         let output_mapping = (input_columns..input_columns + expressions.len() as i32).collect();
         Ok(RelType::Project(Box::new(ProjectRel {
-            common: Self::emit_common(output_mapping),
+            common: emit_common(output_mapping),
             input: Some(Box::new(input)),
             expressions,
             ..Default::default()
         })))
     }
 
-    fn emit_where(&mut self, input: RelId, predicate: &Thunk) -> Result<RelType, Unsupported> {
-        let input_ty = self.rel_ty(input);
+    fn emit_where(
+        &mut self,
+        input: RelId,
+        predicate: yuzu_plan::ExprId,
+    ) -> Result<RelType, Unsupported> {
         let input = self.emit_rel(input)?;
-        self.row = input_ty;
-        let condition = self.emit_thunk(predicate)?;
+        let condition = self.emit_expr(predicate)?;
         Ok(RelType::Filter(Box::new(FilterRel {
             input: Some(Box::new(input)),
             condition: Some(Box::new(condition)),
@@ -222,7 +190,7 @@ impl SubstraitEmitter<'_> {
     }
 
     fn emit_distinct(&mut self, input: RelId, ty: TypeId) -> Result<RelType, Unsupported> {
-        let columns = self.row_columns(ty).len() as i32;
+        let columns = row_columns(self.types, ty).len() as i32;
         let input = self.emit_rel(input)?;
         Ok(RelType::Aggregate(Box::new(AggregateRel {
             input: Some(Box::new(input)),
@@ -236,17 +204,13 @@ impl SubstraitEmitter<'_> {
         })))
     }
 
-    fn emit_drop(&mut self, input: RelId, columns: &[Ident]) -> Result<RelType, Unsupported> {
-        let output_mapping = self
-            .row_columns(self.rel_ty(input))
-            .iter()
-            .enumerate()
-            .filter(|(_, field)| !columns.iter().any(|column| column.name == field.name))
-            .map(|(index, _)| index as i32)
+    fn emit_drop(&mut self, input: RelId, columns: &[u32]) -> Result<RelType, Unsupported> {
+        let output_mapping = (0..self.width(input))
+            .filter(|index| !columns.contains(&(*index as u32)))
             .collect();
         let input = self.emit_rel(input)?;
         Ok(RelType::Project(Box::new(ProjectRel {
-            common: Self::emit_common(output_mapping),
+            common: emit_common(output_mapping),
             input: Some(Box::new(input)),
             expressions: Vec::new(),
             ..Default::default()
@@ -254,16 +218,14 @@ impl SubstraitEmitter<'_> {
     }
 
     fn emit_extend(&mut self, input: RelId, items: &[SelectItem]) -> Result<RelType, Unsupported> {
-        let input_ty = self.rel_ty(input);
-        let input_columns = self.row_columns(input_ty).len() as i32;
+        let input_columns = self.width(input);
         let input = self.emit_rel(input)?;
-        self.row = input_ty;
         let expressions = self.emit_select_items(items)?;
         let output_mapping = (0..input_columns)
             .chain(input_columns..input_columns + expressions.len() as i32)
             .collect();
         Ok(RelType::Project(Box::new(ProjectRel {
-            common: Self::emit_common(output_mapping),
+            common: emit_common(output_mapping),
             input: Some(Box::new(input)),
             expressions,
             ..Default::default()
@@ -273,25 +235,18 @@ impl SubstraitEmitter<'_> {
     /// `set` keeps the row's shape: every column is emitted, with the ones it
     /// names taking a computed expression in place of the original.
     fn emit_set(&mut self, input: RelId, items: &[SetItem]) -> Result<RelType, Unsupported> {
-        let input_ty = self.rel_ty(input);
-        let width = self.row_columns(input_ty).len() as i32;
-        let replaced: Vec<i32> = items
-            .iter()
-            .map(|item| self.field_index(input_ty, item.column.name))
-            .collect();
-
+        let width = self.width(input);
         let input = self.emit_rel(input)?;
-        self.row = input_ty;
         let expressions = items
             .iter()
-            .map(|item| self.emit_thunk(&item.value))
+            .map(|item| self.emit_expr(item.value))
             .collect::<Result<Vec<_>, _>>()?;
 
         // A replacement lands past the input's columns, so the mapping picks it
         // up where the original stood.
         let output_mapping = (0..width)
             .map(
-                |column| match replaced.iter().position(|&set| set == column) {
+                |column| match items.iter().position(|item| item.column == column as u32) {
                     Some(item) => width + item as i32,
                     None => column,
                 },
@@ -299,7 +254,7 @@ impl SubstraitEmitter<'_> {
             .collect();
 
         Ok(RelType::Project(Box::new(ProjectRel {
-            common: Self::emit_common(output_mapping),
+            common: emit_common(output_mapping),
             input: Some(Box::new(input)),
             expressions,
             ..Default::default()
@@ -309,67 +264,36 @@ impl SubstraitEmitter<'_> {
     fn emit_limit(
         &mut self,
         input: RelId,
-        count: &Thunk,
-        offset: Option<&Thunk>,
+        count: u64,
+        offset: Option<u64>,
     ) -> Result<RelType, Unsupported> {
-        let count = self.row_count(count)?;
-        let offset = match offset {
-            Some(offset) => self.row_count(offset)?,
-            None => 0,
-        };
-
         let input = self.emit_rel(input)?;
         Ok(RelType::Fetch(Box::new(FetchRel {
             input: Some(Box::new(input)),
             offset_mode: Some(OffsetMode::OffsetExpr(Box::new(literal(LiteralType::I64(
-                offset,
+                offset.unwrap_or(0) as i64,
             ))))),
             count_mode: Some(CountMode::CountExpr(Box::new(literal(LiteralType::I64(
-                count,
+                count as i64,
             ))))),
             ..Default::default()
         })))
     }
 
-    /// A plan carries a number, so the count has to have reduced to one.
-    fn row_count(&mut self, thunk: &Thunk) -> Result<i64, Unsupported> {
-        match *self.anf.atom(thunk.value) {
-            Atom::Const(Const::Int { value }) => Ok(value.as_i64()),
-            _ => Err(self.unsupported_query(
-                "`limit` needs a row count that is known at compile time".to_string(),
-            )),
-        }
-    }
-
-    fn emit_common(output_mapping: Vec<i32>) -> Option<RelCommon> {
-        Some(RelCommon {
-            emit_kind: Some(EmitKind::Emit(Emit { output_mapping })),
-            ..Default::default()
-        })
-    }
-
     fn emit_select_items(&mut self, items: &[SelectItem]) -> Result<Vec<Expression>, Unsupported> {
-        items
-            .iter()
-            .map(|item| self.emit_thunk(&item.body))
-            .collect()
+        items.iter().map(|item| self.emit_expr(item.body)).collect()
     }
 
-    pub(crate) fn rel_ty(&self, id: RelId) -> TypeId {
-        match self.anf.rel(id) {
-            AnfRel::From { ty, .. }
-            | AnfRel::Join { ty, .. }
-            | AnfRel::Select { ty, .. }
-            | AnfRel::Where { ty, .. }
-            | AnfRel::Distinct { ty, .. }
-            | AnfRel::Drop { ty, .. }
-            | AnfRel::Rename { ty, .. }
-            | AnfRel::Extend { ty, .. }
-            | AnfRel::Set { ty, .. }
-            | AnfRel::Limit { ty, .. }
-            | AnfRel::Alias { ty, .. } => *ty,
-        }
+    fn width(&self, input: RelId) -> i32 {
+        row_columns(self.types, self.graph.plan().rel(input).ty()).len() as i32
     }
+}
+
+fn emit_common(output_mapping: Vec<i32>) -> Option<RelCommon> {
+    Some(RelCommon {
+        emit_kind: Some(EmitKind::Emit(Emit { output_mapping })),
+        ..Default::default()
+    })
 }
 
 fn join_type(kind: JoinKind) -> JoinType {
@@ -378,6 +302,7 @@ fn join_type(kind: JoinKind) -> JoinType {
         JoinKind::Left => JoinType::Left,
         JoinKind::Right => JoinType::Right,
         JoinKind::Full => JoinType::Outer,
+        JoinKind::Cross => unreachable!("no source produces a cross join yet"),
     }
 }
 

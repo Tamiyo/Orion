@@ -1840,6 +1840,7 @@ dependencies = [
  "yuzu_hir",
  "yuzu_lexer",
  "yuzu_parser",
+ "yuzu_plan",
  "yuzu_substrait",
  "yuzu_types",
 ]
@@ -1921,6 +1922,7 @@ dependencies = [
  "yuzu_hir",
  "yuzu_lexer",
  "yuzu_parser",
+ "yuzu_plan",
  "yuzu_types",
 ]
 

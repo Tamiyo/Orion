@@ -2,35 +2,35 @@ use substrait::proto::extensions::{
     SimpleExtensionDeclaration, SimpleExtensionUrn,
     simple_extension_declaration::{ExtensionFunction, MappingType},
 };
-use yuzu_anf::Op;
+use yuzu_plan::Func;
 
 // Substrait standard extensions (the function families DuckDB consumes).
 const ARITHMETIC_URN: &str = "extension:io.substrait:functions_arithmetic";
 pub(crate) const COMPARISON_URN: &str = "extension:io.substrait:functions_comparison";
 pub(crate) const BOOLEAN_URN: &str = "extension:io.substrait:functions_boolean";
 
-/// Map an ANF builtin operator to its Substrait extension function. Membership
-/// tests are handled separately (`SingularOrList`); an operator with no
-/// Substrait equivalent yet (e.g. `**`, unary `+`) returns none.
-pub(crate) fn function_target(op: Op) -> Option<(&'static str, &'static str)> {
-    let target = match op {
-        Op::Add => (ARITHMETIC_URN, "add"),
-        Op::Sub => (ARITHMETIC_URN, "subtract"),
-        Op::Mul => (ARITHMETIC_URN, "multiply"),
-        Op::Div => (ARITHMETIC_URN, "divide"),
-        Op::ShiftLeft => (ARITHMETIC_URN, "shift_left"),
-        Op::ShiftRight => (ARITHMETIC_URN, "shift_right"),
-        Op::UnaryNeg => (ARITHMETIC_URN, "negate"),
-        Op::Eq => (COMPARISON_URN, "equal"),
-        Op::Neq => (COMPARISON_URN, "not_equal"),
-        Op::Lt => (COMPARISON_URN, "lt"),
-        Op::Lte => (COMPARISON_URN, "lte"),
-        Op::Gt => (COMPARISON_URN, "gt"),
-        Op::Gte => (COMPARISON_URN, "gte"),
-        Op::And => (BOOLEAN_URN, "and"),
-        Op::Or => (BOOLEAN_URN, "or"),
-        Op::UnaryNot => (BOOLEAN_URN, "not"),
-        Op::Pow | Op::In | Op::NotIn | Op::UnaryPos => return None,
+/// Map a plan function to its Substrait extension function. Membership is
+/// handled separately (`SingularOrList`); a function with no Substrait
+/// equivalent yet (e.g. `**`) returns none.
+pub(crate) fn function_target(func: Func) -> Option<(&'static str, &'static str)> {
+    let target = match func {
+        Func::Add => (ARITHMETIC_URN, "add"),
+        Func::Subtract => (ARITHMETIC_URN, "subtract"),
+        Func::Multiply => (ARITHMETIC_URN, "multiply"),
+        Func::Divide => (ARITHMETIC_URN, "divide"),
+        Func::ShiftLeft => (ARITHMETIC_URN, "shift_left"),
+        Func::ShiftRight => (ARITHMETIC_URN, "shift_right"),
+        Func::Negate => (ARITHMETIC_URN, "negate"),
+        Func::Equal => (COMPARISON_URN, "equal"),
+        Func::NotEqual => (COMPARISON_URN, "not_equal"),
+        Func::Less => (COMPARISON_URN, "lt"),
+        Func::LessEqual => (COMPARISON_URN, "lte"),
+        Func::Greater => (COMPARISON_URN, "gt"),
+        Func::GreaterEqual => (COMPARISON_URN, "gte"),
+        Func::And => (BOOLEAN_URN, "and"),
+        Func::Or => (BOOLEAN_URN, "or"),
+        Func::Not => (BOOLEAN_URN, "not"),
+        Func::Power | Func::In => return None,
     };
     Some(target)
 }

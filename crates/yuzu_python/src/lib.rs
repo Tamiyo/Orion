@@ -65,6 +65,7 @@ impl From<&CompileOptions> for yuzu_driver::CompileOptions {
             debug_hir: options.debug_hir,
             debug_anf: options.debug_anf,
             debug_reduce: options.debug_reduce,
+            debug_plan: false,
             debug_substrait: options.debug_substrait,
         }
     }
